@@ -4,12 +4,10 @@ from yapsy.IPlugin import IPlugin
 from yapsy.PluginInfo import PluginInfo
 
 
-class IMUDSlingPlugin(IPlugin):
-    #: @ivar: Key/val pairs of options loaded from config for this plugin.
-    options = {}
-
-
 class IMUDSlingPluginInfo(PluginInfo):
+    """
+    Class used with yapsy to describe plugins.
+    """
 
     #: @cvar: The extension used by MUDSling plugin info files.
     PLUGIN_INFO_EXTENSION = "plugin-info"
@@ -24,7 +22,21 @@ class IMUDSlingPluginInfo(PluginInfo):
         self.machine_name = os.path.basename(filename)[:-ext_len]
 
 
+class IMUDSlingPlugin(IPlugin):
+    """
+    Base plugin class.
+    """
+
+    #: @ivar: Key/val pairs of options loaded from config for this plugin.
+    options = {}
+
+
 class ITwistedServicePlugin(IMUDSlingPlugin):
+    """
+    A plugin which provides a twisted service object which will be parented to
+    the main application.
+    """
+
     def get_service(self):
         """
         Return a Twisted service object which will be registered to the parent

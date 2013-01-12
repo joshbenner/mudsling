@@ -1,3 +1,8 @@
+"""
+Main game server. Loads configuration and plugins, starts services, and
+provides the main Twisted applicaiton object.
+"""
+
 import sys
 import ConfigParser
 import logging
@@ -27,9 +32,9 @@ class MUDSling(object):
     #: @type: IServiceCollection
     services = None
 
-    def __init__(self, game_dir="game"):
-        application = Application("MUDSling Game Server")
-        self.services = IServiceCollection(application)
+    def __init__(self, game_dir="game", app=None):
+        # Populated by service.setServiceParent().
+        self.services = IServiceCollection(app)
 
         self.game_dir = game_dir
 
@@ -44,10 +49,15 @@ class MUDSling(object):
         for info in self.plugins.active_plugins("TwistedService"):
             service = info.plugin_object.get_service()
             if isinstance(service, Service):
-                service.setServiceParent(application)
+                service.setServiceParent(app)
 
     def config_paths(self):
         """
         Get a list of paths to files where configuration might be found.
         """
         return ["mudsling/defaults.cfg", "%s/settings.cfg" % self.game_dir]
+
+# Setup the twisted application and startup the MUDSling server. Twistd needs
+# to find a module-level global variable named 'application' to work.
+application = Application("MUDSling Game Server")
+MUDSling(app=application)

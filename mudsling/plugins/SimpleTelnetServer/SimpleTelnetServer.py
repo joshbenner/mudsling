@@ -1,9 +1,9 @@
 from twisted.conch.telnet import StatefulTelnetProtocol
-from twisted.conch.telnet import TelnetTransport
 from twisted.internet.protocol import ServerFactory
 from twisted.application import internet
 
 from mudsling.config.plugins import ITwistedServicePlugin
+from mudsling.net.sessions import Session
 
 
 class SimpleTelnetServer(ITwistedServicePlugin):
@@ -23,6 +23,21 @@ class SimpleTelnetServer(ITwistedServicePlugin):
         return service
 
 
-class SimpleTelnetProtocol(StatefulTelnetProtocol):
+class SimpleTelnetProtocol(StatefulTelnetProtocol, Session):
+    def connectionMade(self):
+        self.init_session()
+
     def lineReceived(self, line):
-        print "Received %s" % line
+        """
+        LineReceiver (part of StatefulTelnetProtocol) calls this when a line of
+        input is received from the client. We let the Session side of things
+        handle this.
+        """
+        self.receive_input(line)
+
+    def _send_line(self, line):
+        """
+        Overrides Session._send_line() so we can forward the line via the
+        protocol.
+        """
+        self.sendLine(line)
