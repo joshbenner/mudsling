@@ -1,0 +1,8 @@
+[Core]
+Name = Simple Telnet Server
+Module = SimpleTelnetServer
+
+[Documentation]
+Author = Josh Benner
+Version = 0.1
+Description = Simple internal Telnet server which provides a way to connect.
