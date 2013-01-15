@@ -4,16 +4,21 @@ provides the main Twisted applicaiton object.
 """
 
 import sys
+from os import path
+
+# Prefer libs we ship with.
+sys.path.insert(1, path.join(path.dirname(path.realpath(__file__)), "lib"))
+
 import ConfigParser
 import logging
 
 # Alias configparser -> ConfigParser for yapsy (Python 3 naming)
+from mudsling.plugins import PluginManager
+
 sys.modules['configparser'] = sys.modules['ConfigParser']
 
 from twisted.application.service import Application, Service
 from twisted.application.service import IServiceCollection
-
-from mudsling.config.PluginManager import PluginManager
 
 logging.basicConfig(level=logging.DEBUG)
 

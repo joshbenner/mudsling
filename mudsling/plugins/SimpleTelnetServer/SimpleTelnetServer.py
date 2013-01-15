@@ -2,11 +2,11 @@ from twisted.conch.telnet import StatefulTelnetProtocol
 from twisted.internet.protocol import ServerFactory
 from twisted.application import internet
 
-from mudsling.config.plugins import ITwistedServicePlugin
-from mudsling.net.sessions import Session
+from mudsling.plugins import TwistedServicePlugin
+from mudsling.sessions import Session
 
 
-class SimpleTelnetServer(ITwistedServicePlugin):
+class SimpleTelnetServer(TwistedServicePlugin):
 
     port = 4000
 
@@ -17,15 +17,23 @@ class SimpleTelnetServer(ITwistedServicePlugin):
 
     def get_service(self):
         factory = ServerFactory()
-        factory.protocol = SimpleTelnetProtocol
+        factory.protocol = SimpleTelnetSession
         service = internet.TCPServer(self.port, factory)
         service.setName("SimpleTelnetServer")
         return service
 
 
-class SimpleTelnetProtocol(StatefulTelnetProtocol, Session):
+class SimpleTelnetSession(StatefulTelnetProtocol, Session):
+
+    #: @ivar: Will be set by factory when Session instance is spawned.
+    #: @type: ServerFactory
+    factory = None
+
     def connectionMade(self):
         self.init_session()
+
+    def connectionLost(self, reason):
+        self.close_session()
 
     def lineReceived(self, line):
         """

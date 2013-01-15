@@ -1,8 +1,49 @@
 import os
+
+from yapsy.IPlugin import IPlugin
+from yapsy.PluginInfo import PluginInfo
 import yapsy.PluginManager
 
-from .plugins import ITwistedServicePlugin, IMUDSlingPluginInfo
-from .plugins import IMUDSlingPlugin
+
+class MUDSlingPluginInfo(PluginInfo):
+    """
+    Class used with yapsy to describe plugins.
+    """
+
+    #: @cvar: The extension used by MUDSling plugin info files.
+    PLUGIN_INFO_EXTENSION = "plugin-info"
+
+    #: @ivar: Machine-readable name of the plugin.
+    #: @type: str
+    machine_name = None
+
+    def __init__(self, plugin_name, plugin_path, filename=""):
+        super(MUDSlingPluginInfo, self).__init__(plugin_name, plugin_path)
+        ext_len = len(self.PLUGIN_INFO_EXTENSION) + 1
+        self.machine_name = os.path.basename(filename)[:-ext_len]
+
+
+class MUDSlingPlugin(IPlugin):
+    """
+    Base plugin class.
+    """
+
+    #: @ivar: Key/val pairs of options loaded from config for this plugin.
+    options = {}
+
+
+class TwistedServicePlugin(MUDSlingPlugin):
+    """
+    A plugin which provides a twisted service object which will be parented to
+    the main application.
+    """
+
+    def get_service(self):
+        """
+        Return a Twisted service object which will be registered to the parent
+        application.
+        """
+        return None
 
 
 class PluginManager(yapsy.PluginManager.PluginManager):
@@ -15,7 +56,7 @@ class PluginManager(yapsy.PluginManager.PluginManager):
 
     #: @cvar: Plugin category mappings.
     PLUGIN_CATEGORIES = {
-        "TwistedService": ITwistedServicePlugin
+        "TwistedService": TwistedServicePlugin
     }
 
     def __init__(self, game_dir, config):
@@ -27,11 +68,11 @@ class PluginManager(yapsy.PluginManager.PluginManager):
         @type config: ConfigParser.SafeConfigParser
         """
         super(PluginManager, self).__init__(
-            plugin_info_ext=IMUDSlingPluginInfo.PLUGIN_INFO_EXTENSION,
+            plugin_info_ext=MUDSlingPluginInfo.PLUGIN_INFO_EXTENSION,
             directories_list=self.plugin_paths(game_dir),
             categories_filter=self.PLUGIN_CATEGORIES
         )
-        self.setPluginInfoClass(IMUDSlingPluginInfo)
+        self.setPluginInfoClass(MUDSlingPluginInfo)
 
         # Locate all candidate plugins. Parses info files.
         self.locatePlugins()
@@ -48,7 +89,7 @@ class PluginManager(yapsy.PluginManager.PluginManager):
         # Filter candidates to only those enabled in config.
         new_candidates = []
         for infofile, path, info in self._candidates:
-            if isinstance(info, IMUDSlingPluginInfo):
+            if isinstance(info, MUDSlingPluginInfo):
                 if info.machine_name.lower() in enabled_in_config:
                     new_candidates.append((infofile, path, info))
         self._candidates = new_candidates
@@ -59,7 +100,7 @@ class PluginManager(yapsy.PluginManager.PluginManager):
         # Activate all loaded plugins.
         for info in self.getAllPlugins():
             # Load config-based options if Plugin supports them.
-            if isinstance(info.plugin_object, IMUDSlingPlugin):
+            if isinstance(info.plugin_object, MUDSlingPlugin):
                 plugin_section = "Plugin:%s" % info.machine_name
                 if config.has_section(plugin_section):
                     info.plugin_object.options = config.items(plugin_section)

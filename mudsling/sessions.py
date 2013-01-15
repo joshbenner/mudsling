@@ -13,6 +13,9 @@ class Session(object):
     def init_session(self):
         self.time_connected = time.time()
 
+    def close_session(self):
+        pass
+
     def receive_input(self, line):
         self.send_output("%s received: %s" % (self, line))
 
@@ -27,3 +30,30 @@ class Session(object):
         """
         Children should override!
         """
+
+
+class SessionHandler(object):
+    """
+    Tracks all sessions connected to the game.
+
+    @ivar sessions: Set of all active sessions.
+    @type sessions: set
+    """
+
+    sessions = set()
+
+    def connect_session(self, session):
+        """
+        Attach a new session to the handler.
+
+        @type session: Session
+        """
+        self.sessions.add(session)
+
+    def disconnect_session(self, session):
+        """
+        Detatch a session from the handler.
+
+        @type session: Session
+        """
+        self.sessions.remove(session)
