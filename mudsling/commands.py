@@ -1,6 +1,5 @@
 
 
-
 class CommandProvider(object):
     """
     Objects that provide commands should have this class as a parent. Provides
@@ -36,4 +35,3 @@ class CommandProvider(object):
         @param refresh: If true, rebuilds command set cache for object.
         @return: set
         """
-

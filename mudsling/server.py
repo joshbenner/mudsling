@@ -4,21 +4,21 @@ provides the main Twisted applicaiton object.
 """
 
 import sys
-from os import path
+#from os import path
 
 # Prefer libs we ship with.
-sys.path.insert(1, path.join(path.dirname(path.realpath(__file__)), "lib"))
+#sys.path.insert(1, path.join(path.dirname(path.realpath(__file__)), "lib"))
 
 import ConfigParser
 import logging
 
 # Alias configparser -> ConfigParser for yapsy (Python 3 naming)
-from mudsling.plugins import PluginManager
-
 sys.modules['configparser'] = sys.modules['ConfigParser']
 
 from twisted.application.service import Application, Service
 from twisted.application.service import IServiceCollection
+
+from mudsling.plugins import PluginManager
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -36,6 +36,9 @@ class MUDSling(object):
 
     #: @type: IServiceCollection
     services = None
+
+    #: @type: mudsling.storage.Database
+    db = None
 
     def __init__(self, game_dir="game", app=None):
         # Populated by service.setServiceParent().
@@ -65,4 +68,9 @@ class MUDSling(object):
 # Setup the twisted application and startup the MUDSling server. Twistd needs
 # to find a module-level global variable named 'application' to work.
 application = Application("MUDSling Game Server")
-MUDSling(app=application)
+
+# Instantiating the MUDSling class starts up the game and its various services.
+# This is also the means to reference the game, the database, config...
+# everything. To use, do:
+#   from mudsling.server import game
+game = MUDSling(app=application)
