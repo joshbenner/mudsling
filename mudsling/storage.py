@@ -41,12 +41,13 @@ class Persistent(object):
 
 class GameObject(Persistent):
     """
-    Base class for all game-world objects.
+    Base class for all game-world objects. This class has no location and no
+    contents.
 
     @ivar id: The unique object ID for this object in the game.
     @type id: int
 
-    @ivar name: The primary name of the object.
+    @ivar name: The primary name of the object. Use name property.
     @type name: str
 
     @ivar aliases: A set of alternate names of the object, used for matching.
@@ -54,7 +55,7 @@ class GameObject(Persistent):
     """
 
     id = None
-    name = ""
+    _name = ""
     aliases = set()
 
     def __init__(self):
@@ -66,6 +67,16 @@ class GameObject(Persistent):
         database, which could suggest using objectCreated() instead.
         """
         pass
+
+    def name(self):
+        return self._name
+
+    def setName(self, name):
+        self.aliases.remove(self._name)
+        self._name = name
+        self.aliases.add(name)
+
+    name = property(name, setName)
 
     def objectCreated(self):
         """

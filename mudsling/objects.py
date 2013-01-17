@@ -1,6 +1,7 @@
 from mudsling.storage import GameObject
 from mudsling.server import game
 from mudsling.errors import InvalidObject
+from mudsling.misc import Password
 
 
 class PhysicalObject(GameObject):
@@ -13,12 +14,21 @@ class PhysicalObject(GameObject):
 
     @ivar contents: The set of objects contained by this object.
     @type contents: set
+
+    @ivar desc: The description of the object.
+    @type desc: str
     """
 
     #: @type: PhysicalObject
     location = None
-
     contents = set()
+    desc = ""
+
+    def getDescription(self):
+        """
+        Allows objects to embellish/calculate/cache the effective description.
+        """
+        return self.desc
 
     def contentRemoved(self, what, destination):
         """
@@ -90,3 +100,31 @@ class PhysicalObject(GameObject):
             dest.contentAdded(self, previous_location)
 
         self.objectMoved(previous_location, dest)
+
+
+class Player(GameObject):
+    """
+    Base player class.
+
+    Players are essentially 'accounts' that are connected to sessions. They can
+    then possess other objects (usually Characters).
+
+    @ivar password: The hash of the password used to login to this player.
+    @ivar email: The player's email address.
+    @ivar session: The session object connected to this player.
+    """
+
+    _transientVars = ['session']
+    session = None
+
+    #: @type: Password
+    password = None
+
+    #: @type: str
+    email = ""
+
+    def __init__(self, name, password, email):
+        super(Player, self).__init__()
+        self.name = name
+        self.password = Password(password)
+        self.email = email
