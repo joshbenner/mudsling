@@ -1,0 +1,8 @@
+[Core]
+Name = Default Login Screen
+Module = DefaultLoginScreen
+
+[Documentation]
+Author = Josh Benner
+Version = 0.1
+Description = Basic login screen plugin.

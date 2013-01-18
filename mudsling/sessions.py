@@ -5,28 +5,50 @@ class Session(object):
     """
     Abstract class meant to be implemented by protocol classes representing a
     single client connection to the game.
+
+    @ivar time_connected: Time the session was opened.
+    @ivar player: The player object associated with this session.
+    @ivar line_delimiter: How line endings are indicated.
+    @ivar game: Reference to game object. Protocol must set this!
     """
 
-    #: @ivar: Time the Session was opened.
     time_connected = 0
 
-    def init_session(self):
+    #: @type: mudsling.objects.Player
+    player = None
+
+    line_delimiter = '\r\n'
+
+    #: @type: mudsling.server.MUDSling
+    game = None
+
+    def initSession(self):
         self.time_connected = time.time()
+        self.game.session_handler.connectSession(self)
 
-    def close_session(self):
-        pass
+    def closeSession(self):
+        self.game.session_handler.disconnectSession(self)
 
-    def receive_input(self, line):
-        self.send_output("%s received: %s" % (self, line))
+    def receiveInput(self, line):
+        if self.player is None:
+            self.game.login_screen.processInput(self, line)
 
-    def send_output(self, line):
-        if line.__class__ == list:
-            for l in line:
-                self.send_output(l)
+    def sendOutput(self, text):
+        """
+        Send output to the Session.
+
+        @param text: Text to send. Can be a list.
+        @type text: str
+        """
+        if text.__class__ == list:
+            for l in text:
+                self.sendOutput(l)
             return
-        self._send_line(line)
+        if not text.endswith(self.line_delimiter):
+            text += self.line_delimiter
+        self.rawSendOutput(text)
 
-    def _send_line(self, line):
+    def rawSendOutput(self, text):
         """
         Children should override!
         """
@@ -38,19 +60,27 @@ class SessionHandler(object):
 
     @ivar sessions: Set of all active sessions.
     @type sessions: set
+
+    @ivar game: Reference to the game
+    @type game: mudsling.server.MUDSling
     """
 
     sessions = set()
+    game = None
 
-    def connect_session(self, session):
+    def __init__(self, game):
+        self.game = game
+
+    def connectSession(self, session):
         """
         Attach a new session to the handler.
 
         @type session: Session
         """
         self.sessions.add(session)
+        self.game.login_screen.sessionConnected(session)
 
-    def disconnect_session(self, session):
+    def disconnectSession(self, session):
         """
         Detatch a session from the handler.
 

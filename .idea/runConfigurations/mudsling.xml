@@ -12,7 +12,9 @@
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/mudsling.py" />
     <option name="PARAMETERS" value="" />
+    <RunnerSettings RunnerId="PyDebugRunner" />
     <RunnerSettings RunnerId="Run" />
+    <ConfigurationWrapper RunnerId="PyDebugRunner" />
     <ConfigurationWrapper RunnerId="Run" />
     <method />
   </configuration>

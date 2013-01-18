@@ -4,10 +4,11 @@ services... everything.
 """
 
 import sys
-from os import path
+import os
 
 # Prefer libs we ship with.
-sys.path.insert(1, path.join(path.dirname(path.realpath(__file__)), "lib"))
+libpath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "lib")
+sys.path.insert(1, libpath)
 
 import ConfigParser
 import logging
@@ -19,6 +20,7 @@ from twisted.application.service import Service
 from twisted.application.service import IServiceCollection
 
 from mudsling.plugins import PluginManager
+from mudsling.sessions import SessionHandler
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -40,6 +42,12 @@ class MUDSling(object):
     #: @type: mudsling.storage.Database
     db = None
 
+    #: @type: SessionHandler
+    session_handler = None
+
+    #: @type: mudsling.plugins.LoginScreenPlugin
+    login_screen = None
+
     def __init__(self, game_dir="game", app=None):
         # Populated by service.setServiceParent().
         self.services = IServiceCollection(app)
@@ -48,21 +56,29 @@ class MUDSling(object):
 
         # Load configuration.
         self.config = ConfigParser.SafeConfigParser()
-        self.config.read(self.config_paths())
+        self.config.read(self.configPaths())
 
         # Load plugin manager. Locates, filters, and loads plugins.
-        self.plugins = PluginManager(game_dir, self.config)
+        self.plugins = PluginManager(self, game_dir)
+
+        # Setup session handler. Used by services.
+        self.session_handler = SessionHandler(self)
+
+        # Setup the plugin handling the login screen.
+        name = self.config.get('Main', 'login screen')
+        plugin = self.plugins.getPluginByMachineName(name, "LoginScreen")
+        if plugin is not None:
+            logging.debug("Using %s as LoginScreen" % name)
+            self.login_screen = plugin.plugin_object
 
         # Gather Twisted services and register them to our application.
-        for info in self.plugins.active_plugins("TwistedService"):
+        for info in self.plugins.activePlugins("TwistedService"):
             service = info.plugin_object.get_service()
             if isinstance(service, Service):
                 service.setServiceParent(app)
 
-    def config_paths(self):
+    def configPaths(self):
         """
         Get a list of paths to files where configuration might be found.
         """
         return ["mudsling/defaults.cfg", "%s/settings.cfg" % self.game_dir]
-
-

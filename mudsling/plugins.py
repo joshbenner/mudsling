@@ -26,10 +26,15 @@ class MUDSlingPluginInfo(PluginInfo):
 class MUDSlingPlugin(IPlugin):
     """
     Base plugin class.
+
+    @ivar options: Key/val pairs of options loaded from config for this plugin.
+    @ivar game: Reference to the game object.
     """
 
-    #: @ivar: Key/val pairs of options loaded from config for this plugin.
     options = {}
+
+    #: @type: mudsling.server.MUDSling
+    game = None
 
 
 class TwistedServicePlugin(MUDSlingPlugin):
@@ -46,6 +51,31 @@ class TwistedServicePlugin(MUDSlingPlugin):
         return None
 
 
+class LoginScreenPlugin(MUDSlingPlugin):
+    """
+    A plugin that provides the interface upon first connection and the method
+    of connecting a 'bare' session with an object.
+    """
+
+    def sessionConnected(self, session):
+        """
+        Called when a new session is connected.
+        @param session: The session that has connected.
+        @type session: mudsling.sessions.Session
+        """
+
+    def processInput(self, session, input):
+        """
+        Called when a command is entered by the session.
+
+        @param session: The session which sent the command
+        @type session: mudsling.sessions.Session
+
+        @param input: The string sent by the session.
+        @type input: str
+        """
+
+
 class PluginManager(yapsy.PluginManager.PluginManager):
 
     #: @cvar: Config section identifying enabled plugins.
@@ -56,20 +86,22 @@ class PluginManager(yapsy.PluginManager.PluginManager):
 
     #: @cvar: Plugin category mappings.
     PLUGIN_CATEGORIES = {
-        "TwistedService": TwistedServicePlugin
+        "TwistedService": TwistedServicePlugin,
+        "LoginScreen": LoginScreenPlugin
     }
 
-    def __init__(self, game_dir, config):
+    def __init__(self, game, game_dir):
         """
         Initialize plugin manager based on game directory and loaded config.
 
+        @param game: The MUDSling game object.
+        @type game: mudsling.server.MUDSling
+
         @param game_dir: Path to active game directory (which can have plugins)
-        @param config: Loaded configuration.
-        @type config: ConfigParser.SafeConfigParser
         """
         super(PluginManager, self).__init__(
             plugin_info_ext=MUDSlingPluginInfo.PLUGIN_INFO_EXTENSION,
-            directories_list=self.plugin_paths(game_dir),
+            directories_list=self.pluginPaths(game_dir),
             categories_filter=self.PLUGIN_CATEGORIES
         )
         self.setPluginInfoClass(MUDSlingPluginInfo)
@@ -81,9 +113,9 @@ class PluginManager(yapsy.PluginManager.PluginManager):
         enabled_in_config = []
         sec = self.PLUGIN_ENABLE_SECTION
         enabled = self.PLUGIN_ENABLE_VALUES
-        if config.has_section(sec):
-            for opt_name in config.options(sec):
-                if config.get(sec, opt_name).lower() in enabled:
+        if game.config.has_section(sec):
+            for opt_name in game.config.options(sec):
+                if game.config.get(sec, opt_name).lower() in enabled:
                     enabled_in_config.append(opt_name)
 
         # Filter candidates to only those enabled in config.
@@ -101,21 +133,36 @@ class PluginManager(yapsy.PluginManager.PluginManager):
         for info in self.getAllPlugins():
             # Load config-based options if Plugin supports them.
             if isinstance(info.plugin_object, MUDSlingPlugin):
-                plugin_section = "Plugin:%s" % info.machine_name
-                if config.has_section(plugin_section):
-                    info.plugin_object.options = config.items(plugin_section)
+                info.plugin_object.game = game
+                section = "Plugin:%s" % info.machine_name
+                if game.config.has_section(section):
+                    info.plugin_object.options = game.config.items(section)
             self.activatePluginByName(info.name, info.category)
 
-    def plugin_paths(self, game_dir):
+    def pluginPaths(self, game_dir):
         return ['mudsling/plugins', "%s/plugins" % game_dir]
 
-    def active_plugins(self, category=None):
+    def activePlugins(self, category=None):
         if category is None:
             all = self.getAllPlugins()
         else:
             all = self.getPluginsOfCategory(category)
 
         return [info for info in all if info.is_activated]
+
+    def getPluginByMachineName(self, name, category=None):
+        """
+        Retrieve an active plugin using its machine name.
+
+        @param name: The machine name of the plugin to retrieve.
+        @param category: Limit which plugins are searched by category.
+
+        @return: MUDSlingPlugin
+        """
+        for info in self.activePlugins(category):
+            if info.machine_name == name:
+                return info
+        return None
 
     # Override normal behavior so that we can generate machine name.
     def _gatherCorePluginInfo(self, directory, filename):

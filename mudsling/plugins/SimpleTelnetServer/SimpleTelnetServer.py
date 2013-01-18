@@ -18,6 +18,7 @@ class SimpleTelnetServer(TwistedServicePlugin):
     def get_service(self):
         factory = ServerFactory()
         factory.protocol = SimpleTelnetSession
+        factory.game = self.game
         service = internet.TCPServer(self.port, factory)
         service.setName("SimpleTelnetServer")
         return service
@@ -30,10 +31,13 @@ class SimpleTelnetSession(StatefulTelnetProtocol, Session):
     factory = None
 
     def connectionMade(self):
-        self.init_session()
+        self.game = self.factory.game
+        self.initSession()
+        if self.line_delimiter != self.delimiter:
+            self.line_delimiter = self.delimiter
 
     def connectionLost(self, reason):
-        self.close_session()
+        self.closeSession()
 
     def lineReceived(self, line):
         """
@@ -41,11 +45,11 @@ class SimpleTelnetSession(StatefulTelnetProtocol, Session):
         input is received from the client. We let the Session side of things
         handle this.
         """
-        self.receive_input(line)
+        self.receiveInput(line)
 
-    def _send_line(self, line):
+    def rawSendOutput(self, text):
         """
-        Overrides Session._send_line() so we can forward the line via the
+        Overrides Session.rawSendOutput() so we can forward the line via the
         protocol.
         """
-        self.sendLine(line)
+        self.transport.write(text)
