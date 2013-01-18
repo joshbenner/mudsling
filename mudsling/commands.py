@@ -32,6 +32,71 @@ class Command(object):
     aliases = ()
     args = (None, None, None)
 
+    def matchParsedInput(self, input):
+        """
+        Determines if this command is a match for the ParsedInput provided. The
+        generic version of this hook should be sufficient for most commands,
+        but it can be overridden for extra magic.
+
+        @param input: The ParsedInput to match against.
+        @type input: mudsling.parse.ParsedInput
+
+        @return: bool
+        """
+        dobjSpec, prepSpec, iobjSpec = self.args
+
+    def matchPrepSpec(self, prepSpec, input):
+        """
+        Check if the preposition spec matches the ParsedInput.
+
+        @param prepSpec: The prepSpec to compare against.
+        @param input: The ParsedInput to compare.
+        @type input: mudsling.parse.ParsedInput
+
+        @return: bool
+        """
+        if prepSpec == 'any' and input.prep is not None:
+            return True
+
+        if prepSpec is None:
+            return input.prep is None
+
+        # prepSpec is neither 'any' nor None, so it must be a string specifying
+        # the preoposition it wants. If the prepSpec is in the preposition set
+        # in the input, then we have a match.
+        return prepSpec in input.prep
+
+    def matchObjSpec(self, objSpec, objStr):
+        """
+        Matches an arguments objSpec against the string that was parsed for its
+        slot.
+
+        @param objSpec: The spec to match against.
+        @param objStr: The input string to match.
+
+        @return: bool
+        """
+        if objSpec == 'any':
+            return True
+
+        if objSpec is None:
+            return objStr == "" or objStr is None
+
+        # objSpec can be a class
+        #if isinstance(objSpec, type):
+
+
+    def parseArgstr(self, argstr):
+        """
+        Here a command can perform any isolated parsing of the input it wishes.
+        This hook is called before command execution.
+        """
+
+    def runCommand(self):
+        """
+        This is where the magic happens.
+        """
+
 
 class CommandProvider(object):
     """

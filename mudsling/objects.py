@@ -2,9 +2,50 @@ from mudsling.storage import GameObject
 from mudsling.server import game
 from mudsling.errors import InvalidObject
 from mudsling.misc import Password
+from mudsling.parse import ParsedInput
 
 
-class PhysicalObject(GameObject):
+class Object(GameObject):
+    """
+    The base class for all other objects. You may subclass this if you need an
+    object without location or contents. You should use this instead of
+    directly subclassing GameObject.
+
+    @ivar possessed_by: The Player who is currently possessing this object.
+    """
+
+    _transientVars = ['possessed_by']
+
+    #: @type: Player
+    possessed_by = None
+
+    def possess(self, player):
+        # TODO: Refactor this into a property?
+        self.dispossess()
+        self.possessed_by = player
+
+    def dispossess(self):
+        self.possessed_by = None
+
+    def parseInput(self, raw):
+        """
+        Parses raw input as a command from this object.
+        """
+        input = ParsedInput(raw)
+        cro = self.commandResolutionOrder()
+        # TODO: Concept of 'context' used for both matching AND command search?
+
+    def commandResolutionOrder(self):
+        """
+        Build the set of objects on which commands can be found and executed
+        by this object.
+
+        @return: set
+        """
+        return {self}
+
+
+class PhysicalObject(Object):
     """
     This should be the parent for most game objects. It is the object class
     that has location, and can contain other objects.
@@ -23,6 +64,17 @@ class PhysicalObject(GameObject):
     location = None
     contents = set()
     desc = ""
+
+    def commandResolutionOrder(self):
+        cro = super(PhysicalObject, self).commandResolutionOrder()
+
+        cro |= self.contents
+
+        if self.location is not None:
+            cro.add(self.location)
+            cro |= self.location.contents
+
+        return cro
 
     def getDescription(self):
         """
@@ -102,7 +154,7 @@ class PhysicalObject(GameObject):
         self.objectMoved(previous_location, dest)
 
 
-class Player(GameObject):
+class Player(Object):
     """
     Base player class.
 

@@ -41,8 +41,10 @@ class Persistent(object):
 
 class GameObject(Persistent):
     """
-    Base class for all game-world objects. This class has no location and no
-    contents.
+    Storage class for all game-world objects. This class has no location and no
+    contents. Avoid subclassing this object directly, use Object or
+    PhysicalObject. This object cannot parse commands, cannot be connected to a
+    player, etc.
 
     @ivar id: The unique object ID for this object in the game.
     @type id: int
@@ -53,6 +55,8 @@ class GameObject(Persistent):
     @ivar aliases: A set of alternate names of the object, used for matching.
     @type aliases: set
     """
+
+    _transientVars = ['name']
 
     id = None
     _name = ""

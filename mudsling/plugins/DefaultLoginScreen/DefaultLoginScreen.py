@@ -1,6 +1,7 @@
 import os
 
 from mudsling.plugins import LoginScreenPlugin
+from mudsling.commands import Command
 
 
 class DefaultLoginScreen(LoginScreenPlugin):
@@ -19,3 +20,8 @@ class DefaultLoginScreen(LoginScreenPlugin):
 
     def processInput(self, session, input):
         session.sendOutput("%s received: %s" % (self, input))
+
+
+class CmdLook(Command):
+    aliases = ('l*ook',)
+
