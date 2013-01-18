@@ -21,7 +21,7 @@ def match_objlist(search, objlist, varname="aliases"):
     @param objlist: An iterable containing objects to match.
     @param varname: The instance variable on the objects to match against.
 
-    @return: list
+    @return: set
     """
 
     def make_names(val):
@@ -39,8 +39,8 @@ def match_objlist(search, objlist, varname="aliases"):
 
     # Lower-case search for case insensitivity.
     search = search.lower()
-    exact = []
-    partial = []
+    exact = set()
+    partial = set()
 
     for obj in objlist:
         try:
@@ -55,9 +55,9 @@ def match_objlist(search, objlist, varname="aliases"):
 
         # Check for exact or else partial match.
         if search in names:
-            exact.append(obj)
+            exact.add(obj)
         elif not exact and len([s for s in names if s.startswith(search)]) > 0:
-            partial.append(obj)
+            partial.add(obj)
 
     return exact or partial
 
@@ -97,7 +97,7 @@ def match(search, objlist, varname="aliases"):
     @param varname: The name of the instance variable containing the string(s)
                     to search against.
 
-    @return: list
+    @return: set
     """
     matches = match_objlist(search, objlist, varname)
     if matches:
@@ -109,4 +109,4 @@ def match(search, objlist, varname="aliases"):
         if matches:
             return matches
 
-    return None
+    return set()

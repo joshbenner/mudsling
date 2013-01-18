@@ -39,11 +39,11 @@ class Persistent(object):
         return state
 
 
-class GameObject(Persistent):
+class StoredObject(Persistent):
     """
     Storage class for all game-world objects. This class has no location and no
-    contents. Avoid subclassing this object directly, use Object or
-    PhysicalObject. This object cannot parse commands, cannot be connected to a
+    contents. Avoid subclassing this object directly, use ContextlessObject or
+    Object. This object cannot parse commands, cannot be connected to a
     player, etc.
 
     @ivar id: The unique object ID for this object in the game.
@@ -135,6 +135,6 @@ class Database(object):
         """
         if isinstance(obj, int):
             return obj in self.objects
-        elif isinstance(obj, GameObject):
+        elif isinstance(obj, StoredObject):
             return obj.id in self.objects and self.objects[obj.id] == obj
         return False

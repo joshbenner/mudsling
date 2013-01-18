@@ -8,10 +8,7 @@ class ParsedInput(object):
     Represents a parsed line of input from an object, probably a player (but
     not necessarily).
 
-    This class just parses the input and structures it, it does not interpret
-    the command, match objects, or perform any processing. That is left up to
-    the caller.
-
+    @ivar actor: The object that issued the command, if any.
     @ivar cmdstr: The string entered which matches against available commands.
     @ivar argstr: The rest of the input after the command.
     @ivar dobjstr: The direct object string.
@@ -20,6 +17,9 @@ class ParsedInput(object):
     @ivar prep: The set from commands.prepositions containing the matched
                 preposition.
     """
+
+    #: @type: mudsling.objects.ContextlessObject
+    actor = None
 
     #: @type: str
     cmdstr = None
@@ -39,7 +39,7 @@ class ParsedInput(object):
     #: @type: set
     prep = None
 
-    def __init__(self, raw):
+    def __init__(self, raw, actor=None):
         """
         Parses input into data that can be used to match to a command.
 
@@ -47,10 +47,14 @@ class ParsedInput(object):
 
             command direct-object preposition indirect-object
 
+        Will setup the various instance variables. However, if no actor is
+        provided, then it will not do any object matching on the objSpecs.
+
         @param raw: The raw string to parse.
         @type raw: str
 
-        @return:
+        @param actor: The object that issued the command, if any.
+        @type actor: mudsling.objects.ContextlessObject
         """
         words = shlex.split(raw)
         self.cmdstr = words[0]
