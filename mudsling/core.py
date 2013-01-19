@@ -5,8 +5,12 @@ services... everything.
 
 import sys
 import os
+import cPickle as pickle
+import atexit
 
 # Prefer libs we ship with.
+from mudsling.objects import Player
+
 libpath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "lib")
 sys.path.insert(1, libpath)
 
@@ -21,6 +25,7 @@ from twisted.application.service import IServiceCollection
 
 from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
+from mudsling.storage import Database
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -41,6 +46,7 @@ class MUDSling(object):
 
     #: @type: mudsling.storage.Database
     db = None
+    db_file_path = ""
 
     #: @type: SessionHandler
     session_handler = None
@@ -59,6 +65,9 @@ class MUDSling(object):
         # Load configuration.
         self.config = ConfigParser.SafeConfigParser()
         self.config.read(self.configPaths())
+
+        self.loadDatabase()
+        atexit.register(self.saveDatabase)
 
         # Load plugin manager. Locates, filters, and loads plugins.
         self.plugins = PluginManager(self, game_dir)
@@ -98,3 +107,27 @@ class MUDSling(object):
                 f.close()
         elif not os.path.isdir(self.game_dir):
             raise Exception("Game dir is a file!")
+
+    def loadDatabase(self):
+        dbfilename = self.config.get('Main', 'db file')
+        self.db_file_path = os.path.join(self.game_dir, dbfilename)
+        if os.path.exists(self.db_file_path):
+            logging.info("Loading database from %s" % self.db_file_path)
+            dbfile = open(self.db_file_path, 'rb')
+            self.db = pickle.load(dbfile)
+            dbfile.close()
+            self.db.onLoaded()
+        else:
+            logging.info("Initializing new database at %s" % self.db_file_path)
+            self.db = Database()
+            self.db.onLoaded()
+
+            # Create first player.
+            player = Player('admin', 'password', 'admin@localhost')
+            self.db.registerNewObject(player)
+
+            self.saveDatabase()
+
+    def saveDatabase(self):
+        with open(self.db_file_path, 'wb') as dbfile:
+            pickle.dump(self.db, dbfile, -1)

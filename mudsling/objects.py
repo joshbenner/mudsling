@@ -1,5 +1,4 @@
 from mudsling.storage import StoredObject
-from mudsling.server import game
 from mudsling.errors import InvalidObject, CommandInvalid
 from mudsling.misc import Password
 from mudsling.parse import ParsedInput
@@ -214,12 +213,12 @@ class Object(BaseObject):
         Throws InvalidObject if this object is invalid or if the destination is
         neither None nor a valid Object instance.
         """
-        if not game.db.isValid(self):
+        if not self.db.isValid(self):
             raise InvalidObject(self)
 
         # We allow moving to None
         if dest is not None:
-            if not game.db.isValid(dest):
+            if not self.db.isValid(dest):
                 raise InvalidObject(dest, "Destination invalid")
             if not isinstance(dest, Object):
                 raise InvalidObject(dest, "Destination is not a location")

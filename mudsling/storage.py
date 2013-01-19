@@ -19,7 +19,7 @@ class Persistent(object):
 
     def _getTransientVars(self):
         vars = set()
-        for cls in type.mro(self.__class__):
+        for cls in self.__class__.__mro__:
             if '_transient' in cls.__dict__:
                 try:
                     # We read from the class
@@ -31,11 +31,10 @@ class Persistent(object):
 
     def __getstate__(self):
         transient = self._getTransientVars()
-        state = []
-        for attr in self.__dict__:
+        state = self.__dict__
+        for attr in state:
             if attr.startswith('_v_') or attr in transient:
-                continue
-            state.append(attr)
+                del state[attr]
         return state
 
 
@@ -48,6 +47,9 @@ class StoredObject(Persistent):
     @ivar id: The unique object ID for this object in the game.
     @type id: int
 
+    @ivar db: Reference to the containing database.
+    @type db: Database
+
     @ivar name: The primary name of the object. Use name property.
     @type name: str
 
@@ -55,7 +57,9 @@ class StoredObject(Persistent):
     @type aliases: set
     """
 
-    _transientVars = ['name']
+    _transientVars = ['name', 'db']
+
+    db = None
 
     id = None
     _name = ""
@@ -75,7 +79,8 @@ class StoredObject(Persistent):
         return self._name
 
     def setName(self, name):
-        self.aliases.remove(self._name)
+        if self._name in self.aliases:
+            self.aliases.remove(self._name)
         self._name = name
         self.aliases.add(name)
 
@@ -89,7 +94,7 @@ class StoredObject(Persistent):
         pass
 
 
-class Database(object):
+class Database(Persistent):
     """
     A singleton of this class holds all the data that is saved to the database.
 
@@ -100,14 +105,26 @@ class Database(object):
     @type objects: dict
     """
 
+    _transientVars = ['type_registry']
+
     max_obj_id = 0
     objects = {}
+
+    type_registry = {}
 
     def __init__(self):
         """
         This will only run when a new game DB is initialized.
         """
         self.objects = {}
+
+    def onLoaded(self):
+        """
+        Called just after the database has been loaded from disk.
+        """
+        for obj in self.objects.values():
+            self._addToTypeRegistry(obj)
+            obj.db = self
 
     def _allocateObjId(self):
         """
@@ -122,10 +139,22 @@ class Database(object):
         Creates a new game-world database object that will persist.
         """
         obj = cls()
+        self.registerNewObject(obj)
+        return obj
+
+    def registerNewObject(self, obj):
         obj.id = self._allocateObjId()
         self.objects[obj.id] = obj
+        self._addToTypeRegistry(obj)
+        obj.db = self
         obj.objectCreated()
-        return obj
+
+    def _addToTypeRegistry(self, obj):
+        cls = obj.__class__
+        if cls not in self.type_registry:
+            self.type_registry[cls] = []
+        if obj not in self.type_registry[cls]:
+            self.type_registry[cls].append(obj)
 
     def isValid(self, obj):
         """
@@ -137,3 +166,30 @@ class Database(object):
         elif isinstance(obj, StoredObject):
             return obj.id in self.objects and self.objects[obj.id] == obj
         return False
+
+    def descendants(self, ancestor):
+        """
+        Return a list of all objects with the specified class in their type
+        heirarchy.
+
+        @param ancestor: The class whose descendants to retrieve.
+
+        @return: list
+        """
+        descendants = []
+        for cls, children in self.type_registry.iteritems():
+            if issubclass(cls, ancestor):
+                descendants.extend(children)
+        return descendants
+
+    def children(self, parent):
+        """
+        Return a list of objects directly descendend from the given class.
+
+        @param parent: The class whose children to retrieve.
+
+        @return: list
+        """
+        if parent in self.type_registry:
+            return list(self.type_registry[parent])
+        return []

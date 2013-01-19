@@ -3,6 +3,8 @@ import re
 from collections import namedtuple
 
 from mudsling.extensibility import LoginScreenPlugin
+from mudsling.match import match_objlist
+from mudsling.objects import Player
 
 
 LoginCmd = namedtuple('LoginCmd', 'pattern syntax desc func')
@@ -26,7 +28,7 @@ class DefaultLoginScreen(LoginScreenPlugin):
             'doHelp'
         ),
         LoginCmd(
-            r'c(?:onn(?:ect)?)? +(?P<name>[^ ]+) +(?P<pass>.*)$',
+            r'c(?:onn(?:ect)?)? +(?P<name>[^ ]+) +(?P<pass>.+)$',
             'connect <name> <password>',
             'Connect to the game.',
             'doConnect'
@@ -54,9 +56,10 @@ class DefaultLoginScreen(LoginScreenPlugin):
         for cmd in self.commands:
             m = re.match(cmd.pattern, input, re.IGNORECASE)
             if m:
-                getattr(self, cmd.func)(session, input, args=m)
+                getattr(self, cmd.func)(session, input, args=m.groups())
                 return
         session.sendOutput("{rInvalid Command.")
+        self.doHelp(session)
 
     def doLook(self, session, input=None, args=None):
         session.sendOutput(self.screen)
@@ -73,3 +76,17 @@ class DefaultLoginScreen(LoginScreenPlugin):
 
     def doQuit(self, session, input=None, args=None):
         session.disconnect("quit")
+
+    def doConnect(self, session, input=None, args=None):
+        username, password = args
+        matches = match_objlist(username,
+                                self.game.db.descendants(Player),
+                                exactOnly=True)
+
+        if len(matches) == 1:
+            pass
+        elif len(matches) > 1:
+            # This hopefully won't happen...
+            session.sendOutput("Ambiguous player name.")
+        else:
+            session.sendOutput("Unknown player name.")

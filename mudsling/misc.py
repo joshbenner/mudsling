@@ -1,27 +1,37 @@
 import os
-from collections import namedtuple
 import hashlib
 
 import pbkdf2
 
 
-class Password(namedtuple('Passwd', 'algorithm, salt, cost, hash')):
+class Password(object):
     """
     A password namedtuple. Creates a hash of the raw password in a manner that
     would make comparisons with other stored passwords useless, and pose some
     problems for traditional password cracking methods.
+
+    @ivar algorithm: The algorithm used to hash the password.
+    @ivar salt: The salt used in the hash.
+    @ivar cost: The number of iterations in PBKDF2.
+    @ivar hash: The resulting hash
     """
 
-    def __new__(cls, raw):
+    algorithm = None
+    salt = None
+    cost = None
+    hash = None
+
+    def __init__(self, raw):
         # This should select the strongest algorithm available.
-        algorithm = hashlib.algorithms[-1]
+        self.algorithm = hashlib.algorithms[-1]
 
-        hashfunc = getattr(hashlib, algorithm)
-        salt = os.urandom(16).encode('hex')
-        cost = 1000
-        hash = pbkdf2.pbkdf2_hex(raw, salt, hashfunc=hashfunc, iterations=cost)
-
-        return super(Password, cls).__new__(cls, algorithm, salt, cost, hash)
+        hashfunc = getattr(hashlib, self.algorithm)
+        self.salt = os.urandom(16).encode('hex')
+        self.cost = 1000
+        self.hash = pbkdf2.pbkdf2_hex(raw,
+                                      self.salt,
+                                      hashfunc=hashfunc,
+                                      iterations=self.cost)
 
     def matchesPassword(self, password):
         """
