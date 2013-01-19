@@ -54,6 +54,8 @@ class MUDSling(object):
 
         self.game_dir = game_dir
 
+        self.initGameDir()
+
         # Load configuration.
         self.config = ConfigParser.SafeConfigParser()
         self.config.read(self.configPaths())
@@ -82,3 +84,17 @@ class MUDSling(object):
         Get a list of paths to files where configuration might be found.
         """
         return ["mudsling/defaults.cfg", "%s/settings.cfg" % self.game_dir]
+
+    def initGameDir(self):
+        """
+        If game dir doesn't exist, try to create it.
+        """
+        if not os.path.exists(self.game_dir):
+            logging.info("Creating game directory %s"
+                         % os.path.realpath(self.game_dir))
+            os.makedirs(self.game_dir)
+            if os.path.exists(self.game_dir):
+                f = open(os.path.join(self.game_dir, 'settings.cfg'), 'w')
+                f.close()
+        elif not os.path.isdir(self.game_dir):
+            raise Exception("Game dir is a file!")

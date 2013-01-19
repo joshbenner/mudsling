@@ -8,12 +8,12 @@ from mudsling.sessions import Session
 
 class SimpleTelnetServer(TwistedServicePlugin):
 
-    port = 4000
+    port = 0
 
     def activate(self):
         super(SimpleTelnetServer, self).activate()
         if 'port' in self.options:
-            self.port = self.options['port']
+            self.port = int(self.options['port'])
 
     def get_service(self):
         factory = ServerFactory()
@@ -32,12 +32,12 @@ class SimpleTelnetSession(StatefulTelnetProtocol, Session):
 
     def connectionMade(self):
         self.game = self.factory.game
-        self.initSession()
+        self.openSession()
         if self.line_delimiter != self.delimiter:
             self.line_delimiter = self.delimiter
 
     def connectionLost(self, reason):
-        self.closeSession()
+        self.sessionClosed()
 
     def lineReceived(self, line):
         """
@@ -53,3 +53,7 @@ class SimpleTelnetSession(StatefulTelnetProtocol, Session):
         protocol.
         """
         self.transport.write(text)
+
+    def disconnect(self, reason):
+        self.sendOutput(reason)
+        self.transport.loseConnection()

@@ -26,16 +26,16 @@ class DefaultLoginScreen(LoginScreenPlugin):
             'doHelp'
         ),
         LoginCmd(
-            r'c(?:onn(?ect)) +(?P<name>[^ ]+) +(?P<pass>.*)$',
+            r'c(?:onn(?:ect)?)? +(?P<name>[^ ]+) +(?P<pass>.*)$',
             'connect <name> <password>',
             'Connect to the game.',
             'doConnect'
         ),
         LoginCmd(
-            r'q(?:uit)$',
+            r'q(?:uit)?$',
             'quit',
             'Disconnect.',
-            'doQuite'
+            'doQuit'
         )
     )
 
@@ -56,7 +56,7 @@ class DefaultLoginScreen(LoginScreenPlugin):
             if m:
                 getattr(self, cmd.func)(session, input, args=m)
                 return
-        session.sendOutput("Invalid Command.")
+        session.sendOutput("{rInvalid Command.")
 
     def doLook(self, session, input=None, args=None):
         session.sendOutput(self.screen)
@@ -66,7 +66,10 @@ class DefaultLoginScreen(LoginScreenPlugin):
         s = session
         s.sendOutput("Available Commands:")
         width = max(*[len(cmd.syntax) for cmd in self.commands])
-        format = "{cmd.syntax:%d} : {cmd.desc}" % width
+        format = "  {cmd.syntax:%d} : {cmd.desc}" % width
         for cmd in self.commands:
+            #noinspection PyTypeChecker
             s.sendOutput(format.format(cmd=cmd))
 
+    def doQuit(self, session, input=None, args=None):
+        session.disconnect("quit")

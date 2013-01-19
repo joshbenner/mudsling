@@ -134,9 +134,9 @@ class PluginManager(yapsy.PluginManager.PluginManager):
             # Load config-based options if Plugin supports them.
             if isinstance(info.plugin_object, MUDSlingPlugin):
                 info.plugin_object.game = game
-                section = "Plugin:%s" % info.machine_name
-                if game.config.has_section(section):
-                    info.plugin_object.options = game.config.items(section)
+                sec = "Plugin:%s" % info.machine_name
+                if game.config.has_section(sec):
+                    info.plugin_object.options = dict(game.config.items(sec))
             self.activatePluginByName(info.name, info.category)
 
     def pluginPaths(self, game_dir):

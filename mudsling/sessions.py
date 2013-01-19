@@ -1,4 +1,7 @@
 import time
+import logging
+
+from mudsling.ansi import parse_ansi
 
 
 class Session(object):
@@ -22,12 +25,17 @@ class Session(object):
     #: @type: mudsling.server.MUDSling
     game = None
 
-    def initSession(self):
+    ansi = False
+    xterm256 = False
+
+    def openSession(self):
         self.time_connected = time.time()
         self.game.session_handler.connectSession(self)
+        logging.info("Session %s connected." % self)
 
-    def closeSession(self):
+    def sessionClosed(self):
         self.game.session_handler.disconnectSession(self)
+        logging.info("Session %s disconnected." % self)
 
     def receiveInput(self, line):
         line = line.strip()
@@ -39,7 +47,7 @@ class Session(object):
         Send output to the Session.
 
         @param text: Text to send. Can be a list.
-        @type text: basestring
+        @type text: str
         """
         if text.__class__ == list:
             for l in text:
@@ -47,11 +55,22 @@ class Session(object):
             return
         if not text.endswith(self.line_delimiter):
             text += self.line_delimiter
+
+        if self.ansi:
+            text = parse_ansi(text, xterm256=self.xterm256)
+        else:
+            text = parse_ansi(text, strip_ansi=True)
+
         self.rawSendOutput(text)
 
     def rawSendOutput(self, text):
         """
         Children should override!
+        """
+
+    def disconnect(self, reason):
+        """
+        Disconnect this session. Children must implement!
         """
 
 
