@@ -1,27 +1,72 @@
 import os
+import re
+from collections import namedtuple
 
-from mudsling.plugins import LoginScreenPlugin
-from mudsling.commands import Command
+from mudsling.extensibility import LoginScreenPlugin
+
+
+LoginCmd = namedtuple('LoginCmd', 'pattern syntax desc func')
 
 
 class DefaultLoginScreen(LoginScreenPlugin):
 
-    login_screen = ""
+    screen = ""
+
+    commands = (
+        LoginCmd(
+            pattern=r'l(?:ook)?$',
+            syntax='look',
+            desc='Display the connection screen.',
+            func='doLook'
+        ),
+        LoginCmd(
+            r'(?:(?:h(?:elp)?)|\?)$',
+            'help',
+            'Display available commands.',
+            'doHelp'
+        ),
+        LoginCmd(
+            r'c(?:onn(?ect)) +(?P<name>[^ ]+) +(?P<pass>.*)$',
+            'connect <name> <password>',
+            'Connect to the game.',
+            'doConnect'
+        ),
+        LoginCmd(
+            r'q(?:uit)$',
+            'quit',
+            'Disconnect.',
+            'doQuite'
+        )
+    )
 
     def activate(self):
         super(DefaultLoginScreen, self).activate()
         plugin_path = os.path.dirname(os.path.realpath(__file__))
         file_path = os.path.join(plugin_path, 'login_screen.txt')
         with open(file_path, 'rU') as f:
-            self.login_screen = [line.rstrip('\n') for line in f.readlines()]
+            self.screen = [line.rstrip('\n') for line in f.readlines()]
 
     def sessionConnected(self, session):
-        session.sendOutput(self.login_screen)
+        self.doLook(session)
+        self.doHelp(session)
 
     def processInput(self, session, input):
-        session.sendOutput("%s received: %s" % (self, input))
+        for cmd in self.commands:
+            m = re.match(cmd.pattern, input, re.IGNORECASE)
+            if m:
+                getattr(self, cmd.func)(session, input, args=m)
+                return
+        session.sendOutput("Invalid Command.")
 
+    def doLook(self, session, input=None, args=None):
+        session.sendOutput(self.screen)
 
-class CmdLook(Command):
-    aliases = ('l*ook',)
+    def doHelp(self, session, input=None, args=None):
+        #: @type: mudsling.sessions.Session
+        s = session
+        s.sendOutput("Available Commands:")
+        width = max(*[len(cmd.syntax) for cmd in self.commands])
+        format = "{cmd.syntax:%d} : {cmd.desc}" % width
+        for cmd in self.commands:
+            s.sendOutput(format.format(cmd=cmd))
 

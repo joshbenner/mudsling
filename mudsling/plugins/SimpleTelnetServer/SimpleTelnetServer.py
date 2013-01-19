@@ -2,7 +2,7 @@ from twisted.conch.telnet import StatefulTelnetProtocol
 from twisted.internet.protocol import ServerFactory
 from twisted.application import internet
 
-from mudsling.plugins import TwistedServicePlugin
+from mudsling.extensibility import TwistedServicePlugin
 from mudsling.sessions import Session
 
 

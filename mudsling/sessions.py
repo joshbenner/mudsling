@@ -30,6 +30,7 @@ class Session(object):
         self.game.session_handler.disconnectSession(self)
 
     def receiveInput(self, line):
+        line = line.strip()
         if self.player is None:
             self.game.login_screen.processInput(self, line)
 
@@ -38,7 +39,7 @@ class Session(object):
         Send output to the Session.
 
         @param text: Text to send. Can be a list.
-        @type text: str
+        @type text: basestring
         """
         if text.__class__ == list:
             for l in text:

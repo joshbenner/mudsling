@@ -52,12 +52,16 @@ class BaseObject(StoredObject):
         """
         Parses raw input as a command from this object and executes the first
         matching command it can find.
+
+        The passedInput and err parameters help accommodate children overriding
+        this method without having to jump through more hoops than needed.
         """
         input = passedInput or ParsedInput(raw, self)
-        cmd = self.matchCommand(input)
-        if cmd is not None:
-            self.doCommand(input, self, cmd)
-            return True
+        for obj in self.commandHosts(input):
+            cmd = obj.matchCommand(input)
+            if cmd is not None:
+                self.doCommand(input, obj, cmd)
+                return True
         if err:
             raise CommandInvalid(input)
         return False
@@ -78,6 +82,25 @@ class BaseObject(StoredObject):
             if cmd.matchParsedInput(input):
                 return cmd
         return None
+
+    def commandHosts(self, input):
+        """
+        Given ParsedInput, return a list of objects which will be checked, in
+        order, for a command matching the input. The input is assumed to have
+        come from this object.
+
+        @param input: The ParsedInput from which to generate the list.
+        @type input: ParsedInput
+
+        @return: list
+        """
+        hosts = [self]
+        if input.dobj is not None:
+            hosts.append(input.dobj)
+        if input.iobj is not None:
+            hosts.append(input.iobj)
+
+        return hosts
 
     def doCommand(self, input, obj, cmdClass):
         """
@@ -129,6 +152,17 @@ class Object(BaseObject):
             return matches
 
         return set()
+
+    def commandHosts(self, input):
+        """
+        Add the object's location after self.
+        @return: list
+        """
+        hosts = super(Object, self).commandHosts(input)
+        if self.location is not None:
+            hosts.insert(1, self.location)
+
+        return hosts
 
     def getDescription(self):
         """

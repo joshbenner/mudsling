@@ -19,7 +19,7 @@ sys.modules['configparser'] = sys.modules['ConfigParser']
 from twisted.application.service import Service
 from twisted.application.service import IServiceCollection
 
-from mudsling.plugins import PluginManager
+from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
 
 logging.basicConfig(level=logging.DEBUG)
