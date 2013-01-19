@@ -1,4 +1,4 @@
-
+from mudsling.parse import ParsedInput
 
 class Error(Exception):
     def __init__(self, msg=""):
@@ -14,9 +14,30 @@ class InvalidObject(Error):
         self.obj = obj
 
 
-class AmbiguousMatchError(Error):
-    pass
+class AmbiguousMatch(Error):
+    def __init__(self, msg=None, query=None, matches=None):
+        if msg is None:
+            self.message = "Ambiguous match"
+            if query is not None:
+                self.message += " for '%s'" % query
 
 
-class FailedMatchError(Error):
-    pass
+class FailedMatch(Error):
+    def __init__(self, msg=None, query=None):
+        if msg is None:
+            self.message = "Failed match"
+            if query is not None:
+                self.message += " for '%s'" % query
+
+
+class CommandInvalid(Error):
+
+    input = None
+
+    def __init__(self, cmdline=None):
+        """
+        cmdline could be raw string input or a ParsedInput structure.
+        """
+        if isinstance(cmdline, ParsedInput):
+            self.input = cmdline
+        self.message = "Command Invalid."

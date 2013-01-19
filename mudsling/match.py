@@ -3,12 +3,15 @@ Various functions and utilities for matching game-world objects.
 """
 import re
 
+from mudsling.errors import AmbiguousMatch, FailedMatch
+
 ordinal_words = ('first', 'second', 'third', 'fourth', 'fifth', 'sixth',
                  'seventh', 'eighth', 'ninth', 'tenth')
 ordinal_regex = "^(" + '|'.join(ordinal_words) + ")(.*)$"
 
 
-def match_objlist(search, objlist, varname="aliases"):
+def match_objlist(search, objlist, varname="aliases", exactOnly=False,
+                  err=False):
     """
     Match a search query against a list of objects using string values from the
     provided instance variable.
@@ -20,6 +23,8 @@ def match_objlist(search, objlist, varname="aliases"):
     @param search: The search string.
     @param objlist: An iterable containing objects to match.
     @param varname: The instance variable on the objects to match against.
+    @param exactOnly: Only look for exact matches.
+    @param err: If true, may raise AmbiguousMatch or FailedMatch.
 
     @return: set
     """
@@ -30,15 +35,15 @@ def match_objlist(search, objlist, varname="aliases"):
         @return: list
         """
         if isinstance(val, basestring):
-            return [val]
+            return {val}
         else:
             try:
-                return list(val)
+                return set(val)
             except TypeError:
-                return []
+                return set()
 
     # Lower-case search for case insensitivity.
-    search = search.lower()
+    srch = search.lower()
     exact = set()
     partial = set()
 
@@ -54,12 +59,21 @@ def match_objlist(search, objlist, varname="aliases"):
             continue
 
         # Check for exact or else partial match.
-        if search in names:
+        if srch in names:
             exact.add(obj)
-        elif not exact and len([s for s in names if s.startswith(search)]) > 0:
-            partial.add(obj)
+        elif not exactOnly and not exact:
+            if len([s for s in names if s.startswith(srch)]) > 0:
+                partial.add(obj)
 
-    return exact or partial
+    result = exact or partial
+
+    if err and len(result) != 1:
+        if len(result) > 1:
+            raise AmbiguousMatch(query=search, matches=result)
+        else:
+            raise FailedMatch(query=search)
+    else:
+        return result
 
 
 def match_nth(nth, search, objlist, varname="aliases"):
@@ -95,7 +109,7 @@ def match(search, objlist, varname="aliases"):
     @param search: The string to search for among the objects.
     @param objlist: The objects to search.
     @param varname: The name of the instance variable containing the string(s)
-                    to search against.
+        to search against.
 
     @return: set
     """

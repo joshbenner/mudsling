@@ -42,9 +42,8 @@ class Persistent(object):
 class StoredObject(Persistent):
     """
     Storage class for all game-world objects. This class has no location and no
-    contents. Avoid subclassing this object directly, use ContextlessObject or
-    Object. This object cannot parse commands, cannot be connected to a
-    player, etc.
+    contents. Avoid subclassing this object directly, use BaseObject or Object.
+    This object cannot parse commands, cannot be connected to a player, etc.
 
     @ivar id: The unique object ID for this object in the game.
     @type id: int

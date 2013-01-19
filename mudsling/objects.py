@@ -1,21 +1,26 @@
 from mudsling.storage import StoredObject
 from mudsling.server import game
-from mudsling.errors import InvalidObject
+from mudsling.errors import InvalidObject, CommandInvalid
 from mudsling.misc import Password
 from mudsling.parse import ParsedInput
-from mudsling import match
+from mudsling.match import match_objlist
 
 
-class ContextlessObject(StoredObject):
+class BaseObject(StoredObject):
     """
     The base class for all other objects. You may subclass this if you need an
     object without location or contents. You should use this instead of
     directly subclassing StoredObject.
 
+    @cvar commands: Commands provided by this class. Classes, not instances.
+
     @ivar possessed_by: The Player who is currently possessing this object.
     """
 
     _transientVars = ['possessed_by']
+
+    #: @type: set
+    commands = set()
 
     #: @type: Player
     possessed_by = None
@@ -28,11 +33,12 @@ class ContextlessObject(StoredObject):
     def dispossess(self):
         self.possessed_by = None
 
-    def matchObject(self, search):
+    def matchObject(self, search, err=False):
         """
         A general object match for this object.
 
         @param search: The search string.
+        @param err: If true, can raise search result errors.
 
         @return: set
         """
@@ -40,27 +46,49 @@ class ContextlessObject(StoredObject):
         if search == 'me':
             return {self}
 
+        return match_objlist(search, {self}, err=err)
+
+    def processInput(self, raw, passedInput=None, err=True):
+        """
+        Parses raw input as a command from this object and executes the first
+        matching command it can find.
+        """
+        input = passedInput or ParsedInput(raw, self)
+        cmd = self.matchCommand(input)
+        if cmd is not None:
+            self.doCommand(input, self, cmd)
+            return True
+        if err:
+            raise CommandInvalid(input)
+        return False
+
+    def matchCommand(self, input):
+        """
+        Match ParsedInput against the commands provided by this object.
+
+        Objects can override this to get clever about how they advertise their
+        commands to other objects.
+
+        @param input: ParsedInput which is being used to match commands.
+        @type input: ParsedInput
+
+        @return: type
+        """
+        for cmd in self.commands:
+            if cmd.matchParsedInput(input):
+                return cmd
         return None
 
-    def parseInput(self, raw):
+    def doCommand(self, input, obj, cmdClass):
         """
-        Parses raw input as a command from this object.
+        Executes the given command on the specified command host as this
+        object having generated the given input.
         """
-        input = ParsedInput(raw)
-        cro = self.contextResolutionOrder()
+        cmd = cmdClass(obj, input, self)
+        cmd.execute()
 
 
-    def contextResolutionOrder(self):
-        """
-        Build the set of objects that surround this object in some way and are
-        places to look for matching, commands, etc.
-
-        @return: set
-        """
-        return {self}
-
-
-class Object(ContextlessObject):
+class Object(BaseObject):
     """
     This should be the parent for most game objects. It is the object class
     that has location, and can contain other objects.
@@ -80,38 +108,27 @@ class Object(ContextlessObject):
     contents = set()
     desc = ""
 
-    def matchObject(self, search):
+    def matchObject(self, search, err=False):
         """
         @type search: str
         @return: set
         """
-        matches = super(Object, self).matchObject(search)
-        if matches is not None:
+        matches = super(Object, self).matchObject(search, err=err)
+        if matches:
             return matches
 
         if search == 'here' and self.location is not None:
             return {self.location}
 
-        matches = match.match_objlist(search, self.contents)
+        matches = match_objlist(search, self.contents, err=err)
         if matches:
             return matches
 
-        matches = match.match_objlist(search, self.location.contents)
+        matches = match_objlist(search, self.location.contents, err=err)
         if matches:
             return matches
 
         return set()
-
-    def contextResolutionOrder(self):
-        cro = super(Object, self).contextResolutionOrder()
-
-        cro |= self.contents
-
-        if self.location is not None:
-            cro.add(self.location)
-            cro |= self.location.contents
-
-        return cro
 
     def getDescription(self):
         """
@@ -191,7 +208,7 @@ class Object(ContextlessObject):
         self.objectMoved(previous_location, dest)
 
 
-class Player(ContextlessObject):
+class Player(BaseObject):
     """
     Base player class.
 
