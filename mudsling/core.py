@@ -156,9 +156,27 @@ class MUDSling(object):
 
             char.moveTo(room)
 
+            self.invokeHook('initDatabase', self.db)
+
             # Get the db on disk.
             self.saveDatabase()
 
     def saveDatabase(self):
         with open(self.db_file_path, 'wb') as dbfile:
             pickle.dump(self.db, dbfile, -1)
+
+    def invokeHook(self, hook, *args, **kwargs):
+        """
+        Invoke an arbitrary hook on all activated GamePlugins.
+
+        These hooks are intended for system- and game-wide events and should
+        not be used for object-specific events.
+
+        @param hook: The hook (function) to execute.
+        @param args: Positional args to pass to the hook.
+        @param kwargs: Keyword args to pass to the hook.
+        @return: Dictionary of hook results keyed by plugin info.
+        @rtype: dict
+        """
+        hook = "hook_" + hook
+        return self.plugins.invokeHook('GamePlugin', hook, *args, **kwargs)

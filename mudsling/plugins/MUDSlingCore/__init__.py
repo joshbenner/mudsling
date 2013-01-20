@@ -14,3 +14,9 @@ class MUDSlingCorePlugin(GamePlugin):
     search path, such that modules and packages within it can be imported, used
     when specifying classes in configs, etc.
     """
+    def hook_initDatabase(self, db):
+        """
+        This hook is called when performing initial setup of a database, giving
+        GamePlugin instances the opportunity to perform setup of their own.
+        @param db: The database being setup.
+        """

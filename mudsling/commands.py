@@ -164,7 +164,6 @@ class Command(object):
         This is where the magic happens.
         """
 
-
 #class CommandProvider(object):
 #    """
 #    Objects that provide commands should have this class as a parent. Provides

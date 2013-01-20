@@ -96,7 +96,7 @@ class DefaultLoginScreen(LoginScreenPlugin):
             return
 
         #: @type: BasePlayer
-        player = matches.pop()
+        player = matches[0]
         if (isinstance(player.password, Password)
                 and player.password.matchesPassword(password)):
             session.attachToPlayer(player)

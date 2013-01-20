@@ -53,8 +53,8 @@ class ParsedInput(object):
     #: @type: mudsling.objects.BaseObject
     iobj = None
 
-    dobj_matches = set()
-    iobj_matches = set()
+    dobj_matches = []
+    iobj_matches = []
 
     def __init__(self, raw, actor=None):
         """

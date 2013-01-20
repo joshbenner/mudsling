@@ -26,7 +26,7 @@ def match_objlist(search, objlist, varname="aliases", exactOnly=False,
     @param exactOnly: Only look for exact matches.
     @param err: If true, may raise AmbiguousMatch or FailedMatch.
 
-    @rtype: set
+    @rtype: list
     """
 
     def make_names(val):
@@ -44,8 +44,8 @@ def match_objlist(search, objlist, varname="aliases", exactOnly=False,
 
     # Lower-case search for case insensitivity.
     srch = search.lower()
-    exact = set()
-    partial = set()
+    exact = []
+    partial = []
 
     for obj in objlist:
         try:
@@ -60,10 +60,10 @@ def match_objlist(search, objlist, varname="aliases", exactOnly=False,
 
         # Check for exact or else partial match.
         if srch in names:
-            exact.add(obj)
+            exact.append(obj)
         elif not exactOnly and not exact:
             if len([s for s in names if s.startswith(srch)]) > 0:
-                partial.add(obj)
+                partial.append(obj)
 
     result = exact or partial
 
@@ -111,7 +111,7 @@ def match(search, objlist, varname="aliases"):
     @param varname: The name of the instance variable containing the string(s)
         to search against.
 
-    @rtype: set
+    @rtype: list
     """
     matches = match_objlist(search, objlist, varname)
     if matches:
@@ -123,4 +123,4 @@ def match(search, objlist, varname="aliases"):
         if matches:
             return matches
 
-    return set()
+    return []

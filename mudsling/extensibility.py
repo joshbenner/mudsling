@@ -183,6 +183,28 @@ class PluginManager(yapsy.PluginManager.PluginManager):
                 return info
         return None
 
+    def invokeHook(self, category, hook, *args, **kwargs):
+        """
+        Invoke an arbitrary hook on all activated plugins of a category.
+
+        @param category: The category of plugin to invoke the hook on.
+        @param hook: The hook (function) to execute.
+        @param args: Positional args to pass to the hook.
+        @param kwargs: Keyword args to pass to the hook.
+        @return: Dictionary of hook results keyed by plugin info.
+        @rtype: dict
+        """
+        result = {}
+        for info in self.activePlugins(category):
+            plugin = info.plugin_object
+            try:
+                func = getattr(plugin, hook)
+            except AttributeError:
+                continue
+            if callable(func):
+                result[info] = func(*args, **kwargs)
+        return result
+
     # Override normal behavior so that we can generate machine name.
     def _gatherCorePluginInfo(self, directory, filename):
         """

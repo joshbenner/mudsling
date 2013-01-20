@@ -20,10 +20,11 @@ class BaseObject(StoredObject):
         however, may have occasion to be granted roles.
     """
 
-    _transientVars = ['possessed_by']
+    # commands should never be set on instance, but... just in case.
+    _transientVars = ['possessed_by', 'commands']
 
-    #: @type: set
-    commands = set()
+    #: @type: list
+    commands = []
 
     #: @type: BasePlayer
     possessed_by = None
@@ -66,7 +67,7 @@ class BaseObject(StoredObject):
 
     def onDispossessed(self, player):
         """
-        Event hook called when this object has been dispossessed by a BasePlayer.
+        Event hook called when this object has been dispossessed by a player.
         @param player: The player that previously possessed this object.
         @type player: BasePlayer
         """
@@ -78,7 +79,7 @@ class BaseObject(StoredObject):
         @param search: The search string.
         @param err: If true, can raise search result errors.
 
-        @rtype: set
+        @rtype: list
         """
         # TODO: Literal object matching
         if search == 'me':
@@ -97,8 +98,12 @@ class BaseObject(StoredObject):
         input = passedInput or ParsedInput(raw, self)
         for obj in self.commandHosts(input):
             cmd = obj.matchCommand(input)
-            if cmd is not None:
+            if cmd is not None and isinstance(cmd, type):
                 self.doCommand(input, obj, cmd)
+                return True
+            elif cmd is not None:
+                # Not None, but it's not a command either -- it was handled in
+                # some other fashion.
                 return True
         if err:
             raise CommandInvalid(input)
@@ -116,9 +121,41 @@ class BaseObject(StoredObject):
 
         @rtype: type
         """
+        cmd = self.preemptiveCommandMatch(input)
+        if cmd is not None:
+            return cmd
         for cmd in self.commands:
             if cmd.matchParsedInput(input):
                 return cmd
+        return self.handleUnmatchedInput(input)
+
+    def preemptiveCommandMatch(self, input):
+        """
+        The object may preemptively do its own command matching (or input data
+        massaging). If this returns None, normal command matching occurs. If it
+        returns a command class, that command is run. If it returns anything
+        else, the command parser assumes the command was handled and takes no
+        further action.
+
+        @param input: The input to handle
+        @type input: ParsedInput
+
+        @return: None, a command class, or another value.
+        @rtype: type
+        """
+        return None
+
+    def handleUnmatchedInput(self, input):
+        """
+        Lets an object attempt to do its own parsing on command input that was
+        not handled by normal command matching.
+
+        @param input: The ParsedInput to handle
+        @type input: ParsedInput
+
+        @return: A command class or None.
+        @rtype: type
+        """
         return None
 
     def commandHosts(self, input):
@@ -193,7 +230,7 @@ class Object(BaseObject):
     def matchObject(self, search, err=False):
         """
         @type search: str
-        @rtype: set
+        @rtype: list
         """
         matches = super(Object, self).matchObject(search, err=err)
         if matches:
@@ -335,7 +372,7 @@ class BasePlayer(BaseObject):
         if self.session is not None:
             # This should result in self.sessionDetached() being called
             # which will free up self.session
-            self.session.disconnect("BasePlayer taken over by another connection")
+            self.session.disconnect("Player taken over by another connection")
         else:
             # TODO: BasePlayer is connecting. Should we tell someone?
             pass
@@ -370,7 +407,7 @@ class BasePlayer(BaseObject):
 
     def onObjectDispossessed(self, obj):
         """
-        Event hook that fires right after BasePlayer has dispossessed an object.
+        Event hook that fires right after player has dispossessed an object.
         @param obj: The object that was previously possessed.
         @type obj: BaseObject
         """
