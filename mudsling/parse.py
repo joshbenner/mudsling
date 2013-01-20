@@ -92,8 +92,10 @@ class ParsedInput(object):
             self.dobjstr = self.argstr
 
         if actor is not None:
-            self.dobj_matches = actor.matchObject(self.dobjstr)
-            self.iobj_matches = actor.matchObject(self.iobjstr)
+            if self.dobjstr is not None:
+                self.dobj_matches = actor.matchObject(self.dobjstr)
+            if self.iobjstr is not None:
+                self.iobj_matches = actor.matchObject(self.iobjstr)
 
             if len(self.dobj_matches) == 1:
                 self.dobj = self.dobj_matches[0]

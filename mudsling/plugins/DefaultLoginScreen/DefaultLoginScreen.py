@@ -43,7 +43,6 @@ class DefaultLoginScreen(LoginScreenPlugin):
     )
 
     def activate(self):
-        print __name__+'.'+self.__class__.__name__
         super(DefaultLoginScreen, self).activate()
         plugin_path = os.path.dirname(os.path.realpath(__file__))
         file_path = os.path.join(plugin_path, 'login_screen.txt')

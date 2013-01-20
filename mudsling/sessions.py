@@ -52,13 +52,16 @@ class Session(object):
                 errmsg = "UNHANDLED EXCEPTION\n%s" % traceback.format_exc()
                 logging.error(errmsg)
 
-    def sendOutput(self, text):
+    def sendOutput(self, text, flags=None):
         """
         Send output to the Session.
 
         @param text: Text to send. Can be a list.
+        @param flags: A dictionary of flags to modify how the text is output.
         @type text: str
         """
+        if flags is None:
+            flags = {}
         if text.__class__ == list:
             for l in text:
                 self.sendOutput(l)
@@ -66,7 +69,7 @@ class Session(object):
         if not text.endswith(self.line_delimiter):
             text += self.line_delimiter
 
-        if self.ansi:
+        if self.ansi and ('raw' not in flags or not flags['raw']):
             text = parse_ansi(text, xterm256=self.xterm256)
         else:
             text = parse_ansi(text, strip_ansi=True)

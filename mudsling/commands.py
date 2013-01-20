@@ -1,6 +1,8 @@
 import re
 
-# Prepositions used in parsing input.
+from mudsling.utils.string import trimDocstring
+
+
 prepositions = (
     ('with', 'using'),
     ('at', 'to'),
@@ -31,6 +33,7 @@ class Command(object):
     @cvar aliases: Regular expressions that can match to trigger the command.
     @cvar args: The tuple of arg tokens used to determine if the parsed input
         matches the signature of this command.
+    @cvar required_perm: An object must have this perm to use this command.
 
     @ivar obj: The object hosting this command.
     @ivar input: The ParsedInput which led to this command being executed.
@@ -40,6 +43,7 @@ class Command(object):
     aliases = ()
     _compiled_aliases = []
     args = (None, None, None)
+    required_perm = None
 
     #: @type: mudsling.objects.BaseObject
     obj = None
@@ -47,17 +51,36 @@ class Command(object):
     #: @type: mudsling.objects.BaseObject
     actor = None
 
-    #: @type: mudsling.parsed.ParsedInput
+    #: @type: mudsling.parse.ParsedInput
     input = None
 
     @classmethod
-    def matchParsedInput(cls, hostObj, input):
+    def checkAccess(cls, hostObj, actor):
+        """
+        Determine if an object is allowed to use this command.
+
+        @param hostObj: The object providing this command.
+        @type hostObj: mudsling.objects.BaseObject
+
+        @param actor: The object that wants to use this command.
+        @type actor: mudsling.objects.BaseObject
+
+        @rtype: bool
+        """
+        if cls.required_perm is not None:
+            return actor.hasPerm(cls.required_perm)
+        return True
+
+    @classmethod
+    def matchInput(cls, hostObj, input):
         """
         Determines if this command is a match for the ParsedInput provided. The
         generic version of this hook should be sufficient for most commands,
         but it can be overridden for extra magic.
 
         @param hostObj: The object hosting the command for this check.
+        @type hostObj: mudsling.objects.BaseObject
+
         @param input: The ParsedInput to match against.
         @type input: mudsling.parse.ParsedInput
 
@@ -137,7 +160,50 @@ class Command(object):
 
         return False
 
+    @classmethod
+    def getSyntax(cls):
+        """
+        Return just the syntax portion of the command class's docstring.
+
+        @return: Syntax string
+        @rtype: str
+        """
+        trimmed = trimDocstring(cls.__doc__)
+        syntax = []
+        for line in trimmed.splitlines():
+            if line == "":
+                break
+            syntax.append(line)
+        return '\n'.join(syntax)
+
+    def syntaxHelp(self):
+        """
+        Return a string to show to a player to help them understand the syntax
+        of the command. Useful to output when a command is used incorrectly.
+
+        The default implementation just outputs the command's syntax.
+        @return: str
+        """
+        out = []
+        for i, line in enumerate(self.__class__.getSyntax().splitlines()):
+            if i == 0:
+                line = "Syntax: " + line
+            else:
+                line = "        " + line
+            out.append(line)
+        return '\n'.join(out)
+
     def __init__(self, obj=None, input=None, actor=None):
+        """
+        @param obj: The object hosting the command.
+        @type obj: mudsling.objects.BaseObject
+
+        @param input: The ParsedInput that lead to this command instance.
+        @type input: mudsling.parse.ParsedInput
+
+        @param actor: The object executing this command.
+        @type actor: mudsling.objects.BaseObject
+        """
         self.obj = obj
         self.input = input
         self.actor = actor
@@ -147,17 +213,21 @@ class Command(object):
         Execution entry point for the command. The object system should call
         this once it has decided to run the command.
         """
-        self.prepare()
-        self.run()
+        if self.prepare():
+            self.run()
 
     def prepare(self):
         """
         Here a command can perform any isolated parsing of the input or other
-        preparation it wishes. This hook is called before command execution.
+        preparation it wishes. This hook is called before command execution. If
+        this returns a non-true value, then command is not run.
 
         This is a handy place to do any complex (and possibly re-usable)
         custom parsing of the command input.
+
+        @rtype: bool
         """
+        return True
 
     def run(self):
         """

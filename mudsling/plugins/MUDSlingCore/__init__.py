@@ -6,6 +6,7 @@ new capabilities to the game world.
 """
 
 from mudsling.extensibility import GamePlugin
+from mudsling.perms import Role
 
 
 class MUDSlingCorePlugin(GamePlugin):
@@ -20,3 +21,4 @@ class MUDSlingCorePlugin(GamePlugin):
         GamePlugin instances the opportunity to perform setup of their own.
         @param db: The database being setup.
         """
+

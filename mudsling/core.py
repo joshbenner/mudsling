@@ -26,6 +26,7 @@ from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
 from mudsling.storage import Database
 from mudsling.utils.modules import class_from_path
+from mudsling.perms import Role
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -143,6 +144,7 @@ class MUDSling(object):
             # Create first player.
             #: @type: mudsling.objects.BasePlayer
             player = self.player_class('admin', 'password', 'admin@localhost')
+            player.superuser = True
             self.db.registerNewObject(player)
 
             #: @type: mudsling.objects.BaseCharacter

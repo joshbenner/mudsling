@@ -29,6 +29,7 @@ class BaseObject(StoredObject):
     #: @type: BasePlayer
     possessed_by = None
 
+    #: @type: list
     possessable_by = []
 
     roles = set()
@@ -43,6 +44,11 @@ class BaseObject(StoredObject):
                 or player.hasPerm("possess anything"))
 
     def possessBy(self, player):
+        """
+        Become possessed by a player.
+        @param player: The player possessing this object.
+        @type player: BasePlayer
+        """
         # TODO: Refactor this into a property?
         if self.possessed_by is not None:
             self.possessed_by.dispossessObject(self)
@@ -54,7 +60,7 @@ class BaseObject(StoredObject):
         Called after this object has been dispossessed by a BasePlayer.
         """
         previous = self.possessed_by
-        self.possessed_by = None
+        del self.possessed_by
         if previous is not None:
             self.onDispossessed(previous)
 
@@ -71,6 +77,18 @@ class BaseObject(StoredObject):
         @param player: The player that previously possessed this object.
         @type player: BasePlayer
         """
+
+    def msg(self, text, flags=None):
+        """
+        Primary method of emitting text to an object (and any players/sessions
+        which are attached to it).
+
+        @param text: The text to send to the object.
+        @param flags: Flags to modify how text is handled.
+        @type text: str
+        """
+        if self.possessed_by is not None:
+            self.possessed_by.msg(text, flags=flags)
 
     def matchObject(self, search, err=False):
         """
@@ -124,9 +142,10 @@ class BaseObject(StoredObject):
         cmd = self.preemptiveCommandMatch(input)
         if cmd is not None:
             return cmd
-        for cmd in self.commands:
-            if cmd.matchParsedInput(input):
-                return cmd
+        for obj in self.commandHosts(input):
+            for cmd in obj.commands:
+                if cmd.matchInput(obj, input) and cmd.checkAccess(obj, self):
+                    return cmd
         return self.handleUnmatchedInput(input)
 
     def preemptiveCommandMatch(self, input):
@@ -170,9 +189,9 @@ class BaseObject(StoredObject):
         @rtype: list
         """
         hosts = [self]
-        if input.dobj is not None:
+        if input.dobj is not None and input.dobj not in hosts:
             hosts.append(input.dobj)
-        if input.iobj is not None:
+        if input.iobj is not None and input.iobj not in hosts:
             hosts.append(input.iobj)
 
         return hosts
@@ -190,21 +209,22 @@ class BaseObject(StoredObject):
         Checks if this object has the permission specified. An object has a
         perm if it has a role in which that permission can be found.
         """
-        for role in self.roles:
-            if perm in role.perms:
-                return True
-        return False
+        return len([role for role in self.roles if role.hasPerm(perm)]) > 0
 
     def hasRole(self, role):
         return role in self.roles
 
     def addRole(self, role):
+        if 'roles' not in self.__dict__:
+            self.roles = set()
         if role not in self.roles:
             self.roles.add(role)
 
     def removeRole(self, role):
         if role in self.roles:
             self.roles.remove(role)
+        if len(self.roles) == 0:
+            del self.roles
 
 
 class Object(BaseObject):
@@ -216,7 +236,7 @@ class Object(BaseObject):
     @type location: Object
 
     @ivar contents: The set of objects contained by this object.
-    @type contents: set
+    @type contents: list
 
     @ivar desc: The description of the object.
     @type desc: str
@@ -224,8 +244,12 @@ class Object(BaseObject):
 
     #: @type: Object
     location = None
-    contents = set()
+    contents = None
     desc = ""
+
+    def __init__(self):
+        super(Object, self).__init__()
+        self.contents = []
 
     def matchObject(self, search, err=False):
         """
@@ -255,7 +279,7 @@ class Object(BaseObject):
         @rtype: list
         """
         hosts = super(Object, self).commandHosts(input)
-        if self.location is not None:
+        if self.location is not None:  # add even if already in to be 2nd.
             hosts.insert(1, self.location)
 
         return hosts
@@ -327,7 +351,7 @@ class Object(BaseObject):
         self.location = dest
 
         if isinstance(dest, Object):
-            dest.contents.add(self)
+            dest.contents.append(self)
 
         # Now fire event hooks on the two locations and the moved object.
         if isinstance(previous_location, Object):
@@ -359,6 +383,8 @@ class BasePlayer(BaseObject):
     #: @type: str
     email = ""
 
+    superuser = False
+
     #: @type: BaseObject
     possessing = None
 
@@ -374,9 +400,10 @@ class BasePlayer(BaseObject):
             # which will free up self.session
             self.session.disconnect("Player taken over by another connection")
         else:
-            # TODO: BasePlayer is connecting. Should we tell someone?
+            # TODO: Player is connecting. Should we tell someone?
             pass
         self.session = session
+        self.msg("Connected to player %s" % self.name)
 
     def sessionDetached(self, session):
         """
@@ -384,9 +411,26 @@ class BasePlayer(BaseObject):
         disconnect.
         """
         if self.session == session:
-            self.session = None
+            del self.session
+
+    def msg(self, text, flags=None):
+        """
+        Emit text to a player (and thereby to the session attach to the player,
+        if any).
+
+        @param text: Text to send.
+        @param flags: Flags to modify how text is handled.
+        @type text: str
+        """
+        if self.session is not None:
+            self.session.sendOutput(text, flags=flags)
 
     def possessObject(self, obj):
+        """
+        Possess an object.
+        @param obj: The object to possess.
+        @type obj: BaseObject
+        """
         obj.possessBy(self)
         if obj.possessed_by == self:
             self.possessing = obj
@@ -394,7 +438,7 @@ class BasePlayer(BaseObject):
 
     def dispossessObject(self, obj):
         if self.possessing == obj:
-            self.possessing = None
+            del self.possessing
             obj.dispossessed()
             self.onObjectDispossessed(obj)
 
@@ -411,6 +455,23 @@ class BasePlayer(BaseObject):
         @param obj: The object that was previously possessed.
         @type obj: BaseObject
         """
+
+    def processInput(self, raw, passedInput=None, err=True):
+        possessing = self.possessing is not None
+        input = ParsedInput(raw, self)
+        try:
+            handled = super(BasePlayer, self).processInput(raw,
+                                                           passedInput=input,
+                                                           err=possessing)
+            if not handled and possessing:
+                self.possessing.processInput(raw, passedInput=input)
+        except CommandInvalid as e:
+            self.msg("{r" + e.message)
+
+    def hasPerm(self, perm):
+        if self.superuser:
+            return True
+        return super(BasePlayer, self).hasPerm(perm)
 
 
 class BaseCharacter(Object):

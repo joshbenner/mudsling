@@ -73,6 +73,7 @@ class StoredObject(Persistent):
         This also fires BEFORE the object has an object ID or is part of the
         database, which could suggest using objectCreated() instead.
         """
+        self.aliases = []
         pass
 
     def name(self):
@@ -103,12 +104,20 @@ class Database(Persistent):
 
     @ivar objects: Set of all game objects.
     @type objects: dict
+
+    @ivar roles: Game-wide roles.
+    @type roles: list
+
+    @ivar type_registry: Dictionary lookup for class instances. Rebuilt on each
+        load of the database.
+    @type type_registry: dict
     """
 
     _transientVars = ['type_registry']
 
     max_obj_id = 0
     objects = {}
+    roles = []
 
     type_registry = {}
 
@@ -117,11 +126,14 @@ class Database(Persistent):
         This will only run when a new game DB is initialized.
         """
         self.objects = {}
+        self.roles = []
+        self.type_registry = {}
 
     def onLoaded(self):
         """
         Called just after the database has been loaded from disk.
         """
+        self.type_registry = {}
         for obj in self.objects.values():
             self._addToTypeRegistry(obj)
             obj.db = self
