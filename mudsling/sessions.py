@@ -1,5 +1,6 @@
 import time
 import logging
+import traceback
 
 from mudsling.ansi import parse_ansi
 
@@ -17,7 +18,7 @@ class Session(object):
 
     time_connected = 0
 
-    #: @type: mudsling.objects.Player
+    #: @type: mudsling.objects.BasePlayer
     player = None
 
     line_delimiter = '\r\n'
@@ -35,12 +36,21 @@ class Session(object):
 
     def sessionClosed(self):
         self.game.session_handler.disconnectSession(self)
+        if self.player is not None:
+            self.player.sessionDetached(self)
         logging.info("Session %s disconnected." % self)
 
     def receiveInput(self, line):
         line = line.strip()
         if self.player is None:
             self.game.login_screen.processInput(self, line)
+        else:
+            #noinspection PyBroadException
+            try:
+                self.player.processInput(line)
+            except:
+                errmsg = "UNHANDLED EXCEPTION\n%s" % traceback.format_exc()
+                logging.error(errmsg)
 
     def sendOutput(self, text):
         """
@@ -72,6 +82,26 @@ class Session(object):
         """
         Disconnect this session. Children must implement!
         """
+
+    def attachToPlayer(self, player):
+        """
+        Attach this session to a player object.
+
+        @param player: The player to attach to.
+        @type player: mudsling.objects.BasePlayer
+        """
+        if self.player is not None:
+            self.detach()
+        self.player = player
+        player.sessionAttached(self)
+
+    def detach(self):
+        """
+        Detaches the session from the object it's currently connected to.
+        """
+        if self.player is not None:
+            self.player.sessionDetached(self)
+            self.player = None
 
 
 class SessionHandler(object):

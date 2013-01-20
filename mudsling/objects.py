@@ -13,7 +13,11 @@ class BaseObject(StoredObject):
 
     @cvar commands: Commands provided by this class. Classes, not instances.
 
-    @ivar possessed_by: The Player who is currently possessing this object.
+    @ivar possessed_by: The BasePlayer who is currently possessing this object.
+    @ivar possessable_by: List of players who can possess this object.
+    @ivar roles: The set of roles granted to this object. For most objects,
+        this variable will always be empty. Characters and especially players,
+        however, may have occasion to be granted roles.
     """
 
     _transientVars = ['possessed_by']
@@ -21,16 +25,51 @@ class BaseObject(StoredObject):
     #: @type: set
     commands = set()
 
-    #: @type: Player
+    #: @type: BasePlayer
     possessed_by = None
 
-    def possess(self, player):
-        # TODO: Refactor this into a property?
-        self.dispossess()
-        self.possessed_by = player
+    possessable_by = []
 
-    def dispossess(self):
+    roles = set()
+
+    def possessableBy(self, player):
+        """
+        Returns True if the player can possess this object.
+        @param player: The player.
+        @return: bool
+        """
+        return (player in self.possessable_by
+                or player.hasPerm("possess anything"))
+
+    def possessBy(self, player):
+        # TODO: Refactor this into a property?
+        if self.possessed_by is not None:
+            self.possessed_by.dispossessObject(self)
+        self.possessed_by = player
+        self.onPossessed(player)
+
+    def dispossessed(self):
+        """
+        Called after this object has been dispossessed by a BasePlayer.
+        """
+        previous = self.possessed_by
         self.possessed_by = None
+        if previous is not None:
+            self.onDispossessed(previous)
+
+    def onPossessed(self, player):
+        """
+        Event hook called when this object has been possessed by a BasePlayer.
+        @param player: BasePlayer which has possessed the object.
+        @type player: BasePlayer
+        """
+
+    def onDispossessed(self, player):
+        """
+        Event hook called when this object has been dispossessed by a BasePlayer.
+        @param player: The player that previously possessed this object.
+        @type player: BasePlayer
+        """
 
     def matchObject(self, search, err=False):
         """
@@ -39,7 +78,7 @@ class BaseObject(StoredObject):
         @param search: The search string.
         @param err: If true, can raise search result errors.
 
-        @return: set
+        @rtype: set
         """
         # TODO: Literal object matching
         if search == 'me':
@@ -75,7 +114,7 @@ class BaseObject(StoredObject):
         @param input: ParsedInput which is being used to match commands.
         @type input: ParsedInput
 
-        @return: type
+        @rtype: type
         """
         for cmd in self.commands:
             if cmd.matchParsedInput(input):
@@ -91,7 +130,7 @@ class BaseObject(StoredObject):
         @param input: The ParsedInput from which to generate the list.
         @type input: ParsedInput
 
-        @return: list
+        @rtype: list
         """
         hosts = [self]
         if input.dobj is not None:
@@ -108,6 +147,27 @@ class BaseObject(StoredObject):
         """
         cmd = cmdClass(obj, input, self)
         cmd.execute()
+
+    def hasPerm(self, perm):
+        """
+        Checks if this object has the permission specified. An object has a
+        perm if it has a role in which that permission can be found.
+        """
+        for role in self.roles:
+            if perm in role.perms:
+                return True
+        return False
+
+    def hasRole(self, role):
+        return role in self.roles
+
+    def addRole(self, role):
+        if role not in self.roles:
+            self.roles.add(role)
+
+    def removeRole(self, role):
+        if role in self.roles:
+            self.roles.remove(role)
 
 
 class Object(BaseObject):
@@ -133,7 +193,7 @@ class Object(BaseObject):
     def matchObject(self, search, err=False):
         """
         @type search: str
-        @return: set
+        @rtype: set
         """
         matches = super(Object, self).matchObject(search, err=err)
         if matches:
@@ -155,7 +215,7 @@ class Object(BaseObject):
     def commandHosts(self, input):
         """
         Add the object's location after self.
-        @return: list
+        @rtype: list
         """
         hosts = super(Object, self).commandHosts(input)
         if self.location is not None:
@@ -241,7 +301,7 @@ class Object(BaseObject):
         self.objectMoved(previous_location, dest)
 
 
-class Player(BaseObject):
+class BasePlayer(BaseObject):
     """
     Base player class.
 
@@ -262,8 +322,59 @@ class Player(BaseObject):
     #: @type: str
     email = ""
 
+    #: @type: BaseObject
+    possessing = None
+
     def __init__(self, name, password, email):
-        super(Player, self).__init__()
+        super(BasePlayer, self).__init__()
         self.name = name
         self.password = Password(password)
         self.email = email
+
+    def sessionAttached(self, session):
+        if self.session is not None:
+            # This should result in self.sessionDetached() being called
+            # which will free up self.session
+            self.session.disconnect("BasePlayer taken over by another connection")
+        else:
+            # TODO: BasePlayer is connecting. Should we tell someone?
+            pass
+        self.session = session
+
+    def sessionDetached(self, session):
+        """
+        Called by a session that thinks it is connected to this player upon
+        disconnect.
+        """
+        if self.session == session:
+            self.session = None
+
+    def possessObject(self, obj):
+        obj.possessBy(self)
+        if obj.possessed_by == self:
+            self.possessing = obj
+            self.onObjectPossessed(obj)
+
+    def dispossessObject(self, obj):
+        if self.possessing == obj:
+            self.possessing = None
+            obj.dispossessed()
+            self.onObjectDispossessed(obj)
+
+    def onObjectPossessed(self, obj):
+        """
+        Event hook that fires right after BasePlayer has possessed an object.
+        @param obj: The object that is now possessed by the player.
+        @type obj: BaseObject
+        """
+
+    def onObjectDispossessed(self, obj):
+        """
+        Event hook that fires right after BasePlayer has dispossessed an object.
+        @param obj: The object that was previously possessed.
+        @type obj: BaseObject
+        """
+
+
+class BaseCharacter(Object):
+    pass

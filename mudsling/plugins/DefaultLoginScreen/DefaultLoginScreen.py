@@ -4,7 +4,8 @@ from collections import namedtuple
 
 from mudsling.extensibility import LoginScreenPlugin
 from mudsling.match import match_objlist
-from mudsling.objects import Player
+from mudsling.misc import Password
+from mudsling.objects import BasePlayer
 
 
 LoginCmd = namedtuple('LoginCmd', 'pattern syntax desc func')
@@ -42,6 +43,7 @@ class DefaultLoginScreen(LoginScreenPlugin):
     )
 
     def activate(self):
+        print __name__+'.'+self.__class__.__name__
         super(DefaultLoginScreen, self).activate()
         plugin_path = os.path.dirname(os.path.realpath(__file__))
         file_path = os.path.join(plugin_path, 'login_screen.txt')
@@ -78,15 +80,25 @@ class DefaultLoginScreen(LoginScreenPlugin):
         session.disconnect("quit")
 
     def doConnect(self, session, input=None, args=None):
+        errmsg = "Unknown player name or password."
         username, password = args
+
         matches = match_objlist(username,
-                                self.game.db.descendants(Player),
+                                self.game.db.descendants(BasePlayer),
                                 exactOnly=True)
 
-        if len(matches) == 1:
-            pass
-        elif len(matches) > 1:
+        if len(matches) > 1:
             # This hopefully won't happen...
-            session.sendOutput("Ambiguous player name.")
+            session.sendOutput(errmsg)
+            return
+        elif len(matches) == 0:
+            session.sendOutput(errmsg)
+            return
+
+        #: @type: BasePlayer
+        player = matches.pop()
+        if (isinstance(player.password, Password)
+                and player.password.matchesPassword(password)):
+            session.attachToPlayer(player)
         else:
-            session.sendOutput("Unknown player name.")
+            session.sendOutput(errmsg)

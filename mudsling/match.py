@@ -26,7 +26,7 @@ def match_objlist(search, objlist, varname="aliases", exactOnly=False,
     @param exactOnly: Only look for exact matches.
     @param err: If true, may raise AmbiguousMatch or FailedMatch.
 
-    @return: set
+    @rtype: set
     """
 
     def make_names(val):
@@ -87,7 +87,7 @@ def parse_ordinal(string):
 
     @param string: String to parse.
 
-    @return: tuple
+    @rtype: tuple
     """
     match = re.match(r"^(\d+)(?:st|nd|rd|th)(.*)$", string)
     if match:
@@ -111,7 +111,7 @@ def match(search, objlist, varname="aliases"):
     @param varname: The name of the instance variable containing the string(s)
         to search against.
 
-    @return: set
+    @rtype: set
     """
     matches = match_objlist(search, objlist, varname)
     if matches:

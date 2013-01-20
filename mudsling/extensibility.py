@@ -1,4 +1,5 @@
 import os
+import sys
 
 from yapsy.IPlugin import IPlugin
 from yapsy.PluginInfo import PluginInfo
@@ -29,10 +30,11 @@ class MUDSlingPlugin(IPlugin):
 
     @ivar options: Key/val pairs of options loaded from config for this plugin.
     @ivar game: Reference to the game object.
+    @ivar info: Reference back to the plugin info object.
     """
 
     options = {}
-
+    info = None
     #: @type: mudsling.server.MUDSling
     game = None
 
@@ -76,6 +78,21 @@ class LoginScreenPlugin(MUDSlingPlugin):
         """
 
 
+class GamePlugin(MUDSlingPlugin):
+    """
+    Game plugins can provide new object classes, hook game events, etc. They're
+    the plugins which are meant to interact with the game world in general.
+    """
+
+    def activate(self):
+        super(GamePlugin, self).activate()
+
+        # Add plugin's path to the PYTHONPATH so that it may be used as a
+        # module by other code, have its classes used in config, etc.
+        pluginpath = os.path.dirname(self.info.path)
+        sys.path.append(pluginpath)
+
+
 class PluginManager(yapsy.PluginManager.PluginManager):
 
     #: @cvar: Config section identifying enabled plugins.
@@ -87,7 +104,8 @@ class PluginManager(yapsy.PluginManager.PluginManager):
     #: @cvar: Plugin category mappings.
     PLUGIN_CATEGORIES = {
         "TwistedService": TwistedServicePlugin,
-        "LoginScreen": LoginScreenPlugin
+        "LoginScreen": LoginScreenPlugin,
+        "GamePlugin": GamePlugin
     }
 
     def __init__(self, game, game_dir):
@@ -134,6 +152,7 @@ class PluginManager(yapsy.PluginManager.PluginManager):
             # Load config-based options if Plugin supports them.
             if isinstance(info.plugin_object, MUDSlingPlugin):
                 info.plugin_object.game = game
+                info.plugin_object.info = info
                 sec = "Plugin:%s" % info.machine_name
                 if game.config.has_section(sec):
                     info.plugin_object.options = dict(game.config.items(sec))

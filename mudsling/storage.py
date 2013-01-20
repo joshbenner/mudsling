@@ -53,8 +53,8 @@ class StoredObject(Persistent):
     @ivar name: The primary name of the object. Use name property.
     @type name: str
 
-    @ivar aliases: A set of alternate names of the object, used for matching.
-    @type aliases: set
+    @ivar aliases: A list of alternate names of the object, used for matching.
+    @type aliases: list
     """
 
     _transientVars = ['name', 'db']
@@ -63,7 +63,7 @@ class StoredObject(Persistent):
 
     id = None
     _name = ""
-    aliases = set()
+    aliases = []
 
     def __init__(self):
         """
@@ -82,7 +82,7 @@ class StoredObject(Persistent):
         if self._name in self.aliases:
             self.aliases.remove(self._name)
         self._name = name
-        self.aliases.add(name)
+        self.aliases.insert(0, name)
 
     name = property(name, setName)
 
@@ -134,11 +134,14 @@ class Database(Persistent):
         self.max_obj_id += 1
         return self.max_obj_id
 
-    def createObject(self, cls):
+    def createObject(self, cls, name, aliases=None):
         """
         Creates a new game-world database object that will persist.
         """
         obj = cls()
+        obj.name = name
+        if aliases is not None:
+            obj.aliases.extend(list(aliases))
         self.registerNewObject(obj)
         return obj
 
@@ -174,7 +177,7 @@ class Database(Persistent):
 
         @param ancestor: The class whose descendants to retrieve.
 
-        @return: list
+        @rtype: list
         """
         descendants = []
         for cls, children in self.type_registry.iteritems():
@@ -188,7 +191,7 @@ class Database(Persistent):
 
         @param parent: The class whose children to retrieve.
 
-        @return: list
+        @rtype: list
         """
         if parent in self.type_registry:
             return list(self.type_registry[parent])

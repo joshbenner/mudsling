@@ -9,9 +9,8 @@ import cPickle as pickle
 import atexit
 
 # Prefer libs we ship with.
-from mudsling.objects import Player
-
-libpath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "lib")
+libpath = os.path.join(os.path.dirname(
+    os.path.dirname(os.path.realpath(__file__))), "lib")
 sys.path.insert(1, libpath)
 
 import ConfigParser
@@ -26,6 +25,7 @@ from twisted.application.service import IServiceCollection
 from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
 from mudsling.storage import Database
+from mudsling.utils.modules import class_from_path
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -54,6 +54,11 @@ class MUDSling(object):
     #: @type: mudsling.plugins.LoginScreenPlugin
     login_screen = None
 
+    #: @type: types.ClassType
+    player_class = None
+    character_class = None
+    room_class = None
+
     def __init__(self, game_dir="game", app=None):
         # Populated by service.setServiceParent().
         self.services = IServiceCollection(app)
@@ -66,11 +71,14 @@ class MUDSling(object):
         self.config = ConfigParser.SafeConfigParser()
         self.config.read(self.configPaths())
 
-        self.loadDatabase()
-        atexit.register(self.saveDatabase)
-
         # Load plugin manager. Locates, filters, and loads plugins.
         self.plugins = PluginManager(self, game_dir)
+
+        # Parse class configs and stash class refs on the game object.
+        self.loadClassConfigs()
+
+        self.loadDatabase()
+        atexit.register(self.saveDatabase)
 
         # Setup session handler. Used by services.
         self.session_handler = SessionHandler(self)
@@ -108,6 +116,16 @@ class MUDSling(object):
         elif not os.path.isdir(self.game_dir):
             raise Exception("Game dir is a file!")
 
+    def loadClassConfigs(self):
+        """
+        Cycle through the [Classes] config section, finding the configured
+        classes, making sure their modules are loaded and the game has a ref
+        to the class object.
+        """
+        for config_name, class_path in self.config.items('Classes'):
+            attrname = config_name.replace(' ', '_')
+            setattr(self, attrname, class_from_path(class_path))
+
     def loadDatabase(self):
         dbfilename = self.config.get('Main', 'db file')
         self.db_file_path = os.path.join(self.game_dir, dbfilename)
@@ -123,9 +141,22 @@ class MUDSling(object):
             self.db.onLoaded()
 
             # Create first player.
-            player = Player('admin', 'password', 'admin@localhost')
+            #: @type: mudsling.objects.BasePlayer
+            player = self.player_class('admin', 'password', 'admin@localhost')
             self.db.registerNewObject(player)
 
+            #: @type: mudsling.objects.BaseCharacter
+            char = self.db.createObject(self.character_class, 'Admin')
+            char.possessable_by.append(player)
+
+            player.possessObject(char)
+
+            #: @type: mudsling.topography.Room
+            room = self.db.createObject(self.room_class, "The First Room")
+
+            char.moveTo(room)
+
+            # Get the db on disk.
             self.saveDatabase()
 
     def saveDatabase(self):

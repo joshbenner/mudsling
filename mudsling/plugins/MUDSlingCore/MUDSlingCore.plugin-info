@@ -1,0 +1,8 @@
+[Core]
+Name = MUDSling Core Plugin
+Module = .
+
+[Documentation]
+Author = Josh Benner
+Version = 0.1
+Description = Core game elements. Canonical GamePlugin example.

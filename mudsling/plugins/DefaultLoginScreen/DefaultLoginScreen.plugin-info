@@ -1,6 +1,6 @@
 [Core]
 Name = Default Login Screen
-Module = DefaultLoginScreen
+Module = .
 
 [Documentation]
 Author = Josh Benner

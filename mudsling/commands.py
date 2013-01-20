@@ -61,7 +61,7 @@ class Command(object):
         @param input: The ParsedInput to match against.
         @type input: mudsling.parse.ParsedInput
 
-        @return: bool
+        @rtype: bool
         """
         if len(cls.aliases) > len(cls._compiled_aliases):
             cls.compileAliases()
@@ -100,7 +100,7 @@ class Command(object):
         @param input: The ParsedInput to compare.
         @type input: mudsling.parse.ParsedInput
 
-        @return: bool
+        @rtype: bool
         """
         if prepSpec == 'any' and input.prep is not None:
             return True
@@ -124,7 +124,7 @@ class Command(object):
         @param string: The input string to match.
         @param obj: The object match by the command parser.
 
-        @return: bool
+        @rtype: bool
         """
         if objSpec == 'any':
             return True
