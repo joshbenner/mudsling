@@ -37,3 +37,19 @@ def trimDocstring(docstring):
         trimmed.pop(0)
         # Return a single string:
     return '\n'.join(trimmed)
+
+def english_list(things, nothingstr="nothing", andstr=" and ", commastr=", ", finalcommastr=","):
+    """
+    Returns a string containing an english-style list, separating items with
+    a command and using a command with and before the final item.
+
+    @param things: The items to include in the list.
+    @param nothingstr: What to return when list is empty.
+    @param andstr: The string to use for the 'and'.
+    @param commastr: The string to use as the normal separator.
+    @param finalcommastr: The string to use as the final separator before and.
+
+    @rtype: str
+    """
+    if not things:
+        return nothingstr

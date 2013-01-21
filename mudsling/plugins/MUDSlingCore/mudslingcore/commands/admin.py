@@ -76,3 +76,22 @@ class EvalCmd(Command):
         actor.msg(raw_string, {'raw': True})
         if duration is not None:
             actor.msg("Exec time: %.3f ms" % (duration * 1000))
+
+
+class RolesCmd(Command):
+    """
+    @roles [<player>]
+
+    List all roles, or display the roles granted to a specified player.
+
+    Requires the 'view perms' permission.
+    """
+    aliases = ('@roles',)
+    args = ('any', 'any', 'any')
+    required_perm = 'view perms'
+
+    def run(self, this, input, actor):
+        if not input.argwords:
+            # List roles
+
+
