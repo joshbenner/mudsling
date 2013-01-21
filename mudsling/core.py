@@ -75,6 +75,8 @@ class MUDSling(object):
         # Load plugin manager. Locates, filters, and loads plugins.
         self.plugins = PluginManager(self, game_dir)
 
+        logging.debug('\n'.join(sys.path))
+
         # Parse class configs and stash class refs on the game object.
         self.loadClassConfigs()
 
