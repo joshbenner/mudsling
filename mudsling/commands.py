@@ -1,8 +1,10 @@
 import re
+import logging
 
 import inflect
 
 from mudsling.utils import string
+from mudsling.utils.syntax import Syntax, SyntaxParseError
 
 
 prepositions = (
@@ -33,19 +35,23 @@ class Command(object):
     command may feel free to use the command instance as it wishes.
 
     @cvar aliases: Regular expressions that can match to trigger the command.
-    @cvar args: The tuple of arg tokens used to determine if the parsed input
-        matches the signature of this command.
+    @cvar syntax: String representation of the command's syntax that is parse-
+        able by mudsling.utils.syntax.Syntax.
     @cvar required_perm: An object must have this perm to use this command.
 
     @ivar obj: The object hosting this command.
-    @ivar input: The ParsedInput which led to this command being executed.
+    @ivar input: The raw command-line input
+    @ivar cmdstr: The command part of the input string.
+    @ivar argstr: The argument part of the input string.
+    @ivar parsed: The result of parsing the arguments.
     @ivar actor: The object responsible for the input leading to execution.
     @ivar game: Handy reference to the game object.
     """
 
     aliases = ()
-    _compiled_aliases = []
-    args = (None, None, None)
+    syntax = ""
+    #: @type: Syntax
+    _syntax = None
     required_perm = None
 
     #: @type: mudsling.objects.BaseObject
@@ -54,11 +60,22 @@ class Command(object):
     #: @type: mudsling.objects.BaseObject
     actor = None
 
-    #: @type: mudsling.parse.ParsedInput
+    #: @type: str
     input = None
+    cmdstr = None
+    argstr = None
+
+    #: @type: dict
+    parsed = {}
 
     #: @type: mudsling.core.MUDSling
     game = None
+
+    @classmethod
+    def name(cls):
+        if len(cls.aliases) > 0:
+            return cls.aliases[0]
+        return 'ERROR NO CMD ALIAS'
 
     @classmethod
     def checkAccess(cls, hostObj, actor):
@@ -78,104 +95,41 @@ class Command(object):
         return True
 
     @classmethod
-    def matchInput(cls, hostObj, input):
+    def matchCommand(cls, hostObj, cmdstr):
         """
-        Determines if this command is a match for the ParsedInput provided. The
-        generic version of this hook should be sufficient for most commands,
-        but it can be overridden for extra magic.
+        Determine if this command matches the command portion of the input.
 
         @param hostObj: The object hosting the command for this check.
         @type hostObj: mudsling.objects.BaseObject
 
-        @param input: The ParsedInput to match against.
-        @type input: mudsling.parse.ParsedInput
+        @param cmdstr: The command part of the raw input.
+        @type cmdstr: str
 
         @rtype: bool
         """
-        if len(cls.aliases) > len(cls._compiled_aliases):
-            cls.compileAliases()
+        return cmdstr in cls.aliases
 
-        cmdstr = input.cmdstr
-        match = False
-        for alias in cls._compiled_aliases:
-            if alias.match(cmdstr):
-                match = True
-
-        if not match:
+    @classmethod
+    def _compileSyntax(cls):
+        try:
+            cls._syntax = Syntax(cls.syntax)
+        except SyntaxParseError as e:
+            logging.error("Cannot parse %s syntax: %s"
+                          % (cls.name(), e.message))
             return False
 
-        dobjSpec, prepSpec, iobjSpec = cls.args
-        i = input
-        prepMatch = cls.matchPrepSpec(prepSpec, input)
-        dobjMatch = cls.matchObjSpec(hostObj, dobjSpec, i.dobjstr, i.dobj)
-        iobjMatch = cls.matchObjSpec(hostObj, iobjSpec, i.iobjstr, i.iobj)
-
-        return prepMatch and dobjMatch and iobjMatch
-
-    @classmethod
-    def compileAliases(cls):
+    def matchSyntax(self, hostObj, argstr):
         """
-        Compile alias regexes for speedy reuse.
-        """
-        compiled = []
-        for alias in cls.aliases:
-            compiled.append(re.compile(alias, re.IGNORECASE))
-        cls._compiled_aliases = compiled
-
-    @classmethod
-    def matchPrepSpec(cls, prepSpec, input):
-        """
-        Check if the preposition spec matches the ParsedInput.
-
-        @param prepSpec: The prepSpec to compare against.
-        @type prepSpec: str or None
-
-        @param input: The ParsedInput to compare.
-        @type input: mudsling.parse.ParsedInput
-
+        Determine if the input matches the command syntax.
         @rtype: bool
         """
-        if prepSpec is None:
-            return input.prep is None
+        if self._syntax is None:
+            self._compileSyntax()
 
-        if prepSpec == 'any' and input.prep is not None:
+        parsed = self._syntax.parse(argstr)
+        if parsed:
+            self.parsed = parsed
             return True
-
-        # Check for optional preposition
-        if prepSpec.startswith('?'):
-            if input.prep:
-                # Prep is optional, but provided: make sure it matches.
-                return prepSpec[1:] in input.prep
-            # Prep is optional and not provided: that's a pass.
-            return True
-
-        # prepSpec is neither 'any' nor None, so it must be a string specifying
-        # the preoposition it wants. If the prepSpec is in the preposition set
-        # in the input, then we have a match.
-        return prepSpec in (input.prep or ())
-
-    @classmethod
-    def matchObjSpec(cls, hostObj, objSpec, string, obj):
-        """
-        Determines if the input string and/or matched object for an object slot
-        matches the arg spec.
-
-        @param hostObj: The object that is hosting this command for this check.
-        @param objSpec: The spec to match against.
-        @param string: The input string to match.
-        @param obj: The object match by the command parser.
-
-        @rtype: bool
-        """
-        if objSpec == 'any':
-            return True
-
-        if objSpec is None:
-            return string == "" or string is None
-
-        if objSpec == 'this' or objSpec == 'self':
-            return obj == hostObj
-
         return False
 
     @classmethod

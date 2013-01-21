@@ -1,6 +1,6 @@
 from mudsling.storage import StoredObject
 from mudsling.errors import InvalidObject, CommandInvalid
-from mudsling.misc import Password
+from mudsling.utils.password import Password
 from mudsling.parse import ParsedInput
 from mudsling.match import match_objlist
 
@@ -114,7 +114,7 @@ class BaseObject(StoredObject):
         this method without having to jump through more hoops than needed.
         """
         input = passedInput or ParsedInput(raw, self)
-        for obj in self.commandHosts(input):
+        for obj in self.getContext(input):
             cmd = obj.matchCommand(input)
             if cmd is not None and isinstance(cmd, type):
                 self.doCommand(input, obj, cmd)
@@ -142,7 +142,7 @@ class BaseObject(StoredObject):
         cmd = self.preemptiveCommandMatch(input)
         if cmd is not None:
             return cmd
-        for obj in self.commandHosts(input):
+        for obj in self.getContext(input):
             for cmd in obj.commands:
                 if cmd.matchInput(obj, input) and cmd.checkAccess(obj, self):
                     return cmd
@@ -177,24 +177,14 @@ class BaseObject(StoredObject):
         """
         return None
 
-    def commandHosts(self, input):
+    def getContext(self):
         """
-        Given ParsedInput, return a list of objects which will be checked, in
-        order, for a command matching the input. The input is assumed to have
-        come from this object.
-
-        @param input: The ParsedInput from which to generate the list.
-        @type input: ParsedInput
+        Return a list of objects which will be checked, in order, for commands
+        or object matches when parsing command arguments.
 
         @rtype: list
         """
-        hosts = [self]
-        if input.dobj is not None and input.dobj not in hosts:
-            hosts.append(input.dobj)
-        if input.iobj is not None and input.iobj not in hosts:
-            hosts.append(input.iobj)
-
-        return hosts
+        return [self]
 
     def doCommand(self, input, obj, cmdClass):
         """
@@ -269,14 +259,19 @@ class Object(BaseObject):
 
         return set()
 
-    def commandHosts(self, input):
+    def getContext(self):
         """
         Add the object's location after self.
         @rtype: list
         """
-        hosts = super(Object, self).commandHosts(input)
-        if self.location is not None:  # add even if already in to be 2nd.
-            hosts.insert(1, self.location)
+        hosts = super(Object, self).getContext()
+        if self.location is not None:
+            hosts.append(self.location)
+        if isinstance(self.contents, list):
+            hosts.extend(self.contents)
+        if (self.location is not None and
+                isinstance(self.location.contents, list)):
+            hosts.extend(self.location.contents)
 
         return hosts
 
