@@ -22,7 +22,6 @@ class AnsiCmd(Command):
         """
         on_vals = ['on', 'yes', 'enable', 'enabled', '1', 'true']
         off_vals = ['off', 'no', 'disable', 'disabled', '0', 'false']
-        val = True if input.argstr in on_vals else False
 
         if input.argstr.lower() in on_vals:
             val = True
