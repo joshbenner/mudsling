@@ -6,11 +6,14 @@ import traceback
 
 from mudsling.commands import Command
 from mudsling.ansi import parse_ansi
+from mudsling.objects import Object
 
 
 class EvalCmd(Command):
     """
-    @eval <python code> -- Executes arbitrary python code.
+    @eval <python code>
+
+    Execute arbitrary python code.
 
     Requires the 'eval code' permission.
     """
@@ -19,19 +22,30 @@ class EvalCmd(Command):
     args = ('any', None, None)
     required_perm = "eval code"
 
-    def run(self):
+    def run(self, this, input, actor):
         """
         Execute and time the code.
+
+        @type actor: mudslingcore.objects.Player
         """
-        code = self.input.argstr
+
+        code = input.argstr
+
+        #: @type: Object
+        char = actor.possessing
 
         if not code:
-            self.actor.msg(self.syntaxHelp())
+            actor.msg(self.syntaxHelp())
             return False
 
-        available_vars = {}
+        available_vars = {
+            'game': self.game,
+            'player': actor,
+            'me': char,
+            'here': char.location if isinstance(char, Object) else None
+        }
 
-        self.actor.msg("{y>>> %s" % code)
+        actor.msg("{y>>> %s" % code)
 
         mode = 'eval'
         duration = None
@@ -59,6 +73,6 @@ class EvalCmd(Command):
             ret = "\n".join("<<< %s" % line for line in error_lines if line)
 
         raw_string = parse_ansi("{m") + ret + parse_ansi("{n")
-        self.actor.msg(raw_string, {'raw': True})
+        actor.msg(raw_string, {'raw': True})
         if duration is not None:
-            self.actor.msg("Exec time: %.3f ms" % (duration * 1000))
+            actor.msg("Exec time: %.3f ms" % (duration * 1000))

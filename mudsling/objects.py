@@ -201,7 +201,7 @@ class BaseObject(StoredObject):
         Executes the given command on the specified command host as this
         object having generated the given input.
         """
-        cmd = cmdClass(obj, input, self)
+        cmd = cmdClass(self.game, obj, input, self)
         cmd.execute()
 
     def hasPerm(self, perm):
@@ -237,15 +237,11 @@ class Object(BaseObject):
 
     @ivar contents: The set of objects contained by this object.
     @type contents: list
-
-    @ivar desc: The description of the object.
-    @type desc: str
     """
 
     #: @type: Object
     location = None
     contents = None
-    desc = ""
 
     def __init__(self):
         super(Object, self).__init__()
@@ -388,6 +384,9 @@ class BasePlayer(BaseObject):
     #: @type: BaseObject
     possessing = None
 
+    # Governed by ansi property
+    _ansi = False
+
     def __init__(self, name, password, email):
         super(BasePlayer, self).__init__()
         self.name = name
@@ -403,6 +402,7 @@ class BasePlayer(BaseObject):
             # TODO: Player is connecting. Should we tell someone?
             pass
         self.session = session
+        self.session.ansi = self.ansi
         self.msg("Connected to player %s" % self.name)
 
     def sessionDetached(self, session):
@@ -462,7 +462,7 @@ class BasePlayer(BaseObject):
         try:
             handled = super(BasePlayer, self).processInput(raw,
                                                            passedInput=input,
-                                                           err=possessing)
+                                                           err=not possessing)
             if not handled and possessing:
                 self.possessing.processInput(raw, passedInput=input)
         except CommandInvalid as e:
@@ -472,6 +472,24 @@ class BasePlayer(BaseObject):
         if self.superuser:
             return True
         return super(BasePlayer, self).hasPerm(perm)
+
+    @property
+    def ansi(self):
+        """
+        @rtype: bool
+        """
+        return self._ansi
+
+    @ansi.setter
+    def ansi(self, val):
+        if self._ansi != val:
+            self._ansi = val
+            if self.session is not None:
+                self.session.ansi = val
+            if val:
+                self.msg("ANSI enabled.")
+            else:
+                self.msg("ANSI disabled.")
 
 
 class BaseCharacter(Object):

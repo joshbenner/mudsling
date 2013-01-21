@@ -38,6 +38,7 @@ class Command(object):
     @ivar obj: The object hosting this command.
     @ivar input: The ParsedInput which led to this command being executed.
     @ivar actor: The object responsible for the input leading to execution.
+    @ivar game: Handy reference to the game object.
     """
 
     aliases = ()
@@ -53,6 +54,9 @@ class Command(object):
 
     #: @type: mudsling.parse.ParsedInput
     input = None
+
+    #: @type: mudsling.core.MUDSling
+    game = None
 
     @classmethod
     def checkAccess(cls, hostObj, actor):
@@ -100,9 +104,11 @@ class Command(object):
 
         dobjSpec, prepSpec, iobjSpec = cls.args
         i = input
-        return (cls.matchPrepSpec(prepSpec, input)
-                and cls.matchObjSpec(hostObj, dobjSpec, i.dobjstr, i.dobj)
-                and cls.matchObjSpec(hostObj, iobjSpec, i.iobjstr, i.iobj))
+        prepMatch = cls.matchPrepSpec(prepSpec, input)
+        dobjMatch = cls.matchObjSpec(hostObj, dobjSpec, i.dobjstr, i.dobj)
+        iobjMatch = cls.matchObjSpec(hostObj, iobjSpec, i.iobjstr, i.iobj)
+
+        return prepMatch and dobjMatch and iobjMatch
 
     @classmethod
     def compileAliases(cls):
@@ -120,16 +126,26 @@ class Command(object):
         Check if the preposition spec matches the ParsedInput.
 
         @param prepSpec: The prepSpec to compare against.
+        @type prepSpec: str or None
+
         @param input: The ParsedInput to compare.
         @type input: mudsling.parse.ParsedInput
 
         @rtype: bool
         """
+        if prepSpec is None:
+            return input.prep is None
+
         if prepSpec == 'any' and input.prep is not None:
             return True
 
-        if prepSpec is None:
-            return input.prep is None
+        # Check for optional preposition
+        if prepSpec.startswith('?'):
+            if input.prep:
+                # Prep is optional, but provided: make sure it matches.
+                return prepSpec[1:] in input.prep
+            # Prep is optional and not provided: that's a pass.
+            return True
 
         # prepSpec is neither 'any' nor None, so it must be a string specifying
         # the preoposition it wants. If the prepSpec is in the preposition set
@@ -193,8 +209,11 @@ class Command(object):
             out.append(line)
         return '\n'.join(out)
 
-    def __init__(self, obj=None, input=None, actor=None):
+    def __init__(self, game, obj=None, input=None, actor=None):
         """
+        @param game: Reference to the game instance.
+        @type game: mudsling.server.MUDSling
+
         @param obj: The object hosting the command.
         @type obj: mudsling.objects.BaseObject
 
@@ -204,6 +223,7 @@ class Command(object):
         @param actor: The object executing this command.
         @type actor: mudsling.objects.BaseObject
         """
+        self.game = game
         self.obj = obj
         self.input = input
         self.actor = actor
@@ -214,7 +234,7 @@ class Command(object):
         this once it has decided to run the command.
         """
         if self.prepare():
-            self.run()
+            self.run(self.obj, self.input, self.actor)
 
     def prepare(self):
         """
@@ -229,7 +249,7 @@ class Command(object):
         """
         return True
 
-    def run(self):
+    def run(self, this, input, actor):
         """
         This is where the magic happens.
         """

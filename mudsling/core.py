@@ -26,7 +26,6 @@ from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
 from mudsling.storage import Database
 from mudsling.utils.modules import class_from_path
-from mudsling.perms import Role
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -137,11 +136,11 @@ class MUDSling(object):
             dbfile = open(self.db_file_path, 'rb')
             self.db = pickle.load(dbfile)
             dbfile.close()
-            self.db.onLoaded()
+            self.db.onLoaded(self)
         else:
             logging.info("Initializing new database at %s" % self.db_file_path)
             self.db = Database()
-            self.db.onLoaded()
+            self.db.onLoaded(self)
 
             # Create first player.
             #: @type: mudsling.objects.BasePlayer

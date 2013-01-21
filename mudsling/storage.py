@@ -57,8 +57,9 @@ class StoredObject(Persistent):
     @type aliases: list
     """
 
-    _transientVars = ['name', 'db']
+    _transientVars = ['db']
 
+    #: @type: mudsling.storage.Database
     db = None
 
     id = None
@@ -76,7 +77,17 @@ class StoredObject(Persistent):
         self.aliases = []
         pass
 
+    @property
+    def game(self):
+        """
+        @rtype: mudsling.server.MUDSling
+        """
+        return self.db.game
+
     def name(self):
+        """
+        @rtype: str
+        """
         return self._name
 
     def setName(self, name):
@@ -111,15 +122,21 @@ class Database(Persistent):
     @ivar type_registry: Dictionary lookup for class instances. Rebuilt on each
         load of the database.
     @type type_registry: dict
+
+    @ivar game: Reference to the game instance.
+    @type game: mudsling.server.MUDSling
     """
 
-    _transientVars = ['type_registry']
+    _transientVars = ['type_registry', 'game']
 
     max_obj_id = 0
     objects = {}
     roles = []
 
     type_registry = {}
+
+    #: @type: mudsling.server.MUDSling
+    game = None
 
     def __init__(self):
         """
@@ -129,13 +146,16 @@ class Database(Persistent):
         self.roles = []
         self.type_registry = {}
 
-    def onLoaded(self):
+    def onLoaded(self, game):
         """
         Called just after the database has been loaded from disk.
         """
         self.type_registry = {}
+        self.game = game
         for obj in self.objects.values():
             self._addToTypeRegistry(obj)
+            # Add ref back to db, which also yields a trail back to game, which
+            # StoredObject takes advantage of with its game property.
             obj.db = self
 
     def _allocateObjId(self):
@@ -171,16 +191,25 @@ class Database(Persistent):
         if obj not in self.type_registry[cls]:
             self.type_registry[cls].append(obj)
 
-    def isValid(self, obj):
+    def isValid(self, obj, cls=None):
         """
         Returns true if the passed object (or object ID) refers to a game-world
         object that the database knows about.
+
+        If class is provided, it also checks if the object is a descendant of
+        the specified class.
         """
         if isinstance(obj, int):
-            return obj in self.objects
+            valid = obj in self.objects
         elif isinstance(obj, StoredObject):
-            return obj.id in self.objects and self.objects[obj.id] == obj
-        return False
+            valid = obj.id in self.objects and self.objects[obj.id] == obj
+        else:
+            return False
+
+        if cls is not None:
+            return valid and isinstance(obj, cls)
+
+        return valid
 
     def descendants(self, ancestor):
         """

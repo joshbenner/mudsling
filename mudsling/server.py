@@ -1,8 +1,7 @@
 """
-This is the entry point for the twisted application. This is also where other
-code can get a very handy reference to the running game instance via:
+This is the entry point for the twisted application.
 
-    from mudsling.server import game
+DO NOT IMPORT THIS FILE FROM GAME CODE.
 """
 
 from twisted.application.service import Application
@@ -13,7 +12,4 @@ from mudsling.core import MUDSling
 application = Application("MUDSling Game Server")
 
 # Instantiating the MUDSling class starts up the game and its various services.
-# This is also the means to reference the game, the database, config...
-# everything. To use, do:
-# >>> from mudsling.server import game
-game = MUDSling(app=application)
+MUDSling(app=application)
