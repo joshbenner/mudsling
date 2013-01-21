@@ -12,6 +12,7 @@ class ParsedInput(object):
     @ivar raw: The raw input string.
     @ivar cmdstr: The string entered which matches against available commands.
     @ivar argstr: The rest of the input after the command.
+    @ivar argwords: A list of words (as parsed) in the argstr.
     @ivar dobjstr: The direct object string.
     @ivar iobjstr: The indirect object string.
     @ivar prepstr: The preposition string.
@@ -34,6 +35,9 @@ class ParsedInput(object):
 
     #: @type: str
     argstr = None
+
+    #: @type: list
+    argwords = None
 
     #: @type: str
     dobjstr = None
@@ -76,18 +80,16 @@ class ParsedInput(object):
         self.raw = raw
         words = shlex.split(raw)
         self.cmdstr = words[0]
-        argwords = words[1:]
-        self.argstr = ' '.join(argwords)
-        #cmdstr, argstr = [part.strip() for part in raw.split(' ', 1)]
-        #argwords = [part.strip for part in self.argstr.split(' ')]
+        self.argwords = words[1:]
+        self.argstr = ' '.join(self.argwords)
 
-        prepinfo = self.find_preposition(argwords)
+        prepinfo = self.find_preposition(self.argwords)
 
         if prepinfo is not None:
             self.prep, prepidx = prepinfo
-            self.prepstr = argwords[prepidx]
-            self.dobjstr = ' '.join(argwords[:prepidx])
-            self.iobjstr = ' '.join(argwords[prepidx + 1:])
+            self.prepstr = self.argwords[prepidx]
+            self.dobjstr = ' '.join(self.argwords[:prepidx])
+            self.iobjstr = ' '.join(self.argwords[prepidx + 1:])
         else:
             self.dobjstr = self.argstr
 
