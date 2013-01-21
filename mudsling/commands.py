@@ -1,6 +1,8 @@
 import re
 
-from mudsling.utils.string import trimDocstring
+import inflect
+
+from mudsling.utils import string
 
 
 prepositions = (
@@ -150,7 +152,7 @@ class Command(object):
         # prepSpec is neither 'any' nor None, so it must be a string specifying
         # the preoposition it wants. If the prepSpec is in the preposition set
         # in the input, then we have a match.
-        return prepSpec in input.prep
+        return prepSpec in (input.prep or ())
 
     @classmethod
     def matchObjSpec(cls, hostObj, objSpec, string, obj):
@@ -184,30 +186,13 @@ class Command(object):
         @return: Syntax string
         @rtype: str
         """
-        trimmed = trimDocstring(cls.__doc__)
+        trimmed = string.trimDocstring(cls.__doc__)
         syntax = []
         for line in trimmed.splitlines():
             if line == "":
                 break
             syntax.append(line)
         return '\n'.join(syntax)
-
-    def syntaxHelp(self):
-        """
-        Return a string to show to a player to help them understand the syntax
-        of the command. Useful to output when a command is used incorrectly.
-
-        The default implementation just outputs the command's syntax.
-        @return: str
-        """
-        out = []
-        for i, line in enumerate(self.__class__.getSyntax().splitlines()):
-            if i == 0:
-                line = "Syntax: " + line
-            else:
-                line = "        " + line
-            out.append(line)
-        return '\n'.join(out)
 
     def __init__(self, game, obj=None, input=None, actor=None):
         """
@@ -253,6 +238,81 @@ class Command(object):
         """
         This is where the magic happens.
         """
+
+    def syntaxHelp(self):
+        """
+        Return a string to show to a player to help them understand the syntax
+        of the command. Useful to output when a command is used incorrectly.
+
+        The default implementation just outputs the command's syntax.
+        @return: str
+        """
+        out = []
+        for i, line in enumerate(self.__class__.getSyntax().splitlines()):
+            if i == 0:
+                line = "Syntax: " + line
+            else:
+                line = "        " + line
+            out.append(line)
+        return '\n'.join(out)
+
+    def matchFailed(self, matches, search=None, searchFor=None, show=False):
+        """
+        Utility method to handled failed matches. Will inform the actor if a
+        search for a single match has failed and return True if the search
+        failed.
+
+        @param matches: The result of the match search.
+        @type matches: list
+
+        @param search: The string used to search.
+        @type search: str
+
+        @param searchFor: A string describing what type of thing was being
+            searched for. This should be the singular form of the word.
+        @type searchFor: str
+
+        @param show: If true, will show the list of possible matches in the
+            case of an ambiguous match.
+        @type show: bool
+
+        @return: True if the searched failed, False otherwise.
+        @rtype: bool
+        """
+        p = inflect.engine()
+
+        if len(matches) == 1:
+            return False
+        elif len(matches) > 1:
+            if search is not None:
+                if searchFor is not None:
+                    msg = ("Multiple %s match '%s'"
+                           % (p.plural(searchFor), search))
+                else:
+                    msg = "Multiple matches for '%s'" % search
+            else:
+                if searchFor is not None:
+                    msg = "Multiple %s found" % p.plural(searchFor)
+                else:
+                    msg = "Multiple matches"
+            if show:
+                msg += ': ' + string.english_list(matches)
+            else:
+                msg += '.'
+        else:
+            if search is not None:
+                if searchFor is not None:
+                    msg = "No %s called '%s' was found." % (searchFor, search)
+                else:
+                    msg = "No '%s' was found." % search
+            else:
+                if searchFor is not None:
+                    msg = "No matching %s found." % p.plural(searchFor)
+                else:
+                    msg = "No match found."
+
+        self.actor.msg(msg)
+        return True
 
 #class CommandProvider(object):
 #    """

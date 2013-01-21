@@ -7,6 +7,7 @@ import traceback
 from mudsling.commands import Command
 from mudsling.ansi import parse_ansi
 from mudsling.objects import Object
+from mudsling.utils import string
 
 
 class EvalCmd(Command):
@@ -91,7 +92,18 @@ class RolesCmd(Command):
     required_perm = 'view perms'
 
     def run(self, this, input, actor):
+        from mudslingcore.objects import Player
+
         if not input.argwords:
             # List roles
+            actor.msg(string.english_list(self.game.db.roles))
+            return
 
+        matches = self.game.db.matchDescendants(input.argstr, Player)
+        if self.matchFailed(matches, input.argstr, 'player', show=True):
+            return
+        player = matches[0]
 
+        msg = ("{yRoles for {c%s{y: {m%s"
+               % (player.nn, string.english_list(player.roles)))
+        actor.msg(msg)

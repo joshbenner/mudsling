@@ -38,7 +38,9 @@ def trimDocstring(docstring):
         # Return a single string:
     return '\n'.join(trimmed)
 
-def english_list(things, nothingstr="nothing", andstr=" and ", commastr=", ", finalcommastr=","):
+
+def english_list(things, nothingstr="nothing", andstr=" and ", commastr=", ",
+                 finalcommastr=","):
     """
     Returns a string containing an english-style list, separating items with
     a command and using a command with and before the final item.
@@ -51,5 +53,13 @@ def english_list(things, nothingstr="nothing", andstr=" and ", commastr=", ", fi
 
     @rtype: str
     """
+    things = map(str, things)
     if not things:
         return nothingstr
+    if len(things) == 1:
+        return things[0]
+    if len(things) == 2:
+        return andstr.join(things)
+
+    return commastr.join(things[:-1]) + finalcommastr + andstr + things[-1]
+

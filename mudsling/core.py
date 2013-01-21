@@ -138,6 +138,7 @@ class MUDSling(object):
         if os.path.exists(self.db_file_path):
             logging.info("Loading database from %s" % self.db_file_path)
             dbfile = open(self.db_file_path, 'rb')
+            #: @type: Database
             self.db = pickle.load(dbfile)
             dbfile.close()
             self.db.onLoaded(self)

@@ -8,6 +8,9 @@ class Role(object):
         self.name = name
         self.perms = set()
 
+    def __str__(self):
+        return "Role: %s" % self.name
+
     def addPerm(self, perm):
         if perm not in self.perms:
             self.perms.add(perm)

@@ -1,3 +1,4 @@
+from mudsling.match import match_objlist
 
 
 class Persistent(object):
@@ -17,13 +18,15 @@ class Persistent(object):
 
     _transientVars = ['_transientVars']
 
-    def _getTransientVars(self):
+    @classmethod
+    def _getTransientVars(cls):
         vars = set()
-        for cls in self.__class__.__mro__:
-            if '_transient' in cls.__dict__:
+        for parent in cls.__mro__:
+            if '_transientVars' in parent.__dict__:
+                #noinspection PyBroadException
                 try:
                     # We read from the class
-                    vars = vars.union(cls._transient)
+                    vars = vars.union(parent._transientVars)
                 except:
                     # TODO: Do something here?
                     pass
@@ -31,8 +34,8 @@ class Persistent(object):
 
     def __getstate__(self):
         transient = self._getTransientVars()
-        state = self.__dict__
-        for attr in state:
+        state = dict(self.__dict__)
+        for attr in self.__dict__:
             if attr.startswith('_v_') or attr in transient:
                 del state[attr]
         return state
@@ -76,6 +79,17 @@ class StoredObject(Persistent):
         """
         self.aliases = []
         pass
+
+    def __str__(self):
+        return self._name
+
+    @property
+    def nn(self):
+        """
+        Return the object's name and database ID.
+        @rtype: str
+        """
+        return "%s (#%d)" % (self._name, self.id)
 
     @property
     def game(self):
@@ -152,11 +166,13 @@ class Database(Persistent):
         """
         self.type_registry = {}
         self.game = game
+        # Add ref back to db, which also yields a trail back to game, which
+        # StoredObject takes advantage of with its game property.
+        StoredObject.db = self
+
+        # Build the type registry.
         for obj in self.objects.values():
             self._addToTypeRegistry(obj)
-            # Add ref back to db, which also yields a trail back to game, which
-            # StoredObject takes advantage of with its game property.
-            obj.db = self
 
     def _allocateObjId(self):
         """
@@ -237,3 +253,12 @@ class Database(Persistent):
         if parent in self.type_registry:
             return list(self.type_registry[parent])
         return []
+
+    def matchDescendants(self, search, cls, varname="aliases",
+                         exactOnly=False):
+        objlist = self.descendants(cls)
+        return match_objlist(search, objlist, varname, exactOnly)
+
+    def matchChidlren(self, search, cls, varname="aliases", exactOnly=False):
+        objlist = self.children(cls)
+        return match_objlist(search, objlist, varname, exactOnly)

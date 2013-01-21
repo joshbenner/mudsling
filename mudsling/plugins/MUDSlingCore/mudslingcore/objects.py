@@ -44,6 +44,7 @@ class Object(LocatedObject):
 class Player(BasePlayer):
     commands = [
         admin_commands.EvalCmd,
+        admin_commands.RolesCmd,
         ooc_commands.AnsiCmd
     ]
 
