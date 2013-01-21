@@ -59,6 +59,8 @@ class MUDSling(object):
     character_class = None
     room_class = None
 
+    class_registry = {}
+
     def __init__(self, game_dir="game", app=None):
         # Populated by service.setServiceParent().
         self.services = IServiceCollection(app)
@@ -78,6 +80,8 @@ class MUDSling(object):
 
         # Parse class configs and stash class refs on the game object.
         self.loadClassConfigs()
+
+        self.buildClassRegistry()
 
         self.loadDatabase()
         atexit.register(self.saveDatabase)
@@ -183,3 +187,54 @@ class MUDSling(object):
         """
         hook = "hook_" + hook
         return self.plugins.invokeHook('GamePlugin', hook, *args, **kwargs)
+
+    def buildClassRegistry(self):
+        """
+        Builds a class registry for all classes which can be @create'd in-game.
+        We do this so that we can have friendly names and easily produce lists
+        of object types.
+
+        The MUDSling server doesn't register its base classes; however, some
+        classes are registered by the MUDSlingCore default plugin.
+
+        Invokes hook_objectClasses and expects responding plugins to return a
+        list of (name, class) tuples.
+        """
+        self.class_registry = {}
+        for plugin, response in self.invokeHook('objectClasses').iteritems():
+            if not isinstance(response, list):
+                continue
+            try:
+                for name, cls in response:
+                    if name in self.class_registry:
+                        logging.error("Duplicate class name: %s" % name)
+                        alt = cls.__module__ + '.' + cls.__name__
+                        self.class_registry[alt] = cls
+                    else:
+                        self.class_registry[name] = cls
+            except TypeError:
+                err = "Invalid class registration from %s" % plugin.name
+                logging.error(err)
+
+    def getClass(self, name):
+        """
+        Searches the class registry for a class matching the given name.
+        @param name: The class name to search for.
+        @return: The class with the specified pretty name.
+        @rtype: type or None
+        """
+        if name in self.class_registry:
+            return self.class_registry[name]
+        return None
+
+    def getClassName(self, cls):
+        """
+        Given a class, find the class registry name that corresponds to it.
+        @param cls: The class whose pretty name to retrieve.
+        @return: The pretty name of the class.
+        @rtype: str or None
+        """
+        for name, obj in self.class_registry.iteritems():
+            if obj == cls:
+                return name
+        return None
