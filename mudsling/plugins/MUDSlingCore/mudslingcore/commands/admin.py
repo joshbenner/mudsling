@@ -20,17 +20,17 @@ class EvalCmd(Command):
     """
 
     aliases = ('@eval',)
-    args = ('any', None, None)
+    syntax = "<code>"
     required_perm = "eval code"
 
-    def run(self, this, input, actor):
+    def run(self, this, actor, args):
         """
         Execute and time the code.
 
         @type actor: mudslingcore.objects.Player
         """
 
-        code = input.argstr
+        code = args['code']
 
         #: @type: Object
         char = actor.possessing
@@ -88,19 +88,19 @@ class RolesCmd(Command):
     Requires the 'view perms' permission.
     """
     aliases = ('@roles',)
-    args = ('any', 'any', 'any')
+    syntax = "[<player>]"
     required_perm = 'view perms'
 
-    def run(self, this, input, actor):
+    def run(self, this, actor, args):
         from mudslingcore.objects import Player
 
-        if not input.argwords:
+        if not self.argwords:
             # List roles
             actor.msg(string.english_list(self.game.db.roles))
             return
 
-        matches = self.game.db.matchDescendants(input.argstr, Player)
-        if self.matchFailed(matches, input.argstr, 'player', show=True):
+        matches = self.game.db.matchDescendants(self.argstr, Player)
+        if self.matchFailed(matches, self.argstr, 'player', show=True):
             return
         player = matches[0]
 

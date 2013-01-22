@@ -14,6 +14,9 @@ class Object(LocatedObject):
 
     desc = ""
 
+    #: @type: Object
+    location = None  # Here for type resolution in editors that support it.
+
     def seenBy(self, obj):
         """
         Return the string describing what the object sees when it looks at this
@@ -48,16 +51,16 @@ class Player(BasePlayer):
         ooc_commands.AnsiCmd
     ]
 
-    def preemptiveCommandMatch(self, input):
+    def preemptiveCommandMatch(self, raw):
         """
-        @type input: mudsling.parse.ParsedInput
+        @type raw: str
         """
-        if input.raw.startswith(';') and self.hasPerm("eval code"):
-            input.cmdstr = ';'
-            input.argstr = input.raw[1:]
-            return admin_commands.EvalCmd
+        if raw.startswith(';') and self.hasPerm("eval code"):
+            cmd = admin_commands.EvalCmd(raw, ';', raw[1:],
+                                         self.game, self, self)
+            return cmd
         return None
 
 
-class Character(BaseCharacter):
+class Character(Object, BaseCharacter):
     pass

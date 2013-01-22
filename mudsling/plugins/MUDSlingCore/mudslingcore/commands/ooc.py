@@ -12,24 +12,24 @@ class AnsiCmd(Command):
     Enable/disable ANSI color.
     """
 
-    aliases = (r'\+ansi',)
-    args = ('any', 'any', 'any')
+    aliases = ('+ansi',)
+    syntax = "[{ on | off }]"
 
-    def run(self, this, input, actor):
+    def run(self, this, actor, args):
         """
-        @type input: mudsling.parse.ParsedInput
+        @type this: mudslingcore.objects.Player
         @type actor: mudslingcore.objects.Player
+        @type args: dict
         """
-        on_vals = ['on', 'yes', 'enable', 'enabled', '1', 'true']
-        off_vals = ['off', 'no', 'disable', 'disabled', '0', 'false']
 
-        if input.argstr.lower() in on_vals:
-            val = True
-        elif input.argstr.lower() in off_vals:
-            val = False
-        else:
-            actor.msg(self.syntaxHelp())
+        if args['optset1'] is None:
+            if actor.ansi:
+                self.demo()
+            else:
+                actor.msg('ANSI color is OFF')
             return
+
+        val = args['optset1'] == 'on'
 
         if actor.ansi == val:
             if val:
@@ -39,3 +39,18 @@ class AnsiCmd(Command):
         else:
             actor.ansi = val
 
+    def demo(self):
+        msg = [
+            'ANSI color is {gON',
+            '  {{r {rRed        {n{{R {RRed',
+            '  {{g {gGreen      {n{{G {GGreen',
+            '  {{y {yYellow     {n{{Y {YYellow',
+            '  {{b {bBlue       {n{{B {BBlue',
+            '  {{m {mMagenta    {n{{M {MMagenta',
+            '  {{c {cCyan       {n{{C {CCyan',
+            '  {{w {wWhite      {n{{W {WWhite',
+            '  {{x {xGrey       {n{{X {XBlack',
+            '',
+            ''
+        ]
+        self.actor.msg('\n'.join(msg))

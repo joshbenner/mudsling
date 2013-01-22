@@ -105,7 +105,7 @@ class BaseObject(StoredObject):
 
         return match_objlist(search, {self}, err=err)
 
-    def processInput(self, raw, passedInput=None, err=True):
+    def processInput(self, raw, err=True):
         """
         Parses raw input as a command from this object and executes the first
         matching command it can find.
@@ -113,64 +113,68 @@ class BaseObject(StoredObject):
         The passedInput and err parameters help accommodate children overriding
         this method without having to jump through more hoops than needed.
         """
-        input = passedInput or ParsedInput(raw, self)
-        for obj in self.getContext(input):
-            cmd = obj.matchCommand(input)
-            if cmd is not None and isinstance(cmd, type):
-                self.doCommand(input, obj, cmd)
-                return True
-            elif cmd is not None:
-                # Not None, but it's not a command either -- it was handled in
-                # some other fashion.
-                return True
+        cmd = self.findCommand(raw)
+        if cmd is not None:
+            cmd.execute()
+            return True
         if err:
             raise CommandInvalid(input)
         return False
 
-    def matchCommand(self, input):
+    def findCommand(self, raw):
         """
-        Match ParsedInput against the commands provided by this object.
+        Resolve the command to execute.
 
-        Objects can override this to get clever about how they advertise their
-        commands to other objects.
-
-        @param input: ParsedInput which is being used to match commands.
-        @type input: ParsedInput
-
-        @rtype: type
+        @param raw: The raw command input.
+        @return: An instantiated, ready-to-run command.
+        @rtype: mudsling.commands.Command or None
         """
-        cmd = self.preemptiveCommandMatch(input)
+        cmd = self.preemptiveCommandMatch(raw)
         if cmd is not None:
             return cmd
-        for obj in self.getContext(input):
-            for cmd in obj.commands:
-                if cmd.matchInput(obj, input) and cmd.checkAccess(obj, self):
-                    return cmd
-        return self.handleUnmatchedInput(input)
+        cmdstr, sep, argstr = raw.partition(' ')
+        for obj in self.getContext():
+            for cmdcls in obj.commandsFor(self):
+                if cmdcls.matches(cmdstr):
+                    cmd = cmdcls(raw, cmdstr, argstr, self.game, obj, self)
+                    if cmd.matchSyntax(argstr):
+                        return cmd
+        cmd = self.handleUnmatchedInput(raw)
+        if cmd is not None:
+            return cmd
+        return None
 
-    def preemptiveCommandMatch(self, input):
+    def commandsFor(self, actor):
         """
-        The object may preemptively do its own command matching (or input data
+        Return a list of commands made available by this object to the actor.
+        @param actor: The object that wishes to use a command.
+        @rtype: list
+        """
+        return self.commands
+
+    def preemptiveCommandMatch(self, raw):
+        """
+        The object may preemptively do its own command matching (or raw data
         massaging). If this returns None, normal command matching occurs. If it
         returns a command class, that command is run. If it returns anything
         else, the command parser assumes the command was handled and takes no
         further action.
 
-        @param input: The input to handle
-        @type input: ParsedInput
+        @param raw: The raw input to handle
+        @type raw: str
 
         @return: None, a command class, or another value.
         @rtype: type
         """
         return None
 
-    def handleUnmatchedInput(self, input):
+    def handleUnmatchedInput(self, raw):
         """
-        Lets an object attempt to do its own parsing on command input that was
+        Lets an object attempt to do its own parsing on command raw that was
         not handled by normal command matching.
 
-        @param input: The ParsedInput to handle
-        @type input: ParsedInput
+        @param raw: The raw input to handle
+        @type raw: str
 
         @return: A command class or None.
         @rtype: type
@@ -185,14 +189,6 @@ class BaseObject(StoredObject):
         @rtype: list
         """
         return [self]
-
-    def doCommand(self, input, obj, cmdClass):
-        """
-        Executes the given command on the specified command host as this
-        object having generated the given input.
-        """
-        cmd = cmdClass(self.game, obj, input, self)
-        cmd.execute()
 
     def hasPerm(self, perm):
         """
@@ -451,15 +447,13 @@ class BasePlayer(BaseObject):
         @type obj: BaseObject
         """
 
-    def processInput(self, raw, passedInput=None, err=True):
+    def processInput(self, raw, err=True):
         possessing = self.possessing is not None
-        input = ParsedInput(raw, self)
         try:
             handled = super(BasePlayer, self).processInput(raw,
-                                                           passedInput=input,
                                                            err=not possessing)
             if not handled and possessing:
-                self.possessing.processInput(raw, passedInput=input)
+                self.possessing.processInput(raw)
         except CommandInvalid as e:
             self.msg("{r" + e.message)
 
@@ -488,4 +482,8 @@ class BasePlayer(BaseObject):
 
 
 class BaseCharacter(Object):
+    """
+    Keep this as minimal as possible so that plugins can completely replace if
+    they wish.
+    """
     pass

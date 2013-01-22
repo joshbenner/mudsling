@@ -6,18 +6,22 @@ from mudsling.commands import Command
 from mudslingcore.objects import Object
 
 
-class LookCmd(Command):
-    aliases = ('l(?:ook)?',)
-    args = ('any', '?at', 'any')
+class RoomLookCmd(Command):
+    aliases = ('look', 'l')
+    syntax = "[[at] <something>]"
+    valid_args = {
+        'something': Object
+    }
 
-    def run(self, this, input, actor):
+    def run(self, this, actor, args):
         """
-        @type this: mudslingcore.objects.Character
-        @type input: mudsling.parse.ParsedInput
-        @param actor: mudslingcore.objects.Player
+        @type this: mudslingcore.objects.Room
+        @type actor: mudslingcore.objects.Character
+        @type args: dict
         """
-        if not input.argstr:
+        if args['something'] is None:
             # Naked look.
+            #: @type actor.location: Object
             if isinstance(actor.location, Object):
                 actor.msg(actor.location.seenBy(actor))
                 return
@@ -25,11 +29,13 @@ class LookCmd(Command):
             return
 
         #: @type: Object
-        target = input.dobj or input.iobj
+        target = args['something']
 
         if not self.game.db.isValid(target, Object):
-            search = input.dobjstr or input.iobjstr
-            actor.msg("You do not see any '%s' here." % search)
-            return
-
-        actor.msg(target.seenBy(actor))
+            actor.msg("You're not sure what you see.")
+        else:
+            if target in actor.getContext():
+                actor.msg(target.seenBy(actor))
+            else:
+                actor.msg("You don't see any '%s' here."
+                          % self.parsed['something'])

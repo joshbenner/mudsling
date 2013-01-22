@@ -1,5 +1,6 @@
-import re
 import logging
+import shlex
+import inspect
 
 import inflect
 
@@ -34,16 +35,24 @@ class Command(object):
     against input. Commands are only instantiated when they are run, so the
     command may feel free to use the command instance as it wishes.
 
+    @cvar required_perm: An object must have this perm to use this command.
     @cvar aliases: Regular expressions that can match to trigger the command.
     @cvar syntax: String representation of the command's syntax that is parse-
         able by mudsling.utils.syntax.Syntax.
-    @cvar required_perm: An object must have this perm to use this command.
+    @cvar parse_syntax: If True, then the syntax will be parsed and the input
+        parsed according to the syntax when determining if the command matches
+        the input command line. Set to False to match only the command name and
+        do your own parsing.
+    @cvar valid_args: Dictionary with keys matching args keys and values giving
+        hints about how the validator should validate the arg values.
 
     @ivar obj: The object hosting this command.
-    @ivar input: The raw command-line input
+    @ivar raw: The raw command-line input
     @ivar cmdstr: The command part of the input string.
     @ivar argstr: The argument part of the input string.
-    @ivar parsed: The result of parsing the arguments.
+    @ivar argwords: A list of words (grouped by quotes) in the argstr.
+    @ivar args: The result of parsing the arguments.
+    @ivar parsed: Un-modified parsed argstr.
     @ivar actor: The object responsible for the input leading to execution.
     @ivar game: Handy reference to the game object.
     """
@@ -52,6 +61,10 @@ class Command(object):
     syntax = ""
     #: @type: Syntax
     _syntax = None
+    parse_syntax = True
+
+    valid_args = {}
+
     required_perm = None
 
     #: @type: mudsling.objects.BaseObject
@@ -61,11 +74,15 @@ class Command(object):
     actor = None
 
     #: @type: str
-    input = None
+    raw = None
     cmdstr = None
     argstr = None
 
+    #: @type: list
+    argwords = []
+
     #: @type: dict
+    args = {}
     parsed = {}
 
     #: @type: mudsling.core.MUDSling
@@ -78,12 +95,9 @@ class Command(object):
         return 'ERROR NO CMD ALIAS'
 
     @classmethod
-    def checkAccess(cls, hostObj, actor):
+    def checkAccess(cls, actor):
         """
         Determine if an object is allowed to use this command.
-
-        @param hostObj: The object providing this command.
-        @type hostObj: mudsling.objects.BaseObject
 
         @param actor: The object that wants to use this command.
         @type actor: mudsling.objects.BaseObject
@@ -95,12 +109,9 @@ class Command(object):
         return True
 
     @classmethod
-    def matchCommand(cls, hostObj, cmdstr):
+    def matches(cls, cmdstr):
         """
         Determine if this command matches the command portion of the input.
-
-        @param hostObj: The object hosting the command for this check.
-        @type hostObj: mudsling.objects.BaseObject
 
         @param cmdstr: The command part of the raw input.
         @type cmdstr: str
@@ -118,17 +129,26 @@ class Command(object):
                           % (cls.name(), e.message))
             return False
 
-    def matchSyntax(self, hostObj, argstr):
+    def matchSyntax(self, argstr):
         """
         Determine if the input matches the command syntax.
         @rtype: bool
         """
+        if not self.parse_syntax:
+            return True
+
         if self._syntax is None:
             self._compileSyntax()
 
         parsed = self._syntax.parse(argstr)
         if parsed:
-            self.parsed = parsed
+            self.args = parsed
+            # Check for 'this' in any of the validators.
+            for argName, valid in self.valid_args.iteritems():
+                if valid == 'this':
+                    matches = self.actor.matchObject(parsed[argName])
+                    if len(matches) != 1 or matches[0] != self.obj:
+                        return False
             return True
         return False
 
@@ -148,23 +168,32 @@ class Command(object):
             syntax.append(line)
         return '\n'.join(syntax)
 
-    def __init__(self, game, obj=None, input=None, actor=None):
+    def __init__(self, raw, cmdstr, argstr, game=None, obj=None, actor=None):
         """
+        @param raw: The raw input.
+        @type raw: str
+
+        @param cmdstr: The command part of the input.
+        @type cmdstr: str
+
+        @param argstr: The argument part of the input.
+        @type argstr: st
+
         @param game: Reference to the game instance.
         @type game: mudsling.server.MUDSling
 
         @param obj: The object hosting the command.
         @type obj: mudsling.objects.BaseObject
 
-        @param input: The ParsedInput that lead to this command instance.
-        @type input: mudsling.parse.ParsedInput
-
         @param actor: The object executing this command.
         @type actor: mudsling.objects.BaseObject
         """
+        self.raw = raw
+        self.cmdstr = cmdstr
+        self.argstr = argstr
+        self.argwords = shlex.split(argstr)
         self.game = game
         self.obj = obj
-        self.input = input
         self.actor = actor
 
     def execute(self):
@@ -173,7 +202,38 @@ class Command(object):
         this once it has decided to run the command.
         """
         if self.prepare():
-            self.run(self.obj, self.input, self.actor)
+            self.run(self.obj, self.actor, self.args)
+
+    def processArgs(self):
+        """
+        Process args against valid_args. This is primarily a way to avoid
+        matching and validating the correct type for every command that need to
+        do so.
+
+        valid_args value options:
+          - 'this': Actor object match for this arg yields the command's host
+            object. This is handled during syntax parsing/matching.
+          - Class: command will match object with actor and validate the result
+            is an object instance descendant of the specified class.
+
+        Validated argument values will be replaced by their validated values in
+        the args dictionary.
+        """
+        args = self.args
+        for argName, valid in self.valid_args.iteritems():
+            if argName not in args:
+                continue
+            if inspect.isclass(valid):
+                argVal = args[argName]
+                matches = self.actor.matchObject(argVal)
+                if self.matchFailed(matches, argVal):
+                    args[argName] = None
+                    continue
+                match = matches[0]
+                if isinstance(match, valid):
+                    args[argName] = match
+                else:
+                    args[argName] = TypeError
 
     def prepare(self):
         """
@@ -188,7 +248,7 @@ class Command(object):
         """
         return True
 
-    def run(self, this, input, actor):
+    def run(self, this, actor, args):
         """
         This is where the magic happens.
         """

@@ -75,7 +75,7 @@ class Syntax(object):
                 if char == ' ' and lastchar == ' ':
                     pass
                 else:
-                    regex.append(char)
+                    regex.append(re.escape(char))
                     if char == ' ':
                         regex.append('+')
                     lastchar = char

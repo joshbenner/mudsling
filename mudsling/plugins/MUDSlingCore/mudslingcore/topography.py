@@ -10,5 +10,5 @@ class Room(Object):
     desc = "A very nondescript room."
 
     commands = [
-        ic.LookCmd
+        ic.RoomLookCmd
     ]
