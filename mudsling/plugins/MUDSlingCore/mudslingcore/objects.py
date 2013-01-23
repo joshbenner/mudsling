@@ -48,6 +48,7 @@ class Player(BasePlayer):
     commands = [
         admin_commands.EvalCmd,
         admin_commands.RolesCmd,
+        admin_commands.PermsCmd,
         ooc_commands.AnsiCmd
     ]
 

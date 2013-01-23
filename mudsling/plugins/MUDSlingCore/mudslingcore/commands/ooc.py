@@ -42,15 +42,15 @@ class AnsiCmd(Command):
     def demo(self):
         msg = [
             'ANSI color is {gON',
-            '  {{r {rRed        {n{{R {RRed',
-            '  {{g {gGreen      {n{{G {GGreen',
-            '  {{y {yYellow     {n{{Y {YYellow',
-            '  {{b {bBlue       {n{{B {BBlue',
-            '  {{m {mMagenta    {n{{M {MMagenta',
-            '  {{c {cCyan       {n{{C {CCyan',
-            '  {{w {wWhite      {n{{W {WWhite',
-            '  {{x {xGrey       {n{{X {XBlack',
+            '  {r{{r Red        {n{R{{R Red',
+            '  {g{{g Green      {n{G{{G Green',
+            '  {y{{y Yellow     {n{Y{{Y Yellow',
+            '  {b{{b Blue       {n{B{{B Blue',
+            '  {m{{m Magenta    {n{M{{M Magenta',
+            '  {c{{c Cyan       {n{C{{C Cyan',
+            '  {w{{w White      {n{W{{W White',
+            '  {x{{x Grey       {n{{X (Black)',
             '',
-            ''
+            '  {{n Normal'
         ]
         self.actor.msg('\n'.join(msg))

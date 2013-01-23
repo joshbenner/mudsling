@@ -9,7 +9,7 @@ class Syntax(object):
     """
     Load a natural syntax spec and prepare for parsing!
 
-        [ ] = Optional segment
+        [ ] = Optional segment.
         < > = User value (named). Values in parse dict with named keys.
         { } = Required from set. Values in parse dict with 'optset#' keys.
 
@@ -45,7 +45,7 @@ class Syntax(object):
                     lastchar = ''
             elif char == ']':
                 regex.append(')?')
-                lastchar = ''
+                lastchar = ']'
             elif char == '<':
                 lastchar = ''
                 end = syntax.find('>', i)
@@ -55,7 +55,7 @@ class Syntax(object):
                 i = end
                 name, sep, pat = userval.partition(':')
                 if pat == '':
-                    pat = '[^ ]+'
+                    pat = '.+?'
                 regex.append('(?P<%s>%s)' % (name, pat))
             elif char == '{':
                 lastchar = ''
@@ -75,9 +75,14 @@ class Syntax(object):
                 if char == ' ' and lastchar == ' ':
                     pass
                 else:
-                    regex.append(re.escape(char))
                     if char == ' ':
-                        regex.append('+')
+                        if lastchar == ']':
+                            regex = regex[:-1]
+                            regex.append(' +)?')
+                        else:
+                            regex.append(' +')
+                    else:
+                        regex.append(re.escape(char))
                     lastchar = char
             i += 1
 

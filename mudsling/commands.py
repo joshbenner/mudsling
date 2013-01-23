@@ -39,10 +39,8 @@ class Command(object):
     @cvar aliases: Regular expressions that can match to trigger the command.
     @cvar syntax: String representation of the command's syntax that is parse-
         able by mudsling.utils.syntax.Syntax.
-    @cvar parse_syntax: If True, then the syntax will be parsed and the input
-        parsed according to the syntax when determining if the command matches
-        the input command line. Set to False to match only the command name and
-        do your own parsing.
+    @cvar require_syntax_match: If True, then the command will only match if
+        the syntax parses the argstr successfully.
     @cvar valid_args: Dictionary with keys matching args keys and values giving
         hints about how the validator should validate the arg values.
 
@@ -61,7 +59,7 @@ class Command(object):
     syntax = ""
     #: @type: Syntax
     _syntax = None
-    parse_syntax = True
+    require_syntax_match = False
 
     valid_args = {}
 
@@ -134,9 +132,6 @@ class Command(object):
         Determine if the input matches the command syntax.
         @rtype: bool
         """
-        if not self.parse_syntax:
-            return True
-
         if self._syntax is None:
             self._compileSyntax()
 

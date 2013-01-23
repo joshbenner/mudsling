@@ -157,6 +157,7 @@ class MUDSling(object):
             char = self.db.createObject(self.character_class, 'Admin')
             char.possessable_by.append(player)
 
+            player.default_object = char
             player.possessObject(char)
 
             #: @type: mudsling.topography.Room

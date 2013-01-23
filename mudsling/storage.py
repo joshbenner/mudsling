@@ -1,4 +1,5 @@
 from mudsling.match import match_objlist
+from mudsling.errors import AmbiguousMatch, FailedMatch
 
 
 class Persistent(object):
@@ -262,3 +263,24 @@ class Database(Persistent):
     def matchChidlren(self, search, cls, varname="aliases", exactOnly=False):
         objlist = self.children(cls)
         return match_objlist(search, objlist, varname, exactOnly)
+
+    def matchRole(self, search):
+        """
+        Find a role.
+        @param search: The role name to search for.
+        @rtype: mudsling.perms.Role
+        """
+        matches = match_objlist(search, self.roles, varname="name")
+        if len(matches) == 1:
+            return matches[0]
+        elif len(matches) > 1:
+            raise AmbiguousMatch(query=search, matches=matches)
+        else:
+            raise FailedMatch(query=search)
+
+    def expungeRole(self, role):
+        """
+        Remove role from all objects.
+        @param role:
+        @return:
+        """

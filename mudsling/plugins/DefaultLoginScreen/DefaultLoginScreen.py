@@ -4,7 +4,7 @@ from collections import namedtuple
 
 from mudsling.extensibility import LoginScreenPlugin
 from mudsling.match import match_objlist
-from mudsling.misc import Password
+from mudsling.utils.password import Password
 from mudsling.objects import BasePlayer
 
 

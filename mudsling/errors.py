@@ -1,5 +1,6 @@
 from mudsling.parse import ParsedInput
 
+
 class Error(Exception):
     def __init__(self, msg=""):
         self.message = msg
@@ -14,7 +15,11 @@ class InvalidObject(Error):
         self.obj = obj
 
 
-class AmbiguousMatch(Error):
+class MatchError(Error):
+    pass
+
+
+class AmbiguousMatch(MatchError):
     def __init__(self, msg=None, query=None, matches=None):
         if msg is None:
             self.message = "Ambiguous match"
@@ -22,7 +27,7 @@ class AmbiguousMatch(Error):
                 self.message += " for '%s'" % query
 
 
-class FailedMatch(Error):
+class FailedMatch(MatchError):
     def __init__(self, msg=None, query=None):
         if msg is None:
             self.message = "Failed match"

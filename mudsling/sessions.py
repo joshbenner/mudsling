@@ -2,7 +2,7 @@ import time
 import logging
 import traceback
 
-from mudsling.ansi import parse_ansi
+from mudsling.ansi import parse_ansi, ANSI_NORMAL
 
 
 class Session(object):
@@ -70,7 +70,8 @@ class Session(object):
             text += self.line_delimiter
 
         if self.ansi and ('raw' not in flags or not flags['raw']):
-            text = parse_ansi(text, xterm256=self.xterm256)
+            text = text.replace('\n', ANSI_NORMAL + '\n')
+            text = parse_ansi(text, xterm256=self.xterm256) + ANSI_NORMAL
         else:
             text = parse_ansi(text, strip_ansi=True)
 

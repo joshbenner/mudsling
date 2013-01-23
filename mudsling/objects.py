@@ -1,8 +1,16 @@
+import inspect
+
 from mudsling.storage import StoredObject
 from mudsling.errors import InvalidObject, CommandInvalid
 from mudsling.utils.password import Password
-from mudsling.parse import ParsedInput
 from mudsling.match import match_objlist
+
+
+class CommandError(Exception):
+    """
+    Used in command parsing to skip the rest of command parsing but let an
+    error bubble up.
+    """
 
 
 class BaseObject(StoredObject):
@@ -105,6 +113,18 @@ class BaseObject(StoredObject):
 
         return match_objlist(search, {self}, err=err)
 
+    def matchObjectOfType(self, search, cls=None):
+        """
+        Match a player object.
+
+        @param search: The string to match on.
+        @param cls: The player class to search for.
+        @return: A list of matches.
+        @rtype: list
+        """
+        cls = cls or BaseObject
+        return match_objlist(search, self.game.db.descendants(cls))
+
     def processInput(self, raw, err=True):
         """
         Parses raw input as a command from this object and executes the first
@@ -113,7 +133,11 @@ class BaseObject(StoredObject):
         The passedInput and err parameters help accommodate children overriding
         this method without having to jump through more hoops than needed.
         """
-        cmd = self.findCommand(raw)
+        try:
+            cmd = self.findCommand(raw)
+        except CommandError as e:
+            self.msg(e.message)
+            return True
         if cmd is not None:
             cmd.execute()
             return True
@@ -139,6 +163,8 @@ class BaseObject(StoredObject):
                     cmd = cmdcls(raw, cmdstr, argstr, self.game, obj, self)
                     if cmd.matchSyntax(argstr):
                         return cmd
+                    elif not cmd.require_syntax_match:
+                        raise CommandError(cmd.syntaxHelp())
         cmd = self.handleUnmatchedInput(raw)
         if cmd is not None:
             return cmd
@@ -359,9 +385,10 @@ class BasePlayer(BaseObject):
     @ivar password: The hash of the password used to login to this player.
     @ivar email: The player's email address.
     @ivar session: The session object connected to this player.
+    @ivar default_object: The object this player will possess upon connecting.
     """
 
-    _transientVars = ['session']
+    _transientVars = ['session', 'possessing']
     session = None
 
     #: @type: Password
@@ -374,6 +401,9 @@ class BasePlayer(BaseObject):
 
     #: @type: BaseObject
     possessing = None
+
+    #: @type: BaseObject
+    default_object = None
 
     # Governed by ansi property
     _ansi = False
@@ -390,11 +420,19 @@ class BasePlayer(BaseObject):
             # which will free up self.session
             self.session.disconnect("Player taken over by another connection")
         else:
+            # This is a new connection as opposed to a reconnect. Attach to an
+            # object.
+            if self.possessing is None and self.default_object is not None:
+                if (self.game.db.isValid(self.default_object, BaseObject)
+                        and self.default_object.possessed_by is None):
+                    self.possessObject(self.default_object)
             # TODO: Player is connecting. Should we tell someone?
             pass
         self.session = session
         self.session.ansi = self.ansi
         self.msg("Connected to player %s" % self.name)
+        if self.possessing is None:
+            self.msg("{rYou are not attached to any game object!")
 
     def sessionDetached(self, session):
         """
@@ -422,6 +460,8 @@ class BasePlayer(BaseObject):
         @param obj: The object to possess.
         @type obj: BaseObject
         """
+        if self.possessing is not None:
+            self.dispossessObject(self.possessing)
         obj.possessBy(self)
         if obj.possessed_by == self:
             self.possessing = obj
@@ -476,9 +516,15 @@ class BasePlayer(BaseObject):
             if self.session is not None:
                 self.session.ansi = val
             if val:
-                self.msg("ANSI enabled.")
+                self.msg("ANSI {gENABLED{n.")
             else:
-                self.msg("ANSI disabled.")
+                self.msg("ANSI DISABLED.")
+
+    def matchObjectOfType(self, search, cls=None):
+        if inspect.isclass(cls) and issubclass(cls, BasePlayer):
+            if search == 'me':
+                return [self]
+        return super(BasePlayer, self).matchObjectOfType(search, cls=cls)
 
 
 class BaseCharacter(Object):
