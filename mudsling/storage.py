@@ -220,6 +220,12 @@ class StoredObject(Persistent):
 
     name = property(name, setName)
 
+    def expungeRole(self, role):
+        """
+        API method to remove all reference to given role from this object.
+        """
+        pass
+
     def objectCreated(self):
         """
         Called when the object is first created. Only called once in the life
@@ -395,3 +401,13 @@ class Database(Persistent):
             raise AmbiguousMatch(query=search, matches=matches)
         else:
             raise FailedMatch(query=search)
+
+    def expungeRole(self, role):
+        """
+        Removes role from all objects and finally the database itself.
+        """
+        for o in self.objects.items():
+            if isinstance(o, StoredObject):
+                o.expungeRole(role)
+        if role in self.roles:
+            self.roles.remove(role)

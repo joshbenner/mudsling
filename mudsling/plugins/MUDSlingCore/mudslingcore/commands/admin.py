@@ -117,7 +117,7 @@ class RolesCmd(Command):
 
         if not self.argwords:
             # List roles
-            msg = "{yRoles: {c%s"
+            msg = "{yRoles: {m%s"
             actor.msg(msg % string.english_list(self.game.db.roles, 'none'))
             return
 
@@ -127,7 +127,7 @@ class RolesCmd(Command):
         player = matches[0]
 
         msg = ("{yRoles for {c%s{y: {m%s"
-               % (player.nn, string.english_list(player.roles, 'none')))
+               % (player.nn, string.english_list(player.getRoles(), 'none')))
         actor.msg(msg)
 
 
@@ -237,8 +237,8 @@ class DeleteRoleCmd(Command):
             actor.msg(e.message)
             return
 
-        objTreeReplace(self.game.db, role, None, remove=True)
-        actor.msg('Role %s removed from all game objects.' % role.name)
+        self.game.db.expungeRole(role)
+        actor.msg('{rRole {m%s {rhas been deleted.' % role.name)
 
 
 class AddRoleCmd(Command):
@@ -270,11 +270,11 @@ class AddRoleCmd(Command):
             return
         player = matches[0]
 
-        if role in player.roles:
+        if player.hasRole(role):
             actor.msg('{c%s {yalready has the {m%s {yrole.'
                       % (player.nn, role.name))
         else:
-            player.roles.add(role)
+            player.addRole(role)
             actor.msg("{c%s {yhas been given the {m%s {yrole."
                       % (player.nn, role.name))
 
@@ -308,8 +308,8 @@ class RemoveRoleCmd(Command):
             return
         player = matches[0]
 
-        if role in player.roles:
-            player.roles.remove(role)
+        if player.hasRole(role):
+            player.removeRole(role)
             actor.msg("{m%s {yrole removed from {c%s{y."
                       % (role.name, player.nn))
         else:

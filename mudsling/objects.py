@@ -23,7 +23,7 @@ class BaseObject(StoredObject):
 
     @ivar possessed_by: The BasePlayer who is currently possessing this object.
     @ivar possessable_by: List of players who can possess this object.
-    @ivar roles: The set of roles granted to this object. For most objects,
+    @ivar __roles: The set of roles granted to this object. For most objects,
         this variable will always be empty. Characters and especially players,
         however, may have occasion to be granted roles.
     """
@@ -40,7 +40,11 @@ class BaseObject(StoredObject):
     #: @type: list
     possessable_by = []
 
-    roles = set()
+    __roles = set()
+
+    def expungeRole(self, role):
+        if self.hasRole(role):
+            self.removeRole(role)
 
     def possessableBy(self, player):
         """
@@ -224,20 +228,23 @@ class BaseObject(StoredObject):
         """
         return len([role for role in self.roles if role.hasPerm(perm)]) > 0
 
+    def getRoles(self):
+        return set(self.__roles)
+
     def hasRole(self, role):
-        return role in self.roles
+        return role in self.__roles
 
     def addRole(self, role):
         if 'roles' not in self.__dict__:
-            self.roles = set()
-        if role not in self.roles:
-            self.roles.add(role)
+            self.__roles = set()
+        if role not in self.__roles:
+            self.__roles.add(role)
 
     def removeRole(self, role):
-        if role in self.roles:
-            self.roles.remove(role)
-        if len(self.roles) == 0:
-            del self.roles
+        if role in self.__roles:
+            self.__roles.remove(role)
+        if len(self.__roles) == 0:
+            del self.__roles
 
 
 class Object(BaseObject):
