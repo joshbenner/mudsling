@@ -159,7 +159,7 @@ class BaseObject(StoredObject):
         cmdstr, sep, argstr = raw.partition(' ')
         for obj in self.getContext():
             for cmdcls in obj.commandsFor(self):
-                if cmdcls.matches(cmdstr):
+                if cmdcls.checkAccess(self) and cmdcls.matches(cmdstr):
                     cmd = cmdcls(raw, cmdstr, argstr, self.game, obj.ref(),
                                  self.ref())
                     if cmd.matchSyntax(argstr):
