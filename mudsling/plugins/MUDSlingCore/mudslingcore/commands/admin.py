@@ -31,6 +31,10 @@ class EvalCmd(Command):
         @type actor: mudslingcore.objects.Player
         """
 
+        import mudslingcore
+        import sys
+        import mudsling.utils
+
         # args['code'] isn't reliable since the semicolon shortcut may skip
         # parsing the args via syntax.
         code = self.argstr
@@ -43,25 +47,32 @@ class EvalCmd(Command):
             return False
 
         available_vars = {
+            'eval_cmd': self,
+            'sys': sys,
             'game': self.game,
+            'ref': self.game.db.getRef,
             'player': actor,
             'me': char,
             'here': (char.location if self.game.db.isValid(char, Object)
-                     else None)
+                     else None),
+            'mudslingcore': mudslingcore,
+            'utils': mudsling.utils,
         }
 
         actor.msg("{y>>> %s" % code)
 
         mode = 'eval'
-        duration = None
+        duration = compile_time = None
         #noinspection PyBroadException
         try:
+            begin = time.clock()
             #noinspection PyBroadException
             try:
                 compiled = compile(code, '', 'eval')
             except:
                 mode = 'exec'
                 compiled = compile(code, '', 'exec')
+            compile_time = time.clock() - begin
 
             begin = time.clock()
             ret = eval(compiled, {}, available_vars)
@@ -80,7 +91,10 @@ class EvalCmd(Command):
         raw_string = parse_ansi("{m") + ret + parse_ansi("{n")
         actor.msg(raw_string, {'raw': True})
         if duration is not None:
-            actor.msg("Exec time: %.3f ms" % (duration * 1000))
+            msg = "Exec time: %.3f ms, Compile time: %.3f ms (total: %.3f ms)"
+            actor.msg(msg % (duration * 1000,
+                             compile_time * 1000,
+                             (duration + compile_time) * 1000))
 
 
 class RolesCmd(Command):

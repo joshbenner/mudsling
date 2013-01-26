@@ -25,11 +25,30 @@ class ObjRef(namedtuple('ObjRef', 'id db')):
                 pass
         return self.obj
 
+    def _realObject(self):
+        ref = self.__object()
+        return ref() if ref is not None else None
+
     def __getattr__(self, name):
         return getattr(self.__object()(), name)
 
     def __setattr__(self, name, value):
         object.__setattr__(self.__object()(), name, value)
+
+    def __delattr__(self, name):
+        delattr(self.__object()(), name)
+
+    def __str__(self):
+        return self.__object()().__str__()
+
+    def __repr__(self):
+        repr = "#%d" % self.id
+        ref = self.__object()
+        if ref is not None:
+            repr += " (%s)" % str(ref())
+        else:
+            repr += " (invalid)"
+        return repr
 
     def __getstate__(self):
         """
@@ -45,14 +64,20 @@ class ObjRef(namedtuple('ObjRef', 'id db')):
         Proxy version of isinstance.
         @rtype: bool
         """
-        o = self.__object()()
-        return isinstance(o, cls)
+        try:
+            o = self.__object()()
+            return isinstance(o, cls)
+        except TypeError:
+            return False
 
     def isValid(self, cls=None):
         """
         Proxy version of Database.isValid().
         """
-        return self.db.isValid(self.__object()(), cls)
+        try:
+            return self.db.isValid(self.__object()(), cls)
+        except TypeError:
+            return False
 
 
 class Persistent(object):
@@ -151,12 +176,18 @@ class StoredObject(Persistent):
         """
         return self.db.isValid(self, cls)
 
+    def _realObject(self):
+        """
+        API compatibility with ObjRef.
+        @rtype: StoredObject
+        """
+        return self
+
     def ref(self):
         """
         Returns an ObjRef for this object. System-level stuff should be
         sure to introduce proxies as much as possible. We want to avoid storing
         objects directly.
-        @rtype: ObjRef
         """
         return ObjRef(id=self.id, db=self.db)
 
@@ -257,6 +288,9 @@ class Database(Persistent):
         except KeyError:
             return None
 
+    def getRef(self, id):
+        return ObjRef(id=id, db=self)
+
     def _allocateObjId(self):
         """
         Allocates a new object ID. Should only be called when a new object is
@@ -288,7 +322,7 @@ class Database(Persistent):
         if cls not in self.type_registry:
             self.type_registry[cls] = []
         if obj not in self.type_registry[cls]:
-            self.type_registry[cls].append(obj)
+            self.type_registry[cls].append(obj.ref())
 
     def isValid(self, obj, cls=None):
         """
@@ -303,7 +337,7 @@ class Database(Persistent):
         elif isinstance(obj, StoredObject):
             valid = obj.id in self.objects and self.objects[obj.id] == obj
         elif isinstance(obj, ObjRef):
-            valid = obj.isValid(cls)
+            return obj.isValid(cls)
         else:
             return False
 

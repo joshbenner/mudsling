@@ -348,8 +348,11 @@ class Object(BaseObject):
         Throws InvalidObject if this object is invalid or if the destination is
         neither None nor a valid Object instance.
         """
-        if not self.isValid():
-            raise InvalidObject(self)
+        me = self.ref()
+        dest = dest.ref() if dest is not None else None
+
+        if not me.isValid():
+            raise InvalidObject(me)
 
         # We allow moving to None
         if dest is not None:
@@ -358,18 +361,18 @@ class Object(BaseObject):
 
         previous_location = self.location
         if self.game.db.isValid(self.location, Object):
-            self.location.contents.remove(self)
+            self.location.contents.remove(me)
 
         self.location = dest
 
         if dest.isValid(Object):
-            dest.contents.append(self)
+            dest.contents.append(me)
 
         # Now fire event hooks on the two locations and the moved object.
         if self.game.db.isValid(previous_location, Object):
-            previous_location.contentRemoved(self, dest)
+            previous_location.contentRemoved(me, dest)
         if self.game.db.isValid(dest, Object):
-            dest.contentAdded(self, previous_location)
+            dest.contentAdded(me, previous_location)
 
         self.objectMoved(previous_location, dest)
 
@@ -425,7 +428,7 @@ class BasePlayer(BaseObject):
             # TODO: Player is connecting. Should we tell someone?
             pass
         self.session = session
-        self.session.ansi = self.ansi
+        session.ansi = self.ansi
         self.msg("Connected to player %s" % self.name)
         if self.possessing is None:
             self.msg("{rYou are not attached to any game object!")

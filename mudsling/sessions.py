@@ -62,10 +62,11 @@ class Session(object):
         """
         if flags is None:
             flags = {}
-        if text.__class__ == list:
+        if isinstance(text, list):
             for l in text:
                 self.sendOutput(l)
             return
+        text = str(text)
         if not text.endswith(self.line_delimiter):
             text += self.line_delimiter
 
@@ -96,7 +97,7 @@ class Session(object):
         """
         if self.player is not None:
             self.detach()
-        self.player = player
+        self.player = player._realObject()
         player.sessionAttached(self)
 
     def detach(self):
