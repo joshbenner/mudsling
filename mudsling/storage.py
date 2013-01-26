@@ -1,5 +1,58 @@
+from collections import namedtuple
+import weakref
+
 from mudsling.match import match_objlist
 from mudsling.errors import AmbiguousMatch, FailedMatch
+
+
+class ObjRef(namedtuple('ObjRef', 'id db')):
+    """
+    Weak references don't pickle properly. So, we provide our own proxy class
+    which uses our DB-based object IDs to provide de-normalized weak reference
+    powers. PersistentProxy objects can be passed around just as if they were
+    the objects to which they refer, but they can out-live the objects to which
+    they refer and keep the reference count low.
+    """
+    obj = None
+
+    def __object(self):
+        if self.obj is None:
+            try:
+                #noinspection PyCallByClass
+                object.__setattr__(self, 'obj',
+                                   weakref.ref(self.db._getObject(self.id)))
+            except TypeError:
+                pass
+        return self.obj
+
+    def __getattr__(self, name):
+        return getattr(self.__object()(), name)
+
+    def __setattr__(self, name, value):
+        object.__setattr__(self.__object()(), name, value)
+
+    def __getstate__(self):
+        """
+        Do not pickle anything but tupley-stuff.
+        """
+        return False
+
+    def __setstate__(self, state):
+        pass
+
+    def isa(self, cls):
+        """
+        Proxy version of isinstance.
+        @rtype: bool
+        """
+        o = self.__object()()
+        return isinstance(o, cls)
+
+    def isValid(self, cls=None):
+        """
+        Proxy version of Database.isValid().
+        """
+        return self.db.isValid(self.__object()(), cls)
 
 
 class Persistent(object):
@@ -83,6 +136,29 @@ class StoredObject(Persistent):
 
     def __str__(self):
         return self._name
+
+    def isa(self, cls):
+        """
+        Provide compatibility with ObjRef.
+        @rtype: bool
+        """
+        return isinstance(self, cls)
+
+    def isValid(self, cls=None):
+        """
+        API compatibility with ObjRef.
+        @rtype: bool
+        """
+        return self.db.isValid(self, cls)
+
+    def ref(self):
+        """
+        Returns an ObjRef for this object. System-level stuff should be
+        sure to introduce proxies as much as possible. We want to avoid storing
+        objects directly.
+        @rtype: ObjRef
+        """
+        return ObjRef(id=self.id, db=self.db)
 
     @property
     def nn(self):
@@ -175,6 +251,12 @@ class Database(Persistent):
         for obj in self.objects.values():
             self._addToTypeRegistry(obj)
 
+    def _getObject(self, id):
+        try:
+            return self.objects[id]
+        except KeyError:
+            return None
+
     def _allocateObjId(self):
         """
         Allocates a new object ID. Should only be called when a new object is
@@ -192,7 +274,7 @@ class Database(Persistent):
         if aliases is not None:
             obj.aliases.extend(list(aliases))
         self.registerNewObject(obj)
-        return obj
+        return ObjRef(id=obj.id, db=self)
 
     def registerNewObject(self, obj):
         obj.id = self._allocateObjId()
@@ -220,6 +302,8 @@ class Database(Persistent):
             valid = obj in self.objects
         elif isinstance(obj, StoredObject):
             valid = obj.id in self.objects and self.objects[obj.id] == obj
+        elif isinstance(obj, ObjRef):
+            valid = obj.isValid(cls)
         else:
             return False
 
@@ -277,10 +361,3 @@ class Database(Persistent):
             raise AmbiguousMatch(query=search, matches=matches)
         else:
             raise FailedMatch(query=search)
-
-    def expungeRole(self, role):
-        """
-        Remove role from all objects.
-        @param role:
-        @return:
-        """

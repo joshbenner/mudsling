@@ -59,7 +59,7 @@ class BaseObject(StoredObject):
         """
         # TODO: Refactor this into a property?
         if self.possessed_by is not None:
-            self.possessed_by.dispossessObject(self)
+            self.possessed_by.dispossessObject(self.ref())
         self.possessed_by = player
         self.onPossessed(player)
 
@@ -160,7 +160,8 @@ class BaseObject(StoredObject):
         for obj in self.getContext():
             for cmdcls in obj.commandsFor(self):
                 if cmdcls.matches(cmdstr):
-                    cmd = cmdcls(raw, cmdstr, argstr, self.game, obj, self)
+                    cmd = cmdcls(raw, cmdstr, argstr, self.game, obj.ref(),
+                                 self.ref())
                     if cmd.matchSyntax(argstr):
                         return cmd
                     elif not cmd.require_syntax_match:
@@ -347,29 +348,27 @@ class Object(BaseObject):
         Throws InvalidObject if this object is invalid or if the destination is
         neither None nor a valid Object instance.
         """
-        if not self.db.isValid(self):
+        if not self.isValid():
             raise InvalidObject(self)
 
         # We allow moving to None
         if dest is not None:
-            if not self.db.isValid(dest):
+            if not dest.isValid(Object):
                 raise InvalidObject(dest, "Destination invalid")
-            if not isinstance(dest, Object):
-                raise InvalidObject(dest, "Destination is not a location")
 
         previous_location = self.location
-        if isinstance(self.location, Object):
+        if self.game.db.isValid(self.location, Object):
             self.location.contents.remove(self)
 
         self.location = dest
 
-        if isinstance(dest, Object):
+        if dest.isValid(Object):
             dest.contents.append(self)
 
         # Now fire event hooks on the two locations and the moved object.
-        if isinstance(previous_location, Object):
+        if self.game.db.isValid(previous_location, Object):
             previous_location.contentRemoved(self, dest)
-        if isinstance(dest, Object):
+        if self.game.db.isValid(dest, Object):
             dest.contentAdded(self, previous_location)
 
         self.objectMoved(previous_location, dest)
@@ -408,11 +407,8 @@ class BasePlayer(BaseObject):
     # Governed by ansi property
     _ansi = False
 
-    def __init__(self, name, password, email):
-        super(BasePlayer, self).__init__()
-        self.name = name
+    def setPassword(self, password):
         self.password = Password(password)
-        self.email = email
 
     def sessionAttached(self, session):
         if self.session is not None:
@@ -462,8 +458,8 @@ class BasePlayer(BaseObject):
         """
         if self.possessing is not None:
             self.dispossessObject(self.possessing)
-        obj.possessBy(self)
-        if obj.possessed_by == self:
+        obj.possessBy(self.ref())
+        if obj.possessed_by == self.ref():
             self.possessing = obj
             self.onObjectPossessed(obj)
 

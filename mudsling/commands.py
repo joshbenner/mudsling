@@ -172,16 +172,16 @@ class Command(object):
         @type cmdstr: str
 
         @param argstr: The argument part of the input.
-        @type argstr: st
+        @type argstr: str
 
         @param game: Reference to the game instance.
         @type game: mudsling.server.MUDSling
 
         @param obj: The object hosting the command.
-        @type obj: mudsling.objects.BaseObject
+        @type obj: mudsling.objects.BaseObject or mudsling.storage.ObjRef
 
         @param actor: The object executing this command.
-        @type actor: mudsling.objects.BaseObject
+        @type actor: mudsling.objects.BaseObject or mudsling.storage.ObjRef
         """
         self.raw = raw
         self.cmdstr = cmdstr

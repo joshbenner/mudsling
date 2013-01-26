@@ -22,7 +22,7 @@ class RoomLookCmd(Command):
         if args['something'] is None:
             # Naked look.
             #: @type actor.location: Object
-            if isinstance(actor.location, Object):
+            if self.game.db.isValid(actor.location, Object):
                 actor.msg(actor.location.seenBy(actor))
                 return
             actor.msg("You don't seem to see anything...")
@@ -31,7 +31,7 @@ class RoomLookCmd(Command):
         #: @type: Object
         target = args['something']
 
-        if not self.game.db.isValid(target, Object):
+        if not target.isValid(Object):
             actor.msg("You're not sure what you see.")
         else:
             if target in actor.getContext():

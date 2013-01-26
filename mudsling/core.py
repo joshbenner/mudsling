@@ -149,9 +149,10 @@ class MUDSling(object):
 
             # Create first player.
             #: @type: mudsling.objects.BasePlayer
-            player = self.player_class('admin', 'password', 'admin@localhost')
+            player = self.db.createObject(self.player_class, 'admin')
+            player.setPassword('pass')
+            player.email = 'admin@localhost'
             player.superuser = True
-            self.db.registerNewObject(player)
 
             #: @type: mudsling.objects.BaseCharacter
             char = self.db.createObject(self.character_class, 'Admin')

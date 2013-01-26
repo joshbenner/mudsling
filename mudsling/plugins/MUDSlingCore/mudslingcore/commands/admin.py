@@ -8,6 +8,7 @@ from mudsling.commands import Command
 from mudsling.ansi import parse_ansi
 from mudsling.objects import Object
 from mudsling.utils import string
+from mudsling.utils.python import objTreeReplace
 from mudsling.errors import MatchError
 from mudsling.perms import Role
 
@@ -45,7 +46,8 @@ class EvalCmd(Command):
             'game': self.game,
             'player': actor,
             'me': char,
-            'here': char.location if isinstance(char, Object) else None
+            'here': (char.location if self.game.db.isValid(char, Object)
+                     else None)
         }
 
         actor.msg("{y>>> %s" % code)
@@ -102,7 +104,7 @@ class RolesCmd(Command):
         if not self.argwords:
             # List roles
             msg = "{yRoles: {c%s"
-            actor.msg(msg % string.english_list(self.game.db.roles))
+            actor.msg(msg % string.english_list(self.game.db.roles, 'none'))
             return
 
         matches = actor.matchObjectOfType(self.argstr, cls=Player)
@@ -111,7 +113,7 @@ class RolesCmd(Command):
         player = matches[0]
 
         msg = ("{yRoles for {c%s{y: {m%s"
-               % (player.nn, string.english_list(player.roles)))
+               % (player.nn, string.english_list(player.roles, 'none')))
         actor.msg(msg)
 
 
@@ -221,5 +223,81 @@ class DeleteRoleCmd(Command):
             actor.msg(e.message)
             return
 
-        # TODO: Need database expungeRole() first
-        actor.msg('Not implemented.')
+        objTreeReplace(self.game.db, role, None, remove=True)
+        actor.msg('Role %s removed from all game objects.' % role.name)
+
+
+class AddRoleCmd(Command):
+    """
+    @add-role <role> to <player>
+
+    Adds a role to a player.
+    """
+    aliases = ('@add-role',)
+    syntax = "<role> to <player>"
+    required_perm = 'grant roles'
+
+    def run(self, this, actor, args):
+        """
+        @type this: mudslingcore.objects.Player
+        @type actor: mudslingcore.objects.Player
+        @type args: dict
+        """
+        from mudslingcore.objects import Player
+
+        try:
+            role = self.game.db.matchRole(args['role'])
+        except MatchError as e:
+            actor.msg(e.message)
+            return
+
+        matches = actor.matchObjectOfType(args['player'], cls=Player)
+        if self.matchFailed(matches, args['player'], 'player', show=True):
+            return
+        player = matches[0]
+
+        if role in player.roles:
+            actor.msg('{c%s {yalready has the {m%s {yrole.'
+                      % (player.nn, role.name))
+        else:
+            player.roles.add(role)
+            actor.msg("{c%s {yhas been given the {m%s {yrole."
+                      % (player.nn, role.name))
+
+
+class RemoveRoleCmd(Command):
+    """
+    @rem-role <role> from <player>
+
+    Removes a role from a player.
+    """
+    aliases = ('@rem-role',)
+    syntax = "<role> from <player>"
+    required_perm = 'grant roles'
+
+    def run(self, this, actor, args):
+        """
+        @type this: mudslingcore.objects.Player
+        @type actor: mudslingcore.objects.Player
+        @type args: dict
+        """
+        from mudslingcore.objects import Player
+
+        try:
+            role = self.game.db.matchRole(args['role'])
+        except MatchError as e:
+            actor.msg(e.message)
+            return
+
+        matches = actor.matchObjectOfType(args['player'], cls=Player)
+        if self.matchFailed(matches, args['player'], 'player', show=True):
+            return
+        player = matches[0]
+
+        if role in player.roles:
+            player.roles.remove(role)
+            actor.msg("{m%s {yrole removed from {c%s{y."
+                      % (role.name, player.nn))
+        else:
+            actor.msg("{c%s {ydoes not have the {m%s {yrole."
+                      % (player.nn, role.name))

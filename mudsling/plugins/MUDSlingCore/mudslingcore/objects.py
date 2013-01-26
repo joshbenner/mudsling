@@ -49,6 +49,12 @@ class Player(BasePlayer):
         admin_commands.EvalCmd,
         admin_commands.RolesCmd,
         admin_commands.PermsCmd,
+        admin_commands.CreateRoleCmd,
+        admin_commands.DeleteRoleCmd,
+        admin_commands.ShowRoleCmd,
+        admin_commands.AddRoleCmd,
+        admin_commands.RemoveRoleCmd,
+
         ooc_commands.AnsiCmd
     ]
 
@@ -58,7 +64,7 @@ class Player(BasePlayer):
         """
         if raw.startswith(';') and self.hasPerm("eval code"):
             cmd = admin_commands.EvalCmd(raw, ';', raw[1:],
-                                         self.game, self, self)
+                                         self.game, self.ref(), self.ref())
             return cmd
         return None
 
