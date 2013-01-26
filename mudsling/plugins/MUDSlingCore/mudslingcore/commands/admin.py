@@ -3,12 +3,12 @@ Player commands.
 """
 import time
 import traceback
+import mudsling
 
 from mudsling.commands import Command
 from mudsling.ansi import parse_ansi
 from mudsling.objects import Object
 from mudsling.utils import string
-from mudsling.utils.python import objTreeReplace
 from mudsling.errors import MatchError
 from mudsling.perms import Role
 
@@ -33,7 +33,6 @@ class EvalCmd(Command):
 
         import mudslingcore
         import sys
-        import mudsling.utils
 
         # args['code'] isn't reliable since the semicolon shortcut may skip
         # parsing the args via syntax.

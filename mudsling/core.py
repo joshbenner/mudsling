@@ -9,9 +9,10 @@ import cPickle as pickle
 import atexit
 
 # Prefer libs we ship with.
-libpath = os.path.join(os.path.dirname(
-    os.path.dirname(os.path.realpath(__file__))), "lib")
+basepath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+libpath = os.path.join(basepath, "lib")
 sys.path.insert(1, libpath)
+del basepath, libpath
 
 import ConfigParser
 import logging
