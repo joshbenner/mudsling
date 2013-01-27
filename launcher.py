@@ -7,36 +7,34 @@ However, if the --debugger command line option is specified, this script will
 directly execute the server and override the use of the SimpleTelnetServer.
 """
 from sys import argv
-import argparse
 from multiprocessing import Process
-
-from twisted.scripts.twistd import run
+from threading import Thread
 
 from mudsling.twist import run_app
 
 
-def run_server(args=None):
-#    argv[1:] = [
-#        '-y', 'mudsling/server.py'
-#    ]
-#    run()
-    run_app('mudsling/server.py', args)
+def process_waiter(name, target):
+    p = Process(name=name, target=target)
+    p.start()
+    p.join()
+    print "%s exited with code %d" % (p.name, p.exitcode)
+
+
+def run_server():
+    run_app('mudsling')
+
 
 def run_proxy():
     print "I am a PROXY!"
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser('MUDSling Game Launcher')
-    parser.add_argument('--debugger', dest='debugger', action='store_const',
-                        const=True, default=False)
-    args = parser.parse_args()
 
-    if args.debugger:
-        run_server({'debugger': True})
+if __name__ == '__main__':
+    if '--debugger' in argv:
+        run_server()
     else:
-        print "spawning processes..."
-        server = Process(target=run_server)
-        #proxy = Process(target=run_proxy)
+        server = Thread(target=process_waiter, args=("Server", run_server))
+        proxy = Thread(target=process_waiter, args=("Proxy", run_proxy))
         server.start()
-        #proxy.start()
+        proxy.start()
         server.join()
+        proxy.join()

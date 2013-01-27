@@ -20,8 +20,9 @@ import logging
 # Alias configparser -> ConfigParser for yapsy (Python 3 naming)
 sys.modules['configparser'] = sys.modules['ConfigParser']
 
+from twisted.internet import reactor
 from twisted.application.service import Service
-from twisted.application.service import IServiceCollection
+#from twisted.application.service import IServiceCollection
 
 from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
@@ -31,8 +32,7 @@ from mudsling.utils.modules import class_from_path
 logging.basicConfig(level=logging.DEBUG)
 
 
-class MUDSling(object):
-
+class MUDSling(object, Service):
     #: @type: str
     game_dir = "game"
 
@@ -62,11 +62,15 @@ class MUDSling(object):
 
     class_registry = {}
 
-    def __init__(self, game_dir="game", app=None):
-        # Populated by service.setServiceParent().
-        self.services = IServiceCollection(app)
+    def __init__(self):
+        # Set this name so our AppRunner can find the primary service and
+        # capture the exit code.
+        self.setName("main")
 
-        self.game_dir = game_dir
+        # Populated by service.setServiceParent().
+        #self.services = IServiceCollection(app)
+
+        #self.game_dir = game_dir
 
         self.initGameDir()
 
@@ -74,21 +78,20 @@ class MUDSling(object):
         self.config = ConfigParser.SafeConfigParser()
         self.config.read(self.configPaths())
 
-        # Load plugin manager. Locates, filters, and loads plugins.
-        self.plugins = PluginManager(self, game_dir)
-
         logging.debug('\n'.join(sys.path))
-
-        # Parse class configs and stash class refs on the game object.
-        self.loadClassConfigs()
-
-        self.buildClassRegistry()
-
-        self.loadDatabase()
-        atexit.register(self.saveDatabase)
 
         # Setup session handler. Used by services.
         self.session_handler = SessionHandler(self)
+
+    def startService(self):
+        Service.startService(self)
+        # Load plugin manager. Locates, filters, and loads plugins.
+        self.plugins = PluginManager(self, self.game_dir)
+
+        self.loadClassConfigs()
+        self.buildClassRegistry()
+        self.loadDatabase()
+        atexit.register(self.saveDatabase)
 
         # Setup the plugin handling the login screen.
         name = self.config.get('Main', 'login screen')
@@ -101,7 +104,7 @@ class MUDSling(object):
         for info in self.plugins.activePlugins("TwistedService"):
             service = info.plugin_object.get_service()
             if isinstance(service, Service):
-                service.setServiceParent(app)
+                service.setServiceParent(self.parent)
 
     def configPaths(self):
         """
@@ -175,6 +178,10 @@ class MUDSling(object):
     def saveDatabase(self):
         with open(self.db_file_path, 'wb') as dbfile:
             pickle.dump(self.db, dbfile, -1)
+
+    def exit(self, code=0):
+        reactor.stop()
+        self.exit_code = code
 
     def invokeHook(self, hook, *args, **kwargs):
         """

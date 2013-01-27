@@ -81,6 +81,8 @@ class EvalCmd(Command):
                 ret = "<<< %s" % repr(ret)
             else:
                 ret = "<<< Done."
+        except SystemExit:
+            raise
         except:
             error_lines = traceback.format_exc().split('\n')
             if len(error_lines) > 4:

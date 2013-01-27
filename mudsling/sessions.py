@@ -48,6 +48,8 @@ class Session(object):
             #noinspection PyBroadException
             try:
                 self.player.processInput(line)
+            except SystemExit:
+                raise
             except:
                 errmsg = "UNHANDLED EXCEPTION\n%s" % traceback.format_exc()
                 logging.error(errmsg)
