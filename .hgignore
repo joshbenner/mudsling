@@ -2,4 +2,4 @@ syntax: glob
 .idea/workspace.xml
 *.pyc
 game
-*dropin.cache
+*dropin.cache*

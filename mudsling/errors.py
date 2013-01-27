@@ -1,6 +1,10 @@
 from mudsling.parse import ParsedInput
 
 
+class ConfigInvalid(Exception):
+    pass
+
+
 class Error(Exception):
     def __init__(self, msg=""):
         self.message = msg

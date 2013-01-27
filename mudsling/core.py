@@ -21,18 +21,18 @@ import logging
 sys.modules['configparser'] = sys.modules['ConfigParser']
 
 from twisted.internet import reactor
-from twisted.application.service import Service
-#from twisted.application.service import IServiceCollection
+from twisted.application.service import Service, MultiService
 
 from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
 from mudsling.storage import Database
 from mudsling.utils.modules import class_from_path
+from mudsling import proxy
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-class MUDSling(object, Service):
+class MUDSling(MultiService):
     #: @type: str
     game_dir = "game"
 
@@ -41,9 +41,6 @@ class MUDSling(object, Service):
 
     #: @type: PluginManager
     plugins = None
-
-    #: @type: IServiceCollection
-    services = None
 
     #: @type: mudsling.storage.Database
     db = None
@@ -62,21 +59,20 @@ class MUDSling(object, Service):
 
     class_registry = {}
 
-    def __init__(self):
-        # Set this name so our AppRunner can find the primary service and
-        # capture the exit code.
-        self.setName("main")
+    def __init__(self, gameDir, configPaths):
+        """
+        @type gameDir: str
+        @type configPaths: list
+        """
+        MultiService.__init__(self)
 
-        # Populated by service.setServiceParent().
-        #self.services = IServiceCollection(app)
-
-        #self.game_dir = game_dir
+        self.game_dir = gameDir
 
         self.initGameDir()
 
         # Load configuration.
         self.config = ConfigParser.SafeConfigParser()
-        self.config.read(self.configPaths())
+        self.config.read(configPaths)
 
         logging.debug('\n'.join(sys.path))
 
@@ -84,7 +80,6 @@ class MUDSling(object, Service):
         self.session_handler = SessionHandler(self)
 
     def startService(self):
-        Service.startService(self)
         # Load plugin manager. Locates, filters, and loads plugins.
         self.plugins = PluginManager(self, self.game_dir)
 
@@ -104,13 +99,15 @@ class MUDSling(object, Service):
         for info in self.plugins.activePlugins("TwistedService"):
             service = info.plugin_object.get_service()
             if isinstance(service, Service):
-                service.setServiceParent(self.parent)
+                #service.setServiceParent(self.parent)
+                self.addService(service)
 
-    def configPaths(self):
-        """
-        Get a list of paths to files where configuration might be found.
-        """
-        return ["mudsling/defaults.cfg", "%s/settings.cfg" % self.game_dir]
+        # Setup the AMP server if we are using proxy.
+        if self.config.getboolean('Proxy', 'enabled'):
+            service = proxy.AMP_server(self.config.getint('Proxy', 'AMP port'))
+            self.addService(service)
+
+        MultiService.startService(self)
 
     def initGameDir(self):
         """
