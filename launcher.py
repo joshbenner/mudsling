@@ -4,7 +4,8 @@ Main MUDSling entry point.
 Typically, this script spawns two processes: server and proxy.
 
 However, if the --debugger command line option is specified, this script will
-directly execute the server and override the use of the SimpleTelnetServer.
+directly execute the server and force the use of the SimpleTelnetServer. This
+helps Python debuggers (which are notoriously poor at multiprocess debugging).
 """
 from sys import argv
 from multiprocessing import Process
