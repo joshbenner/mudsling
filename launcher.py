@@ -20,6 +20,7 @@ def process_waiter(name, target):
     - <0: Something killed the process, shutdown everything.
     -  0: Normal, purposeful exit. Shutdown everything.
     - 10: Restart process.
+    -  *: Shut it all down!
 
     @param name: The name to give the process.
     @param target: The callable to execute for this process.

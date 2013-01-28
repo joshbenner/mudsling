@@ -1,4 +1,5 @@
 import os
+import sys
 import imp
 import ConfigParser
 
@@ -17,6 +18,17 @@ from twisted.internet.protocol import ServerFactory, ReconnectingClientFactory
 from twisted.application import internet
 from twisted.protocols.amp import AMP
 
+from mudsling import proxy
+
+
+max_session_id = 0
+sessions = {}
+
+
+def session_id():
+    sys.modules[__name__].max_session_id += 1
+    return max_session_id
+
 
 class MUDSlingProxyServiceMaker(object):
     implements(IServiceMaker, IPlugin)
@@ -29,8 +41,14 @@ class MUDSlingProxyServiceMaker(object):
 
         config = ConfigParser.SafeConfigParser()
         config.read(options.configPaths())
-        ports_str = config.get('Proxy', 'telnet ports')
 
+        port = int(config.get('Proxy', 'AMP port'))
+        factory = ReconnectingClientFactory()
+        factory.protocol = AmpClientProtocol
+        client = internet.TCPClient('127.0.0.1', port, factory)
+        service.addService(client)
+
+        ports_str = config.get('Proxy', 'telnet ports')
         for portVal in ports_str.split(','):
             try:
                 port = int(portVal)
@@ -42,21 +60,53 @@ class MUDSlingProxyServiceMaker(object):
             child.setName("ProxyTelnet%d" % port)
             service.addService(child)
 
-        port = int(config.get('Proxy', 'AMP port'))
-        factory = ReconnectingClientFactory()
-        factory.protocol = AmpClientProtocol
-        client = internet.TCPClient('127.0.0.1', port, factory)
-        service.addService(client)
-
         return service
 
 
 class ProxyTelnetSession(StatefulTelnetProtocol):
-    pass
+    factory = None
+
+    session_id = None
+    time_connected = 0
+    player = None
+    amp = None  # Set by AmpClientProtocol on class when it is instantiated.
+
+    def __init__(self):
+        self.session_id = session_id()
+        sessions[self.session_id] = self
+
+    def callRemote(self, *args, **kwargs):
+        kwargs['sessId'] = self.session_id
+        return self.amp.callRemote(*args, **kwargs)
+
+    def connectionMade(self):
+        self.callRemote(proxy.NewSession, delim=self.delimiter)
+
+    def connectionLost(self, reason):
+        self.callRemote(proxy.EndSession)
+
+    def lineReceived(self, line):
+        self.callRemote(proxy.ProxyToServer,
+                        line=line).addErrback(self.amp.errInvalidSession)
 
 
 class AmpClientProtocol(AMP):
-    pass
+    def __init__(self):
+        super(AmpClientProtocol, self).__init__()
+        ProxyTelnetSession.amp = self
+
+    def errInvalidSession(self, error):
+        error.trap(proxy.InvalidSession)
+        print error.__dict__
+
+    @proxy.ServerToProxy.responder
+    def serverToProxy(self, sessId, text):
+        try:
+            session = sessions[sessId]
+        except KeyError:
+            raise proxy.InvalidSession(str(sessId))
+        session.transport.write(text)
+        return {}
 
 
 # Now construct an object which *provides* the relevant interfaces

@@ -104,7 +104,8 @@ class MUDSling(MultiService):
 
         # Setup the AMP server if we are using proxy.
         if self.config.getboolean('Proxy', 'enabled'):
-            service = proxy.AMP_server(self.config.getint('Proxy', 'AMP port'))
+            service = proxy.AMP_server(self,
+                                       self.config.getint('Proxy', 'AMP port'))
             self.addService(service)
 
         MultiService.startService(self)
