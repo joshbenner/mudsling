@@ -16,7 +16,7 @@ from twisted.application.service import MultiService
 from twisted.conch.telnet import StatefulTelnetProtocol
 from twisted.internet.protocol import ServerFactory, ReconnectingClientFactory
 from twisted.application import internet
-from twisted.protocols.amp import AMP
+from twisted.protocols import amp
 
 from mudsling import proxy
 
@@ -71,9 +71,13 @@ class ProxyTelnetSession(StatefulTelnetProtocol):
     player = None
     amp = None  # Set by AmpClientProtocol on class when it is instantiated.
 
+    output_buffer = []
+
     def __init__(self):
         self.session_id = session_id()
         sessions[self.session_id] = self
+        self.output_buffer = []
+        self.MAX_LENGTH = amp.MAX_VALUE_LENGTH * 8
 
     def callRemote(self, *args, **kwargs):
         kwargs['sessId'] = self.session_id
@@ -86,11 +90,26 @@ class ProxyTelnetSession(StatefulTelnetProtocol):
         self.callRemote(proxy.EndSession)
 
     def lineReceived(self, line):
-        self.callRemote(proxy.ProxyToServer,
-                        line=line).addErrback(self.amp.errInvalidSession)
+        parts = proxy.message_chunks(line)
+        for part in parts:
+            self.callRemote(proxy.ProxyToServer,
+                            nchunks=len(parts),
+                            chunk=part).addErrback(self.amp.errInvalidSession)
+
+    def receiveMultipartOutput(self, nchunks, chunk):
+        if nchunks > 1:
+            self.output_buffer.append(chunk)
+            if len(self.output_buffer) < nchunks:
+                return
+            else:
+                text = ''.join(self.output_buffer)
+                self.output_buffer = []
+        else:
+            text = chunk
+        self.transport.write(text)
 
 
-class AmpClientProtocol(AMP):
+class AmpClientProtocol(amp.AMP):
     def __init__(self):
         super(AmpClientProtocol, self).__init__()
         ProxyTelnetSession.amp = self
@@ -100,12 +119,13 @@ class AmpClientProtocol(AMP):
         print error.__dict__
 
     @proxy.ServerToProxy.responder
-    def serverToProxy(self, sessId, text):
+    def serverToProxy(self, sessId, nchunks, chunk):
         try:
             session = sessions[sessId]
         except KeyError:
             raise proxy.InvalidSession(str(sessId))
-        session.transport.write(text)
+        #session.transport.write(chunk)
+        session.receiveMultipartOutput(nchunks, chunk)
         return {}
 
 

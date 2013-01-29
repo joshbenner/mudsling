@@ -23,14 +23,34 @@ class ProxySession(Session):
     amp = None  # Set by AMPServerProtocol upon instantiation (connection).
     proxy_session_id = None
 
+    input_buffer = []
+
     def __init__(self, id, delim):
         self.line_delimiter = delim
         self.proxy_session_id = id
         proxy_sessions[id] = self
+        self.input_buffer = []
 
     def rawSendOutput(self, text):
-        self.amp.callRemote(ServerToProxy, sessId=self.proxy_session_id,
-                            text=text).addErrback(self.amp.errInvalidSession)
+        chunks = message_chunks(text)
+        for chunk in chunks:
+            call = self.amp.callRemote(ServerToProxy,
+                                       sessId=self.proxy_session_id,
+                                       nchunks=len(chunks),
+                                       chunk=chunk)
+            call.addErrback(self.amp.errInvalidSession)
+
+    def receiveMultipartInput(self, nchunks, chunk):
+        if nchunks > 1:
+            self.input_buffer.append(chunk)
+            if len(self.input_buffer) < nchunks:
+                return
+            else:
+                line = ''.join(self.input_buffer)
+                self.input_buffer = []
+        else:
+            line = chunk
+        self.receiveInput(line)
 
 
 class NewSession(amp.Command):
@@ -51,7 +71,8 @@ class EndSession(amp.Command):
 class ProxyToServer(amp.Command):
     arguments = [
         ('sessId', amp.Integer()),
-        ('line', amp.String())
+        ('nchunks', amp.Integer()),
+        ('chunk', amp.String())
     ]
     response = []
     errors = {InvalidSession: 'INVALID_SESSION'}
@@ -60,7 +81,8 @@ class ProxyToServer(amp.Command):
 class ServerToProxy(amp.Command):
     arguments = [
         ('sessId', amp.Integer()),
-        ('text', amp.String())
+        ('nchunks', amp.Integer()),
+        ('chunk', amp.String())
     ]
     response = []
     errors = {InvalidSession: 'INVALID_SESSION'}
@@ -95,13 +117,18 @@ class AMPServerProtocol(amp.AMP):
         return {}
 
     @ProxyToServer.responder
-    def proxyToServer(self, sessId, line):
+    def proxyToServer(self, sessId, nchunks, chunk):
         try:
             session = proxy_sessions[sessId]
         except KeyError:
             raise InvalidSession()
-        session.receiveInput(line)
+        session.receiveMultipartInput(nchunks, chunk)
         return {}
+
+
+def message_chunks(text):
+    return [text[i:i + amp.MAX_VALUE_LENGTH]
+            for i in range(0, len(text), amp.MAX_VALUE_LENGTH)]
 
 
 def AMP_server(game, port):
