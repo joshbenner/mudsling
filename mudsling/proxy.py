@@ -1,6 +1,7 @@
 from twisted.internet.protocol import ServerFactory
 from twisted.application import internet
 from twisted.protocols import amp
+from twisted.internet import reactor
 
 from mudsling.sessions import Session
 
@@ -38,7 +39,7 @@ class ProxySession(Session):
                                        sessId=self.proxy_session_id,
                                        nchunks=len(chunks),
                                        chunk=chunk)
-            call.addErrback(self.amp.errInvalidSession)
+            call.addErrback(self.amp._onError)
 
     def receiveMultipartInput(self, nchunks, chunk):
         if nchunks > 1:
@@ -52,6 +53,11 @@ class ProxySession(Session):
             line = chunk
         self.receiveInput(line)
 
+    def disconnect(self, reason):
+        self.sendOutput(reason)
+        call = self.amp.callRemote(EndSession, sessId=self.proxy_session_id)
+        call.addErrback(self.amp._onError)
+
 
 class NewSession(amp.Command):
     arguments = [
@@ -59,6 +65,7 @@ class NewSession(amp.Command):
         ('delim', amp.String())
     ]
     response = []
+    errors = {Exception: 'EXCEPTION'}
 
 
 class EndSession(amp.Command):
@@ -66,6 +73,7 @@ class EndSession(amp.Command):
         ('sessId', amp.Integer())
     ]
     response = []
+    errors = {Exception: 'EXCEPTION'}
 
 
 class ProxyToServer(amp.Command):
@@ -75,7 +83,7 @@ class ProxyToServer(amp.Command):
         ('chunk', amp.String())
     ]
     response = []
-    errors = {InvalidSession: 'INVALID_SESSION'}
+    errors = {Exception: 'EXCEPTION'}
 
 
 class ServerToProxy(amp.Command):
@@ -85,7 +93,13 @@ class ServerToProxy(amp.Command):
         ('chunk', amp.String())
     ]
     response = []
-    errors = {InvalidSession: 'INVALID_SESSION'}
+    errors = {Exception: 'EXCEPTION'}
+
+
+class Shutdown(amp.Command):
+    arguments = []
+    response = []
+    errors = {Exception: 'EXCEPTION'}
 
 
 class AMPServerProtocol(amp.AMP):
@@ -94,9 +108,14 @@ class AMPServerProtocol(amp.AMP):
     def __init__(self):
         super(AMPServerProtocol, self).__init__()
         ProxySession.amp = self
+        reactor.addSystemEventTrigger('before', 'shutdown', self._onShutdown)
 
-    def errInvalidSession(self, error):
-        error.trap(InvalidSession)
+    def _onShutdown(self):
+        if self.factory.game.exit_code != 10:
+            self.callRemote(Shutdown).addErrback(self._onError)
+
+    def _onError(self, error):
+        error.trap(Exception)
         print 'AMPServerProtocol', error.__dict__
 
     @NewSession.responder

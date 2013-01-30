@@ -178,8 +178,10 @@ class MUDSling(MultiService):
             pickle.dump(self.db, dbfile, -1)
 
     def exit(self, code=0):
-        reactor.stop()
         self.exit_code = code
+        self.session_handler.disconnectAllSessions("Shutting Down")
+        self.saveDatabase()
+        reactor.stop()
 
     def invokeHook(self, hook, *args, **kwargs):
         """

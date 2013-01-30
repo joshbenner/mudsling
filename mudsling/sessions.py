@@ -139,8 +139,17 @@ class SessionHandler(object):
 
     def disconnectSession(self, session):
         """
-        Detatch a session from the handler.
+        Detatch a session from the handler. Do not call this to disconnect a
+        session. Instead, call session.disconnect(), which will in turn call
+        this.
 
         @type session: Session
         """
         self.sessions.remove(session)
+
+    def disconnectAllSessions(self, reason):
+        """
+        Disconnects all sessions.
+        """
+        for session in list(self.sessions):
+            session.disconnect(reason)

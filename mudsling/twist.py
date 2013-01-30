@@ -27,10 +27,10 @@ class AppRunner(_SomeApplicationRunner):
 
         # At this point, the app is exiting. Look for an exit code to use.
         services = self.application.getComponent(IService)
-        main = services.getServiceNamed('main')
         try:
+            main = services.getServiceNamed('main')
             code = main.exit_code
-        except AttributeError:
+        except (KeyError, AttributeError):
             return
         sys.exit(code)
 

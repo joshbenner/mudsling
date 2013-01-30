@@ -17,6 +17,7 @@ from twisted.conch.telnet import StatefulTelnetProtocol
 from twisted.internet.protocol import ServerFactory, ReconnectingClientFactory
 from twisted.application import internet
 from twisted.protocols import amp
+from twisted.internet import reactor
 
 from mudsling import proxy
 
@@ -46,6 +47,7 @@ class MUDSlingProxyServiceMaker(object):
         factory = ReconnectingClientFactory()
         factory.protocol = AmpClientProtocol
         client = internet.TCPClient('127.0.0.1', port, factory)
+        client.setName('main')  # Used by AppRunner to find exit code.
         service.addService(client)
 
         ports_str = config.get('Proxy', 'telnet ports')
@@ -84,17 +86,20 @@ class ProxyTelnetSession(StatefulTelnetProtocol):
         return self.amp.callRemote(*args, **kwargs)
 
     def connectionMade(self):
-        self.callRemote(proxy.NewSession, delim=self.delimiter)
+        # If not in session list, then disconnect may have originated on the
+        # server side, or there is some very fast disconnect.
+        if self.session_id in sessions:
+            self.callRemote(proxy.NewSession, delim=self.delimiter)
 
     def connectionLost(self, reason):
-        self.callRemote(proxy.EndSession)
+        self.callRemote(proxy.EndSession).addErrback(self.amp._onError)
 
     def lineReceived(self, line):
         parts = proxy.message_chunks(line)
         for part in parts:
             self.callRemote(proxy.ProxyToServer,
                             nchunks=len(parts),
-                            chunk=part).addErrback(self.amp.errInvalidSession)
+                            chunk=part).addErrback(self.amp._onError)
 
     def receiveMultipartOutput(self, nchunks, chunk):
         if nchunks > 1:
@@ -108,15 +113,23 @@ class ProxyTelnetSession(StatefulTelnetProtocol):
             text = chunk
         self.transport.write(text)
 
+    def disconnect(self):
+        print "Closing proxy telnet session %d" % self.session_id
+        try:
+            del sessions[self.session_id]
+        except KeyError:
+            pass
+        self.transport.loseConnection()
+
 
 class AmpClientProtocol(amp.AMP):
     def __init__(self):
         super(AmpClientProtocol, self).__init__()
         ProxyTelnetSession.amp = self
 
-    def errInvalidSession(self, error):
-        error.trap(proxy.InvalidSession)
-        print error.__dict__
+    def _onError(self, error):
+        error.trap(Exception)
+        print 'AmpClientProtocol', error.__dict__
 
     @proxy.ServerToProxy.responder
     def serverToProxy(self, sessId, nchunks, chunk):
@@ -126,6 +139,21 @@ class AmpClientProtocol(amp.AMP):
             raise proxy.InvalidSession(str(sessId))
         #session.transport.write(chunk)
         session.receiveMultipartOutput(nchunks, chunk)
+        return {}
+
+    @proxy.Shutdown.responder
+    def shutdownProxy(self):
+        print "Proxy received Shutdown signal from server"
+        reactor.stop()
+        return {}
+
+    @proxy.EndSession.responder
+    def endSession(self, sessId):
+        try:
+            session = sessions[sessId]
+        except KeyError:
+            raise proxy.InvalidSession(str(sessId))
+        session.disconnect()
         return {}
 
 
