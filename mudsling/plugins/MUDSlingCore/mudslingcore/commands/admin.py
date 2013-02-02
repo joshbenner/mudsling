@@ -346,3 +346,61 @@ class RemoveRoleCmd(Command):
         else:
             actor.msg("{c%s {ydoes not have the {m%s {yrole."
                       % (player.nn, role.name))
+
+
+class AddPermCmd(Command):
+    """
+    @add-perm <perm> to <role>
+
+    Adds a permission to a role.
+    """
+    aliases = ('@add-perm',)
+    syntax = "<perm> to <role>"
+    required_perm = 'manage roles'
+
+    def run(self, this, actor, args):
+        """
+        @type this: mudslingcore.objects.Player
+        @type actor: mudslingcore.objects.Player
+        @type args: dict
+        """
+        try:
+            role = self.game.db.matchRole(args['role'])
+        except MatchError as e:
+            actor.msg(e.message)
+            return
+
+        if role.addPerm(args['perm']):
+            actor.msg("{g%s {yadded to {m%s{y.", (args['perm'], role))
+        else:
+            actor.msg("{m%s {yalready has the {g%s {ypermission."
+                      % (role, args['perm']))
+
+
+class RemovePermCmd(Command):
+    """
+    @rem-perm <perm> from <role>
+
+    Remove a permission from a role.
+    """
+    aliases = ('@rem-perm',)
+    syntax = "<perm> from <role>"
+    required_perm = 'manage roles'
+
+    def run(self, this, actor, args):
+        """
+        @type this: mudslingcore.objects.Player
+        @type actor: mudslingcore.objects.Player
+        @type args: dict
+        """
+        try:
+            role = self.game.db.matchRole(args['role'])
+        except MatchError as e:
+            actor.msg(e.message)
+            return
+
+        if role.removePerm(args['perm']):
+            actor.msg("{g%s {yremoved from {m%s{y." % (args['perm'], role))
+        else:
+            actor.msg("{m%s {ydoes not have the {g%s {ypermission."
+                      % (role, args['perms']))
