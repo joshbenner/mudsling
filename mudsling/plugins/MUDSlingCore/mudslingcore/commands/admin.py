@@ -13,6 +13,36 @@ from mudsling.errors import MatchError
 from mudsling.perms import Role
 
 
+class ShutdownCmd(Command):
+    """
+    @shutdown
+
+    Shutdown the server (and proxy).
+    """
+    aliases = ('@shutdown',)
+    required_perm = "shutdown server"
+
+    def run(self, this, actor, args):
+        msg = "Shutting down server. Goodbye."
+        self.game.session_handler.outputToAllSessions(msg)
+        self.game.exit()
+
+
+class ReloadCmd(Command):
+    """
+    @reload
+
+    Reloads the server. Only works in proxy mode.
+    """
+    aliases = ('@reload',)
+    required_perm = "reload server"
+
+    def run(self, this, actor, args):
+        msg = "Reloading server, please stand by..."
+        self.game.session_handler.outputToAllSessions(msg)
+        self.game.exit(10)
+
+
 class EvalCmd(Command):
     """
     @eval <python code>

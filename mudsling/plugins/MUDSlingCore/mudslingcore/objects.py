@@ -46,6 +46,8 @@ class Object(LocatedObject):
 
 class Player(BasePlayer):
     commands = [
+        admin_commands.ShutdownCmd,
+        admin_commands.ReloadCmd,
         admin_commands.EvalCmd,
         admin_commands.RolesCmd,
         admin_commands.PermsCmd,

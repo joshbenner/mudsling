@@ -32,14 +32,16 @@ class ProxySession(Session):
         proxy_sessions[id] = self
         self.input_buffer = []
 
+    def callRemote(self, *args, **kwargs):
+        kwargs['sessId'] = self.proxy_session_id
+        self.amp.callRemote(*args, **kwargs).addErrback(self.amp._onError)
+
     def rawSendOutput(self, text):
         chunks = message_chunks(text)
         for chunk in chunks:
-            call = self.amp.callRemote(ServerToProxy,
-                                       sessId=self.proxy_session_id,
-                                       nchunks=len(chunks),
-                                       chunk=chunk)
-            call.addErrback(self.amp._onError)
+            self.callRemote(ServerToProxy,
+                            nchunks=len(chunks),
+                            chunk=chunk)
 
     def receiveMultipartInput(self, nchunks, chunk):
         if nchunks > 1:
@@ -55,14 +57,39 @@ class ProxySession(Session):
 
     def disconnect(self, reason):
         self.sendOutput(reason)
-        call = self.amp.callRemote(EndSession, sessId=self.proxy_session_id)
-        call.addErrback(self.amp._onError)
+        self.callRemote(EndSession)
+
+    def attachToPlayer(self, player, report=True):
+        super(ProxySession, self).attachToPlayer(player)
+        if report:
+            player_id = player.id if self.game.db.isValid(player) else -1
+            self.callRemote(AttachPlayer, playerId=player_id)
 
 
 class NewSession(amp.Command):
     arguments = [
         ('sessId', amp.Integer()),
         ('delim', amp.String())
+    ]
+    response = []
+    errors = {Exception: 'EXCEPTION'}
+
+
+class AttachPlayer(amp.Command):
+    arguments = [
+        ('sessId', amp.Integer()),
+        ('playerId', amp.Integer())
+    ]
+    response = []
+    errors = {Exception: 'EXCEPTION'}
+
+
+class ReSyncSession(amp.Command):
+    arguments = [
+        ('sessId', amp.Integer()),
+        ('delim', amp.String()),
+        ('playerId', amp.Integer()),
+        ('time_connected', amp.Integer())
     ]
     response = []
     errors = {Exception: 'EXCEPTION'}
@@ -142,6 +169,21 @@ class AMPServerProtocol(amp.AMP):
         except KeyError:
             raise InvalidSession()
         session.receiveMultipartInput(nchunks, chunk)
+        return {}
+
+    @ReSyncSession.responder
+    def reSyncSession(self, sessId, delim, playerId, time_connected):
+        """
+        Create a server session that corresponds to an already-established
+        session on the proxy-side.
+        """
+        session = ProxySession(sessId, delim)
+        session.game = self.factory.game
+        session.openSession(resync=True)
+        session.time_connected = time_connected
+        player = session.game.db.getRef(playerId)
+        if player.isValid():
+            session.attachToPlayer(player)
         return {}
 
 

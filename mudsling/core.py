@@ -74,7 +74,7 @@ class MUDSling(MultiService):
         self.config = ConfigParser.SafeConfigParser()
         self.config.read(configPaths)
 
-        logging.debug('\n'.join(sys.path))
+        #logging.debug('\n'.join(sys.path))
 
         # Setup session handler. Used by services.
         self.session_handler = SessionHandler(self)
@@ -179,7 +179,8 @@ class MUDSling(MultiService):
 
     def exit(self, code=0):
         self.exit_code = code
-        self.session_handler.disconnectAllSessions("Shutting Down")
+        if code != 10:
+            self.session_handler.disconnectAllSessions("Shutting Down")
         self.saveDatabase()
         reactor.stop()
 

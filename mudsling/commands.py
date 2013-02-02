@@ -132,8 +132,11 @@ class Command(object):
         Determine if the input matches the command syntax.
         @rtype: bool
         """
-        if self._syntax is None:
+        if self._syntax is None and self.syntax:
             self._compileSyntax()
+
+        if not self.syntax and argstr == '':
+            return True
 
         parsed = self._syntax.parse(argstr)
         if parsed:
@@ -175,7 +178,7 @@ class Command(object):
         @type argstr: str
 
         @param game: Reference to the game instance.
-        @type game: mudsling.server.MUDSling
+        @type game: mudsling.core.MUDSling
 
         @param obj: The object hosting the command.
         @type obj: mudsling.objects.BaseObject or mudsling.storage.ObjRef

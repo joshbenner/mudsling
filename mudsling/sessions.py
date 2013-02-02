@@ -29,9 +29,9 @@ class Session(object):
     ansi = False
     xterm256 = False
 
-    def openSession(self):
+    def openSession(self, resync=False):
         self.time_connected = time.time()
-        self.game.session_handler.connectSession(self)
+        self.game.session_handler.connectSession(self, resync=resync)
         logging.info("Session %s connected." % self)
 
     def sessionClosed(self):
@@ -128,14 +128,15 @@ class SessionHandler(object):
     def __init__(self, game):
         self.game = game
 
-    def connectSession(self, session):
+    def connectSession(self, session, resync=False):
         """
         Attach a new session to the handler.
 
         @type session: Session
         """
         self.sessions.add(session)
-        self.game.login_screen.sessionConnected(session)
+        if not resync:
+            self.game.login_screen.sessionConnected(session)
 
     def disconnectSession(self, session):
         """
@@ -153,3 +154,7 @@ class SessionHandler(object):
         """
         for session in list(self.sessions):
             session.disconnect(reason)
+
+    def outputToAllSessions(self, text, flags=None):
+        for session in self.sessions:
+            session.sendOutput(text, flags=flags)

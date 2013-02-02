@@ -45,6 +45,7 @@ class MUDSlingProxyServiceMaker(object):
 
         port = int(config.get('Proxy', 'AMP port'))
         factory = ReconnectingClientFactory()
+        factory.maxDelay = 1
         factory.protocol = AmpClientProtocol
         client = internet.TCPClient('127.0.0.1', port, factory)
         client.setName('main')  # Used by AppRunner to find exit code.
@@ -70,7 +71,7 @@ class ProxyTelnetSession(StatefulTelnetProtocol):
 
     session_id = None
     time_connected = 0
-    player = None
+    playerId = None
     amp = None  # Set by AmpClientProtocol on class when it is instantiated.
 
     output_buffer = []
@@ -83,7 +84,7 @@ class ProxyTelnetSession(StatefulTelnetProtocol):
 
     def callRemote(self, *args, **kwargs):
         kwargs['sessId'] = self.session_id
-        return self.amp.callRemote(*args, **kwargs)
+        self.amp.callRemote(*args, **kwargs).addErrback(self.amp._onError)
 
     def connectionMade(self):
         # If not in session list, then disconnect may have originated on the
@@ -92,14 +93,14 @@ class ProxyTelnetSession(StatefulTelnetProtocol):
             self.callRemote(proxy.NewSession, delim=self.delimiter)
 
     def connectionLost(self, reason):
-        self.callRemote(proxy.EndSession).addErrback(self.amp._onError)
+        self.callRemote(proxy.EndSession)
 
     def lineReceived(self, line):
         parts = proxy.message_chunks(line)
         for part in parts:
             self.callRemote(proxy.ProxyToServer,
                             nchunks=len(parts),
-                            chunk=part).addErrback(self.amp._onError)
+                            chunk=part)
 
     def receiveMultipartOutput(self, nchunks, chunk):
         if nchunks > 1:
@@ -121,11 +122,24 @@ class ProxyTelnetSession(StatefulTelnetProtocol):
             pass
         self.transport.loseConnection()
 
+    def reSync(self):
+        self.callRemote(proxy.ReSyncSession,
+                        delim=self.delimiter,
+                        playerId=self.playerId,
+                        time_connected=self.time_connected)
+
 
 class AmpClientProtocol(amp.AMP):
     def __init__(self):
         super(AmpClientProtocol, self).__init__()
         ProxyTelnetSession.amp = self
+
+    def connectionMade(self):
+        self.factory.resetDelay()
+        # If we already have telnet sessions up connect, it's because the
+        # server restarted, and we need to re-establish sessions via AMP.
+        for session in sessions.itervalues():
+            session.reSync()
 
     def _onError(self, error):
         error.trap(Exception)
@@ -154,6 +168,15 @@ class AmpClientProtocol(amp.AMP):
         except KeyError:
             raise proxy.InvalidSession(str(sessId))
         session.disconnect()
+        return {}
+
+    @proxy.AttachPlayer.responder
+    def attachPlayer(self, sessId, playerId):
+        try:
+            session = sessions[sessId]
+        except KeyError:
+            raise proxy.InvalidSession(str(sessId))
+        session.playerId = playerId
         return {}
 
 
