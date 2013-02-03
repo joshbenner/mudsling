@@ -22,7 +22,21 @@ class MUDSlingCorePlugin(GamePlugin):
         """
         This hook is called when performing initial setup of a database, giving
         GamePlugin instances the opportunity to perform setup of their own.
+
         @param db: The database being setup.
+        """
+
+    def hook_serverStartup(self):
+        """
+        This hook is invoked as the last step during server startup, after
+        everything is loaded and otherwise ready to go.
+        """
+
+    def hook_serverShutdown(self, reload):
+        """
+        This hook is invoked as the first step in the shutdown process.
+
+        @param reload: If True, the server intends to reload.
         """
 
     def hook_objectClasses(self):

@@ -6,7 +6,6 @@ services... everything.
 import sys
 import os
 import cPickle as pickle
-import atexit
 
 # Prefer libs we ship with.
 basepath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -28,6 +27,7 @@ from mudsling.sessions import SessionHandler
 from mudsling.storage import Database
 from mudsling.utils.modules import class_from_path
 from mudsling import proxy
+from mudsling import tasks
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -86,7 +86,7 @@ class MUDSling(MultiService):
         self.loadClassConfigs()
         self.buildClassRegistry()
         self.loadDatabase()
-        atexit.register(self.saveDatabase)
+        tasks.BaseTask.db = self.db
 
         # Setup the plugin handling the login screen.
         name = self.config.get('Main', 'login screen')
@@ -107,6 +107,10 @@ class MUDSling(MultiService):
             service = proxy.AMP_server(self,
                                        self.config.getint('Proxy', 'AMP port'))
             self.addService(service)
+
+        # Fire server startup hooks.
+        self.db.onServerStartup()
+        self.invokeHook('serverStartup')
 
         MultiService.startService(self)
 
@@ -177,7 +181,16 @@ class MUDSling(MultiService):
         with open(self.db_file_path, 'wb') as dbfile:
             pickle.dump(self.db, dbfile, -1)
 
-    def exit(self, code=0):
+    def shutdown(self, reload=False):
+        # Call shutdown hooks.
+        self.invokeHook('serverShutdown', reload=reload)
+        self.db.onServerShutdown()
+        self.__exit(10 if reload else 0)
+
+    def reload(self):
+        self.shutdown(reload=True)
+
+    def __exit(self, code=0):
         self.exit_code = code
         if code != 10:
             self.session_handler.disconnectAllSessions("Shutting Down")

@@ -1,8 +1,17 @@
 from collections import namedtuple
 import weakref
+import copy_reg
+import types
 
 from mudsling.match import match_objlist
-from mudsling.errors import AmbiguousMatch, FailedMatch
+from mudsling.errors import AmbiguousMatch, FailedMatch, InvalidTask
+
+
+# Support pickling methods.
+def reduce_method(m):
+    return getattr, (m.__self__, m.__func__.__name__)
+copy_reg.pickle(types.MethodType, reduce_method)
+del reduce_method
 
 
 class ObjRef(namedtuple('ObjRef', 'id db')):
@@ -261,6 +270,9 @@ class Database(Persistent):
     objects = {}
     roles = []
 
+    max_task_id = 0
+    tasks = {}
+
     type_registry = {}
 
     #: @type: mudsling.server.MUDSling
@@ -272,6 +284,7 @@ class Database(Persistent):
         """
         self.objects = {}
         self.roles = []
+        self.tasks = {}
         self.type_registry = {}
 
     def onLoaded(self, game):
@@ -287,6 +300,20 @@ class Database(Persistent):
         # Build the type registry.
         for obj in self.objects.values():
             self._addToTypeRegistry(obj)
+
+    def onServerStartup(self):
+        """
+        Run once per server start after everything is loaded and ready.
+        """
+        for task in self.tasks.itervalues():
+            task.onServerStartup()
+
+    def onServerShutdown(self):
+        """
+        Run just prior to server shutdown.
+        """
+        for task in self.tasks.itervalues():
+            task.onServerShutdown()
 
     def _getObject(self, id):
         try:
@@ -411,3 +438,41 @@ class Database(Persistent):
                 o.expungeRole(role)
         if role in self.roles:
             self.roles.remove(role)
+
+    def registerTask(self, task):
+        """
+        Adds a task to the database.
+
+        @param task: The task to register.
+        @type task: mudsling.tasks.BaseTask
+        """
+        self.max_task_id += 1
+        task.id = self.max_task_id
+        task.alive = True
+        self.tasks[task.id] = task
+
+    def getTask(self, id):
+        """
+        Retrieve a task from the Database.
+
+        @param id: The task ID (or perhaps the task itself).
+        @return: A task object found within the Database.
+        @rtype: mudsling.tasks.BaseTask
+        """
+        try:
+            id = id if isinstance(id, int) else id.id
+            task = self.tasks[id]
+        except (AttributeError, KeyError):
+            raise InvalidTask("Invalid task or task ID: %s" % id)
+        return task
+
+    def killTask(self, id):
+        self.getTask(id).kill()
+
+    def removeTask(self, id):
+        task = self.getTask(id)
+        if task.alive:
+            return False
+        else:
+            del self.tasks[task.id]
+            return True

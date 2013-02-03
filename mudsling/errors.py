@@ -13,6 +13,10 @@ class Error(Exception):
         return repr(self.message)
 
 
+class InvalidTask(Error):
+    pass
+
+
 class InvalidObject(Error):
     def __init__(self, obj=None, msg="Invalid Object"):
         super(InvalidObject, self).__init__(msg)
