@@ -306,14 +306,14 @@ class Database(Persistent):
         Run once per server start after everything is loaded and ready.
         """
         for task in self.tasks.itervalues():
-            task.onServerStartup()
+            task.serverStartup()
 
     def onServerShutdown(self):
         """
         Run just prior to server shutdown.
         """
         for task in self.tasks.itervalues():
-            task.onServerShutdown()
+            task.serverShutdown()
 
     def _getObject(self, id):
         try:
