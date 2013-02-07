@@ -107,6 +107,7 @@ class IntervalTask(BaseTask):
 
     def _schedule(self, interval=None):
         interval = interval if interval is not None else self._interval
+        self._interval = interval
         if interval is not None:  # None interval means it does not schedule.
             now = self._immediate and not self.run_count
             self._looper = LoopingCall(self._run)
@@ -133,7 +134,7 @@ class IntervalTask(BaseTask):
 
     def unpause(self):
         if self.paused:
-            self.paused = False
+            del self.paused
             self._schedule(self._interval - self._elapsed_at_pause)
 
     def _run(self):
@@ -194,10 +195,36 @@ class Task(IntervalTask):
         super(Task, self).__init__(self.run, None)
 
     def start(self, interval, iterations=None):
-        raise NotImplemented
+        if '_elapsed_at_pause' in self.__dict__:
+            del self._elapsed_at_pause
+        self._iterations = iterations
+        self._interval = interval
+        self.onStart()  # Task could modify settings here.
+        self._schedule()
 
     def stop(self):
-        raise NotImplemented
+        self._killLooper()
+        if 'paused' in self.__dict__:
+            del self.paused
+        if '_elapsed_at_pause' in self.__dict__:
+            del self._elapsed_at_pause
+        self.onStop()
+
+    def pause(self):
+        super(Task, self).pause()
+        self.onPause()
+
+    def unpause(self):
+        super(Task, self).unpause()
+        self.onUnpause()
+
+    def serverStartup(self):
+        super(Task, self).serverStartup()
+        self.onServerStartup()
+
+    def serverShutdown(self):
+        super(Task, self).serverShutdown()
+        self.onServerShutdown()
 
     def run(self):
         """
