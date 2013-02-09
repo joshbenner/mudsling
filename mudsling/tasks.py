@@ -30,6 +30,9 @@ class BaseTask(Persistent):
     #: @type: mudsling.storage.Database
     db = None
 
+    #: @type: mudsling.core.MUDSling
+    game = None
+
     #: @type: int
     id = None
     alive = False
@@ -191,10 +194,16 @@ class Task(IntervalTask):
     This class is meant to be inherited from as a base for user-defined tasks
     or scripts.
     """
+
+    started = False
+
     def __init__(self):
         super(Task, self).__init__(self.run, None)
 
     def start(self, interval, iterations=None):
+        if self.started:
+            return False
+        self.started = True
         if '_elapsed_at_pause' in self.__dict__:
             del self._elapsed_at_pause
         self._iterations = iterations
@@ -208,7 +217,14 @@ class Task(IntervalTask):
             del self.paused
         if '_elapsed_at_pause' in self.__dict__:
             del self._elapsed_at_pause
-        self.onStop()
+        if self.started:
+            del self.started
+            self.onStop()
+
+    def restart(self, interval=None, iterations=None):
+        self.stop()
+        interval = interval if interval is not None else self._interval
+        self.start(interval, iterations=iterations)
 
     def pause(self):
         super(Task, self).pause()

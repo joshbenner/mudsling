@@ -26,6 +26,7 @@ from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
 from mudsling.storage import Database
 from mudsling.utils.modules import class_from_path
+from mudsling.utils.time import dhms_to_seconds
 from mudsling import proxy
 from mudsling import tasks
 
@@ -87,6 +88,10 @@ class MUDSling(MultiService):
         self.buildClassRegistry()
         self.loadDatabase()
         tasks.BaseTask.db = self.db
+        tasks.BaseTask.game = self
+
+        if not self.db.initialized:
+            self.initDatabase()
 
         # Setup the plugin handling the login screen.
         name = self.config.get('Main', 'login screen')
@@ -147,35 +152,39 @@ class MUDSling(MultiService):
             #: @type: Database
             self.db = pickle.load(dbfile)
             dbfile.close()
-            self.db.onLoaded(self)
         else:
             logging.info("Initializing new database at %s" % self.db_file_path)
             self.db = Database()
-            self.db.onLoaded(self)
+        self.db.onLoaded(self)
 
-            # Create first player.
-            #: @type: mudsling.objects.BasePlayer
-            player = self.db.createObject(self.player_class, 'admin')
-            player.setPassword('pass')
-            player.email = 'admin@localhost'
-            player.superuser = True
+    def initDatabase(self):
+        self.db.initialized = True
 
-            #: @type: mudsling.objects.BaseCharacter
-            char = self.db.createObject(self.character_class, 'Admin')
-            char.possessable_by.append(player)
+        # Create first player.
+        #: @type: mudsling.objects.BasePlayer
+        player = self.db.createObject(self.player_class, 'admin')
+        player.setPassword('pass')
+        player.email = 'admin@localhost'
+        player.superuser = True
 
-            player.default_object = char
-            player.possessObject(char)
+        #: @type: mudsling.objects.BaseCharacter
+        char = self.db.createObject(self.character_class, 'Admin')
+        char.possessable_by.append(player)
 
-            #: @type: mudsling.topography.Room
-            room = self.db.createObject(self.room_class, "The First Room")
+        player.default_object = char
+        player.possessObject(char)
 
-            char.moveTo(room)
+        #: @type: mudsling.topography.Room
+        room = self.db.createObject(self.room_class, "The First Room")
+        char.moveTo(room)
 
-            self.invokeHook('initDatabase', self.db)
+        task = CheckpointTask()
+        task.start(task.configuredInterval())
 
-            # Get the db on disk.
-            self.saveDatabase()
+        self.invokeHook('initDatabase', self.db)
+
+        # Get the db on disk.
+        self.saveDatabase()
 
     def saveDatabase(self):
         with open(self.db_file_path, 'wb') as dbfile:
@@ -263,3 +272,15 @@ class MUDSling(MultiService):
             if obj == cls:
                 return name
         return None
+
+
+class CheckpointTask(tasks.Task):
+    def run(self):
+        self.game.saveDatabase()
+
+    def configuredInterval(self):
+        return dhms_to_seconds(self.game.config.get('Main',
+                                                    'checkpoint interval'))
+
+    def onServerStartup(self):
+        self.restart(self.configuredInterval())

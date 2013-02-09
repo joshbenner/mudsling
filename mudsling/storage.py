@@ -266,6 +266,7 @@ class Database(Persistent):
 
     _transientVars = ['type_registry', 'game']
 
+    initialized = False
     max_obj_id = 0
     objects = {}
     roles = []
