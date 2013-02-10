@@ -1,5 +1,11 @@
 from mudsling.commands import Command
 
+from mudslingcore.ui import SimpleUI
+
+
+# Interface used by all task commands.
+ui = SimpleUI()
+
 
 class TasksCmd(Command):
     """
@@ -16,3 +22,4 @@ class TasksCmd(Command):
         @type actor: mudslingcore.objects.Player
         @type args: dict
         """
+
