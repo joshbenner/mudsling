@@ -81,6 +81,7 @@ class EvalCmd(Command):
                      else None),
             'mudslingcore': mudslingcore,
             'utils': mudsling.utils,
+            'ansi': mudsling.ansi,
         }
 
         actor.msg("{y>>> %s" % code)

@@ -104,7 +104,6 @@ class ANSIParser(object):
         # Sets the mappings
 
         # MUX-style mappings %cr %cn etc
-
         self.mux_ansi_map = [
             # commented out by default; they are potentially annoying
             (r'%r', ANSI_RETURN),
@@ -133,7 +132,6 @@ class ANSIParser(object):
         ]
 
         # Expanded mapping {r {n etc
-
         hilite = ANSI_HILITE
         normal = ANSI_NORMAL
         self.ext_ansi_map = [
@@ -157,22 +155,19 @@ class ANSIParser(object):
         ]
 
         # xterm256 {123, %c134,
-
         self.xterm256_map = [
-            (r'%c([0-5]{3})', self.parse_rgb),   # %c123 - foreground colour
-            (r'%c(b[0-5]{3})', self.parse_rgb),  # %cb123 - background colour
+            #(r'%c([0-5]{3})', self.parse_rgb),   # %c123 - foreground colour
+            #(r'%c(b[0-5]{3})', self.parse_rgb),  # %cb123 - background colour
             (r'{([0-5]{3})', self.parse_rgb),    # {123 - foreground colour
             (r'{(b[0-5]{3})', self.parse_rgb)    # {b123 - background colour
         ]
 
-        # obs - order matters here, we want to do the xterms first since
-        # they collide with some of the other mappings otherwise.
-        self.ansi_map = (self.xterm256_map
-                         + self.mux_ansi_map + self.ext_ansi_map)
-
         # prepare regex matching
         self.ansi_sub = [(re.compile(sub[0], re.DOTALL), sub[1])
-                         for sub in self.ansi_map]
+                         for sub in (self.xterm256_map + self.ext_ansi_map)]
+        self.ansi_map = self.ext_ansi_map
+        self.xterm256_sub = [(re.compile(sub[0], re.DOTALL), sub[1])
+                             for sub in self.xterm256_map]
 
         # prepare matching ansi codes overall
         self.ansi_regex = re.compile("\033\[[0-9;]+m")
@@ -180,6 +175,16 @@ class ANSIParser(object):
         # escapes - replace doubles with a single instance of each
         self.ansi_escapes = re.compile(r"(%s)" % "|".join(ANSI_ESCAPES),
                                        re.DOTALL)
+
+        tokens = []
+        for regex, sub in self.xterm256_map:
+            regex = regex.replace('(', '').replace(')', '')
+            tokens.append(regex)
+        for token, sub in self.ansi_map:
+            tokens.append(re.escape(token))
+        token_pat = r'(?<!\{)(?:' + '|'.join(tokens) + ')'
+        self._token_regex = re.compile(token_pat)
+        self.token_regex = re.compile('(%s)' % token_pat)
 
     def parse_rgb(self, rgbmatch):
         """
@@ -292,6 +297,35 @@ class ANSIParser(object):
             string = self.ansi_regex.sub("", string)
         return string
 
+    # Slightly more efficient version.
+    def parse_ansi2(self, string, strip_ansi=False, xterm256=False):
+        """
+        Parses a string, subbing color codes according to
+        the stored mapping.
+
+        strip_ansi flag instead removes all ansi markup.
+        """
+        if not string:
+            return ''
+        self.do_xterm256 = xterm256
+        #string = utils.to_str(string)
+
+        # go through all available mappings and translate them
+        parts = self.ansi_escapes.split(string) + [" "]
+        string = ""
+        for part, sep in zip(parts[::2], parts[1::2]):
+            for sub in self.xterm256_sub:
+                part = sub[0].sub(sub[1], part)
+            for sub in self.ansi_map:
+                part = part.replace(sub[0], sub[1])
+            string += "%s%s" % (part, sep[0].strip())
+
+        if strip_ansi:
+            # remove all ansi codes (including those manually inserted)
+            string = self.ansi_regex.sub("", string)
+
+        return string
+
 
 ANSI_PARSER = ANSIParser()
 
@@ -300,9 +334,30 @@ ANSI_PARSER = ANSIParser()
 # Access function
 #
 
+def _parse_ansi(string, strip_ansi=False, parser=ANSI_PARSER, xterm256=False):
+    """
+    Parses a string, subbing color codes as needed.
+    """
+    return parser.parse_ansi(string, strip_ansi=strip_ansi, xterm256=xterm256)
+
+
 def parse_ansi(string, strip_ansi=False, parser=ANSI_PARSER, xterm256=False):
     """
     Parses a string, subbing color codes as needed.
-
     """
-    return parser.parse_ansi(string, strip_ansi=strip_ansi, xterm256=xterm256)
+    return parser.parse_ansi2(string, strip_ansi=strip_ansi, xterm256=xterm256)
+
+
+def strip_ansi(string, parser=ANSI_PARSER):
+    """
+    Removes ANSI tokens and raw ANSI codes.
+    """
+    return parse_ansi(string, strip_ansi=True, parser=parser, xterm256=True)
+
+
+def escape_tokens(string, parser=ANSI_PARSER):
+    return parser.token_regex.sub(r'{\1', string)
+
+
+def strip_tokens(string, parser=ANSI_PARSER):
+    return parser.token_regex.sub('', string)

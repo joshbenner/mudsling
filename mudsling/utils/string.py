@@ -2,10 +2,8 @@
 Various string utilities.
 """
 import sys
-import textwrap
 
-
-wrap = textwrap.fill
+from mudsling import ansi
 
 
 def trimDocstring(docstring):
@@ -67,3 +65,67 @@ def english_list(things, nothingstr="nothing", andstr=" and ", commastr=", ",
 
     return commastr.join(things[:-1]) + finalcommastr + andstr + things[-1]
 
+
+def length(string, exclude_ansi=True):
+    """
+    Return the integer length of the string. Defaults to excluding ANSI codes
+    from the length.
+
+    @type string: str
+    @type exclude_ansi: bool
+    @rtype: int
+    """
+    if exclude_ansi:
+        string = ansi.strip_ansi(string)
+    return len(string)
+
+
+def wrap_line(text, cols=100, prefix='', suffix='', indent=0):
+    """
+    ANSI-aware line wrapping. Wraps single line of text to maximum width.
+
+    @param text: The text to wrap.
+    @type text: str
+
+    @param cols: The column width to wrap to.
+    @type cols: int
+
+    @param prefix: Text to prefix all lines.
+    @type prefix: str
+
+    @param suffix: Text to suffix all lines.
+    @type suffix: str
+
+    @param indent: Size of indent of wrapped lines.
+    @type indent: int
+
+    @rtype: str
+    """
+
+
+def word_wrap(text, cols=100, prefix='', suffix='', indent=0):
+    """
+    ANSI-aware line wrapping. Wraps line(s) of text to maximum width. Each new
+    line is treated like a paragraph, so existing line breaks will be
+    preserved.
+
+    @param text: The text to wrap.
+    @type text: str
+
+    @param cols: The column width to wrap to.
+    @type cols: int
+
+    @param prefix: Text to prefix all lines.
+    @type prefix: str
+
+    @param suffix: Text to suffix all lines.
+    @type suffix: str
+
+    @param indent: Size of indent of wrapped lines.
+    @type indent: int
+
+    @rtype: str
+    """
+    paragraphs = [wrap_line(para, cols, prefix, suffix, indent)
+                  for para in text.splitlines()]
+    return '\n'.join(paragraphs)
