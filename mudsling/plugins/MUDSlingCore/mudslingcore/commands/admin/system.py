@@ -3,7 +3,6 @@ import traceback
 import mudsling
 
 from mudsling.commands import Command
-from mudsling.ansi import parse_ansi
 from mudsling.objects import Object
 from mudsling.utils import string
 
@@ -81,10 +80,9 @@ class EvalCmd(Command):
                      else None),
             'mudslingcore': mudslingcore,
             'utils': mudsling.utils,
-            'ansi': mudsling.ansi,
         }
 
-        actor.msg("{y>>> %s" % code)
+        actor.msg("{y>>> %s" % string.escape_ansi_tokens(code))
 
         mode = 'eval'
         duration = compile_time = None
@@ -104,7 +102,7 @@ class EvalCmd(Command):
             duration = time.clock() - begin
 
             if mode == 'eval':
-                ret = "<<< %s" % repr(ret)
+                ret = "<<< %s" % string.escape_ansi_tokens(repr(ret))
             else:
                 ret = "<<< Done."
         except SystemExit:
@@ -115,7 +113,7 @@ class EvalCmd(Command):
                 error_lines = error_lines[4:]
             ret = "\n".join("<<< %s" % line for line in error_lines if line)
 
-        raw_string = parse_ansi("{m") + ret + parse_ansi("{n")
+        raw_string = string.parse_ansi("{m") + ret + string.parse_ansi("{n")
         actor.msg(raw_string, {'raw': True})
         if duration is not None:
             msg = "Exec time: %.3f ms, Compile time: %.3f ms (total: %.3f ms)"
