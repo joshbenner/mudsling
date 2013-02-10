@@ -1,7 +1,10 @@
 from mudsling.objects import BasePlayer, BaseCharacter
 from mudsling.objects import Object as LocatedObject
-from .commands import admin as admin_commands
-from .commands import ooc as ooc_commands
+from mudsling.commands import allCommands
+
+import commands.admin.system
+import commands.admin.perms
+import commands.ooc
 
 
 class Object(LocatedObject):
@@ -45,28 +48,20 @@ class Object(LocatedObject):
 
 
 class Player(BasePlayer):
-    commands = [
-        admin_commands.ShutdownCmd,
-        admin_commands.ReloadCmd,
-        admin_commands.EvalCmd,
-        admin_commands.RolesCmd,
-        admin_commands.PermsCmd,
-        admin_commands.CreateRoleCmd,
-        admin_commands.DeleteRoleCmd,
-        admin_commands.ShowRoleCmd,
-        admin_commands.AddRoleCmd,
-        admin_commands.RemoveRoleCmd,
-
-        ooc_commands.AnsiCmd
-    ]
+    commands = allCommands(
+        commands.admin.system,
+        commands.admin.perms,
+        commands.ooc
+    )
 
     def preemptiveCommandMatch(self, raw):
         """
         @type raw: str
         """
         if raw.startswith(';') and self.hasPerm("eval code"):
-            cmd = admin_commands.EvalCmd(raw, ';', raw[1:],
-                                         self.game, self.ref(), self.ref())
+            cmd = commands.admin.system.EvalCmd(raw, ';', raw[1:],
+                                                self.game, self.ref(),
+                                                self.ref())
             return cmd
         return None
 

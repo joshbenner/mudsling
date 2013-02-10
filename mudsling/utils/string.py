@@ -2,6 +2,10 @@
 Various string utilities.
 """
 import sys
+import textwrap
+
+
+wrap = textwrap.fill
 
 
 def trimDocstring(docstring):

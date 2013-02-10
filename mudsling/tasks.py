@@ -168,7 +168,7 @@ class IntervalTask(BaseTask):
     def serverStartup(self):
         if not self.alive:
             return
-        if not self._paused_at_shutdown:
+        if self._paused_at_shutdown:
             self.unpause()
             del self._paused_at_shutdown
         super(IntervalTask, self).serverStartup()
