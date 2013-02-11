@@ -73,9 +73,9 @@ class Session(object):
             text += self.line_delimiter
 
         if self.ansi and ('raw' not in flags or not flags['raw']):
-            text = text.replace('\n', string.ANSI_NORMAL + '\n')
+            text = text.replace('\n', string.ansi.ANSI_NORMAL + '\n')
             text = (string.parse_ansi(text, xterm256=self.xterm256)
-                    + string.ANSI_NORMAL)
+                    + string.ansi.ANSI_NORMAL)
         else:
             text = string.parse_ansi(text, strip_ansi=True)
 

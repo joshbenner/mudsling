@@ -3,6 +3,13 @@ from mudsling.utils import string
 
 class BaseUI(object):
 
+    table_class = string.Table
+    table_settings = {
+        'header': True,
+        'header_style': None,
+        'border': False,
+    }
+
     def h1(self, text=''):
         return text
 
@@ -27,6 +34,17 @@ class BaseUI(object):
         Prepare a single line/paragraph of text to appear in the body.
         """
         return line
+
+    def _table_settings(self, **kwargs):
+        mro = list(self.__class__.__mro__)
+        mro.reverse()
+        settings = {}
+        for cls in mro:
+            if issubclass(cls, BaseUI):
+                settings.update(cls.table_settings)
+        settings.update(self.table_settings)
+        settings.update(kwargs)
+        return settings
 
     def table(self, header, rows):
         raise NotImplemented
