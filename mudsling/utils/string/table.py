@@ -15,6 +15,17 @@ class Table(object):
 
     #: @type: dict
     settings = {}
+    default_settings = {
+        'show_header': True,
+        'hrule': '-',
+        'vrule': '|',
+        'junction': '+',
+        'frame': True,
+        'width': 'auto',
+        'lpad': ' ',
+        'rpad': ' ',
+        'header_formatter': lambda c, w, a: c.format_cell(c.name, w, a)
+    }
 
     #: @type: list
     columns = []
@@ -26,7 +37,7 @@ class Table(object):
         """
         @type columns: list or None
         """
-        settings = self._default_settings()
+        settings = self.default_settings
         for key, val in kwargs.iteritems():
             if key in settings:
                 settings[key] = val
@@ -36,19 +47,6 @@ class Table(object):
         if columns is not None:
             for col in columns:
                 self.addColumn(col)
-
-    def _default_settings(self):
-        return {
-            'show_header': True,
-            'hrule': '-',
-            'vrule': '|',
-            'junction': '+',
-            'frame': True,
-            'width': 'auto',
-            'lpad': ' ',
-            'rpad': ' ',
-            'header_formatter': lambda c, w, a: c.format_cell(c.name, w, a)
-        }
 
     def addColumn(self, col, width=None, align=None):
         if not isinstance(col, TableColumn):

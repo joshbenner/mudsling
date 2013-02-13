@@ -4,11 +4,7 @@ from mudsling.utils import string
 class BaseUI(object):
 
     table_class = string.Table
-    table_settings = {
-        'header': True,
-        'header_style': None,
-        'border': False,
-    }
+    table_settings = {}
 
     def h1(self, text=''):
         return text
@@ -38,7 +34,7 @@ class BaseUI(object):
     def _table_settings(self, **kwargs):
         mro = list(self.__class__.__mro__)
         mro.reverse()
-        settings = {}
+        settings = self.table_class.default_settings
         for cls in mro:
             if issubclass(cls, BaseUI):
                 settings.update(cls.table_settings)
@@ -46,8 +42,9 @@ class BaseUI(object):
         settings.update(kwargs)
         return settings
 
-    def table(self, header, rows):
-        raise NotImplemented
+    def Table(self, columns=None, **kwargs):
+        settings = self._table_settings(**kwargs)
+        return self.table_class(columns, **settings)
 
 
 class LimitedWidthUI(BaseUI):
@@ -72,6 +69,11 @@ class LimitedWidthUI(BaseUI):
 
 class SimpleUI(LimitedWidthUI):
     fill_char = '-'
+    table_settings = {
+        'hrule': '{b-',
+        'vrule': '{b|',
+        'junction': '{b+',
+    }
 
     def h1(self, text=''):
         text = '' if text == '' else "{y%s " % text

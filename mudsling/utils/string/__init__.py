@@ -68,10 +68,9 @@ def english_list(things, nothingstr="nothing", andstr=" and ", commastr=", ",
 
 
 def tabletest(who):
-    import table
     x = Table(
         [
-            table.TableColumn("City name", align='l'),
+            TableColumn("City name", align='l'),
             "Area", "Population", "Annual Rainfall"
         ],
         #width=80,
