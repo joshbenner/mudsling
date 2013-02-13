@@ -184,6 +184,10 @@ class ANSIParser(object):
         self._token_regex = re.compile(token_pat)
         self.token_regex = re.compile('(%s)' % token_pat)
 
+        self.compound_regex = re.compile('(%s)' % (token_pat
+                                                   + '|'
+                                                   + self.ansi_regex.pattern))
+
     def parse_rgb(self, rgbmatch):
         """
         This is a replacer method called by re.sub with the matched
@@ -349,6 +353,22 @@ class ANSIParser(object):
         """
         return len(self.strip_ansi(string))
 
+    def slice(self, string, start=None, end=None):
+        if start is None and end is None:
+            return string
+        parts = []
+        stash = ''
+        for i, s in enumerate(self.compound_regex.split(string)):
+            if i % 2 == 1:  # Odd, so it's an ANSI token or code.
+                stash += s
+            else:  # Normal part of the string.
+                chars = list(s)
+                if stash and chars:
+                    chars[0] = '%s%s' % (stash, chars[0])
+                    stash = ''
+                parts.extend(chars)
+        out = parts[start:end]
+        return stash + ''.join(out)
 
 ANSI_PARSER = ANSIParser()
 
@@ -462,12 +482,16 @@ def length(string, parser=ANSI_PARSER):
     return parser.length(string)
 
 
+def slice(string, start=None, end=None, parser=ANSI_PARSER):
+    return parser.slice(string, start, end)
+
+
 def _strPassThru(func, string, parser, *args, **kwargs):
     """
     @rtype: str
     """
-    _s = parser.strip(string)
-    s = func(string, *args, **kwargs)
+    _s = parser.strip_ansi(string)
+    s = func(_s, *args, **kwargs)
     return s.replace(_s, string)
 
 
@@ -479,7 +503,7 @@ def center(string, width, fillchar=' ', parser=ANSI_PARSER):
     return _strPassThru(str.center, string, parser, width, fillchar)
 
 
-def ljust(string, width, fillchar=None, parser=ANSI_PARSER):
+def ljust(string, width, fillchar=' ', parser=ANSI_PARSER):
     """
     ANSI-aware ljust.
     @rtype: str
@@ -487,7 +511,7 @@ def ljust(string, width, fillchar=None, parser=ANSI_PARSER):
     return _strPassThru(str.ljust, string, parser, width, fillchar)
 
 
-def rjust(string, width, fillchar=None, parser=ANSI_PARSER):
+def rjust(string, width, fillchar=' ', parser=ANSI_PARSER):
     """
     ANSI-aware rjust.
     @rtype: str

@@ -69,27 +69,26 @@ def english_list(things, nothingstr="nothing", andstr=" and ", commastr=", ",
 
 def tabletest(who):
     import table
-    #x = Table(["City name", "Area", "Population", "Annual Rainfall"])
     x = Table(
         [
-            table.Column("City name", align='l', width='*'),
+            table.TableColumn("City name", align='l'),
             "Area", "Population", "Annual Rainfall"
         ],
-        width=80,
-        header_ansi="{y",
-        vertical_char=" ",
-        horizontal_char="{b-{n",
-        junction_char=" ",
-        hrules=table.FRAME,
-        vrules=table.NONE
+        #width=80,
+        hrule='{b-',
+        vrule='{b|',
+        junction='{b+',
+        lpad=' ',
+        rpad=' ',
+        header_formatter=lambda c, w, a: '{y' + c.format_cell(c.name, w, a)
     )
-    x.padding_width = 1  # One space between col edges and contents (default)
-    x.add_row(["Adelaide", 1295, 1158259, 600.5])
-    x.add_row(["Brisbane", 5905, 1857594, 1146.4])
-    x.add_row(["{gDarwin", 112, 120900, 1714.7])
-    x.add_row(["Hobart", 1357, 205556, 619.5])
-    x.add_row(["Sydney", 2058, 4336374, 1214.8])
-    x.add_row(["{rM{ge{bl{mb{yo{Curne", 1566, 3806092, 646.9])
-    x.add_row(["Perth", 5386, 1554769, 869.4])
+    x.addRow(["Adelaide", 1295, 1158259, 600.5])
+    x.addRow(["Brisbane", 5905, 1857594, 1146.4])
+    x.addRow(["{gDarwin", 112, 120900, 1714.7])
+    x.addRow(["Hobart", 1357, 205556, 619.5])
+    x.addRow(["Sydney", 2058, 4336374, 1214.8])
+    x.addRow(["{rM{ge{bl{mb{yo{Curne", 1566, 3806092, 646.9])
+    x.addRow(["Perth", 5386, 1554769, 869.4])
 
     who.msg(x)
+    who.msg(repr(x.__dict__), {'raw': True})
