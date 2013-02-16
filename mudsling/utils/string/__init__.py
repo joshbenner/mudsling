@@ -71,7 +71,7 @@ def tabletest(who):
     x = Table(
         [
             TableColumn("City name", align='l'),
-            "Area", "Population", "Annual Rainfall"
+            "Area", "Population", "Rain"
         ],
         #width=80,
         hrule='{b-',
@@ -79,7 +79,7 @@ def tabletest(who):
         junction='{b+',
         lpad=' ',
         rpad=' ',
-        header_formatter=lambda c, w, a: '{y' + c.format_cell(c.name, w, a)
+        header_formatter=lambda c: '{y' + c.format_cell(c.name)
     )
     x.addRow(["Adelaide", 1295, 1158259, 600.5])
     x.addRow(["Brisbane", 5905, 1857594, 1146.4])
@@ -90,4 +90,3 @@ def tabletest(who):
     x.addRow(["Perth", 5386, 1554769, 869.4])
 
     who.msg(x)
-    who.msg(repr(x.__dict__), {'raw': True})

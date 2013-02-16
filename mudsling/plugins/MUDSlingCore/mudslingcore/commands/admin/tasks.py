@@ -22,4 +22,8 @@ class TasksCmd(Command):
         @type actor: mudslingcore.objects.Player
         @type args: dict
         """
-
+        table = ui.Table(["ID", "Task", "Last Run", "Next Run"])
+        table = ui.Table([
+            ui.Column("ID", data_key='id'),
+            ui.Column("Task", data_key='__str__')
+        ])

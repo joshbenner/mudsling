@@ -5,6 +5,7 @@ class BaseUI(object):
 
     table_class = string.Table
     table_settings = {}
+    Column = string.TableColumn
 
     def h1(self, text=''):
         return text

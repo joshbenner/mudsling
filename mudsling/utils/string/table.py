@@ -24,7 +24,7 @@ class Table(object):
         'width': 'auto',
         'lpad': ' ',
         'rpad': ' ',
-        'header_formatter': lambda c, w, a: c.format_cell(c.name, w, a)
+        'header_formatter': lambda c: c.format_cell(c.name)
     }
 
     #: @type: list
@@ -32,6 +32,9 @@ class Table(object):
 
     #: @type: list
     rows = []
+
+    #: @type: list
+    _cells = None
 
     def __init__(self, columns=None, **kwargs):
         """
@@ -67,11 +70,13 @@ class Table(object):
         """
         self.rows.append(row)
 
-    def _calc_widths(self, settings=None, columns=None):
+    def _calc_widths(self, settings=None):
         s = settings or self.settings
         if 'widths' in s:
             return s['widths']
-        cols = columns or self.columns
+        cols = self.columns
+        rows = self._cells or self._build_cells()
+
         widths = len(cols) * [0]
 
         expand = None
@@ -87,6 +92,8 @@ class Table(object):
             w = col.width
             if w is None or w == 'auto':
                 w = ansi.length(col.name)
+                w = max(w, *[ansi.length(row[index])
+                             for row in rows if isinstance(row, list)])
             if isinstance(w, basestring):
                 if w in ('*', 'expand', 'fill'):
                     expand = index
@@ -106,27 +113,26 @@ class Table(object):
 
         return widths
 
-    def _build_header(self, settings=None, columns=None):
+    def _build_header(self, settings=None):
         s = settings or self.settings
-        cols = columns or self.columns
 
         # Lists are mutable, so chances are this will already be set when the
         # rows are build, and the next call to _calc_widths() will be fast.
-        s['widths'] = self._calc_widths(s, cols)
+        s['widths'] = self._calc_widths(s)
         widths = s['widths']
 
         hrule = (s['hrule'] or ' ') + ansi.ANSI_NORMAL
         vrule = (s['vrule'] or ' ') + ansi.ANSI_NORMAL
         junct = (s['junction'] or ' ') + ansi.ANSI_NORMAL
-        lpad = s['lpad']
-        rpad = s['rpad'] + ansi.ANSI_NORMAL
-        padlen = ansi.length(lpad) + ansi.length(rpad)
+        lp = s['lpad']
+        rp = s['rpad'] + ansi.ANSI_NORMAL
+        padlen = ansi.length(lp) + ansi.length(rp)
 
         lines = []
         hr = junct.join([hrule * (w + padlen) for w in widths])
         hf = s['header_formatter']
-        heads = vrule.join([lpad + hf(c, widths[i], c.align) + rpad
-                            for i, c in enumerate(cols)])
+        heads = vrule.join([lp + c.align_cell(hf(c), widths[i], c.align) + rp
+                            for i, c in enumerate(self.columns)])
         if s['frame']:
             hr = junct + hr + junct
             lines.append(hr)
@@ -136,11 +142,11 @@ class Table(object):
 
         return lines
 
-    def _build_rows(self, settings=None, rows=None, columns=None):
+    def _build_rows(self, settings=None):
         s = settings or self.settings
-        rows = rows or self.rows
-        cols = columns or self.columns
-        s['widths'] = self._calc_widths(s, cols)
+        rows = self._cells or self._build_cells()
+        cols = self.columns
+        s['widths'] = self._calc_widths(s)
         w = s['widths']
         vrule = (s['vrule'] or ' ') + ansi.ANSI_NORMAL
         lpad = s['lpad']
@@ -152,44 +158,59 @@ class Table(object):
             if isinstance(r, basestring):
                 lines.append(r)
                 continue
-            vals = self._row_values(r, cols)
             line = [] if not frame else [vrule]
-            line.append(vrule.join([lpad + cols[i].format_cell(v, w[i]) + rpad
-                                    for i, v in enumerate(vals)]))
+            line.append(vrule.join([lpad + cols[i].align_cell(v, w[i]) + rpad
+                                    for i, v in enumerate(r)]))
             lines.append(''.join(line) + (vrule if frame else ''))
 
         return lines
 
-    def _row_values(self, row, columns=None):
-        cols = columns or self.columns
-        values = [None] * len(cols)
+    def _build_cells(self, rebuild=False):
+        if self._cells is None or rebuild:
+            self._cells = []
+            rows = [self._row_values(row) for row in self.rows]
+            cols = self.columns
+            for i, row in enumerate(rows):
+                if isinstance(row, basestring):
+                    self._cells.append(row)
+                else:
+                    self._cells.append([cols[i].format_cell(cell)
+                                        for i, cell in enumerate(row)])
+        return self._cells
 
+    def _row_values(self, row):
+        values = [None] * len(self.columns)
+
+        if isinstance(row, basestring):
+            values = row
         if isinstance(row, list) or isinstance(row, tuple):
             for i, v in enumerate(row):
                 values[i] = v
         else:
             try:
-                row = row if isinstance(row, dict) else row.__dict__
+                rowvals = row if isinstance(row, dict) else row.__dict__
             except AttributeError:
                 raise Exception("Invalid row object: %s" % repr(row))
-            for i, col in enumerate(cols):
+            for i, col in enumerate(self.columns):
                 key = col.data_key
-                if key in row:
-                    values[i] = row[key]
+                if key in rowvals:
+                    if callable(rowvals[key]):
+                        #noinspection PyCallingNonCallable
+                        values[i] = rowvals[key]()
+                    else:
+                        values[i] = rowvals[key]
 
         return values
 
-    def _build_table(self, settings=None, columns=None, rows=None):
-        s = settings or self.settings
-        cols = columns or self.columns
-        rows = rows or self.rows
+    def _build_table(self, settings=None):
+        settings = settings or self.settings
 
         parts = []
-        if s['show_header']:
-            parts.extend(self._build_header(s, cols))
-        parts.extend(self._build_rows(s, rows, cols))
+        if settings['show_header']:
+            parts.extend(self._build_header(settings))
+        parts.extend(self._build_rows(settings))
 
-        if s['frame']:
+        if settings['frame']:
             parts.append(parts[0])
 
         return '\n'.join(parts)
@@ -213,14 +234,16 @@ class TableColumn(object):
         self.data_key = data_key
         self.cell_formatter = cell_formatter or self.default_formatter
 
-    def format_cell(self, val, width, align=None):
+    def align_cell(self, cell, width, align=None):
         align = align or self.align
-        string = self.cell_formatter(val, width, align)
         try:
             func = self.align_funcs[align]
         except KeyError:
             raise Exception("Invalid column alignment: %s" % align)
-        return func(ansi.slice(string, 0, width), width)
+        return func(ansi.slice(cell, 0, width), width)
 
-    def default_formatter(self, val, width, align):
+    def format_cell(self, val):
+        return self.cell_formatter(val)
+
+    def default_formatter(self, val):
         return str(val)
