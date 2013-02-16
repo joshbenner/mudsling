@@ -37,6 +37,10 @@ class BaseTask(Persistent):
     id = None
     alive = False
 
+    # Run time attributes for API data access.
+    last_run_time = None
+    next_run_time = None
+
     def __init__(self):
         self.db.registerTask(self)
 
@@ -58,6 +62,9 @@ class BaseTask(Persistent):
         Called on all registered tasks upon server shutdown.
         """
 
+    def __str__(self):
+        return self.__class__.__name__
+
 
 class IntervalTask(BaseTask):
     """
@@ -77,7 +84,6 @@ class IntervalTask(BaseTask):
     _looper = None
 
     run_count = 0
-    last_run_time = None
     paused = False
     _elapsed_at_pause = None
     _paused_at_shutdown = False
@@ -108,6 +114,9 @@ class IntervalTask(BaseTask):
             self._kwargs = kwargs
         self._schedule()
 
+    def __str__(self):
+        return "%s (%s)" % (self.__class__.__name__, self._callback.__name__)
+
     def _schedule(self, interval=None):
         interval = interval if interval is not None else self._interval
         self._interval = interval
@@ -115,6 +124,7 @@ class IntervalTask(BaseTask):
             now = self._immediate and not self.run_count
             self._looper = LoopingCall(self._run)
             self.last_run_time = time.time()
+            self.next_run_time = self.last_run_time + interval
             d = self._looper.start(interval, now=now)
             d.addErrback(self._errBack)
 

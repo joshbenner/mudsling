@@ -4,6 +4,7 @@ from mudsling.commands import allCommands
 
 import commands.admin.system
 import commands.admin.perms
+import commands.admin.tasks
 import commands.ooc
 
 
@@ -51,6 +52,7 @@ class Player(BasePlayer):
     commands = allCommands(
         commands.admin.system,
         commands.admin.perms,
+        commands.admin.tasks,
         commands.ooc
     )
 

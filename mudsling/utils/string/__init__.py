@@ -89,4 +89,6 @@ def tabletest(who):
     x.addRow(["{rM{ge{bl{mb{yo{Curne", 1566, 3806092, 646.9])
     x.addRow(["Perth", 5386, 1554769, 869.4])
 
+    who.msg(repr(x._row_values(x.rows[0])))
+
     who.msg(x)

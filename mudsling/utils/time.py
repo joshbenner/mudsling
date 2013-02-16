@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+import time
 import re
 
 
@@ -31,3 +33,9 @@ def dhms_to_seconds(dhms_str):
     """
     dhms = parse_dhms(dhms_str)
     return dhms['d'] * 86400 + dhms['h'] * 3600 + dhms['m'] * 60 + dhms['s']
+
+
+def format_timestamp(timestamp, format="%Y-%m-%d %H:%M:%S"):
+    if not isinstance(timestamp, time.struct_time):
+        timestamp = time.localtime(timestamp)
+    return time.strftime(format, timestamp)

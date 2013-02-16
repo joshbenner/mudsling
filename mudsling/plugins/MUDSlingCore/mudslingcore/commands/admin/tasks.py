@@ -22,8 +22,17 @@ class TasksCmd(Command):
         @type actor: mudslingcore.objects.Player
         @type args: dict
         """
-        table = ui.Table(["ID", "Task", "Last Run", "Next Run"])
-        table = ui.Table([
-            ui.Column("ID", data_key='id'),
-            ui.Column("Task", data_key='__str__')
-        ])
+        table = ui.Table(
+            [
+                ui.Column("ID", data_key='id'),
+                ui.Column("Task", data_key='__str__', width='expand'),
+                ui.Column("Last Run", data_key="last_run_time",
+                          cell_formatter=ui.format_timestamp),
+                ui.Column("Next Run", data_key="next_run_time",
+                          cell_formatter=ui.format_timestamp),
+            ],
+            frame=False
+        )
+        for task in self.game.db.tasks.itervalues():
+            table.addRow(task)
+        actor.msg(ui.report("Tasks", table))

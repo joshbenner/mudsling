@@ -1,11 +1,15 @@
-from mudsling.utils import string
+
+from mudsling import utils
+import mudsling.utils.string
+import mudsling.utils.time
+from mudsling.utils.string import ansi
 
 
 class BaseUI(object):
 
-    table_class = string.Table
+    table_class = utils.string.Table
     table_settings = {}
-    Column = string.TableColumn
+    Column = utils.string.TableColumn
 
     def h1(self, text=''):
         return text
@@ -23,7 +27,7 @@ class BaseUI(object):
         """
         @rtype: str
         """
-        lines = text if isinstance(text, list) else text.splitlines()
+        lines = text if isinstance(text, list) else str(text).splitlines()
         return '\n'.join([self.body_line(l) for l in lines])
 
     def body_line(self, line):
@@ -47,6 +51,19 @@ class BaseUI(object):
         settings = self._table_settings(**kwargs)
         return self.table_class(columns, **settings)
 
+    def report(self, title, body, footer=''):
+        return '\n'.join([self.h1(title),
+                          self.body(body),
+                          self.footer(footer)])
+
+    def format_timestamp(self, timestamp, format="%Y-%m-%d %H:%M:%S"):
+        if timestamp is None:
+            return ''
+        try:
+            return utils.time.format_timestamp(timestamp, format)
+        except (TypeError, ValueError):
+            return "ERR"
+
 
 class LimitedWidthUI(BaseUI):
     width = 100
@@ -54,6 +71,7 @@ class LimitedWidthUI(BaseUI):
 
     # Prefix and suffix are NOT counted in the width attribute. The width must
     # bet set to control width of content to appear BETWEEN prefix and suffix.
+    # Be sure to properly pad headings!
     body_prefix = ''
     body_suffix = ''
 
@@ -61,8 +79,8 @@ class LimitedWidthUI(BaseUI):
     _wrapper = None
 
     def __init__(self):
-        self._wrapper = string.AnsiWrapper(width=self.width,
-                                           subsequent_indent=self.indent)
+        self._wrapper = utils.string.AnsiWrapper(width=self.width,
+                                                 subsequent_indent=self.indent)
 
     def body_line(self, line):
         return self.body_prefix + self._wrapper.fill(line) + self.body_suffix
@@ -70,15 +88,21 @@ class LimitedWidthUI(BaseUI):
 
 class SimpleUI(LimitedWidthUI):
     fill_char = '-'
+    body_prefix = ' '
+    body_suffix = ' '
+    width = 98  # Space on either side adds up to 100 width.
     table_settings = {
+        'width': 98,
         'hrule': '{b-',
         'vrule': '{b|',
         'junction': '{b+',
+        'header_formatter': lambda c: '{c' + str(c.name),
     }
 
     def h1(self, text=''):
         text = '' if text == '' else "{y%s " % text
-        return string.ljust("%s{b" % text, self.width, self.fill_char)
+        width = self.width + 2
+        return utils.string.ljust("%s{b" % text, width, self.fill_char)
 
     def h2(self, text=''):
         return "{y%s" % text.upper()
@@ -88,4 +112,45 @@ class SimpleUI(LimitedWidthUI):
 
     def footer(self, text=''):
         text = '' if text == '' else " {y%s" % text
-        return '{b' + string.rjust(text, self.width, self.fill_char)
+        return '{b' + utils.string.rjust(text, self.width + 2, self.fill_char)
+
+    class SimpleUITable(utils.string.Table):
+        def _build_header(self, settings=None):
+            s = settings or self.settings
+            hrule = ansi.strip_ansi(s['hrule'] or ' ')
+            junct = ansi.strip_ansi(s['junction'] or ' ')
+
+            lines = super(SimpleUI.SimpleUITable, self)._build_header(s)
+            if s['frame']:
+                self._hr_stash = lines[0]
+                if len(junct):
+                    lines[0] = lines[0].replace(junct, ' ')
+                if len(hrule):
+                    lines[0] = lines[0].replace(hrule, '_')
+            else:
+                # We still have a top line w/o frame.
+                padlen = ansi.length(s['lpad']) + ansi.length(s['rpad'])
+                hr = junct.join([hrule * (w + padlen) for w in s['widths']])
+                lines.insert(0, hr)
+
+            return lines
+
+        def _build_rows(self, settings=None):
+            s = settings or self.settings
+            vrule = ansi.strip_ansi(s['vrule'] or ' ')
+
+            lines = super(SimpleUI.SimpleUITable, self)._build_rows(s)
+            if len(vrule):
+                for i in xrange(0, len(lines)):
+                    lines[i] = lines[i].replace(vrule, ' ')
+
+            return lines
+
+        def _build_table(self, settings=None):
+            s = settings or self.settings
+            lines = super(SimpleUI.SimpleUITable, self)._build_table(s)
+            if s['frame']:
+                lines[-1] = self._hr_stash
+            return lines
+
+    table_class = SimpleUITable

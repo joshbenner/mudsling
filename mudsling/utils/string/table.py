@@ -24,7 +24,8 @@ class Table(object):
         'width': 'auto',
         'lpad': ' ',
         'rpad': ' ',
-        'header_formatter': lambda c: c.format_cell(c.name)
+        'header_formatter': lambda c: str(c.name),
+        'header_args': (),
     }
 
     #: @type: list
@@ -84,7 +85,8 @@ class Table(object):
         if isinstance(s['width'], int):
             content_area = s['width']
             content_area -= len(cols) - 1
-            content_area -= ansi.length(s['lpad']) + ansi.length(s['rpad'])
+            padlen = ansi.length(s['lpad']) + ansi.length(s['rpad'])
+            content_area -= padlen * len(cols)
             if s['frame']:
                 content_area -= 2
 
@@ -130,7 +132,9 @@ class Table(object):
 
         lines = []
         hr = junct.join([hrule * (w + padlen) for w in widths])
-        hf = s['header_formatter']
+        hf_func = s['header_formatter']
+        hf_args = s['header_args']
+        hf = lambda c: hf_func(c, *hf_args)
         heads = vrule.join([lp + c.align_cell(hf(c), widths[i], c.align) + rp
                             for i, c in enumerate(self.columns)])
         if s['frame']:
@@ -174,8 +178,8 @@ class Table(object):
                 if isinstance(row, basestring):
                     self._cells.append(row)
                 else:
-                    self._cells.append([cols[i].format_cell(cell)
-                                        for i, cell in enumerate(row)])
+                    self._cells.append([cols[ii].format_cell(cell)
+                                        for ii, cell in enumerate(row)])
         return self._cells
 
     def _row_values(self, row):
@@ -186,19 +190,23 @@ class Table(object):
         if isinstance(row, list) or isinstance(row, tuple):
             for i, v in enumerate(row):
                 values[i] = v
-        else:
-            try:
-                rowvals = row if isinstance(row, dict) else row.__dict__
-            except AttributeError:
-                raise Exception("Invalid row object: %s" % repr(row))
+        elif isinstance(row, dict):
             for i, col in enumerate(self.columns):
                 key = col.data_key
-                if key in rowvals:
-                    if callable(rowvals[key]):
+                if key in row:
+                    if callable(row[key]):
                         #noinspection PyCallingNonCallable
-                        values[i] = rowvals[key]()
+                        values[i] = row[key]()
                     else:
-                        values[i] = rowvals[key]
+                        values[i] = row[key]
+        else:
+            for i, col in enumerate(self.columns):
+                key = col.data_key
+                attr = getattr(row, key, None)
+                if callable(attr):
+                    values[i] = attr()
+                else:
+                    values[i] = attr
 
         return values
 
@@ -213,10 +221,10 @@ class Table(object):
         if settings['frame']:
             parts.append(parts[0])
 
-        return '\n'.join(parts)
+        return parts
 
     def __str__(self):
-        return self._build_table()
+        return '\n'.join(self._build_table())
 
 
 class TableColumn(object):
@@ -227,12 +235,13 @@ class TableColumn(object):
     }
 
     def __init__(self, name, width=None, align=None, data_key=None,
-                 cell_formatter=None):
+                 cell_formatter=None, formatter_args=()):
         self.name = name
         self.align = align or 'c'
         self.width = width or 'auto'
         self.data_key = data_key
         self.cell_formatter = cell_formatter or self.default_formatter
+        self.formatter_args = formatter_args
 
     def align_cell(self, cell, width, align=None):
         align = align or self.align
@@ -242,8 +251,9 @@ class TableColumn(object):
             raise Exception("Invalid column alignment: %s" % align)
         return func(ansi.slice(cell, 0, width), width)
 
-    def format_cell(self, val):
-        return self.cell_formatter(val)
+    def format_cell(self, val, args=None):
+        args = args or self.formatter_args
+        return self.cell_formatter(val, *args)
 
     def default_formatter(self, val):
         return str(val)
