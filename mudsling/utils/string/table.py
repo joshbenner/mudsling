@@ -21,11 +21,13 @@ class Table(object):
         'vrule': '|',
         'junction': '+',
         'frame': True,
+        'border_ansi': '{b',
         'width': 'auto',
         'lpad': ' ',
         'rpad': ' ',
         'header_formatter': lambda c: str(c.name),
         'header_args': (),
+        'header_hr': True,
     }
 
     #: @type: list
@@ -123,26 +125,30 @@ class Table(object):
         s['widths'] = self._calc_widths(s)
         widths = s['widths']
 
-        hrule = (s['hrule'] or ' ') + ansi.ANSI_NORMAL
-        vrule = (s['vrule'] or ' ') + ansi.ANSI_NORMAL
-        junct = (s['junction'] or ' ') + ansi.ANSI_NORMAL
+        bansi = (s['border_ansi'] or '')
+        hrule = (s['hrule'] or ' ')
+        hrlen = ansi.length(hrule)
+        vrule = bansi + (s['vrule'] or ' ') + ansi.ANSI_NORMAL
+        junct = (s['junction'] or ' ')
         lp = s['lpad']
         rp = s['rpad'] + ansi.ANSI_NORMAL
         padlen = ansi.length(lp) + ansi.length(rp)
 
         lines = []
-        hr = junct.join([hrule * (w + padlen) for w in widths])
+        hr = bansi + junct.join([hrule * ((w + padlen) / hrlen)
+                                 for w in widths])
         hf_func = s['header_formatter']
         hf_args = s['header_args']
         hf = lambda c: hf_func(c, *hf_args)
         heads = vrule.join([lp + c.align_cell(hf(c), widths[i], c.align) + rp
                             for i, c in enumerate(self.columns)])
         if s['frame']:
-            hr = junct + hr + junct
+            hr = bansi + junct + hr + junct
             lines.append(hr)
             heads = vrule + heads + vrule
         lines.append(heads)
-        lines.append(hr)
+        if s['header_hr']:
+            lines.append(hr)
 
         return lines
 
@@ -152,7 +158,8 @@ class Table(object):
         cols = self.columns
         s['widths'] = self._calc_widths(s)
         w = s['widths']
-        vrule = (s['vrule'] or ' ') + ansi.ANSI_NORMAL
+        bansi = (s['border_ansi'] or '')
+        vrule = bansi + (s['vrule'] or ' ') + ansi.ANSI_NORMAL
         lpad = s['lpad']
         rpad = s['rpad'] + ansi.ANSI_NORMAL
         frame = s['frame']

@@ -11,17 +11,22 @@ class BaseUI(object):
     table_settings = {}
     Column = utils.string.TableColumn
 
+    h1_format = "{text}"
+    h2_format = "{text}"
+    h3_format = "{text}"
+    footer_format = "{text}"
+
     def h1(self, text=''):
-        return text
+        return self.h1_format.format(text=text)
 
     def h2(self, text=''):
-        return text
+        return self.h2_format.format(text=text)
 
     def h3(self, text=''):
-        return text
+        return self.h3_format.format(text=text)
 
     def footer(self, text=''):
-        return text
+        return self.footer_format.format(text=text)
 
     def body(self, text):
         """
@@ -93,9 +98,9 @@ class SimpleUI(LimitedWidthUI):
     width = 98  # Space on either side adds up to 100 width.
     table_settings = {
         'width': 98,
-        'hrule': '{b-',
-        'vrule': '{b|',
-        'junction': '{b+',
+        'hrule': '-',
+        'vrule': '|',
+        'junction': '+',
         'header_formatter': lambda c: '{c' + str(c.name),
     }
 
@@ -117,32 +122,22 @@ class SimpleUI(LimitedWidthUI):
     class SimpleUITable(utils.string.Table):
         def _build_header(self, settings=None):
             s = settings or self.settings
-            hrule = ansi.strip_ansi(s['hrule'] or ' ')
-            junct = ansi.strip_ansi(s['junction'] or ' ')
+            bansi = (s['border_ansi'] or '')
+            hrule = ansi.strip_ansi(s['hrule']) or ' '
+            junct = ansi.strip_ansi(s['junction']) or ' '
 
             lines = super(SimpleUI.SimpleUITable, self)._build_header(s)
-            if s['frame']:
-                self._hr_stash = lines[0]
-                if len(junct):
-                    lines[0] = lines[0].replace(junct, ' ')
-                if len(hrule):
-                    lines[0] = lines[0].replace(hrule, '_')
-            else:
+            if not s['frame']:
                 # We still have a top line w/o frame.
                 padlen = ansi.length(s['lpad']) + ansi.length(s['rpad'])
-                hr = junct.join([hrule * (w + padlen) for w in s['widths']])
+                hr = bansi + junct.join([hrule * (w + padlen)
+                                         for w in s['widths']])
                 lines.insert(0, hr)
-
-            return lines
-
-        def _build_rows(self, settings=None):
-            s = settings or self.settings
-            vrule = ansi.strip_ansi(s['vrule'] or ' ')
-
-            lines = super(SimpleUI.SimpleUITable, self)._build_rows(s)
-            if len(vrule):
-                for i in xrange(0, len(lines)):
-                    lines[i] = lines[i].replace(vrule, ' ')
+            self._hr_stash = lines[0]
+            if len(junct):
+                lines[0] = lines[0].replace(junct, ' ')
+            if len(hrule):
+                lines[0] = lines[0].replace(hrule, '_')
 
             return lines
 
@@ -154,3 +149,38 @@ class SimpleUI(LimitedWidthUI):
             return lines
 
     table_class = SimpleUITable
+
+
+class ClassicUI(LimitedWidthUI):
+    hr = '{c' + ('-=' * 50)  # Half width because two chars.
+    h1_format = "{{y{text}"
+    body_prefix = ' '
+    body_suffix = ' '
+    table_settings = {
+        'width': 98,  # Indent
+        'hrule': '',
+        'vrule': '',
+        'junction': '',
+        'frame': False,
+        'border_ansi': '',
+        'lpad': '',
+        'rpad': ' ',
+        'header_hr': False,
+        'header_formatter': lambda c: '{c' + str(c.name)
+    }
+
+    def h1(self, text=''):
+        return '\n'.join([self.hr,
+                          ansi.center(super(ClassicUI, self).h1(text),
+                                      self.width),
+                          self.hr])
+
+    def h2(self, text=''):
+        return super(ClassicUI, self).h2(text.upper())
+
+    def footer(self, text=''):
+        lines = [self.hr]
+        if text:
+            lines.append(super(ClassicUI, self).footer(text))
+            lines.append(self.hr)
+        return '\n'.join(lines)

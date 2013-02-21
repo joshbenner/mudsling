@@ -1,10 +1,6 @@
 from mudsling.commands import Command
 
-from mudslingcore.ui import SimpleUI
-
-
-# Interface used by all task commands.
-ui = SimpleUI()
+from . import ui
 
 
 class TasksCmd(Command):
@@ -24,15 +20,16 @@ class TasksCmd(Command):
         """
         table = ui.Table(
             [
-                ui.Column("ID", data_key='id'),
-                ui.Column("Task", data_key='__str__', width='expand'),
-                ui.Column("Last Run", data_key="last_run_time",
+                ui.Column("ID", data_key='id', align='r'),
+                ui.Column("Task", data_key='__str__', width='*', align='l'),
+                ui.Column("Last Run", data_key="last_run_time", align='l',
                           cell_formatter=ui.format_timestamp),
-                ui.Column("Next Run", data_key="next_run_time",
+                ui.Column("Next Run", data_key="next_run_time", align='l',
                           cell_formatter=ui.format_timestamp),
-            ],
-            frame=False
+            ]
         )
         for task in self.game.db.tasks.itervalues():
             table.addRow(task)
+
+        #actor.msg(table)
         actor.msg(ui.report("Tasks", table))
