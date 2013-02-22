@@ -69,6 +69,13 @@ class BaseUI(object):
         except (TypeError, ValueError):
             return "ERR"
 
+    def format_interval(self, seconds, format=None,
+                        schema=utils.time.realTime):
+        return schema.format_interval(seconds, format)
+
+    def format_dhms(self, seconds):
+        return utils.time.format_dhms(seconds)
+
 
 class LimitedWidthUI(BaseUI):
     width = 100
