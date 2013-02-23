@@ -86,6 +86,7 @@ class IntervalTask(BaseTask):
 
     _last_run_time = None
     _next_run_time = None
+    _scheduled_time = None
 
     run_count = 0
     paused = False
@@ -134,6 +135,7 @@ class IntervalTask(BaseTask):
     def _schedule(self, interval=None):
         interval = max(0, interval if interval is not None else self._interval)
         if interval is not None:  # None interval means it does not schedule.
+            self._scheduled_time = time.time()
             now = self._immediate and not self.run_count
             self._looper = LoopingCall(self._run)
             self._next_run_time = time.time() + interval
@@ -150,7 +152,8 @@ class IntervalTask(BaseTask):
 
     def pause(self):
         if not self.paused:
-            self._elapsed_at_pause = time.time() - self.last_run_time
+            last = self._last_run_time or self._scheduled_time or time.time()
+            self._elapsed_at_pause = time.time() - last
             self.paused = True
             self._killLooper()
             return True
@@ -160,7 +163,8 @@ class IntervalTask(BaseTask):
     def unpause(self):
         if self.paused:
             del self.paused
-            self._schedule(self._interval - self._elapsed_at_pause)
+            elapsed = self._elapsed_at_pause or 0
+            self._schedule(self._interval - elapsed)
 
     def _run(self):
         self.run_count += 1

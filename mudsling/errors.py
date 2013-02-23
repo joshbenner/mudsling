@@ -43,7 +43,14 @@ class FailedMatch(MatchError):
                 self.message += " for '%s'" % query
 
 
-class CommandInvalid(Error):
+class CommandError(Error):
+    """
+    Used in command parsing to skip the rest of command parsing but let an
+    error bubble up.
+    """
+
+
+class CommandInvalid(CommandError):
 
     input = None
 
@@ -54,3 +61,35 @@ class CommandInvalid(Error):
         if isinstance(cmdline, ParsedInput):
             self.input = cmdline
         self.message = "Command Invalid."
+
+
+class ObjSettingError(Error):
+    obj = None
+    setting = None
+
+    def __init__(self, obj=None, setting=None, message=''):
+        self.obj = obj
+        self.setting = setting
+        super(ObjSettingError, self).__init__(message)
+
+
+class SettingNotFound(ObjSettingError):
+    def __init__(self, obj=None, setting=None):
+        if setting is not None:
+            msg = "'%s' setting not found" % setting
+            if obj is not None:
+                msg += " on %s" % obj.nn
+        else:
+            msg = "Setting not found"
+
+        super(SettingNotFound, self).__init__(obj, setting, msg)
+
+
+class InvalidSettingValue(ObjSettingError):
+    value = None
+
+    def __init__(self, obj, setting, value):
+        self.value = value
+        msg = "Invalid value for '%s' setting on %s: %r"
+        msg = msg % (setting, obj.nn, value)
+        super(InvalidSettingValue, self).__init__(obj, setting, msg)
