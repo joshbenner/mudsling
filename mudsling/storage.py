@@ -464,7 +464,7 @@ class Database(Persistent):
             id = id if isinstance(id, int) else id.id
             task = self.tasks[id]
         except (AttributeError, KeyError):
-            raise InvalidTask("Invalid task or task ID: %s" % id)
+            raise InvalidTask("Invalid task or task ID: %r" % id)
         return task
 
     def killTask(self, id):

@@ -73,6 +73,10 @@ class Table(object):
         """
         self.rows.append(row)
 
+    def addRows(self, *rows):
+        for row in rows:
+            self.addRow(row)
+
     def _calc_widths(self, settings=None):
         s = settings or self.settings
         if 'widths' in s:
@@ -208,12 +212,14 @@ class Table(object):
                         values[i] = row[key]
         else:
             for i, col in enumerate(self.columns):
-                key = col.data_key
-                attr = getattr(row, key, None)
-                if callable(attr):
-                    values[i] = attr()
-                else:
-                    values[i] = attr
+                try:
+                    attr = getattr(row, col.data_key, None)
+                    if callable(attr):
+                        values[i] = attr()
+                    else:
+                        values[i] = attr
+                except AttributeError:
+                    values[i] = ''
 
         return values
 

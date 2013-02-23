@@ -34,12 +34,8 @@ class BaseTask(Persistent):
     game = None
 
     #: @type: int
-    id = None
+    id = 0
     alive = False
-
-    # Run time attributes for API data access.
-    last_run_time = None
-    next_run_time = None
 
     def __init__(self):
         self.db.registerTask(self)
@@ -65,10 +61,15 @@ class BaseTask(Persistent):
     def __str__(self):
         return self.__class__.__name__
 
+    def name(self):
+        return "Task %d: %s" % (self.id, str(self))
+
 
 class IntervalTask(BaseTask):
     """
     IntervalTask executes a callback at an interval.
+
+    Example: IntervalTask(myFunc, 60) -- calls myFunc() every 60 seconds.
     """
 
     _transientVars = ['_looper']
@@ -82,6 +83,9 @@ class IntervalTask(BaseTask):
 
     #: @type: LoopingCall
     _looper = None
+
+    _last_run_time = None
+    _next_run_time = None
 
     run_count = 0
     paused = False
@@ -117,14 +121,22 @@ class IntervalTask(BaseTask):
     def __str__(self):
         return "%s (%s)" % (self.__class__.__name__, self._callback.__name__)
 
+    @property
+    def last_run_time(self):
+        return self._last_run_time if self.run_count else None
+
+    @property
+    def next_run_time(self):
+        if self.paused:
+            return None
+        return self._next_run_time
+
     def _schedule(self, interval=None):
-        interval = interval if interval is not None else self._interval
-        self._interval = interval
+        interval = max(0, interval if interval is not None else self._interval)
         if interval is not None:  # None interval means it does not schedule.
             now = self._immediate and not self.run_count
             self._looper = LoopingCall(self._run)
-            self.last_run_time = time.time()
-            self.next_run_time = self.last_run_time + interval
+            self._next_run_time = time.time() + interval
             d = self._looper.start(interval, now=now)
             d.addErrback(self._errBack)
 
@@ -152,6 +164,7 @@ class IntervalTask(BaseTask):
 
     def _run(self):
         self.run_count += 1
+        self._last_run_time = time.time()
         #noinspection PyBroadException
         try:
             self._callback(*self._args, **self._kwargs)
@@ -178,9 +191,12 @@ class IntervalTask(BaseTask):
     def serverStartup(self):
         if not self.alive:
             return
-        if self._paused_at_shutdown:
+        if not self._paused_at_shutdown:
             self.unpause()
+        try:
             del self._paused_at_shutdown
+        except AttributeError:
+            pass
         super(IntervalTask, self).serverStartup()
 
     def serverShutdown(self):
