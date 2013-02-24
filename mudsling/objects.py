@@ -135,9 +135,10 @@ class BaseObject(StoredObject):
     __roles = set()
 
     object_settings = {
-        'name': ObjSetting('name', str, 'name'),
-        'aliases': ObjSetting('aliases', list, 'aliases',
-                              ObjSetting.parseStringListNoneEmpty)
+        # Examples. These attributes will be managed with purposed commands.
+        #'name': ObjSetting('name', str, 'name'),
+        #'aliases': ObjSetting('aliases', list, 'aliases',
+        #                      ObjSetting.parseStringListNoneEmpty)
     }
     _objSettings_cache = None
 
