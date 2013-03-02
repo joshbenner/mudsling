@@ -53,4 +53,16 @@ class CreateCmd(Command):
 
 
 class DeleteCmd(Command):
-    pass
+    """
+    @delete <object>
+
+    Deletes the specified object.
+    """
+    aliases = ('@delete',)
+    required_perm = 'delete objects'
+    syntax = "<object>"
+
+    def run(self, this, actor, args):
+        """
+        todo: match objects for BasePlayer
+        """
