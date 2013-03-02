@@ -13,6 +13,10 @@ class Error(Exception):
         return repr(self.message)
 
 
+class PlayerNotConnected(Error):
+    pass
+
+
 class InvalidTask(Error):
     pass
 

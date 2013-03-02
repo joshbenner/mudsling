@@ -47,6 +47,10 @@ class CreateCmd(Command):
 
             if where is not None:
                 obj.moveTo(where)
-                actor.msg("{c%s {y placed in: {m%s" % (obj.nn, where.nn))
+                actor.msg("{c%s {yplaced in: {m%s" % (obj.nn, where.nn))
             else:
                 actor.msg("{c%s {yis {rnowhere{y.")
+
+
+class DeleteCmd(Command):
+    pass

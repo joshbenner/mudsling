@@ -8,7 +8,7 @@ new capabilities to the game world.
 from mudsling.extensibility import GamePlugin
 from mudsling.perms import Role
 
-from .mudslingcore.objects import Object
+from .mudslingcore.objects import Thing, Character, Player
 from .mudslingcore.topography import Room
 
 
@@ -49,6 +49,8 @@ class MUDSlingCorePlugin(GamePlugin):
         @rtype: list
         """
         return [
-            ('Object', Object),
-            ('Room', Room)
+            ('Thing', Thing),
+            ('Player', Player),
+            ('Character', Character),
+            ('Room', Room),
         ]

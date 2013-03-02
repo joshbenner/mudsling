@@ -1,9 +1,12 @@
 import inspect
+import re
 
 from mudsling.storage import StoredObject, ObjRef
 from mudsling import errors
 from mudsling.utils.password import Password
+from mudsling.utils.input import LineReader
 from mudsling.match import match_objlist
+from mudsling.sessions import InputProcessor
 
 
 class ObjSetting(object):
@@ -103,7 +106,7 @@ class ObjSetting(object):
         return self.default
 
 
-class BaseObject(StoredObject):
+class BaseObject(StoredObject, InputProcessor):
     """
     The base class for all other objects. You may subclass this if you need an
     object without location or contents. You should use this instead of
@@ -559,6 +562,14 @@ class BasePlayer(BaseObject):
     # Governed by ansi property
     _ansi = False
 
+    @property
+    def connected(self):
+        """
+        @rtype: bool
+        @return: Whether or not player is connected.
+        """
+        return self.session is not None
+
     def setPassword(self, password):
         self.password = Password(password)
 
@@ -589,6 +600,108 @@ class BasePlayer(BaseObject):
         """
         if self.session == session:
             del self.session
+
+    def redirectInput(self, where):
+        if self.connected:
+            self.session.redirectInput(where)
+        else:
+            raise errors.PlayerNotConnected("Cannot redirect input of a "
+                                            "disconnected player.")
+
+    def resetInput(self):
+        if self.connected:
+            self.session.resetInputCapture()
+
+    def readLine(self, callback, args=()):
+        """
+        Captures a single line of input from the player and pass it to the
+        callback.
+
+        @param callback: The callback to receive the line of input.
+        @param args: Any extra arguments to send to the callback.
+        """
+        def _callback(lines):
+            callback(lines[0], *args)
+        self.redirectInput(LineReader(_callback, max_lines=1))
+
+    def readLines(self, callback, args=(), max_lines=None, end_tokens=None):
+        if end_tokens is None:
+            end_tokens = ('.', '@end', '@abort')
+        self.redirectInput(LineReader(callback, args=args, max_lines=max_lines,
+                                      end_tokens=end_tokens))
+
+    def prompt(self, callback, options, args=()):
+        """
+        Slight improvement on readLine which specifies a list of options. Note
+        that the options are case insensitive.
+
+        @param options: Tuple of valid values. Can be strings or compiled regex
+            objects.
+        @type options: tuple
+        """
+        if not options:
+            raise ValueError("No options specified for prompt.")
+
+        def _callback(line):
+            call = False
+            for o in options:
+                if isinstance(o, basestring):
+                    if o.lower() == line.lower():
+                        call = True
+                else:
+                    if o.search(line):
+                        call = True
+            if call:
+                callback(line, *args)
+            else:
+                return False
+
+        self.readLine(_callback)
+
+    def promptCallbacks(self, options):
+        """
+        Capture player input for a prompt, and call the callback corresponding
+        to the option entered.
+
+        @param options: Dict of valid responses (keys) and the callback to call
+            for each option (values). Response keys can be strings or compiled
+            regular expressions.
+        """
+        if not options:
+            raise ValueError("No options specified for prompt.")
+
+        def _callback(line):
+            for o in options:
+                if isinstance(o, basestring):
+                    if o.lower() == line.lower():
+                        options[o]()
+                        return
+                else:
+                    if o.search(line):
+                        options[o]()
+                        return
+            return False
+
+        self.readLine(_callback)
+
+    def promptYesNo(self, prompt=None, yesCallback=None, noCallback=None):
+        """
+        Prompt user to enter 'yes' or 'no', then call the corresponding
+        callback function.
+
+        @param prompt: Text to prompt the user. Can pass False to suppress the
+            default prompt.
+        @param yesCallback: The callback to call upon entering 'yes'.
+        @param noCallback: The callback to call upon entering 'no'.
+        """
+        if prompt is not False:
+            p = ''
+            if isinstance(prompt, basestring):
+                p += prompt.strip() + ' '
+            p += "[Enter 'yes' or 'no']"
+            self.msg(p)
+
+        self.promptCallbacks({'yes': yesCallback, 'no': noCallback})
 
     def msg(self, text, flags=None):
         """

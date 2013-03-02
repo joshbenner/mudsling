@@ -21,6 +21,7 @@ sys.modules['configparser'] = sys.modules['ConfigParser']
 
 from twisted.internet import reactor
 from twisted.application.service import Service, MultiService
+from twisted.python.util import InsensitiveDict
 
 from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
@@ -58,7 +59,8 @@ class MUDSling(MultiService):
     character_class = None
     room_class = None
 
-    class_registry = {}
+    #: @type: twisted.python.util.InsensitiveDict
+    class_registry = InsensitiveDict()
 
     def __init__(self, gameDir, configPaths):
         """
@@ -234,7 +236,7 @@ class MUDSling(MultiService):
         Invokes hook_objectClasses and expects responding plugins to return a
         list of (name, class) tuples.
         """
-        self.class_registry = {}
+        self.class_registry = InsensitiveDict()
         for plugin, response in self.invokeHook('objectClasses').iteritems():
             if not isinstance(response, list):
                 continue

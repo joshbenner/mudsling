@@ -32,15 +32,20 @@ class Syntax(object):
         i = 0
         optsets = 0
         lastchar = ''
+        optBeganWithSpace = False
         while i < len(syntax):
             char = syntax[i]
             if char == '[':
                 if lastchar == ' ':
-                    # Optional group after a space. Include space
-                    # in optional group.
-                    regex = regex[:-2]
-                    regex.extend(['(?:', ' ', '+'])
+                    # Optional group after a space. Include space in optional
+                    # group. We set the flag so that we know if we should also
+                    # include a space trailing an optional within the optional.
+                    # If the optional is surrounded by spaces, one is required.
+                    optBeganWithSpace = True
+                    regex = regex[:-1]
+                    regex.extend(['(?: +'])
                 else:
+                    optBeganWithSpace = False
                     regex.append('(?:')
                     lastchar = ''
             elif char == ']':
@@ -76,7 +81,7 @@ class Syntax(object):
                     pass
                 else:
                     if char == ' ':
-                        if lastchar == ']':
+                        if lastchar == ']' and not optBeganWithSpace:
                             regex = regex[:-1]
                             regex.append(' +)?')
                         else:

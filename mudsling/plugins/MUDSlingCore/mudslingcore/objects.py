@@ -1,5 +1,5 @@
 from mudsling.objects import BasePlayer, BaseCharacter
-from mudsling.objects import Object as LocatedObject
+from mudsling.objects import Object
 from mudsling.commands import allCommands
 
 import commands.admin.system
@@ -9,9 +9,12 @@ import commands.admin.objects
 import commands.ooc
 
 
-class Object(LocatedObject):
+class Thing(Object):
     """
     The basic object in the MUDSling core game world.
+
+    Features:
+        - Description
 
     @ivar desc: The description of the object.
     @type desc: str
@@ -29,7 +32,7 @@ class Object(LocatedObject):
         this object. If you need just the string, use asSeenBy().
 
         @param obj: The object looking at this object.
-        @type obj: Object
+        @type obj: Thing
         @return: String describing this to the looking object.
         @rtype: str
         """
@@ -70,5 +73,5 @@ class Player(BasePlayer):
         return None
 
 
-class Character(Object, BaseCharacter):
+class Character(Thing, BaseCharacter):
     pass

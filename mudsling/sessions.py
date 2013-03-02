@@ -23,6 +23,8 @@ class Session(object):
 
     line_delimiter = '\r\n'
 
+    input_processor = None
+
     #: @type: mudsling.server.MUDSling
     game = None
 
@@ -40,14 +42,24 @@ class Session(object):
             self.player.sessionDetached(self)
         logging.info("Session %s disconnected." % self)
 
+    def redirectInput(self, where):
+        if isinstance(self.input_processor, InputProcessor):
+            self.input_processor.lostInputCapture(self)
+        self.input_processor = where
+        if isinstance(where, InputProcessor):
+            where.gainedInputCapture(self)
+
+    def resetInputCapture(self):
+        self.redirectInput(self.player)
+
     def receiveInput(self, line):
         line = line.strip()
-        if self.player is None:
+        if self.input_processor is None:
             self.game.login_screen.processInput(self, line)
         else:
             #noinspection PyBroadException
             try:
-                self.player.processInput(line)
+                self.input_processor.processInput(line)
             except SystemExit:
                 raise
             except:
@@ -101,6 +113,7 @@ class Session(object):
         if self.player is not None:
             self.detach()
         self.player = player._realObject()
+        self.input_processor = self.player
         player.sessionAttached(self)
 
     def detach(self):
@@ -109,6 +122,7 @@ class Session(object):
         """
         if self.player is not None:
             self.player.sessionDetached(self)
+            self.input_processor = None
             self.player = None
 
 
@@ -159,3 +173,18 @@ class SessionHandler(object):
     def outputToAllSessions(self, text, flags=None):
         for session in self.sessions:
             session.sendOutput(text, flags=flags)
+
+
+class InputProcessor(object):
+    """
+    Subclass InputProcessor when you wish your object able to receive raw input
+    from a connected session.
+    """
+    def processInput(self, raw):
+        pass
+
+    def gainedInputCapture(self, session):
+        pass
+
+    def lostInputCapture(self, session):
+        pass

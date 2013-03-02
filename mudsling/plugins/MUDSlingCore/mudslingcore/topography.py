@@ -1,11 +1,11 @@
 """
 Rooms and exits.
 """
-from mudslingcore.objects import Object
+from mudslingcore.objects import Thing
 from mudslingcore.commands import ic
 
 
-class Room(Object):
+class Room(Thing):
 
     desc = "A very nondescript room."
 
