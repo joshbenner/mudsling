@@ -5,6 +5,7 @@ import mudsling
 from mudsling.commands import Command
 from mudsling.objects import Object
 from mudsling.utils import string
+from mudsling.storage import ObjRef
 
 
 class ShutdownCmd(Command):
@@ -102,18 +103,25 @@ class EvalCmd(Command):
             duration = time.clock() - begin
 
             if mode == 'eval':
-                ret = "<<< %s" % string.escape_ansi_tokens(repr(ret))
+                out = "<<< %s" % string.escape_ansi_tokens(repr(ret))
+                if isinstance(ret, ObjRef):
+                    if ret.isValid():
+                        name = "%s (%s)" % (ret.className(),
+                                            ret.pythonClassName())
+                    else:
+                        name = 'INVALID'
+                    out += " [%s]" % name
             else:
-                ret = "<<< Done."
+                out = "<<< Done."
         except SystemExit:
             raise
         except:
             error_lines = traceback.format_exc().split('\n')
             if len(error_lines) > 4:
                 error_lines = error_lines[4:]
-            ret = "\n".join("<<< %s" % line for line in error_lines if line)
+            out = "\n".join("<<< %s" % line for line in error_lines if line)
 
-        raw_string = string.parse_ansi("{m") + ret + string.parse_ansi("{n")
+        raw_string = string.parse_ansi("{m") + out + string.parse_ansi("{n")
         actor.msg(raw_string, {'raw': True})
         if duration is not None:
             msg = "Exec time: %.3f ms, Compile time: %.3f ms (total: %.3f ms)"
