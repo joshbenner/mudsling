@@ -155,6 +155,11 @@ class BaseObject(StoredObject, InputProcessor):
         name = self.game.getClassName(self.__class__)
         return name if name is not None else self.pythonClassName()
 
+    def objectDeleted(self):
+        super(BaseObject, self).objectDeleted()
+        if self.possessed_by is not None:
+            self.possessed_by.dispossessObject(self.ref())
+
     @classmethod
     def objSettings(cls):
         """
@@ -423,6 +428,7 @@ class Object(BaseObject):
         """
         Move self out of location and move contents out of self.
         """
+        super(Object, self).objectDeleted()
         self.moveTo(None)
         this = self.ref()
         for o in list(self.contents):
