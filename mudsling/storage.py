@@ -2,9 +2,10 @@ from collections import namedtuple
 import weakref
 import copy_reg
 import types
+import logging
 
 from mudsling.match import match_objlist
-from mudsling.errors import AmbiguousMatch, FailedMatch, InvalidTask
+from mudsling import errors
 
 
 # Support pickling methods.
@@ -233,14 +234,19 @@ class StoredObject(Persistent):
         """
         API method to remove all reference to given role from this object.
         """
-        pass
 
     def objectCreated(self):
         """
         Called when the object is first created. Only called once in the life
         of the object, by Database.createObject().
         """
-        pass
+
+    def objectDeleted(self):
+        """
+        Called during object deletion, but before the object itself has been
+        removed from the database. Allows the object to perform any final
+        cleanup.
+        """
 
 
 class Database(Persistent):
@@ -344,6 +350,27 @@ class Database(Persistent):
         self.registerNewObject(obj)
         return ObjRef(id=obj.id, db=self)
 
+    def deleteObject(self, obj):
+        """
+        Deletes the passed object from the database.
+
+        @param obj: The object to delete.
+        @type obj: StoredObject or ObjRef
+        """
+        if not obj.isValid():
+            raise errors.InvalidObject(obj)
+
+        obj = obj._realObject()
+        obj.objectDeleted()
+        try:
+            del self.objects[obj.id]
+        except KeyError:
+            logging.error("%s missing from objects dictionary!" % obj)
+        try:
+            self.type_registry[obj.__class__].remove(obj.ref())
+        except (ValueError, KeyError):
+            logging.error("%s missing from type registry!" % obj)
+
     def registerNewObject(self, obj):
         obj.id = self._allocateObjId()
         self.objects[obj.id] = obj
@@ -426,9 +453,9 @@ class Database(Persistent):
         if len(matches) == 1:
             return matches[0]
         elif len(matches) > 1:
-            raise AmbiguousMatch(query=search, matches=matches)
+            raise errors.AmbiguousMatch(query=search, matches=matches)
         else:
-            raise FailedMatch(query=search)
+            raise errors.FailedMatch(query=search)
 
     def expungeRole(self, role):
         """
@@ -464,7 +491,7 @@ class Database(Persistent):
             id = id if isinstance(id, int) else id.id
             task = self.tasks[id]
         except (AttributeError, KeyError):
-            raise InvalidTask("Invalid task or task ID: %r" % id)
+            raise errors.InvalidTask("Invalid task or task ID: %r" % id)
         return task
 
     def killTask(self, id):

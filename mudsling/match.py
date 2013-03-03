@@ -68,6 +68,7 @@ def match_objlist(search, objlist, varname="aliases", exactOnly=False,
     result = exact or partial
 
     if err and len(result) != 1:
+        print result
         if len(result) > 1:
             raise AmbiguousMatch(query=search, matches=result)
         else:

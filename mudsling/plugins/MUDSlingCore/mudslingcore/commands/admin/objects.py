@@ -64,5 +64,19 @@ class DeleteCmd(Command):
 
     def run(self, this, actor, args):
         """
-        todo: match objects for BasePlayer
+        @type this: mudslingcore.objects.Player
+        @type actor: mudslingcore.objects.Player
+        @type args: dict
         """
+
+        # err=True means we'll either exit with error or have single-element
+        # list containing the match. Use .ref()... just in case.
+        obj = actor.matchObject(args['object'], err=True)[0].ref()
+
+        if obj == actor.ref():
+            actor.msg("{rYou may not delete yourself.")
+            return
+
+        msg = "{c%s {yhas been {rdeleted{y." % obj.nn
+        self.game.db.deleteObject(obj)
+        actor.msg(msg)

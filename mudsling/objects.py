@@ -148,6 +148,13 @@ class BaseObject(StoredObject, InputProcessor):
     #: @type: dict
     unbound_settings = None
 
+    def pythonClassName(self):
+        return "%s.%s" % (self.__class__.__module__, self.__class__.__name__)
+
+    def className(self):
+        name = self.game.getClassName(self.__class__)
+        return name if name is not None else self.pythonClassName()
+
     @classmethod
     def objSettings(cls):
         """
@@ -258,16 +265,16 @@ class BaseObject(StoredObject, InputProcessor):
         """
         # TODO: Literal object matching
         if search == 'me':
-            return {self}
+            return [self.ref()]
 
-        return match_objlist(search, {self}, err=err)
+        return match_objlist(search, [self.ref()], err=err)
 
     def matchObjectOfType(self, search, cls=None):
         """
-        Match a player object.
+        Match against all objects of a given class..
 
         @param search: The string to match on.
-        @param cls: The player class to search for.
+        @param cls: The class whose descendants to search.
         @return: A list of matches.
         @rtype: list
         """
@@ -412,27 +419,34 @@ class Object(BaseObject):
         super(Object, self).__init__()
         self.contents = []
 
+    def objectDeleted(self):
+        """
+        Move self out of location and move contents out of self.
+        """
+        self.moveTo(None)
+        this = self.ref()
+        for o in list(self.contents):
+            if o.location == this:
+                o.moveTo(None)
+
     def matchObject(self, search, err=False):
         """
         @type search: str
         @rtype: list
         """
-        matches = super(Object, self).matchObject(search, err=err)
-        if matches:
-            return matches
+        matches = super(Object, self).matchObject(search)
+        if not matches:
+            if search == 'here' and self.location is not None:
+                return [self.location]
 
-        if search == 'here' and self.location is not None:
-            return {self.location}
+            matches = match_objlist(search, self.contents, err=False)
+            if not matches:
+                matches = match_objlist(search, self.location.contents,
+                                        err=err)
+        if err and len(matches) > 1:
+            raise errors.AmbiguousMatch(matches=matches)
 
-        matches = match_objlist(search, self.contents, err=err)
-        if matches:
-            return matches
-
-        matches = match_objlist(search, self.location.contents, err=err)
-        if matches:
-            return matches
-
-        return set()
+        return matches
 
     def getContext(self):
         """
@@ -449,12 +463,6 @@ class Object(BaseObject):
             hosts.extend(self.location.contents)
 
         return hosts
-
-    def getDescription(self):
-        """
-        Allows objects to embellish/calculate/cache the effective description.
-        """
-        return self.desc
 
     def contentRemoved(self, what, destination):
         """
@@ -495,7 +503,7 @@ class Object(BaseObject):
         destination, and fires corresponding hooks on all involved.
 
         @param dest: Where to move the object. Can be None or Object.
-        @type dest: Object
+        @type dest: Object or None
 
         Throws InvalidObject if this object is invalid or if the destination is
         neither None nor a valid Object instance.
@@ -517,7 +525,7 @@ class Object(BaseObject):
 
         self.location = dest
 
-        if dest.isValid(Object):
+        if self.game.db.isValid(dest, Object):
             dest.contents.append(me)
 
         # Now fire event hooks on the two locations and the moved object.
@@ -527,6 +535,26 @@ class Object(BaseObject):
             dest.contentAdded(me, previous_location)
 
         self.objectMoved(previous_location, dest)
+
+    def locations(self, excludeInvalid=True):
+        """
+        Get a list of all the nested locations where this object resides. Child
+        classes should be very reluctant to override this. Unexpected return
+        results may yield unexpected behaviors.
+
+        @param excludeInvalid: If true, does not consider an invalid ObjRef to
+            be a valid location, and will not include it in the list.
+
+        @return: List of nested locations, from deepest to shallowest.
+        @rtype: list
+        """
+        locations = []
+        if (isinstance(self.location, ObjRef)
+                and (self.location.isValid() or not excludeInvalid)):
+            locations.append(self.location)
+            if self.location.isValid(Object):
+                locations.extend(self.location.locations())
+        return locations
 
 
 class BasePlayer(BaseObject):
@@ -569,6 +597,14 @@ class BasePlayer(BaseObject):
         @return: Whether or not player is connected.
         """
         return self.session is not None
+
+    @property
+    def isPosessing(self):
+        """
+        @rtype: bool
+        @return: Whether or not player is possessing an object.
+        """
+        return self.possessing is not None
 
     def setPassword(self, password):
         self.password = Password(password)
@@ -757,6 +793,12 @@ class BasePlayer(BaseObject):
                 self.possessing.processInput(raw)
         except errors.CommandInvalid as e:
             self.msg("{r" + e.message)
+        except errors.MatchError as e:
+            self.msg("{y%s" % e.message)
+            raise
+        except:
+            self.msg("{rAn error has occurred.")
+            raise
 
     def hasPerm(self, perm):
         if self.superuser:
@@ -784,8 +826,25 @@ class BasePlayer(BaseObject):
     def matchObjectOfType(self, search, cls=None):
         if inspect.isclass(cls) and issubclass(cls, BasePlayer):
             if search == 'me':
-                return [self]
+                return [self.ref()]
         return super(BasePlayer, self).matchObjectOfType(search, cls=cls)
+
+    def matchObject(self, search, err=False):
+        """
+        Matching on the player will also pass the match call through to the
+        object the player is possessing.
+
+        Note that 'me' will match the player instead of the possessed object if
+        called here.
+        """
+        matches = super(BasePlayer, self).matchObject(search, err=False)
+        if not matches and self.isPosessing:
+            matches = self.possessing.matchObject(search, err=err)
+
+        if err and len(matches) > 1:
+            raise errors.AmbiguousMatch(matches=matches)
+
+        return matches
 
 
 class BaseCharacter(Object):

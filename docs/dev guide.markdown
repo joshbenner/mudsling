@@ -41,8 +41,10 @@ for MUDSling game world objects. It transparently passes attribute and method
 calls through to the actual object in the database without requiring you to
 have a reference to the actual object.
 
-The only real change in your coding is that some built-ins might not work as
+The biggest change in your coding is that some built-ins might not work as
 transparently, such as isinstance -- instead, use ObjRef.isa() or .isValid().
+The only other thing you'll need to keep in mind is when returning or passing
+the self variable -- you'll want to usually return or pass self.ref() instead.
 
 For the most part, calls you make to obtain objects will return ObjRef objects.
 If you really need a first-class reference to the object, you can call the
