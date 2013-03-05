@@ -56,7 +56,6 @@ class LineReader(InputProcessor):
         returns boolean False, then capture will be reset and maintained.
         """
         result = self.callback(self.lines, *self.args)
-        print repr(result)
         if result is not False:
             if self.session is not None:
                 self.session.resetInputCapture()
