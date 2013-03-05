@@ -814,7 +814,7 @@ class BasePlayer(BaseObject):
 
         if invalidCallback is None:
             def invalidCallback(line):
-                self.msg("{rInvalid optoin.")
+                self.msg("{rInvalid option.")
                 showPrompt()
                 return False
 

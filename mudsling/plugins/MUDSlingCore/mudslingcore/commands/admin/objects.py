@@ -89,3 +89,16 @@ class DeleteCmd(Command):
         actor.player.promptYesNo(p % obj.nn,
                                  yesCallback=_do_delete,
                                  noCallback=_abort_delete)
+
+
+class ClassesCmd(Command):
+    """
+    @classes
+
+    Displays a list of object classes available.
+    """
+    aliases = ('@classes',)
+    required_perm = 'create objects'
+
+    def run(self, this, actor, args):
+        pass
