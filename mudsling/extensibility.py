@@ -113,7 +113,7 @@ class PluginManager(yapsy.PluginManager.PluginManager):
         Initialize plugin manager based on game directory and loaded config.
 
         @param game: The MUDSling game object.
-        @type game: mudsling.server.MUDSling
+        @type game: mudsling.core.MUDSling
 
         @param game_dir: Path to active game directory (which can have plugins)
         """

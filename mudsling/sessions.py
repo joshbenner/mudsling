@@ -134,7 +134,7 @@ class SessionHandler(object):
     @type sessions: set
 
     @ivar game: Reference to the game
-    @type game: mudsling.server.MUDSling
+    @type game: mudsling.core.MUDSling
     """
 
     sessions = set()

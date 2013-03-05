@@ -1,4 +1,3 @@
-from mudsling.parse import ParsedInput
 
 
 class ConfigInvalid(Exception):
@@ -62,8 +61,7 @@ class CommandInvalid(CommandError):
         """
         cmdline could be raw string input or a ParsedInput structure.
         """
-        if isinstance(cmdline, ParsedInput):
-            self.input = cmdline
+        self.input = cmdline
         self.message = "Command Invalid."
 
 

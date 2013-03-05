@@ -134,7 +134,8 @@ class StoredObject(Persistent):
     """
     Storage class for all game-world objects. This class has no location and no
     contents. Avoid subclassing this object directly, use BaseObject or Object.
-    This object cannot parse commands, cannot be connected to a player, etc.
+    This object cannot parse commands, cannot be connected to a player, etc. It
+    only has the API required to interact with the database.
 
     @ivar id: The unique object ID for this object in the game.
     @type id: int
@@ -267,7 +268,7 @@ class Database(Persistent):
     @type type_registry: dict
 
     @ivar game: Reference to the game instance.
-    @type game: mudsling.server.MUDSling
+    @type game: mudsling.core.MUDSling
     """
 
     _transientVars = ['type_registry', 'game']
