@@ -1,11 +1,10 @@
 import inspect
-import re
 
 from mudsling.storage import StoredObject, ObjRef
 from mudsling import errors
 from mudsling.utils.password import Password
 from mudsling.utils.input import LineReader
-from mudsling.match import match_objlist
+from mudsling.match import match_objlist, match_stringlists
 from mudsling.sessions import InputProcessor
 
 
@@ -199,9 +198,52 @@ class BaseObject(StoredObject, InputProcessor):
             raise errors.SettingNotFound(self, name)
         return settings[name].getValue(self)
 
+    def namesFor(self, obj):
+        """
+        Returns a list of names representing the passed object as known by
+        self. Default implementation is to just return all aliases.
+
+        @param obj: The object whose "known" names to retrieve.
+        @type obj: BaseObject or ObjRef
+        @rtype: list
+        """
+        try:
+            return obj.aliases
+        except AttributeError:
+            return []
+
+    def nameFor(self, obj):
+        """
+        Returns a string representation of the given object as known by self.
+        The default implementation is to return the name for normal users, or
+        the name and ObjID for admin users.
+
+        @param obj: The object to name.
+        @type obj: BaseObject or ObjRef
+
+        @return: String name of passed object as known by this object.
+        @rtype: str
+        """
+        name = (self.namesFor(obj) or ["UNKNOWN"])[0]
+        try:
+            if self.player.hasPerm("see object numbers"):
+                name += " (#%d)" % obj.id
+        finally:
+            return name
+
     def expungeRole(self, role):
         if self.hasRole(role):
             self.removeRole(role)
+
+    @property
+    def player(self):
+        """
+        Return ObjRef to the player object possessing this object.
+        @rtype: BasePlayer or ObjRef
+        """
+        if self.possessed_by is not None:
+            return self.possessed_by.player
+        return None
 
     def possessableBy(self, player):
         """
@@ -259,9 +301,19 @@ class BaseObject(StoredObject, InputProcessor):
         if self.possessed_by is not None:
             self.possessed_by.msg(text, flags=flags)
 
+    def _match(self, search, objlist, exactOnly=False, err=False):
+        """
+        A matching utility. Essentially a duplicate of match_objlist(), but
+        instead of just pulling aliases, it pulls namesFor().
+        @rtype: list
+        """
+        strings = dict(zip(objlist, map(lambda o: self.namesFor(o), objlist)))
+        return match_stringlists(search, strings, exactOnly=exactOnly, err=err)
+
     def matchObject(self, search, err=False):
         """
-        A general object match for this object.
+        A general object match for this object. Uses .namesFor() values in the
+        match rather than direct aliases.
 
         @param search: The search string.
         @param err: If true, can raise search result errors.
@@ -269,14 +321,13 @@ class BaseObject(StoredObject, InputProcessor):
         @rtype: list
         """
         # TODO: Literal object matching
-        if search == 'me':
+        if search.lower() == 'me':
             return [self.ref()]
-
-        return match_objlist(search, [self.ref()], err=err)
+        return self._match(search, [self.ref()], err=err)
 
     def matchObjectOfType(self, search, cls=None):
         """
-        Match against all objects of a given class..
+        Match against all objects of a given class. Uses aliases, NOT namesFor.
 
         @param search: The string to match on.
         @param cls: The class whose descendants to search.
@@ -442,13 +493,13 @@ class Object(BaseObject):
         """
         matches = super(Object, self).matchObject(search)
         if not matches:
-            if search == 'here' and self.location is not None:
+            if search.lower() == 'here' and self.location is not None:
                 return [self.location]
 
-            matches = match_objlist(search, self.contents, err=False)
+            matches = self._match(search, self.contents, err=False)
             if not matches:
-                matches = match_objlist(search, self.location.contents,
-                                        err=err)
+                matches = self._match(search, self.location.contents, err=err)
+
         if err and len(matches) > 1:
             raise errors.AmbiguousMatch(matches=matches)
 
@@ -605,6 +656,14 @@ class BasePlayer(BaseObject):
         return self.session is not None
 
     @property
+    def player(self):
+        """
+        A player is considered to be self-possessed.
+        @return: BasePlayer or ObjRef
+        """
+        return self.ref()
+
+    @property
     def isPosessing(self):
         """
         @rtype: bool
@@ -631,7 +690,7 @@ class BasePlayer(BaseObject):
             pass
         self.session = session
         session.ansi = self.ansi
-        self.msg("Connected to player %s" % self.name)
+        self.msg("{gConnected to player {c%s{g." % self.name)
         if self.possessing is None:
             self.msg("{rYou are not attached to any game object!")
 
@@ -663,7 +722,7 @@ class BasePlayer(BaseObject):
         @param args: Any extra arguments to send to the callback.
         """
         def _callback(lines):
-            callback(lines[0], *args)
+            return callback(lines[0], *args)
         self.redirectInput(LineReader(_callback, max_lines=1))
 
     def readLines(self, callback, args=(), max_lines=None, end_tokens=None):
@@ -694,13 +753,13 @@ class BasePlayer(BaseObject):
                     if o.search(line):
                         call = True
             if call:
-                callback(line, *args)
+                return callback(line, *args)
             else:
                 return False
 
         self.readLine(_callback)
 
-    def promptCallbacks(self, options):
+    def promptCallbacks(self, options, invalidCallback=None):
         """
         Capture player input for a prompt, and call the callback corresponding
         to the option entered.
@@ -708,25 +767,33 @@ class BasePlayer(BaseObject):
         @param options: Dict of valid responses (keys) and the callback to call
             for each option (values). Response keys can be strings or compiled
             regular expressions.
+        @param invalidCallback: The callback to be called upon invalid input.
         """
         if not options:
             raise ValueError("No options specified for prompt.")
+
+        if invalidCallback is None:
+            def invalidCallback(line):
+                self.msg("{rInvalid option.")
+                return False
+
+        def _do_callback(cb):
+            if callable(cb):
+                return cb()
 
         def _callback(line):
             for o in options:
                 if isinstance(o, basestring):
                     if o.lower() == line.lower():
-                        options[o]()
-                        return
-                else:
-                    if o.search(line):
-                        options[o]()
-                        return
-            return False
+                        return _do_callback(options[o])
+                elif o.search(line):
+                    return _do_callback(options[o])
+            return invalidCallback(line)
 
         self.readLine(_callback)
 
-    def promptYesNo(self, prompt=None, yesCallback=None, noCallback=None):
+    def promptYesNo(self, prompt=None, yesCallback=None, noCallback=None,
+                    invalidCallback=None):
         """
         Prompt user to enter 'yes' or 'no', then call the corresponding
         callback function.
@@ -735,15 +802,25 @@ class BasePlayer(BaseObject):
             default prompt.
         @param yesCallback: The callback to call upon entering 'yes'.
         @param noCallback: The callback to call upon entering 'no'.
+        @param invalidCallback: The callback to be called upon invalid input.
         """
-        if prompt is not False:
-            p = ''
-            if isinstance(prompt, basestring):
-                p += prompt.strip() + ' '
-            p += "[Enter 'yes' or 'no']"
-            self.msg(p)
+        def showPrompt():
+            if prompt is not False:
+                p = ''
+                if isinstance(prompt, basestring):
+                    p += prompt.strip() + ' '
+                p += "{c[Enter '{gyes{c' or '{rno{c']"
+                self.msg(p)
 
-        self.promptCallbacks({'yes': yesCallback, 'no': noCallback})
+        if invalidCallback is None:
+            def invalidCallback(line):
+                self.msg("{rInvalid optoin.")
+                showPrompt()
+                return False
+
+        showPrompt()
+        self.promptCallbacks({'yes': yesCallback, 'no': noCallback},
+                             invalidCallback=invalidCallback)
 
     def msg(self, text, flags=None):
         """
@@ -768,11 +845,13 @@ class BasePlayer(BaseObject):
         obj.possessBy(self.ref())
         if obj.possessed_by == self.ref():
             self.possessing = obj
+            self.msg("{gYou have attached to {c%s{g." % self.nameFor(obj))
             self.onObjectPossessed(obj)
 
     def dispossessObject(self, obj):
         if self.possessing == obj:
             del self.possessing
+            self.msg("{yYou have detached from {c%s{y." % self.nameFor(obj))
             obj.dispossessed()
             self.onObjectDispossessed(obj)
 
@@ -831,7 +910,7 @@ class BasePlayer(BaseObject):
 
     def matchObjectOfType(self, search, cls=None):
         if inspect.isclass(cls) and issubclass(cls, BasePlayer):
-            if search == 'me':
+            if search.lower() == 'me':
                 return [self.ref()]
         return super(BasePlayer, self).matchObjectOfType(search, cls=cls)
 
@@ -840,12 +919,12 @@ class BasePlayer(BaseObject):
         Matching on the player will also pass the match call through to the
         object the player is possessing.
 
-        Note that 'me' will match the player instead of the possessed object if
-        called here.
+        Note that 'me' will match the possessed object if the player is
+        possessing something, else it will match player object.
         """
-        matches = super(BasePlayer, self).matchObject(search, err=False)
+        matches = self.possessing.matchObject(search, err=False)
         if not matches and self.isPosessing:
-            matches = self.possessing.matchObject(search, err=err)
+            matches = super(BasePlayer, self).matchObject(search, err=err)
 
         if err and len(matches) > 1:
             raise errors.AmbiguousMatch(matches=matches)

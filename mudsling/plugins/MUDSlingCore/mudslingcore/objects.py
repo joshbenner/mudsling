@@ -49,7 +49,8 @@ class Thing(Object):
         @return: What the object would see.
         @rtype: str
         """
-        return "%s\n%s" % (self.name, self.desc)
+        name = obj.nameFor(self) if obj is not None else self.name
+        return "%s\n%s" % (name, self.desc)
 
 
 class Player(BasePlayer):

@@ -18,7 +18,6 @@ class CreateCmd(Command):
     syntax = "<class> [called|named] <names>"
 
     def run(self, this, actor, args):
-        actor.msg(repr(args))
         cls = self.game.getClass(args['class'])
         if cls is None:
             actor.msg("Unknown class: %s" % args['class'])
@@ -77,6 +76,16 @@ class DeleteCmd(Command):
             actor.msg("{rYou may not delete yourself.")
             return
 
-        msg = "{c%s {yhas been {rdeleted{y." % obj.nn
-        self.game.db.deleteObject(obj)
-        actor.msg(msg)
+        def _do_delete():
+            msg = "{c%s {yhas been {rdeleted{y." % obj.nn
+            self.game.db.deleteObject(obj)
+            actor.msg(msg)
+
+        def _abort_delete():
+            actor.msg("{yDelete {gABORTED{y.")
+
+        p = ("{yYou are about to {rDELETE {c%s{y.\n"
+             "{yAre you sure you want to {rDELETE {ythis object?")
+        actor.player.promptYesNo(p % obj.nn,
+                                 yesCallback=_do_delete,
+                                 noCallback=_abort_delete)

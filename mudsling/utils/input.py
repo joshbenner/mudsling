@@ -35,6 +35,7 @@ class LineReader(InputProcessor):
         self.max_lines = max_lines
         self.end_tokens = end_tokens
 
+        self.session = None
         self.reset()
 
     def gainedInputCapture(self, session):
@@ -55,6 +56,7 @@ class LineReader(InputProcessor):
         returns boolean False, then capture will be reset and maintained.
         """
         result = self.callback(self.lines, *self.args)
+        print repr(result)
         if result is not False:
             if self.session is not None:
                 self.session.resetInputCapture()
@@ -63,4 +65,3 @@ class LineReader(InputProcessor):
 
     def reset(self):
         self.lines = []
-        self.session = None
