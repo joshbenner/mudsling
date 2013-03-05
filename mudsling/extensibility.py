@@ -84,13 +84,28 @@ class GamePlugin(MUDSlingPlugin):
     the plugins which are meant to interact with the game world in general.
     """
 
+    pluginpath = None
+
     def activate(self):
         super(GamePlugin, self).activate()
 
         # Add plugin's path to the PYTHONPATH so that it may be used as a
         # module by other code, have its classes used in config, etc.
-        pluginpath = os.path.dirname(self.info.path)
-        sys.path.append(pluginpath)
+        self.pluginpath = os.path.dirname(self.info.path)
+        sys.path.append(self.pluginpath)
+
+    def patternPaths(self):
+        """
+        Define the paths where MUDSling can find pattern files provided by this
+        plugin. Default implementation looks for "patterns" directory within
+        the plugin's directory.
+
+        @rtype: list
+        """
+        path = os.path.join(self.pluginpath, 'patterns')
+        if os.path.exists(path) and os.path.isdir(path):
+            return [path]
+        return []
 
 
 class PluginManager(yapsy.PluginManager.PluginManager):

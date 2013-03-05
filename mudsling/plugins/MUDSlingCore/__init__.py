@@ -2,7 +2,8 @@
 The primary plugin module for the MUDSlingCore plugin.
 
 This plugin is an example of the GamePlugin type of plugin, which can expose
-new capabilities to the game world.
+new capabilities to the game world. All hooks and plugin API functions expected
+by MUDSling will be documented here.
 """
 
 from mudsling.extensibility import GamePlugin
@@ -18,6 +19,15 @@ class MUDSlingCorePlugin(GamePlugin):
     search path, such that modules and packages within it can be imported, used
     when specifying classes in configs, etc.
     """
+    def patternPaths(self):
+        """
+        Called to get a list of pattern file directories. The easiest approach
+        is to just let MUDSling find a "patterns" directory in the plugin
+        directory. However, if you need to customize paths, this is where you
+        have the opportunity.
+        """
+        return super(MUDSlingCorePlugin, self).patternPaths()
+
     def hook_initDatabase(self, db):
         """
         This hook is called when performing initial setup of a database, giving
