@@ -1,5 +1,6 @@
 syntax: glob
 .idea/workspace.xml
+.idea/dictionaries*
 *.pyc
 game
 *dropin.cache*
