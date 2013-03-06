@@ -204,12 +204,12 @@ class BaseObject(StoredObject, InputProcessor):
         self. Default implementation is to just return all aliases.
 
         @param obj: The object whose "known" names to retrieve.
-        @type obj: BaseObject or ObjRef
+        @type obj: StoredObject or ObjRef
         @rtype: list
         """
         try:
             return obj.aliases
-        except AttributeError:
+        except (TypeError, AttributeError):
             return []
 
     def nameFor(self, obj):
@@ -219,7 +219,7 @@ class BaseObject(StoredObject, InputProcessor):
         the name and ObjID for admin users.
 
         @param obj: The object to name.
-        @type obj: BaseObject or ObjRef
+        @type obj: StoredObject or ObjRef
 
         @return: String name of passed object as known by this object.
         @rtype: str
@@ -296,10 +296,30 @@ class BaseObject(StoredObject, InputProcessor):
 
         @param text: The text to send to the object.
         @param flags: Flags to modify how text is handled.
-        @type text: str
+        @type text: str or list
         """
         if self.possessed_by is not None:
-            self.possessed_by.msg(text, flags=flags)
+            self.possessed_by.msg(self._format_msg(text), flags=flags)
+
+    def _format_msg(self, parts):
+        """
+        Process a list of message parts into the final str message to send to
+        object via .msg().
+
+        Default conversions:
+        * ObjRef, StoredObject -> self.nameFor(obj)
+
+        @param parts: List of values to interpret into the message text.
+        @type parts: list or str
+
+        @rtype: str
+        """
+        if isinstance(parts, basestring):
+            return parts
+        for i, part in enumerate(parts):
+            if isinstance(part, ObjRef) or isinstance(part, StoredObject):
+                parts[i] = self.nameFor(part)
+        return ''.join(map(str, parts))
 
     def _match(self, search, objlist, exactOnly=False, err=False):
         """
@@ -832,7 +852,7 @@ class BasePlayer(BaseObject):
         @type text: str
         """
         if self.session is not None:
-            self.session.sendOutput(text, flags=flags)
+            self.session.sendOutput(self._format_msg(text), flags=flags)
 
     def possessObject(self, obj):
         """
