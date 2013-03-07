@@ -2,13 +2,18 @@
 Message formatting system.
 """
 import string
+import random
+
+
+class InvalidMessage(Exception):
+    pass
 
 
 class MessageParser(object):
     """
-    The message parser is rather similar to string.Template, and even uses the
-    same regex pattern. However, MessageParser returns a list meant to be used
-    with Dynamic Messages rather than a substituted string.
+    The message parser is rather similar to L{string.Template}, and even uses
+    the same regex pattern. However, L{MessageParser} returns a list meant to
+    be used with L{Dynamic Messages} rather than a substituted string.
     """
     @classmethod
     def parse(cls, tpl, **keywords):
@@ -18,13 +23,13 @@ class MessageParser(object):
         .msg() method.
 
         @param tpl: The template on which to perform substitutions.
-        @type tpl: str
+        @type tpl: C{str}
 
         @param keywords: The keywords and values for substitution.
-        @type keywords: dict
+        @type keywords: C{dict}
 
         @return: list for use in dynamic message substitution.
-        @rtype: list
+        @rtype: C{list}
         """
         return cls._parse(tpl, keywords)
 
@@ -34,9 +39,9 @@ class MessageParser(object):
         The workhorse behind parse. Can be called if you don't want to specify
         keyword arguments and instead wish to pass a dict directly.
 
-        @type tpl: str
-        @type keywords: dict
-        @rtype: list
+        @type tpl: C{str}
+        @type keywords: C{dict}
+        @rtype: C{list}
         """
         def subst(name):
             if name in keywords:
@@ -76,7 +81,7 @@ class MessagedObject(object):
     @ivar messages: The message keys and their template strings or tuples. Most
         cases should ideally see this only set at the class level rather than
         overridding on instances.
-    @type messages: dict
+    @type messages: C{dict}
     """
 
     messages = {}
@@ -95,12 +100,78 @@ class MessagedObject(object):
     ...     # Randomly or specifically select from several templates for a
     ...     # single message key.
     ...     'touch': [
-    ...         ("You touch $box and it buzzes loudly!",
-    ...          "$box buzzes loudly as $actor touches it!"),
+    ...         {'actor': "You touch $box and it buzzes loudly!",
+    ...          '*': "$box buzzes loudly as $actor touches it!"},
     ...         "$box does nothing when touched by $actor."
     ...     ]
     ... }
     """
+
+    def _searchForMessage(self, key):
+        """
+        Climbs the mro of the object to search for the message. This can be
+        overridden to implement alternate schemes for resolving messages that
+        are not defined on self directly.
+
+        @param key: The key of the message to search for.
+        @rypte: C{dict} or C{None}
+        """
+        msg = None
+        mro = type.mro(self.__class__)
+        mro.reverse()
+        for cls in mro:
+            if isinstance(cls, MessagedObject):
+                if key in cls.messages:
+                    msg = cls.messages[key]
+                    break
+        return msg
+
+    def _getMessage(self, key, index=None):
+        """
+        Retrieves the raw message configuration. Note, if this object does not
+        define a message for the key, it will climb the object's MRO for a
+        class that does define the message.
+
+        If no message is found, returns C{None}.
+
+        @param key: The message key to retrieve.
+        @type key: C{str}
+
+        @param index: For a multi-value message (defined with a list), specify
+            the numeric index of the message from the list to return. If None
+            or not specified, then will return a random selection.
+        @type index: C{None} or C{int}
+
+        @raise C{IndexError}: If index is out of range for message list.
+        @raise C{ValueError}: In the case of nested list messages.
+        @raise L{InvalidMessage}: If resulting message is not a valid message.
+
+        @return: A message dictionary.
+        @rtype: C{dict} or C{None}
+        """
+        msg = (self.messages[key] if key in self.messages
+               else self._searchForMessage(key))
+
+        if msg is None:
+            return msg
+
+        if isinstance(msg, list):
+            if index is not None:
+                msg = msg[index]
+            else:
+                msg = random.choice(msg)
+            if isinstance(msg, list):
+                raise ValueError("Message lists cannot be nested.")
+
+        if isinstance(msg, basestring):
+            msg = {'*': msg}
+        elif isinstance(msg, dict):
+            if '*' not in msg:
+                msg['*'] = None
+        else:
+            raise InvalidMessage("Message is not str or dict")
+
+        return msg
 
     def getMessage(self, key, **keywords):
         """
@@ -110,12 +181,29 @@ class MessagedObject(object):
         be seen by which objects. If an object receiving the message does not
         have its own key, then it should see the message in '*'.
 
-        MessagedObject does not provide an application of the return value.
+        The values of the dictionary are Dynamic Message lists.
+
+        L{MessagedObject} does not provide an application of the return value.
         That is up to the implementor.
 
-        @param key: The key name of the message to generate.
-        @param keywords: The keywords for substitution.
+        @param key: The key name of the message to generate. Alternately, can
+            be an already-loaded message dict.
+        @type key: C{str} or C{dict}
 
-        @return: Single string to show all objects, or a tuple
-        @rtype: dict
+        @param keywords: The keywords for substitution.
+        @type keywords: C{dict}
+
+        @return: The message dictionary.
+        @rtype: C{dict}
         """
+        msg = key if isinstance(key, dict) else self._getMessage(key)
+
+        for who, tpl in msg.iteritems():
+            msg[who] = MessageParser._parse(tpl, keywords)
+
+        for kw, val in keywords.iteritems():
+            if kw in msg:
+                msg[val] = msg[kw]
+                del msg[kw]
+
+        return msg

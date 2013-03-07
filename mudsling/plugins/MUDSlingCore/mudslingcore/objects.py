@@ -25,6 +25,25 @@ class Thing(Object):
     #: @type: Object
     location = None  # Here for type resolution in editors that support it.
 
+    messages = {
+        'drop': {
+            'actor': "You drop $thing.",
+            '*': "$actor drops $thing."
+        },
+        'drop_fail': {
+            'actor': "You can't seem to drop $thing.",
+            '*': "$actor tries to drop $thing, but fails."
+        },
+        'take': {
+            'actor': "You take $thing.",
+            '*': "$actor takes $thing."
+        },
+        'take_fail': {
+            'actor': "You try to pick up $thing, but fail.",
+            '*': "$actor tires to pick up $thing, but fails."
+        }
+    }
+
     def seenBy(self, obj):
         """
         Return the string describing what the object sees when it looks at this

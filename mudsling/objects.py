@@ -6,6 +6,7 @@ from mudsling.utils.password import Password
 from mudsling.utils.input import LineReader
 from mudsling.match import match_objlist, match_stringlists
 from mudsling.sessions import InputProcessor
+from mudsling.messages import MessagedObject
 
 
 class ObjSetting(object):
@@ -105,15 +106,15 @@ class ObjSetting(object):
         return self.default
 
 
-class BaseObject(StoredObject, InputProcessor):
+class BaseObject(StoredObject, InputProcessor, MessagedObject):
     """
     The base class for all other objects. You may subclass this if you need an
     object without location or contents. You should use this instead of
-    directly subclassing StoredObject.
+    directly subclassing L{StoredObject}.
 
     @cvar commands: Commands provided by this class. Classes, not instances.
 
-    @ivar possessed_by: The BasePlayer who is currently possessing this object.
+    @ivar possessed_by: The L{BasePlayer} who is currently possessing this obj.
     @ivar possessable_by: List of players who can possess this object.
     @ivar __roles: The set of roles granted to this object. For most objects,
         this variable will always be empty. Characters and especially players,
@@ -162,7 +163,7 @@ class BaseObject(StoredObject, InputProcessor):
     @classmethod
     def objSettings(cls):
         """
-        Returns a dict of ObjSetting instances that apply to this class. The
+        Returns a dict of L{ObjSetting} instances that apply to this class. The
         ObjSettings come from this class and all ancestor classes that specify
         a list of ObjSettings.
 
@@ -525,6 +526,14 @@ class Object(BaseObject):
 
         return matches
 
+    @property
+    def hasLocation(self):
+        """
+        Returns true if the object is located somewhere valid.
+        @rtype: bool
+        """
+        return self.location is not None and self.location.isValid(Object)
+
     def getContext(self):
         """
         Add the object's location after self.
@@ -623,7 +632,7 @@ class Object(BaseObject):
             be a valid location, and will not include it in the list.
 
         @return: List of nested locations, from deepest to shallowest.
-        @rtype: list
+        @rtype: C{list}
         """
         locations = []
         if (isinstance(self.location, ObjRef)
@@ -632,6 +641,58 @@ class Object(BaseObject):
             if self.location.isValid(Object):
                 locations.extend(self.location.locations())
         return locations
+
+    def emit(self, msg, exclude=None):
+        """
+        Emit a message to the object's location, optionally excluding some
+        objects.
+
+        @see: L{Object.msgContents}
+        """
+        if not self.hasLocation:
+            return []
+        return self.location.msgContents(msg, exclude=exclude)
+
+    def msgContents(self, msg, exclude=None):
+        """
+        Send a message to the contents of this object.
+
+        @param msg: The message to send. This can be a string, dynamic message
+            list, or a dict from L{MessagedObject.getMessage}.
+        @type msg: C{str} or C{dict} or C{list}
+
+        @param exclude: List of objects to exclude from receiving the message.
+        @type exclude: C{list} or C{None}
+
+        @return: List of objects that received some form of notice.
+        @rtype: C{list}
+        """
+        # Offers caller freedom of not having to check for None, which he might
+        # get back from some message generation calls.
+        if msg is None:
+            return []
+
+        # Caller may have passed objects instead of references, but we need
+        # references since we're doing 'in' matching against values in
+        # contents, which really, really should be references.
+        exclude = [e.ref() for e in (exclude or [])
+                   if isinstance(e, StoredObject) or isinstance(e, ObjRef)]
+
+        if isinstance(msg, dict):
+            # Dict keys indicate what objects receive special messages. All
+            # others receive whatever's in '*'.
+            _msg = lambda o: msg[o] if o in msg else msg['*']
+        else:
+            _msg = lambda o: msg
+
+        receivers = []
+        for o in self.contents:
+            if o in exclude or not o.isValid(Object):
+                continue
+            o.msg(_msg(o))
+            receivers.append(o)
+
+        return receivers
 
 
 class BasePlayer(BaseObject):
