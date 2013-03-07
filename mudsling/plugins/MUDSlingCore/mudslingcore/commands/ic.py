@@ -34,7 +34,7 @@ class RoomLookCmd(Command):
         if not target.isValid(Thing):
             actor.msg("You're not sure what you see.")
         else:
-            if target in actor.getContext():
+            if target in actor._getContext():
                 actor.msg(target.seenBy(actor))
             else:
                 actor.msg("You don't see any '%s' here."

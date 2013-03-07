@@ -4,6 +4,7 @@ from mudsling.storage import StoredObject, ObjRef
 from mudsling import errors
 from mudsling.utils.password import Password
 from mudsling.utils.input import LineReader
+from mudsling.utils.sequence import unique
 from mudsling.match import match_objlist, match_stringlists
 from mudsling.sessions import InputProcessor
 from mudsling.messages import MessagedObject
@@ -390,7 +391,7 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         if cmd is not None:
             return cmd
         cmdstr, sep, argstr = raw.partition(' ')
-        for obj in self.getContext():
+        for obj in self.context:
             for cmdcls in obj.commandsFor(self):
                 if cmdcls.checkAccess(self) and cmdcls.matches(cmdstr):
                     cmd = cmdcls(raw, cmdstr, argstr, self.game, obj.ref(),
@@ -441,14 +442,22 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         """
         return None
 
-    def getContext(self):
+    @property
+    def context(self):
+        """
+        The same as self._getContext(), but with duplicates removed.
+        @return:
+        """
+        return unique(self._getContext())
+
+    def _getContext(self):
         """
         Return a list of objects which will be checked, in order, for commands
         or object matches when parsing command arguments.
 
         @rtype: list
         """
-        return [self]
+        return [self.ref()]
 
     def hasPerm(self, perm):
         """
@@ -534,12 +543,12 @@ class Object(BaseObject):
         """
         return self.location is not None and self.location.isValid(Object)
 
-    def getContext(self):
+    def _getContext(self):
         """
         Add the object's location after self.
         @rtype: list
         """
-        hosts = super(Object, self).getContext()
+        hosts = super(Object, self)._getContext()
         if self.location is not None:
             hosts.append(self.location)
         if isinstance(self.contents, list):
