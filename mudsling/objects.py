@@ -376,7 +376,7 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
             cmd.execute()
             return True
         if err:
-            raise errors.CommandInvalid(input)
+            raise errors.CommandInvalid(raw)
         return False
 
     def findCommand(self, raw):

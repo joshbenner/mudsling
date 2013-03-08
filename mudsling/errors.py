@@ -57,12 +57,12 @@ class CommandInvalid(CommandError):
 
     input = None
 
-    def __init__(self, cmdline=None):
+    def __init__(self, cmdline=None, msg=None):
         """
         cmdline could be raw string input or a ParsedInput structure.
         """
         self.input = cmdline
-        self.message = "Command Invalid."
+        self.message = msg or "Command Invalid."
 
 
 class ObjSettingError(Error):

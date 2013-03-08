@@ -9,7 +9,7 @@ from mudslingcore.objects import Thing
 class RoomLookCmd(Command):
     aliases = ('look', 'l')
     syntax = "[[at] <something>]"
-    valid_args = {
+    arg_parsers = {
         'something': Thing
     }
 

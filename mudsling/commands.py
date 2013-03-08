@@ -4,6 +4,7 @@ import inspect
 
 import inflect
 
+from mudsling.storage import StoredObject
 from mudsling.utils import string
 from mudsling.utils.syntax import Syntax, SyntaxParseError
 
@@ -41,16 +42,18 @@ class Command(object):
         able by mudsling.utils.syntax.Syntax.
     @cvar require_syntax_match: If True, then the command will only match if
         the syntax parses the argstr successfully.
-    @cvar valid_args: Dictionary with keys matching args keys and values giving
-        hints about how the validator should validate the arg values.
+    @cvar arg_parsers: Dictionary with keys matching args keys and values
+        giving hints about how the validator should parse the arg values. This
+        is also used by the syntax matching phase for arguments that should
+        resolve to the object providing the command ('this').
 
     @ivar obj: The object hosting this command.
     @ivar raw: The raw command-line input
     @ivar cmdstr: The command part of the input string.
     @ivar argstr: The argument part of the input string.
     @ivar argwords: A list of words (grouped by quotes) in the argstr.
-    @ivar args: The result of parsing the arguments.
-    @ivar parsed: Un-modified parsed argstr.
+    @ivar args: The raw input for the arguments.
+    @ivar parsed: The fully-parsed values for the arguments.
     @ivar actor: The object responsible for the input leading to execution.
     @ivar game: Handy reference to the game object.
     """
@@ -61,7 +64,7 @@ class Command(object):
     _syntax = None
     require_syntax_match = False
 
-    valid_args = {}
+    arg_parsers = {}
 
     required_perm = None
 
@@ -142,7 +145,7 @@ class Command(object):
         if parsed:
             self.args = parsed
             # Check for 'this' in any of the validators.
-            for argName, valid in self.valid_args.iteritems():
+            for argName, valid in self.arg_parsers.iteritems():
                 if valid == 'this':
                     matches = self.actor.matchObject(parsed[argName])
                     if len(matches) != 1 or matches[0] != self.obj:
@@ -199,39 +202,61 @@ class Command(object):
         Execution entry point for the command. The object system should call
         this once it has decided to run the command.
         """
+        self.parsed = self.parseArgs()
         if self.prepare():
-            self.run(self.obj, self.actor, self.args)
+            self.run(self.obj, self.actor, self.parsed)
 
-    def processArgs(self):
+    def parseArgs(self):
         """
-        Process args against valid_args. This is primarily a way to avoid
-        matching and validating the correct type for every command that need to
-        do so.
+        Process args against arg_parsers.
 
-        valid_args value options:
+        The first phase in command execution is to parse the arguments. This
+        can be done simply and cleanly by defining parser information for each
+        argument in arg_parsers rather than parsing the args in the run()
+        method. However, you are not required to do so.
+
+        arg_parsers value options:
           - 'this': Actor object match for this arg yields the command's host
             object. This is handled during syntax parsing/matching.
-          - Class: command will match object with actor and validate the result
-            is an object instance descendant of the specified class.
+          - Class descendant from L{StoredObject}: command will match object
+            with actor and validate the result is an object instance descendant
+            of the specified class.
+          - callable: Passes user input to the callable and stores the result.
+            Note that this works with int, float, list, tuple, etc.
+          - tuple: First element expected to be callable. Will pass input
+            followed by any other tuple elements as the arguments for callbale.
 
         Validated argument values will be replaced by their validated values in
         the args dictionary.
         """
         args = self.args
-        for argName, valid in self.valid_args.iteritems():
-            if argName not in args:
+        parsed = dict(args)
+        for argName, valid in self.arg_parsers.iteritems():
+            if argName not in args or valid == 'this':
                 continue
-            if inspect.isclass(valid):
+            elif inspect.isclass(valid) and issubclass(valid, StoredObject):
                 argVal = args[argName]
                 matches = self.actor.matchObject(argVal)
                 if self.matchFailed(matches, argVal):
-                    args[argName] = None
+                    parsed[argName] = None
                     continue
                 match = matches[0]
                 if isinstance(match, valid):
-                    args[argName] = match
+                    parsed[argName] = match
                 else:
-                    args[argName] = TypeError
+                    parsed[argName] = TypeError
+            elif callable(valid) or isinstance(valid, tuple):
+                if isinstance(valid, tuple):
+                    callback = valid[0]
+                    cb_args = valid[1:]
+                else:
+                    callback = valid
+                    cb_args = ()
+                try:
+                    parsed[argName] = callback(args[argName], *cb_args)
+                except Exception as e:
+                    parsed[argName] = e
+        return parsed
 
     def prepare(self):
         """
