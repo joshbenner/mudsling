@@ -21,77 +21,71 @@ class Syntax(object):
     regex = None
     _compiled = None
 
+    class _ParseState(object):
+        def __init__(self):
+            self.i = 0
+            self.optsets = 0
+            self.depth = []
+
     def __init__(self, syntax):
         self.natural = syntax
-        self.regex = self.syntax_to_regex(syntax)
+        self.regex = self._to_regex(syntax)
         self._compiled = re.compile(self.regex, re.I)
 
-    def syntax_to_regex(self, syntax):
-        regex = ['^']
+    def _peek(self, i):
+        if i < len(self.natural):
+            return self.natural[i]
+        return None
 
-        i = 0
-        optsets = 0
+    def _to_regex(self, syntax, state=None):
+        if not state:
+            regex = ['^']
+            suffix = '$'
+            state = Syntax._ParseState()
+        else:
+            regex = []
+            suffix = ''
+            state.i += 1
         lastchar = ''
-        optBeganWithSpace = False
-        while i < len(syntax):
-            char = syntax[i]
+
+        while state.i < len(syntax):
+            char = syntax[state.i]
             if char == '[':
+                state.depth.append(']')
+                subpat = self._to_regex(syntax, state)
                 if lastchar == ' ':
-                    # Optional group after a space. Include space in optional
-                    # group. We set the flag so that we know if we should also
-                    # include a space trailing an optional within the optional.
-                    # If the optional is surrounded by spaces, one is required.
-                    optBeganWithSpace = True
-                    regex = regex[:-1]
-                    regex.extend(['(?: +'])
-                else:
-                    optBeganWithSpace = False
-                    regex.append('(?:')
-                    lastchar = ''
-            elif char == ']':
-                regex.append(')?')
-                lastchar = ']'
+                    subpat = " +" + subpat
+                elif self._peek(state.i + 1) == ' ':
+                    subpat += " +"
+                regex.append("(?:%s)?" % subpat)
+            elif char == '{':
+                state.depth.append('}')
+                state.optsets += 1
+                optset = state.optsets
+                subpat = self._to_regex(syntax, state)
+                regex.append("(?P<optset%d>%s)" % (optset, subpat))
+            elif state.depth and char == state.depth[-1]:
+                state.depth.pop()
+                break
             elif char == '<':
-                lastchar = ''
-                end = syntax.find('>', i)
+                end = syntax.find('>', state.i)
                 if end == -1:
-                    raise SyntaxParseError('Missing closing >')
-                userval = syntax[i + 1:end]
-                i = end
+                    raise SyntaxParseError("Missing closing '>'")
+                userval = syntax[state.i + 1:end]
+                state.i = end
                 name, sep, pat = userval.partition(':')
                 if pat == '':
                     pat = '.+?'
                 regex.append('(?P<%s>%s)' % (name, pat))
-            elif char == '{':
-                lastchar = ''
-                end = syntax.find('}', i)
-                if end == -1:
-                    raise SyntaxParseError('Missing closing }')
-                opt_spec = syntax[i + 1:end]
-                i = end
-                opt_regexes = []
-                for opt in [s.strip() for s in opt_spec.split('|')]:
-                    opt_re = self.syntax_to_regex(opt).rstrip('$').lstrip('^')
-                    opt_regexes.append(opt_re)
-                optsets += 1
-                regex.append('(?P<optset%d>' % optsets)
-                regex.append('(?:%s))' % ')|(?:'.join(opt_regexes))
+            elif char == ' ':
+                if lastchar != ' ':
+                    regex.append(' +')
             else:
-                if char == ' ' and lastchar == ' ':
-                    pass
-                else:
-                    if char == ' ':
-                        if lastchar == ']' and not optBeganWithSpace:
-                            regex = regex[:-1]
-                            regex.append(' +)?')
-                        else:
-                            regex.append(' +')
-                    else:
-                        regex.append(re.escape(char))
-                    lastchar = char
-            i += 1
+                regex.append(char)
+            lastchar = char
+            state.i += 1
 
-        regex.append('$')
+        regex.append(suffix)
         return ''.join(regex)
 
     def parse(self, string):

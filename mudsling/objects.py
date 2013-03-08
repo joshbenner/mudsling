@@ -657,10 +657,24 @@ class Object(BaseObject):
         objects.
 
         @see: L{Object.msgContents}
+        @rtype: C{list}
         """
         if not self.hasLocation:
             return []
         return self.location.msgContents(msg, exclude=exclude)
+
+    def emitMessage(self, key, exclude=None, **keywords):
+        """
+        Emit a message template to object's location.
+
+        @param key: The key of the message to emit.
+        @param keywords: The keywords for the template.
+
+        @return: List of objects notified.
+        @rtype: C{list}
+        """
+        msg = self.getMessage(key, **keywords)
+        return self.emit(msg, exclude=exclude)
 
     def msgContents(self, msg, exclude=None):
         """
