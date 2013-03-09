@@ -3,6 +3,7 @@ Object commands.
 """
 from mudsling.commands import Command
 from mudsling.objects import BasePlayer, Object as LocatedObject
+from mudsling import registry
 
 from mudslingcore import misc
 
@@ -18,7 +19,7 @@ class CreateCmd(Command):
     syntax = "<class> [called|named] <names>"
 
     def run(self, this, actor, args):
-        cls = self.game.getClass(args['class'])
+        cls = registry.classes.getClass(args['class'])
         if cls is None:
             actor.msg("Unknown class: %s" % args['class'])
             return
@@ -29,7 +30,7 @@ class CreateCmd(Command):
             return
 
         obj = self.game.db.createObject(cls, names[0], names[1:])
-        clsName = self.game.getClassName(cls)
+        clsName = registry.classes.getClassName(cls)
         actor.msg("{gCreated new %s: {c%s" % (clsName, obj.nn))
 
         if obj.isa(LocatedObject):

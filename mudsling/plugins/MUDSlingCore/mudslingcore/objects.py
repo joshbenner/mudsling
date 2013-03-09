@@ -1,6 +1,10 @@
 from mudsling.objects import BasePlayer, BaseCharacter
 from mudsling.objects import Object
 from mudsling.commands import allCommands
+from mudsling import registry
+
+from objsettings import ObjSetting, ConfigurableObject
+from topography import Room
 
 import commands.admin.system
 import commands.admin.perms
@@ -72,7 +76,7 @@ class Thing(Object):
         return "%s\n%s" % (name, self.desc)
 
 
-class Player(BasePlayer):
+class Player(BasePlayer, ConfigurableObject):
     commands = allCommands(
         commands.admin.system,
         commands.admin.perms,
@@ -80,6 +84,15 @@ class Player(BasePlayer):
         commands.admin.objects,
         commands.ooc
     )
+
+    object_settings = {
+        # The class to use when creating rooms with @dig.
+        ObjSetting(name='building.room_class',
+                   type=type,
+                   attr='building_room_class',
+                   default=Room,
+                   parser=registry.classes.getClass)
+    }
 
     def preemptiveCommandMatch(self, raw):
         """

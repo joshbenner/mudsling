@@ -21,7 +21,6 @@ sys.modules['configparser'] = sys.modules['ConfigParser']
 
 from twisted.internet import reactor
 from twisted.application.service import Service, MultiService
-from twisted.python.util import InsensitiveDict
 
 from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
@@ -30,37 +29,35 @@ from mudsling.utils.modules import class_from_path
 from mudsling.utils.time import dhms_to_seconds
 from mudsling import proxy
 from mudsling import tasks
+from mudsling import registry
 
 logging.basicConfig(level=logging.DEBUG)
 
 
 class MUDSling(MultiService):
-    #: @type: str
+    #: @type: C{str}
     game_dir = "game"
 
-    #: @type: ConfigParser.SafeConfigParser
+    #: @type: L{ConfigParser.SafeConfigParser}
     config = None
 
-    #: @type: PluginManager
+    #: @type: L{PluginManager}
     plugins = None
 
-    #: @type: mudsling.storage.Database
+    #: @type: L{mudsling.storage.Database}
     db = None
     db_file_path = ""
 
-    #: @type: SessionHandler
+    #: @type: L{SessionHandler}
     session_handler = None
 
-    #: @type: mudsling.plugins.LoginScreenPlugin
+    #: @type: L{mudsling.plugins.LoginScreenPlugin}
     login_screen = None
 
-    #: @type: types.ClassType
+    #: @type: C{types.ClassType}
     player_class = None
     character_class = None
     room_class = None
-
-    #: @type: twisted.python.util.InsensitiveDict
-    class_registry = InsensitiveDict()
 
     def __init__(self, gameDir, configPaths):
         """
@@ -70,7 +67,6 @@ class MUDSling(MultiService):
         MultiService.__init__(self)
 
         self.game_dir = gameDir
-
         self.initGameDir()
 
         # Load configuration.
@@ -87,10 +83,12 @@ class MUDSling(MultiService):
         self.plugins = PluginManager(self, self.game_dir)
 
         self.loadClassConfigs()
-        self.buildClassRegistry()
+        registry.classes.buildClassRegistry(self)
         self.loadDatabase()
-        tasks.BaseTask.db = self.db
+
+        # Dependency injection.
         tasks.BaseTask.game = self
+        tasks.BaseTask.db = self.db
 
         if not self.db.initialized:
             self.initDatabase()
@@ -223,57 +221,6 @@ class MUDSling(MultiService):
         """
         hook = "hook_" + hook
         return self.plugins.invokeHook('GamePlugin', hook, *args, **kwargs)
-
-    def buildClassRegistry(self):
-        """
-        Builds a class registry for all classes which can be @create'd in-game.
-        We do this so that we can have friendly names and easily produce lists
-        of object types.
-
-        The MUDSling server doesn't register its base classes; however, some
-        classes are registered by the MUDSlingCore default plugin.
-
-        Invokes hook_objectClasses and expects responding plugins to return a
-        list of (name, class) tuples.
-        """
-        self.class_registry = InsensitiveDict()
-        for plugin, response in self.invokeHook('objectClasses').iteritems():
-            if not isinstance(response, list):
-                continue
-            try:
-                for name, cls in response:
-                    if name in self.class_registry:
-                        logging.error("Duplicate class name: %s" % name)
-                        alt = cls.__module__ + '.' + cls.__name__
-                        self.class_registry[alt] = cls
-                    else:
-                        self.class_registry[name] = cls
-            except TypeError:
-                err = "Invalid class registration from %s" % plugin.name
-                logging.error(err)
-
-    def getClass(self, name):
-        """
-        Searches the class registry for a class matching the given name.
-        @param name: The class name to search for.
-        @return: The class with the specified pretty name.
-        @rtype: type or None
-        """
-        if name in self.class_registry:
-            return self.class_registry[name]
-        return None
-
-    def getClassName(self, cls):
-        """
-        Given a class, find the class registry name that corresponds to it.
-        @param cls: The class whose pretty name to retrieve.
-        @return: The pretty name of the class.
-        @rtype: str or None
-        """
-        for name, obj in self.class_registry.iteritems():
-            if obj == cls:
-                return name
-        return None
 
 
 class CheckpointTask(tasks.Task):

@@ -30,13 +30,23 @@ class DigCmd(Command):
         room = self._getRoom(actor, args)
 
     def _getRoom(self, actor, args):
+        """
+        @type actor: L{mudslingcore.objects.Player}
+        @type args: C{dict}
+        @rtype: L{mudslingcore.topography.Room}
+        """
         invalid = lambda m=None: CommandInvalid(cmdline=self.raw, msg=m)
         # First: Are we creating a new room?
         newRoomNames = args['roomNames'] or args['exitlessRoomNames']
         if newRoomNames:
             if not isinstance(newRoomNames, list):
                 raise invalid("Invalid room names.")
-                # todo: create room
+            name, aliases = newRoomNames[0], newRoomNames[1:]
+            roomClass = actor.getObjSetting('building.room_class')
+            if roomClass is not None and issubclass(roomClass, Room):
+                room = self.game.db.createObject(roomClass, name, aliases)
+            else:
+                raise invalid("Invalid building.room_class: %r" % roomClass)
         elif args['room']:
             room = args['room']
             if not isinstance(room, Room):
