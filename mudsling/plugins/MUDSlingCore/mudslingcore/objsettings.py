@@ -1,3 +1,5 @@
+import inspect
+
 from mudsling import errors
 from mudsling.storage import StoredObject, ObjRef, Persistent
 
@@ -31,17 +33,50 @@ class ObjSetting(object):
     def parseStringListNoneEmpty(string):
         return filter(lambda x: x, ObjSetting.parseStringList(string))
 
-    def setValue(self, obj, input):
+    def setValue(self, obj, value):
+        """
+        Store the given value for this object setting. No validation or
+        converstion.
+
+        @raise L{errors.ObjSettingError}: If setting the attribute results in
+            an exception.
+
+        @returns: True if storing the value was successful.
+        @rtype: C{bool}
+        """
+        attr = self.attr
+        if attr is None:  # Store in unbound_settings
+            if "unbound_settings" in obj.__dict__:
+                if obj.unbound_settings is None:
+                    obj.unbound_settings = {}
+                obj.unbound_settings[self.name] = value
+                return True
+            else:
+                return False
+        else:
+            if hasattr(obj, attr):
+                try:
+                    setattr(obj, attr, value)
+                    return True
+                except Exception as e:
+                    raise errors.ObjSettingError(obj, self.name, e.message)
+            else:
+                return False
+
+    def setValueFromInput(self, obj, input):
         """
         Sets the value for the setting this instance describes on the provided
         object to the provided value.
 
         @returns: True if set action succeeds.
-        @rtype: bool
+        @rtype: C{bool}
         """
         if callable(self.parser):
             try:
-                value = self.parser(obj, self, input)
+                if inspect.isclass(self.parser):
+                    value = self.parser.parse(input)
+                else:
+                    value = self.parser(obj, self, input)
             except errors.ObjSettingError:
                 raise
             except Exception as e:
@@ -68,24 +103,7 @@ class ObjSetting(object):
                 raise errors.InvalidSettingValue(obj, self.name, value)
 
         # If we get this far, then value is valid.
-        attr = self.attr
-        if attr is None:  # Store in unbound_settings
-            if "unbound_settings" in obj.__dict__:
-                if obj.unbound_settings is None:
-                    obj.unbound_settings = {}
-                obj.unbound_settings[self.name] = value
-                return True
-            else:
-                return False
-        else:
-            if hasattr(obj, attr):
-                try:
-                    setattr(obj, attr, value)
-                    return True
-                except Exception as e:
-                    raise errors.ObjSettingError(obj, self.name, e.message)
-            else:
-                return False
+        return self.setValue(obj, value)
 
     def getValue(self, obj):
         attr = self.attr
@@ -130,7 +148,7 @@ class ConfigurableObject(Persistent):
         a list of ObjSettings.
 
         @return: Dict of ObjSetting instances describing the settings for obj.
-        @rtype: dict of str:ObjSetting
+        @rtype: C{dict} of C{str}:L{ObjSetting}
         """
         if cls._objSettings_cache is not None:
             return cls._objSettings_cache
