@@ -7,11 +7,11 @@ from mudsling.commands import Command
 from mudsling import errors
 from mudsling.utils import string
 
-from mudslingcore.objects import Thing, Object
+from mudslingcore.objects import DescribableObject, Object
 from mudslingcore.commands import ic
 
 
-class Room(Thing):
+class Room(DescribableObject):
     """
     A standard room.
 
@@ -34,13 +34,15 @@ class Room(Thing):
     def handleUnmatchedInput(self, raw):
         matches = self._match(raw, self.exits, exactOnly=True)
         if len(matches) == 1:
-            cmd = ExitCmd(raw, raw, raw, self.game, matches[0], self.ref())
+            return ExitCmd(raw, raw, raw, self.game, matches[0], self.ref())
         elif len(matches) > 1:
             msg = "Which way? {raw!r} matches: {exits}".format(
                 raw=raw,
                 exits=string.english_list(self.exits)
             )
             raise errors.CommandError(msg)
+        else:
+            return super(Room, self).handleUnmatchedInput(raw)
 
     def allowEnter(self, what, exit=None):
         """
@@ -69,6 +71,10 @@ class Room(Thing):
         @see: L{Room.enterStopped}
         """
         return self.allowLeave(what, exit=exit)
+
+    def addExit(self, exit):
+        if exit.isValid(Exit):
+            self.exits.append(exit)
 
 
 class Exit(StoredObject, MessagedObject):

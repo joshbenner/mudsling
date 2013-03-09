@@ -57,6 +57,7 @@ class Syntax(object):
                     subpat = " +" + subpat
                 elif self._peek(state.i + 1) == ' ':
                     subpat += " +"
+                    state.i += 1
                 regex.append("(?:%s)?" % subpat)
             elif char == '{':
                 state.depth.append('}')
@@ -80,8 +81,10 @@ class Syntax(object):
             elif char == ' ':
                 if lastchar != ' ':
                     regex.append(' +')
+            elif char == '|' and state.depth[-1] == '}':
+                regex.append('|')
             else:
-                regex.append(char)
+                regex.append(re.escape(char))
             lastchar = char
             state.i += 1
 

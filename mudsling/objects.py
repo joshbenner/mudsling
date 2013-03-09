@@ -21,9 +21,6 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
 
     @ivar possessed_by: The L{BasePlayer} who is currently possessing this obj.
     @ivar possessable_by: List of players who can possess this object.
-    @ivar __roles: The set of roles granted to this object. For most objects,
-        this variable will always be empty. Characters and especially players,
-        however, may have occasion to be granted roles.
     """
 
     # commands should never be set on instance, but... just in case.
@@ -37,8 +34,6 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
 
     #: @type: list
     possessable_by = []
-
-    __roles = set()
 
     def pythonClassName(self):
         return "%s.%s" % (self.__class__.__module__, self.__class__.__name__)
@@ -84,10 +79,6 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
                 name += " (#%d)" % obj.id
         finally:
             return name
-
-    def expungeRole(self, role):
-        if self.hasRole(role):
-            self.removeRole(role)
 
     @property
     def player(self):
@@ -313,28 +304,9 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
 
     def hasPerm(self, perm):
         """
-        Checks if this object has the permission specified. An object has a
-        perm if it has a role in which that permission can be found.
+        Returns True if the player possessing this object has the passed perm.
         """
-        return len([role for role in self.roles if role.hasPerm(perm)]) > 0
-
-    def getRoles(self):
-        return set(self.__roles)
-
-    def hasRole(self, role):
-        return role in self.__roles
-
-    def addRole(self, role):
-        if 'roles' not in self.__dict__:
-            self.__roles = set()
-        if role not in self.__roles:
-            self.__roles.add(role)
-
-    def removeRole(self, role):
-        if role in self.__roles:
-            self.__roles.remove(role)
-        if len(self.__roles) == 0:
-            del self.__roles
+        return self.player.hasPerm(perm) if self.player is not None else False
 
 
 class Object(BaseObject):
@@ -581,6 +553,7 @@ class BasePlayer(BaseObject):
     @ivar email: The player's email address.
     @ivar session: The session object connected to this player.
     @ivar default_object: The object this player will possess upon connecting.
+    @ivar __roles: The set of roles granted to this player.
     """
 
     _transientVars = ['session', 'possessing']
@@ -602,6 +575,8 @@ class BasePlayer(BaseObject):
 
     # Governed by ansi property
     _ansi = False
+
+    __roles = set()
 
     @property
     def connected(self):
@@ -842,9 +817,35 @@ class BasePlayer(BaseObject):
             raise
 
     def hasPerm(self, perm):
+        """
+        Checks if this object has the permission specified. An object has a
+        perm if it has a role in which that permission can be found.
+        """
         if self.superuser:
             return True
-        return super(BasePlayer, self).hasPerm(perm)
+        return len([role for role in self.__roles if role.hasPerm(perm)]) > 0
+
+    def getRoles(self):
+        return set(self.__roles)
+
+    def hasRole(self, role):
+        return role in self.__roles
+
+    def addRole(self, role):
+        if 'roles' not in self.__dict__:
+            self.__roles = set()
+        if role not in self.__roles:
+            self.__roles.add(role)
+
+    def removeRole(self, role):
+        if role in self.__roles:
+            self.__roles.remove(role)
+        if len(self.__roles) == 0:
+            del self.__roles
+
+    def expungeRole(self, role):
+        if self.hasRole(role):
+            self.removeRole(role)
 
     @property
     def ansi(self):

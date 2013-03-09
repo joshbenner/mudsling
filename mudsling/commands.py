@@ -7,6 +7,8 @@ import inflect
 from mudsling.storage import StoredObject
 from mudsling.utils import string
 from mudsling.utils.syntax import Syntax, SyntaxParseError
+from mudsling.parsers import Parser
+from mudsling.errors import CommandInvalid
 
 
 prepositions = (
@@ -218,6 +220,8 @@ class Command(object):
         arg_parsers value options:
           - 'this': Actor object match for this arg yields the command's host
             object. This is handled during syntax parsing/matching.
+          - Subclass of L{mudsling.parsers.Parser}: Use a Parser class to
+            translate the input to a value.
           - Class descendant from L{StoredObject}: command will match object
             with actor and validate the result is an object instance descendant
             of the specified class.
@@ -232,7 +236,7 @@ class Command(object):
         args = self.args
         parsed = dict(args)
         for argName, valid in self.arg_parsers.iteritems():
-            if argName not in args or valid == 'this':
+            if argName not in args or valid == 'this' or args[argName] is None:
                 continue
             elif inspect.isclass(valid) and issubclass(valid, StoredObject):
                 argVal = args[argName]
@@ -245,6 +249,11 @@ class Command(object):
                     parsed[argName] = match
                 else:
                     parsed[argName] = TypeError
+            elif inspect.isclass(valid) and issubclass(valid, Parser):
+                try:
+                    parsed[argName] = valid.parse(args[argName])
+                except Exception as e:
+                    parsed[argName] = e
             elif callable(valid) or isinstance(valid, tuple):
                 if isinstance(valid, tuple):
                     callback = valid[0]
@@ -350,6 +359,15 @@ class Command(object):
 
         self.actor.msg(msg)
         return True
+
+    def _err(self, msg=None):
+        """
+        Quick and handy way to generate an error inside a command.
+
+        Example:
+            raise self._err("That makes no sense!")
+        """
+        return CommandInvalid(cmdline=self.raw, msg=msg)
 
 
 def makeCommandList(obj):
