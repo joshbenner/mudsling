@@ -6,6 +6,7 @@ from mudsling import errors
 from mudsling.utils.password import Password
 from mudsling.utils.input import LineReader
 from mudsling.utils.sequence import unique
+from mudsling.utils.object import filterByClass
 from mudsling.match import match_objlist, match_stringlists
 from mudsling.sessions import InputProcessor
 from mudsling.messages import MessagedObject
@@ -35,13 +36,6 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
 
     #: @type: list
     possessable_by = []
-
-    def pythonClassName(self):
-        return "%s.%s" % (self.__class__.__module__, self.__class__.__name__)
-
-    def className(self):
-        name = registry.classes.getClassName(self.__class__)
-        return name if name is not None else self.pythonClassName()
 
     def objectDeleted(self):
         super(BaseObject, self).objectDeleted()
@@ -176,21 +170,29 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         strings = dict(zip(objlist, map(lambda o: self.namesFor(o), objlist)))
         return match_stringlists(search, strings, exactOnly=exactOnly, err=err)
 
-    def matchObject(self, search, err=False):
+    def matchObject(self, search, cls=None, err=False):
         """
         A general object match for this object. Uses .namesFor() values in the
         match rather than direct aliases.
 
         @param search: The search string.
+        @param cls: Limit potential matches to descendants of the given class
+            or classes.
+        @type cls: C{tuple} or C{type}
         @param err: If true, can raise search result errors.
 
         @rtype: list
         """
+        candidate = None
         if search[0] == '#' and re.match(r"#\d+", search):
-            return [self.game.db.getRef(int(search[1:]))]
+            candidate = self.game.db.getRef(int(search[1:]))
         if search.lower() == 'me':
-            return [self.ref()]
-        return self._match(search, [self.ref()], err=err)
+            candidate = self.ref()
+
+        if candidate is not None and filterByClass([candidate], cls):
+            return [candidate]
+
+        return self._match(search, filterByClass([self.ref()], cls), err=err)
 
     def matchObjectOfType(self, search, cls=None):
         """
@@ -342,19 +344,26 @@ class Object(BaseObject):
             if o.location == this:
                 o.moveTo(None)
 
-    def matchObject(self, search, err=False):
+    def matchObject(self, search, cls=None, err=False):
         """
         @type search: str
         @rtype: list
         """
-        matches = super(Object, self).matchObject(search)
+        # Any match in parent bypasses further matching. This means, in theory,
+        # that if parent matched something, something else that could match in
+        # contents or location will not match. Fortunately, all we match in
+        # L{BaseObject.matchObject} is object literals and self, so this sould
+        # not really be an issue.
+        matches = super(Object, self).matchObject(search, cls=cls)
         if not matches:
             if search.lower() == 'here' and self.location is not None:
-                return [self.location]
+                if filterByClass([self.location], cls):
+                    return [self.location]
 
-            matches = self._match(search, self.contents, err=False)
-            if not matches:
-                matches = self._match(search, self.location.contents, err=err)
+            objects = self.contents
+            if self.hasLocation:
+                objects.extend(self.location.contents)
+            matches = self._match(search, filterByClass(objects, cls), err=err)
 
         if err and len(matches) > 1:
             raise errors.AmbiguousMatch(matches=matches)

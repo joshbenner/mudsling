@@ -6,6 +6,7 @@ import logging
 
 from mudsling.match import match_objlist
 from mudsling import errors
+from mudsling import registry
 
 
 # Support pickling methods.
@@ -172,6 +173,13 @@ class StoredObject(Persistent):
 
     def __str__(self):
         return self._name
+
+    def pythonClassName(self):
+        return "%s.%s" % (self.__class__.__module__, self.__class__.__name__)
+
+    def className(self):
+        name = registry.classes.getClassName(self.__class__)
+        return name if name is not None else self.pythonClassName()
 
     def isa(self, cls):
         """

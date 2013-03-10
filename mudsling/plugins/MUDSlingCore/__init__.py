@@ -10,7 +10,7 @@ from mudsling.extensibility import GamePlugin
 from mudsling.perms import Role
 
 from .mudslingcore.objects import Thing, Character, Player
-from .mudslingcore.topography import Room
+from .mudslingcore.topography import Room, Exit
 
 
 class MUDSlingCorePlugin(GamePlugin):
@@ -63,4 +63,5 @@ class MUDSlingCorePlugin(GamePlugin):
             ('Player', Player),
             ('Character', Character),
             ('Room', Room),
+            ('Exit', Exit),
         ]

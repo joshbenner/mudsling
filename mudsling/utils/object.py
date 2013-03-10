@@ -1,20 +1,33 @@
-from mudsling.objects import BasePlayer, Object
 
 
-def location(obj):
+def filterByClass(objects, cls):
     """
-    Tries to identify a 'location' for the passed object. This is not always
-    direct, since the object might be possessing another object. Calling this
-    removes the caller's responsibility for knowing what type the object is or
-    what state it is in.
+    Filter a list of objects to only descendants of a class or classes.
 
-    @param obj: The object whose location to find.
-    @type obj: mudsling.storage.ObjRef
-    @rtype: mudsling.storage.ObjRef or None
+    @param objects: Objects to filter.
+    @type: C{list}
+
+    @param cls: Class(es) that objects must be descendant from. If None is
+        passed, then no filtering is done.
+    @type: C{type} or C{None}
+
+    @return: List of filtered objects.
+    @rtype: C{list}
     """
-    if obj.isa(BasePlayer):
-        if obj.possessing is not None:
-            return location(obj.possessing)
-        return None
-    if obj.isa(Object):
-        return obj.location
+    if cls is not None:
+        filtered = []
+        classes = cls if isinstance(cls, tuple) else (cls,)
+        for o in objects:
+            valid = False
+            for c in classes:
+                try:
+                    if o.isValid(c):
+                        valid = True
+                        break
+                except AttributeError:
+                    continue
+            if valid:
+                filtered.append(o)
+        return filtered
+    else:
+        return list(objects)

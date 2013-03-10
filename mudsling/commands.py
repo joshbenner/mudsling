@@ -62,7 +62,7 @@ class Command(object):
 
     aliases = ()
     syntax = ""
-    #: @type: Syntax
+    #: @type: list
     _syntax = None
     require_syntax_match = False
 
@@ -125,8 +125,14 @@ class Command(object):
 
     @classmethod
     def _compileSyntax(cls):
+        cls._syntax = []
         try:
-            cls._syntax = Syntax(cls.syntax)
+            if isinstance(cls.syntax, basestring):
+                syntaxes = (cls.syntax,)
+            else:
+                syntaxes = cls.syntax
+            for syntax in syntaxes:
+                cls._syntax.append(Syntax(syntax))
         except SyntaxParseError as e:
             logging.error("Cannot parse %s syntax: %s"
                           % (cls.name(), e.message))
@@ -137,13 +143,14 @@ class Command(object):
         Determine if the input matches the command syntax.
         @rtype: bool
         """
-        if self._syntax is None and self.syntax:
+        if self._syntax is None:
             self._compileSyntax()
 
-        if not self.syntax and argstr == '':
-            return True
-
-        parsed = self._syntax.parse(argstr)
+        parsed = {}
+        for syntax in self._syntax:
+            parsed = syntax.parse(argstr)
+            if isinstance(parsed, dict):
+                break
         if parsed:
             self.args = parsed
             # Check for 'this' in any of the validators.

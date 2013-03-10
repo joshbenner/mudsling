@@ -20,6 +20,7 @@ class Syntax(object):
     natural = None
     regex = None
     _compiled = None
+    named_captures = None
 
     class _ParseState(object):
         def __init__(self):
@@ -29,6 +30,7 @@ class Syntax(object):
 
     def __init__(self, syntax):
         self.natural = syntax
+        self._named_captures = []
         self.regex = self._to_regex(syntax)
         self._compiled = re.compile(self.regex, re.I)
 
@@ -39,13 +41,14 @@ class Syntax(object):
 
     def _to_regex(self, syntax, state=None):
         if not state:
-            regex = ['^']
-            suffix = '$'
+            prefix = '^(?P<argstr>'
+            suffix = ')$'
             state = Syntax._ParseState()
         else:
-            regex = []
+            prefix = ''
             suffix = ''
             state.i += 1
+        regex = []
         lastchar = ''
 
         while state.i < len(syntax):
@@ -77,7 +80,9 @@ class Syntax(object):
                 name, sep, pat = userval.partition(':')
                 if pat == '':
                     pat = '.+?'
-                regex.append('(?P<%s>%s)' % (name, pat))
+                self._named_captures.append(name)
+                fmt = '(?:(?P<__quoted_{0}>"{1}")|(?P<__unquoted_{0}>{1}))'
+                regex.append(fmt.format(name, pat))
             elif char == ' ':
                 if lastchar != ' ':
                     regex.append(' +')
@@ -88,11 +93,20 @@ class Syntax(object):
             lastchar = char
             state.i += 1
 
-        regex.append(suffix)
-        return ''.join(regex)
+        return prefix + ''.join(regex) + suffix
 
     def parse(self, string):
         m = self._compiled.search(string)
         if m:
-            return m.groupdict()
+            out = m.groupdict()
+            for nc in self._named_captures:
+                qkey = "__quoted_%s" % nc
+                ukey = "__unquoted_%s" % nc
+                quoted = out[qkey]
+                if isinstance(quoted, str):
+                    quoted = quoted.strip('"')
+                unquoted = out[ukey]
+                del out[qkey], out[ukey]
+                out[nc] = quoted or unquoted or None
+            return out
         return False
