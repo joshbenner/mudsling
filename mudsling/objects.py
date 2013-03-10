@@ -154,6 +154,8 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
 
         @rtype: str
         """
+        if parts is None:
+            return None
         if isinstance(parts, basestring):
             return parts
         for i, part in enumerate(parts):
@@ -393,6 +395,23 @@ class Object(BaseObject):
             hosts.extend(self.location.contents)
 
         return hosts
+
+    def handleUnmatchedInput(self, raw):
+        # Let location offer commands at this stage, too.
+        cmd = super(Object, self).handleUnmatchedInput(raw)
+        if not cmd:
+            if self.hasLocation:
+                try:
+                    cmd = self.location.handleUnmatchedInputFor(self, raw)
+                except AttributeError:
+                    cmd = None
+        return cmd
+
+    def handleUnmatchedInputFor(self, actor, raw):
+        """
+        Object may ask its container for last-try command matching.
+        """
+        return None
 
     def contentRemoved(self, what, destination):
         """
@@ -773,7 +792,7 @@ class BasePlayer(BaseObject):
         @param flags: Flags to modify how text is handled.
         @type text: str
         """
-        if self.session is not None:
+        if self.session is not None and text is not None:
             self.session.sendOutput(self._format_msg(text), flags=flags)
 
     def possessObject(self, obj):
@@ -882,7 +901,7 @@ class BasePlayer(BaseObject):
                 return [self.ref()]
         return super(BasePlayer, self).matchObjectOfType(search, cls=cls)
 
-    def matchObject(self, search, err=False):
+    def matchObject(self, search, cls=None, err=False):
         """
         Matching on the player will also pass the match call through to the
         object the player is possessing.
@@ -890,9 +909,10 @@ class BasePlayer(BaseObject):
         Note that 'me' will match the possessed object if the player is
         possessing something, else it will match player object.
         """
-        matches = self.possessing.matchObject(search, err=False)
+        matches = self.possessing.matchObject(search, cls=cls, err=False)
         if not matches and self.isPosessing:
-            matches = super(BasePlayer, self).matchObject(search, err=err)
+            matches = super(BasePlayer, self).matchObject(search,
+                                                          cls=cls, err=err)
 
         if err and len(matches) > 1:
             raise errors.AmbiguousMatch(matches=matches)

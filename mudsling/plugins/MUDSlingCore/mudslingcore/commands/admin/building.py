@@ -64,7 +64,7 @@ class DigCmd(Command):
         if returnExit:
             returnExit.source = room
             returnExit.dest = currentRoom
-            room.addExit(exit)
+            room.addExit(returnExit)
             msg = ["{gExit ({m", returnExit, "{g) created from {c",
                    returnExit.source, "{g to {c", returnExit.dest, "{g."]
             actor.msg(msg)

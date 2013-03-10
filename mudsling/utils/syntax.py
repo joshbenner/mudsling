@@ -84,14 +84,23 @@ class Syntax(object):
                 fmt = '(?:(?P<__quoted_{0}>"{1}")|(?P<__unquoted_{0}>{1}))'
                 regex.append(fmt.format(name, pat))
             elif char == ' ':
-                if lastchar != ' ':
+                if lastchar != ' ' and lastchar != 'OR' and len(regex):
                     regex.append(' +')
             elif char == '|' and state.depth[-1] == '}':
+                if lastchar == ' ':
+                    regex.pop()
                 regex.append('|')
+                lastchar = 'OR'
+                state.i += 1
+                continue
             else:
                 regex.append(re.escape(char))
             lastchar = char
             state.i += 1
+
+        # Trim trailing spaces.
+        if lastchar == ' ':
+            regex.pop()
 
         return prefix + ''.join(regex) + suffix
 

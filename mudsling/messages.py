@@ -3,6 +3,7 @@ Message formatting system.
 """
 import string
 import random
+import copy
 
 
 class InvalidMessage(Exception):
@@ -43,11 +44,14 @@ class MessageParser(object):
         @type keywords: C{dict}
         @rtype: C{list}
         """
+        if not tpl:  # Blank messages should yield nothing.
+            return None
+
         def subst(name):
             if name in keywords:
                 return keywords[name]
             return "${{{}}}".format(name)
-
+        print repr(tpl)
         parts = string.Template.pattern.split(tpl)
         out = []
         i = 0
@@ -166,6 +170,7 @@ class MessagedObject(object):
         if isinstance(msg, basestring):
             msg = {'*': msg}
         elif isinstance(msg, dict):
+            msg = copy.deepcopy(msg)
             if '*' not in msg:
                 msg['*'] = None
         else:

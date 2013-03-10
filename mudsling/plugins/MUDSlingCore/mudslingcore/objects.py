@@ -45,9 +45,20 @@ class DescribableObject(Object):
         @return: What the object would see.
         @rtype: str
         """
-        name = obj.nameFor(self) if obj is not None else self.name
-        desc = self.desc if self.desc else "You see nothing special."
-        return "%s\n%s" % (name, desc)
+        return "%s\n%s" % (self.descTitle(obj), self.describeTo(obj))
+
+    def descTitle(self, obj):
+        """
+        Return the title to show before the description as seen by the passed
+        object.
+        """
+        return obj.nameFor(self) if obj is not None else self.name
+
+    def describeTo(self, obj):
+        """
+        Return the string describing this object to the passed object.
+        """
+        return self.desc if self.desc else "You see nothing special."
 
 
 class Thing(DescribableObject):

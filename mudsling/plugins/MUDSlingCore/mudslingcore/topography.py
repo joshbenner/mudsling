@@ -5,7 +5,9 @@ from mudsling.storage import StoredObject
 from mudsling.messages import MessagedObject
 from mudsling.commands import Command
 from mudsling import errors
-from mudsling.utils import string
+
+from mudsling import utils
+import mudsling.utils.string
 
 from mudslingcore.objects import DescribableObject, Object
 from mudslingcore.commands import ic
@@ -31,14 +33,17 @@ class Room(DescribableObject):
         super(Room, self).__init__()
         self.exits = []
 
-    def handleUnmatchedInput(self, raw):
-        matches = self._match(raw, self.exits, exactOnly=True)
+    def matchExit(self, search, exactOnly=True):
+        return self._match(search, self.exits, exactOnly=exactOnly)
+
+    def handleUnmatchedInputFor(self, actor, raw):
+        matches = self.matchExit(raw)
         if len(matches) == 1:
-            return ExitCmd(raw, raw, raw, self.game, matches[0], self.ref())
+            return ExitCmd(raw, raw, raw, self.game, matches[0], actor)
         elif len(matches) > 1:
             msg = "Which way? {raw!r} matches: {exits}".format(
                 raw=raw,
-                exits=string.english_list(self.exits)
+                exits=utils.string.english_list(self.exits)
             )
             raise errors.CommandError(msg)
         else:
@@ -72,9 +77,52 @@ class Room(DescribableObject):
         """
         return self.allowLeave(what, exit=exit)
 
+    def contentAdded(self, what, previous_location):
+        super(Room, self).contentAdded(what, previous_location)
+        what.msg(self.seenBy(what))
+
     def addExit(self, exit):
         if exit.isValid(Exit):
             self.exits.append(exit)
+
+    def descTitle(self, obj):
+        return '{y' + super(Room, self).descTitle(obj)
+
+    def asSeenBy(self, obj):
+        desc = super(Room, self).asSeenBy(obj)
+        contents = self.seenContents(obj)
+        exits = self.seenExits(obj)
+        if contents:
+            desc += '\n\n' + contents
+        if exits:
+            desc += '\n\n' + exits
+        return desc
+
+    def seenContents(self, obj):
+        """
+        Return the contents of the room as seen by the passed object.
+        """
+        contents = list(self.contents)
+        if obj in contents:
+            contents.remove(obj)
+        if contents:
+            fmt = "{c%s{n"
+            if self.game.db.isValid(obj):
+                def name(o):
+                    return fmt % obj.nameFor(o)
+            else:
+                def name(o):
+                    return fmt % o.name
+            names = utils.string.english_list(map(name, contents))
+            return "You see %s here." % names
+        else:
+            return ''
+
+    def seenExits(self, obj):
+        if not self.exits:
+            return "You do not see any obvious exits."
+        names = "{c | {n".join([e.exitListName() for e in self.exits])
+        return "{c[{n %s {c]" % names
 
 
 class Exit(StoredObject, MessagedObject):
@@ -144,7 +192,7 @@ class Exit(StoredObject, MessagedObject):
         """
         # Acquire references to the transition attempt result methods from the
         # involved rooms, else placeholder functions.
-        leaveAllowed = (obj.location.leaveStopped
+        leaveAllowed = (obj.location.leaveAllowed
                         if obj.hasLocation and obj.location.isValid(Room)
                         else lambda w, e: True)
         enterAllowed = (self.dest.enterAllowed
@@ -161,16 +209,26 @@ class Exit(StoredObject, MessagedObject):
         @type obj: L{Object}
         """
         msgKeys = {
-            'actor': obj,
+            'actor': obj.ref(),
             'exit': self.ref(),
             'dest': self.dest,
             'room': self.source,
             'source': self.source,
         }
-        obj.emit(self.getMessage('leave', msgKeys))
+        obj.emit(self.getMessage('leave', **msgKeys))
         obj.moveTo(self.dest)
         if obj.hasLocation and obj.location == self.dest:
-            obj.emit(self.getMessage('arrive', msgKeys))
+            obj.emit(self.getMessage('arrive', **msgKeys))
+
+    def exitListName(self):
+        """
+        Return the string to show when the exit is listed.
+        """
+        if len(self.aliases) < 2:
+            alias = self.name
+        else:
+            alias = self.aliases[1]
+        return "%s {c<{n%s{c>{n" % (self.name, alias)
 
 
 class ExitCmd(Command):
