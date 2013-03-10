@@ -127,6 +127,8 @@ class Room(DescribableObject):
 
 class Exit(StoredObject, MessagedObject):
     """
+    Core exit class.
+
     Exit subclasses StoredObject to avoid all the functionality that comes
     along with BaseObject. Exits are mostly just data structures decorating
     rooms, but having the API from StoredObject (and thereby, ObjRef) is nice.

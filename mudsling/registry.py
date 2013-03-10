@@ -1,6 +1,6 @@
 import logging
 
-from twisted.python.util import InsensitiveDict
+from mudsling.utils.sequence import CaselessDict
 
 
 class ClassRegistry(object):
@@ -9,11 +9,11 @@ class ClassRegistry(object):
     names as shown in-game. The registry is built at runtime.
     """
 
-    #: @type: twisted.python.util.InsensitiveDict
+    #: @type: L{mudsling.utils.sequence.CaselessDict}
     classes = None
 
     def __init__(self):
-        self.classes = InsensitiveDict()
+        self.classes = CaselessDict()
 
     def buildClassRegistry(self, game):
         """

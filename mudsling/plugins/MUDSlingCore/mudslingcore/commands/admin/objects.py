@@ -5,6 +5,9 @@ from mudsling.commands import Command
 from mudsling.objects import BasePlayer, Object as LocatedObject
 from mudsling import registry
 
+from mudsling import utils
+import mudsling.utils.string
+
 from mudslingcore import misc
 
 
@@ -102,4 +105,23 @@ class ClassesCmd(Command):
     required_perm = 'create objects'
 
     def run(self, this, actor, args):
-        pass
+        out = []
+        for name, cls in registry.classes.classes.iteritems():
+            desc = self._classDesc(cls)
+            out.append("{c%s{n\n%s" % (name, desc))
+        actor.msg('\n\n'.join(out))
+
+    def _classDesc(self, cls):
+        """
+        Return just the syntax portion of the command class's docstring.
+
+        @return: Syntax string
+        @rtype: str
+        """
+        trimmed = utils.string.trimDocstring(cls.__doc__)
+        desc = []
+        for line in trimmed.splitlines():
+            if line == "":
+                break
+            desc.append('  ' + line)
+        return '\n'.join(desc)

@@ -10,7 +10,6 @@ from mudsling.utils.object import filterByClass
 from mudsling.match import match_objlist, match_stringlists
 from mudsling.sessions import InputProcessor
 from mudsling.messages import MessagedObject
-from mudsling import registry
 
 
 class BaseObject(StoredObject, InputProcessor, MessagedObject):

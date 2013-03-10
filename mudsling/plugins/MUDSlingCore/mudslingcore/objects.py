@@ -90,6 +90,9 @@ class Thing(DescribableObject):
 
 
 class Player(BasePlayer, ConfigurableObject):
+    """
+    Core player class.
+    """
     commands = allCommands(
         commands.admin.system,
         commands.admin.perms,
