@@ -1,4 +1,5 @@
 import inspect
+import re
 
 from mudsling.storage import StoredObject, ObjRef
 from mudsling import errors
@@ -185,7 +186,8 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
 
         @rtype: list
         """
-        # TODO: Literal object matching
+        if search[0] == '#' and re.match(r"#\d+", search):
+            return [self.game.db.getRef(int(search[1:]))]
         if search.lower() == 'me':
             return [self.ref()]
         return self._match(search, [self.ref()], err=err)

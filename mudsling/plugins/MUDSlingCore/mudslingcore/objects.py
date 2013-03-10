@@ -46,7 +46,8 @@ class DescribableObject(Object):
         @rtype: str
         """
         name = obj.nameFor(self) if obj is not None else self.name
-        return "%s\n%s" % (name, self.desc)
+        desc = self.desc if self.desc else "You see nothing special."
+        return "%s\n%s" % (name, desc)
 
 
 class Thing(DescribableObject):

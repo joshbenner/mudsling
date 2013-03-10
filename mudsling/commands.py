@@ -245,10 +245,10 @@ class Command(object):
                     parsed[argName] = None
                     continue
                 match = matches[0]
-                if isinstance(match, valid):
+                if match.isValid(valid):
                     parsed[argName] = match
                 else:
-                    parsed[argName] = TypeError
+                    parsed[argName] = TypeError("Object is wrong type.")
             elif inspect.isclass(valid) and issubclass(valid, Parser):
                 try:
                     parsed[argName] = valid.parse(args[argName])

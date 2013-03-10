@@ -2,15 +2,17 @@
 The basic commands to enable a character to do the essentials in a game, such
 as movement and looking at things.
 """
+from mudsling.storage import StoredObject
+
 from mudsling.commands import Command
-from mudslingcore.objects import Thing
+from mudslingcore.objects import DescribableObject
 
 
 class RoomLookCmd(Command):
     aliases = ('look', 'l')
     syntax = "[[at] <something>]"
     arg_parsers = {
-        'something': Thing
+        'something': StoredObject
     }
 
     def run(self, this, actor, args):
@@ -22,7 +24,7 @@ class RoomLookCmd(Command):
         if args['something'] is None:
             # Naked look.
             #: @type actor.location: Object
-            if self.game.db.isValid(actor.location, Thing):
+            if self.game.db.isValid(actor.location, DescribableObject):
                 actor.msg(actor.location.seenBy(actor))
                 return
             actor.msg("You don't seem to see anything...")
@@ -31,11 +33,11 @@ class RoomLookCmd(Command):
         #: @type: Object
         target = args['something']
 
-        if not target.isValid(Thing):
-            actor.msg("You're not sure what you see.")
-        else:
-            if target in actor._getContext():
+        if target in actor._getContext():
+            if target.isValid(DescribableObject):
                 actor.msg(target.seenBy(actor))
             else:
-                actor.msg("You don't see any '%s' here."
-                          % self.parsed['something'])
+                actor.msg(actor.nameFor(target) + "\nYou see nothing of note.")
+        else:
+            actor.msg("You don't see any '%s' here."
+                      % self.args['something'])
