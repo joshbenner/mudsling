@@ -7,7 +7,8 @@ import inflect
 from mudsling.storage import StoredObject
 from mudsling.utils import string
 from mudsling.utils.syntax import Syntax, SyntaxParseError
-from mudsling.parsers import Parser
+from mudsling.utils.sequence import dictMerge
+from mudsling import parsers
 from mudsling.errors import CommandInvalid
 
 
@@ -48,14 +49,18 @@ class Command(object):
         giving hints about how the validator should parse the arg values. This
         is also used by the syntax matching phase for arguments that should
         resolve to the object providing the command ('this').
+    @cvar switch_parsers: Just like arg_parsers, but for switches.
+    @cvar switch_defaults: Default values for switches.
 
     @ivar obj: The object hosting this command.
     @ivar raw: The raw command-line input
     @ivar cmdstr: The command part of the input string.
+    @ivar switchstr: The unparsed switch segment of the command.
     @ivar argstr: The argument part of the input string.
     @ivar argwords: A list of words (grouped by quotes) in the argstr.
     @ivar args: The raw input for the arguments.
-    @ivar parsed: The fully-parsed values for the arguments.
+    @ivar parsed_args: The fully-parsed values for the arguments.
+    @ivar switches: Parsed switches.
     @ivar actor: The object responsible for the input leading to execution.
     @ivar game: Handy reference to the game object.
     """
@@ -67,6 +72,8 @@ class Command(object):
     require_syntax_match = False
 
     arg_parsers = {}
+    switch_parsers = {}
+    switch_defaults = {}
 
     required_perm = None
 
@@ -79,6 +86,7 @@ class Command(object):
     #: @type: str
     raw = None
     cmdstr = None
+    switchstr = None
     argstr = None
 
     #: @type: list
@@ -86,7 +94,8 @@ class Command(object):
 
     #: @type: dict
     args = {}
-    parsed = {}
+    parsed_args = {}
+    switches = {}
 
     #: @type: mudsling.core.MUDSling
     game = None
@@ -121,7 +130,7 @@ class Command(object):
 
         @rtype: bool
         """
-        return cmdstr in cls.aliases
+        return cmdstr.split('/')[0] in cls.aliases
 
     @classmethod
     def _compileSyntax(cls):
@@ -137,30 +146,6 @@ class Command(object):
             logging.error("Cannot parse %s syntax: %s"
                           % (cls.name(), e.message))
             return False
-
-    def matchSyntax(self, argstr):
-        """
-        Determine if the input matches the command syntax.
-        @rtype: bool
-        """
-        if self._syntax is None:
-            self._compileSyntax()
-
-        parsed = {}
-        for syntax in self._syntax:
-            parsed = syntax.parse(argstr)
-            if isinstance(parsed, dict):
-                break
-        if parsed:
-            self.args = parsed
-            # Check for 'this' in any of the validators.
-            for argName, valid in self.arg_parsers.iteritems():
-                if valid == 'this':
-                    matches = self.actor.matchObject(parsed[argName])
-                    if len(matches) != 1 or matches[0] != self.obj:
-                        return False
-            return True
-        return False
 
     @classmethod
     def getSyntax(cls):
@@ -199,6 +184,7 @@ class Command(object):
         @type actor: mudsling.objects.BaseObject or mudsling.storage.ObjRef
         """
         self.raw = raw
+        self.cmdstr, sep, self.switchstr = cmdstr.partition('/')
         self.cmdstr = cmdstr
         self.argstr = argstr
         self.argwords = shlex.split(argstr)
@@ -206,16 +192,68 @@ class Command(object):
         self.obj = obj
         self.actor = actor
 
+    def matchSyntax(self, argstr):
+        """
+        Determine if the input matches the command syntax.
+        @rtype: bool
+        """
+        if self._syntax is None:
+            self._compileSyntax()
+
+        parsed = {}
+        for syntax in self._syntax:
+            parsed = syntax.parse(argstr)
+            if isinstance(parsed, dict):
+                break
+        if parsed:
+            self.args = parsed
+            # Check for 'this' in any of the validators.
+            for argName, valid in self.arg_parsers.iteritems():
+                if valid == 'this':
+                    matches = self.actor.matchObject(parsed[argName])
+                    if len(matches) != 1 or matches[0] != self.obj:
+                        return False
+            return True
+        return False
+
     def execute(self):
         """
         Execution entry point for the command. The object system should call
         this once it has decided to run the command.
         """
-        self.parsed = self.parseArgs()
+        switches = self.parseArgs(self.parseSwitches(self.switchstr),
+                                  self.switch_parsers)
+        self.switches = dictMerge(self.switch_defaults, switches)
+        self.parsed_args = self.parseArgs(self.args, self.arg_parsers)
         if self.prepare():
-            self.run(self.obj, self.actor, self.parsed)
+            self.run(self.obj, self.actor, self.parsed_args)
 
-    def parseArgs(self):
+    def parseSwitches(self, switchstr):
+        """
+        Parses raw switch string into key/val string pairs. No value resolution
+        beyond just getting the key and value strings is done.
+
+        @param switchstr: The raw switch string.
+        @rtype: C{dict}
+        """
+        switches = {}
+        sp = self.switch_parsers
+        defaults = self.switch_defaults
+        for switch in switchstr.split('/'):
+            if not switch:
+                continue
+            key, sep, val = switch.partition('=')
+            if key not in sp and key not in defaults:
+                raise CommandInvalid(msg="Unknown switch: %s" % key)
+            if val == '':  # Set switch to true if it is present without val.
+                if key in sp and issubclass(sp[key], parsers.BoolParser):
+                    val = sp[key].trueVals[0]
+                else:
+                    val = True
+            switches[key] = val
+        return switches
+
+    def parseArgs(self, args, arg_parsers):
         """
         Process args against arg_parsers.
 
@@ -240,9 +278,8 @@ class Command(object):
         Validated argument values will be replaced by their validated values in
         the args dictionary.
         """
-        args = self.args
         parsed = dict(args)
-        for argName, valid in self.arg_parsers.iteritems():
+        for argName, valid in arg_parsers.iteritems():
             if argName not in args or valid == 'this' or args[argName] is None:
                 continue
             elif inspect.isclass(valid) and issubclass(valid, StoredObject):
@@ -256,7 +293,7 @@ class Command(object):
                     parsed[argName] = match
                 else:
                     parsed[argName] = TypeError("Object is wrong type.")
-            elif inspect.isclass(valid) and issubclass(valid, Parser):
+            elif inspect.isclass(valid) and issubclass(valid, parsers.Parser):
                 try:
                     parsed[argName] = valid.parse(args[argName])
                 except Exception as e:
@@ -291,6 +328,7 @@ class Command(object):
         """
         This is where the magic happens.
         """
+        raise NotImplementedError(self.aliases[0] if self.aliases else '')
 
     def syntaxHelp(self):
         """

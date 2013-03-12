@@ -11,3 +11,4 @@ mudslingcore
 * manage tasks
 * create objects
 * delete objects
+* use building commands

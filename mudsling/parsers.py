@@ -90,3 +90,43 @@ class ObjClassParser(Parser):
     @classmethod
     def unparse(cls, val, obj=None):
         return registry.classes.getClassName(val) or cls.invalid_str
+
+
+class BoolParser(Parser):
+    """
+    Parses various boolean representations into a C{bool} value.
+    """
+    trueVals = ('yes', 'true', '1', 'on')
+    falseVals = ('no', 'false', '0', 'off')
+    err = "Invalid true/false value: %r"
+
+    @classmethod
+    def parse(cls, input):
+        m = input.strip().lower()
+        if m in cls.trueVals:
+            return True
+        elif m in cls.falseVals:
+            return False
+        else:
+            raise ValueError(cls.err % input)
+
+    @classmethod
+    def unparse(cls, val, obj=None):
+        return cls.trueVals[0] if val else cls.falseVals[0]
+
+
+class YesNoParser(BoolParser):
+    trueVals = ('yes',)
+    falseVals = ('no',)
+    err = "Invalid yes/no value: %r"
+
+
+class TrueFalseParser(BoolParser):
+    trueVals = ('true',)
+    falseVals = ('false',)
+
+
+class OnOffParser(BoolParser):
+    trueVals = ('on',)
+    falseVals = ('off',)
+    err = "Invalid on/off value: %r"

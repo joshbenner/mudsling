@@ -28,6 +28,8 @@ class DigCmd(Command):
 
     Example:
         @dig Out,o|In,i to Inner Sanctum
+
+    If you use the /tel switch, you will be moved to the destination room.
     """
     aliases = ('@dig',)
     required_perm = 'use building commands'
@@ -41,6 +43,9 @@ class DigCmd(Command):
     arg_parsers = {
         'exitSpec': parseExitSpec,
         'newRoomNames': parsers.StringListParser,
+    }
+    switch_parsers = {
+        'tel': parsers.BoolParser,
     }
 
     def run(self, this, actor, args):
@@ -74,6 +79,10 @@ class DigCmd(Command):
             msg = ["{gExit ({m", returnExit, "{g) created from {c",
                    returnExit.source, "{g to {c", returnExit.dest, "{g."]
             actor.msg(msg)
+
+        if self.switches['tel']:
+            actor.msg(["{bTeleporting you to {c", room, "{b."])
+            actor.moveTo(room)
 
     def _getRoom(self, actor, args):
         """
@@ -137,3 +146,28 @@ class DigCmd(Command):
         else:
             exit = None
         return exit
+
+
+class UndigCmd(Command):
+    """
+    @undig[/both] <exit>
+
+    Removes an exit.
+
+    If the /both switch is used and true, then any exit in the destination of
+    the specified exit which leads back to the exit's source is also removed.
+    """
+    aliases = ('@undig',)
+    required_perm = 'use building commands'
+    syntax = "<exit>"
+    switch_parsers = {
+        'both': parsers.BoolParser,
+    }
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.objects.Character}
+        @type actor: L{mudslingcore.objects.Character}
+        @type args: C{dict}
+        """
+        raise NotImplementedError("@undig")

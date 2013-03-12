@@ -841,6 +841,9 @@ class BasePlayer(BaseObject):
         except errors.MatchError as e:
             self.msg("{y%s" % e.message)
             raise
+        except NotImplementedError as e:
+            m = "{y%s is not yet implemented." % (e.message or "This feature")
+            self.msg(m)
         except:
             self.msg("{rAn error has occurred.")
             raise

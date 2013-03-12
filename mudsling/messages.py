@@ -51,7 +51,7 @@ class MessageParser(object):
             if name in keywords:
                 return keywords[name]
             return "${{{}}}".format(name)
-        print repr(tpl)
+
         parts = string.Template.pattern.split(tpl)
         out = []
         i = 0

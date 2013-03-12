@@ -1,6 +1,7 @@
 """
 Sequence utilities.
 """
+from itertools import chain
 
 
 class CaselessDict:
@@ -95,3 +96,7 @@ def unique(seq):
     seen = set()
     add = seen.add
     return [x for x in seq if x not in seen and not add(x)]
+
+
+def dictMerge(*dicts):
+    return dict(chain(*[d.iteritems() for d in dicts]))
