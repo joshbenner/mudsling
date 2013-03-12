@@ -21,7 +21,7 @@ class CreateCmd(Command):
     """
     aliases = ('@create',)
     required_perm = 'create objects'
-    syntax = "<class> [called|named] <names>"
+    syntax = "<class> {called|named|=} <names>"
 
     def run(self, this, actor, args):
         cls = registry.classes.getClass(args['class'])
@@ -65,7 +65,7 @@ class RenameCmd(Command):
     """
     aliases = ('@rename',)
     required_perm = 'edit objects'
-    syntax = "<obj> {to|as} <newNames>"
+    syntax = "<object> {to|as} <newNames>"
     arg_parsers = {
         'object': StoredObject,
         'newNames': parsers.StringListParser,
@@ -81,14 +81,14 @@ class RenameCmd(Command):
         obj = args['object']
         names = args['newNames']
         oldNames = obj.setNames(names)
-        msg = "{gName of {c#{id}{g changed to '{m{name}{g'"
+        msg = "{{gName of {{c#{id}{{g changed to '{{m{name}{{g'"
         keys = {'id': obj.id, 'name': obj.name}
         if len(names) > 1:
             msg += " with aliases: {aliases}"
             aliases = ["{y%s{g" % a for a in obj.aliases]
             keys['aliases'] = utils.string.english_list(aliases)
-        actor.msg(str(msg.format(keys)))
-        actor.msg("(previous names: {M%s{n)" % ','.join(oldNames))
+        actor.msg(str(msg.format(**keys)))
+        actor.msg("(previous names: {M%s{n)" % ', '.join(oldNames))
 
 
 class DeleteCmd(Command):
