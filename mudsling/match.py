@@ -66,7 +66,7 @@ def match_stringlists(search, stringlists, exactOnly=False, err=False,
         return result
 
 
-def match_objlist(search, objlist, varname="aliases", exactOnly=False,
+def match_objlist(search, objlist, varname="names", exactOnly=False,
                   err=False):
     """
     Match a search query against a list of objects using string values from the
@@ -85,7 +85,7 @@ def match_objlist(search, objlist, varname="aliases", exactOnly=False,
     return match_stringlists(search, strings, exactOnly=exactOnly, err=err)
 
 
-def match_nth(nth, search, objlist, varname="aliases"):
+def match_nth(nth, search, objlist, varname="names"):
     raise NotImplemented
 
 
@@ -110,7 +110,7 @@ def parse_ordinal(string):
     return None
 
 
-def match(search, objlist, varname="aliases"):
+def match(search, objlist, varname="names"):
     """
     Attempt various types of matching using other functions found in match
     module.

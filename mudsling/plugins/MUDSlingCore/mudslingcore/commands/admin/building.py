@@ -8,6 +8,12 @@ from mudsling.errors import AmbiguousMatch
 from mudslingcore.topography import Room, Exit
 
 
+def parseExitSpec(raw):
+    exitNames, sep, returnExitNames = raw.partition('|')
+    return (parsers.StringListParser.parse(exitNames),
+            parsers.StringListParser.parse(returnExitNames))
+
+
 class DigCmd(Command):
     """
     @dig <exit-spec> to <exiting-room>    -- Dig exit to existing room.
@@ -24,18 +30,18 @@ class DigCmd(Command):
         @dig Out,o|In,i to Inner Sanctum
     """
     aliases = ('@dig',)
-#    syntax = (r"{<exitNames>[|<returnExitNames>]"
-#              r" to {<room:#\d+>|<roomNames>}|<exitlessRoomNames>}")
+    required_perm = 'use building commands'
     syntax = (
-        "<exitNames>[|<returnExitNames>] to <room>",
-        "<newRoomNames>"
+        # Parse exitSpec as a single argument rather than including the '|' in
+        # the syntax itself so that we can let users quote the entire exit spec
+        # in case it contains the string " to " and might break.
+        "<exitSpec> to <room>",
+        "<newRoomNames>",
     )
     arg_parsers = {
-        'exitNames': parsers.StringListParser,
-        'returnExitNames': parsers.StringListParser,
+        'exitSpec': parseExitSpec,
         'newRoomNames': parsers.StringListParser,
     }
-    required_perm = 'use building commands'
 
     def run(self, this, actor, args):
         """
@@ -43,15 +49,15 @@ class DigCmd(Command):
         @type actor: L{mudslingcore.objects.Character}
         @type args: C{dict}
         """
-        if 'exitNames' in args:  # exit-spec syntax was used, require location.
+        if 'exitSpec' in args:  # exit-spec syntax was used, require location.
             if not actor.hasLocation or not actor.location.isValid(Room):
                 raise self._err("You may only dig exits from within a room.")
 
         #: @type: L{Room}
         currentRoom = actor.location
         room = self._getRoom(actor, args)
-        exit = self._getExit(actor, args['exitNames'])
-        returnExit = self._getExit(actor, args['returnExitNames'])
+        exit = self._getExit(actor, args['exitSpec'][0])
+        returnExit = self._getExit(actor, args['exitSpec'][1])
 
         if exit:
             exit.source = currentRoom

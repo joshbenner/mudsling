@@ -51,7 +51,7 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         @rtype: list
         """
         try:
-            return obj.aliases
+            return obj.names
         except (TypeError, AttributeError):
             return []
 

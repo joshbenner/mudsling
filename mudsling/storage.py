@@ -138,17 +138,10 @@ class StoredObject(Persistent):
     This object cannot parse commands, cannot be connected to a player, etc. It
     only has the API required to interact with the database.
 
-    @ivar id: The unique object ID for this object in the game.
-    @type id: int
-
+    @ivar id: The unique object ID for this object in the Database.
     @ivar db: Reference to the containing database.
-    @type db: Database
-
-    @ivar name: The primary name of the object. Use name property.
-    @type name: str
-
-    @ivar aliases: A list of alternate names of the object, used for matching.
-    @type aliases: list
+    @ivar _names: Tuple of all names this object is known by. First name is the
+        primary name.
     """
 
     _transientVars = ['db']
@@ -157,8 +150,7 @@ class StoredObject(Persistent):
     db = None
 
     id = None
-    _name = ""
-    aliases = []
+    _names = ()
 
     def __init__(self):
         """
@@ -168,30 +160,34 @@ class StoredObject(Persistent):
         This also fires BEFORE the object has an object ID or is part of the
         database, which could suggest using objectCreated() instead.
         """
-        self.aliases = []
+        clsName = self.className()
+        self._names = ("New " + clsName, clsName)
         pass
 
     def __str__(self):
-        return self._name
+        return self.name
 
     def pythonClassName(self):
         return "%s.%s" % (self.__class__.__module__, self.__class__.__name__)
 
     def className(self):
+        """
+        @rtype: C{str}
+        """
         name = registry.classes.getClassName(self.__class__)
         return name if name is not None else self.pythonClassName()
 
     def isa(self, cls):
         """
         Provide compatibility with ObjRef.
-        @rtype: bool
+        @rtype: C{bool}
         """
         return isinstance(self, cls)
 
     def isValid(self, cls=None):
         """
         API compatibility with ObjRef.
-        @rtype: bool
+        @rtype: C{bool}
         """
         return self.db.isValid(self, cls)
 
@@ -216,7 +212,7 @@ class StoredObject(Persistent):
         Return the object's name and database ID.
         @rtype: str
         """
-        return "%s (#%d)" % (self._name, self.id)
+        return "%s (#%d)" % (self.name, self.id)
 
     @property
     def game(self):
@@ -225,19 +221,86 @@ class StoredObject(Persistent):
         """
         return self.db.game
 
+    @property
     def name(self):
         """
         @rtype: str
         """
-        return self._name
+        return self._names[0]
+
+    @property
+    def aliases(self):
+        return self._names[1:]
+
+    @property
+    def names(self):
+        return self._names
+
+    def _setNames(self, name=None, aliases=None, names=None):
+        """
+        Low-level method for maintaining the object's names. Should only be
+        called by setName or setAliases.
+
+        @param name: The new name. If None, do not change name.
+        @param aliases: The new aliases. If None, do not change aliases.
+        @param names: All names in one shot. If not None, other parameters are
+            ignored and only this paramter is used.
+        @return: Old names tuple.
+        @rtype: C{tuple}
+        """
+        oldNames = self._names
+        newNames = list(oldNames)
+        if names is not None:
+            if isinstance(names, tuple) or isinstance(names, list):
+                newNames = list(names)
+            else:
+                raise TypeError("Names must be list or tuple.")
+        else:
+            if name is not None:
+                newNames[0] = name
+            if aliases is not None:
+                newNames[1:] = aliases
+        newNames = tuple(newNames)
+        if newNames != oldNames:
+            for n in newNames:
+                if not isinstance(n, basestring):
+                    raise TypeError("Names and aliases must be strings.")
+            self._names = newNames
+        return oldNames
 
     def setName(self, name):
-        if self._name in self.aliases:
-            self.aliases.remove(self._name)
-        self._name = name
-        self.aliases.insert(0, name)
+        """
+        Canonical method for changing the object's name. Children can override
+        to attach other logic/actions to name changes.
 
-    name = property(name, setName)
+        @param name: The new name.
+        @return: The old name.
+        """
+        return self._setNames(name=name)[0]
+
+    def setAliases(self, aliases):
+        """
+        Canonical method fo changing the object's aliases. Children can
+        override to attach other logic/actions to alias changes.
+
+        @param aliases: The new aliases.
+        @type aliases: C{list} or C{tuple}
+        @return: The old aliases.
+        """
+        return self._setNames(aliases=aliases)[1:]
+
+    def setNames(self, names):
+        """
+        Sets name and aliases is one shot, using a single list or tuple where
+        the first element is the name, and the other elements are the aliases.
+
+        @param names: The new names to use.
+        @return: Old names.
+        """
+        oldNames = self.names
+        self.setName(names[0])
+        self.setAliases(names[1:])
+        return oldNames
 
     def expungeRole(self, role):
         """
@@ -353,9 +416,9 @@ class Database(Persistent):
         Creates a new game-world database object that will persist.
         """
         obj = cls()
-        obj.name = name
-        if aliases is not None:
-            obj.aliases.extend(list(aliases))
+        obj.setNames((name,))
+        if isinstance(aliases, list) or isinstance(aliases, tuple):
+            obj.setAliases(aliases)
         self.registerNewObject(obj)
         return ObjRef(id=obj.id, db=self)
 

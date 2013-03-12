@@ -1,9 +1,11 @@
 """
 Object commands.
 """
+from mudsling.storage import StoredObject
 from mudsling.commands import Command
 from mudsling.objects import BasePlayer, Object as LocatedObject
 from mudsling import registry
+from mudsling import parsers
 
 from mudsling import utils
 import mudsling.utils.string
@@ -55,6 +57,40 @@ class CreateCmd(Command):
                 actor.msg("{c%s {yis {rnowhere{y.")
 
 
+class RenameCmd(Command):
+    """
+    @rename <object> to|as <new-names>
+
+    Renames an object to the new name.
+    """
+    aliases = ('@rename',)
+    required_perm = 'edit objects'
+    syntax = "<obj> {to|as} <newNames>"
+    arg_parsers = {
+        'object': StoredObject,
+        'newNames': parsers.StringListParser,
+    }
+
+    def run(self, this, actor, args):
+        """
+        @type this: mudslingcore.objects.Player
+        @type actor: mudslingcore.objects.Player
+        @type args: dict
+        """
+        #: @type: StoredObject
+        obj = args['object']
+        names = args['newNames']
+        oldNames = obj.setNames(names)
+        msg = "{gName of {c#{id}{g changed to '{m{name}{g'"
+        keys = {'id': obj.id, 'name': obj.name}
+        if len(names) > 1:
+            msg += " with aliases: {aliases}"
+            aliases = ["{y%s{g" % a for a in obj.aliases]
+            keys['aliases'] = utils.string.english_list(aliases)
+        actor.msg(str(msg.format(keys)))
+        actor.msg("(previous names: {M%s{n)" % ','.join(oldNames))
+
+
 class DeleteCmd(Command):
     """
     @delete <object>
@@ -71,7 +107,6 @@ class DeleteCmd(Command):
         @type actor: mudslingcore.objects.Player
         @type args: dict
         """
-
         # err=True means we'll either exit with error or have single-element
         # list containing the match. Use .ref()... just in case.
         obj = actor.matchObject(args['object'], err=True)[0].ref()

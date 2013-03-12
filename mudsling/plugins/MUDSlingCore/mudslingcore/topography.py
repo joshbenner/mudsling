@@ -226,11 +226,9 @@ class Exit(StoredObject, MessagedObject):
         """
         Return the string to show when the exit is listed.
         """
-        if len(self.aliases) < 2:
-            alias = self.name
-        else:
-            alias = self.aliases[1]
-        return "%s {c<{n%s{c>{n" % (self.name, alias)
+        aliases = self.aliases
+        return "%s {c<{n%s{c>{n" % (self.name,
+                                    aliases[0] if aliases else self.name)
 
 
 class ExitCmd(Command):
