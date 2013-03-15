@@ -33,7 +33,7 @@ class RoomLookCmd(Command):
         #: @type: Object
         target = args['something']
 
-        if target in actor._getContext():
+        if target in actor._getContext() or actor.hasPerm('remote look'):
             if target.isValid(DescribableObject):
                 actor.msg(target.seenBy(actor))
             else:

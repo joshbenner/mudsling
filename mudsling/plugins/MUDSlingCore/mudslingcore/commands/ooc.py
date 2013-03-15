@@ -3,6 +3,10 @@ OOC Commands.
 """
 
 from mudsling.commands import Command
+from mudsling.objects import Object
+from mudsling import errors
+
+from mudslingcore.misc import teleport_object
 
 
 class AnsiCmd(Command):
@@ -54,3 +58,59 @@ class AnsiCmd(Command):
             '  {{n Normal'
         ]
         self.actor.msg('\n'.join(msg))
+
+
+class GoCmd(Command):
+    """
+    @go <location>
+
+    Teleport one's self to the indicated location.
+    """
+    aliases = ('@go',)
+    syntax = "<where>"
+    required_perm = "teleport self"
+    arg_parsers = {
+        'where': Object,
+    }
+
+    # Allow children to easily substitute their own teleport function.
+    teleport = teleport_object
+
+    def run(self, this, actor, args):
+        """
+        @type this: mudslingcore.objects.Player
+        @type actor: mudslingcore.objects.Player
+        @type args: dict
+        """
+        if actor.isPosessing and actor.possessing.isValid(Object):
+            #: @type: Object
+            obj = actor.possessing
+            self.teleport(obj, args['where'])
+        else:
+            raise errors.CommandError("You are not possessing a valid object"
+                                      " with location.")
+
+
+class MoveCmd(Command):
+    """
+    @move <object> to <location>
+
+    Moves the specified object to the specified location.
+    """
+    aliases = ('@move', '@tel', '@teleport')
+    syntax = "<what> to <where>"
+    required_perm = "teleport anything"
+    arg_parsers = {
+        'what': Object,
+        'where': Object,
+    }
+
+    teleport = teleport_object
+
+    def run(self, this, actor, args):
+        """
+        @type this: mudslingcore.objects.Player
+        @type actor: mudslingcore.objects.Player
+        @type args: dict
+        """
+        self.teleport(args['what'], args['where'])

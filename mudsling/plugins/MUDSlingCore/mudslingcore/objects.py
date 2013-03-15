@@ -142,6 +142,17 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
                    parser=parsers.ObjClassParser),
     }
 
+    messages = {
+        'teleport_out': {
+            'actor': "{{bYou dematerialize.",
+            '*': "{{b{actor} vanishes."
+        },
+        'teleport_in': {
+            'actor': "{{bYou materialize in {{c{dest}{{b.",
+            '*': "{{c{actor} {{bmaterializes."
+        }
+    }
+
     def possessableBy(self, player):
         """
         Core characters are ONLY possessable by players!

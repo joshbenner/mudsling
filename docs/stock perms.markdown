@@ -12,3 +12,6 @@ mudslingcore
 * create objects
 * delete objects
 * use building commands
+* remote look
+* teleport self
+* teleport anything
