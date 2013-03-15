@@ -3,7 +3,10 @@ Building commands.
 """
 from mudsling.commands import Command
 from mudsling import parsers
-from mudsling.errors import AmbiguousMatch
+from mudsling import errors
+
+from mudsling import utils
+import mudsling.utils.string
 
 from mudslingcore.topography import Room, Exit
 
@@ -46,6 +49,9 @@ class DigCmd(Command):
     }
     switch_parsers = {
         'tel': parsers.BoolParser,
+    }
+    switch_defaults = {
+        'tel': False,
     }
 
     def run(self, this, actor, args):
@@ -95,11 +101,11 @@ class DigCmd(Command):
         """
         if 'room' in args:
             # Attempt match.
-            matches = actor.matchObject(args['room'], cls=Room)
-            if len(matches) > 1:
-                raise AmbiguousMatch(query=args['room'], matches=matches)
-            elif len(matches) == 1:
-                return matches[0]  # Single match, that's our room!
+            m = actor.matchObject(args['room'], cls=Room)
+            if len(m) > 1:
+                raise errors.AmbiguousMatch(query=args['room'], matches=m)
+            elif len(m) == 1:
+                return m[0]  # Single match, that's our room!
 
         # No matches. Let's create a room!
         names = args['room'] if 'room' in args else args['newRoomNames']
@@ -163,6 +169,9 @@ class UndigCmd(Command):
     switch_parsers = {
         'both': parsers.BoolParser,
     }
+    switch_defaults = {
+        'both': False,
+    }
 
     def run(self, this, actor, args):
         """
@@ -170,4 +179,29 @@ class UndigCmd(Command):
         @type actor: L{mudslingcore.objects.Character}
         @type args: C{dict}
         """
-        raise NotImplementedError("@undig")
+        #: @type: Room
+        room = actor.location
+        if not self.game.db.isValid(room, Room):
+            raise errors.CommandError("You must be in a room.")
+        exits = room.matchExits(args['exit'])
+        if len(exits) > 1:
+            msg = "%r can match multiple exits: %s"
+            msg = msg % (args['exit'], utils.string.english_list(exits))
+            raise errors.AmbiguousMatch(msg=msg)
+        elif not exits:
+            raise errors.FailedMatch(query=args['exit'])
+        exit = exits[0]
+        dest = exit.dest
+        msg = actor._format_msg(["{gExit {c", exit,
+                                 "{g has been {rdeleted{g."])
+        room.removeExit(exit)
+        actor.msg(msg)
+        if self.switches['both'] and self.game.db.isValid(dest, Room):
+            others = dest.filterExits(lambda e: e.dest == room)
+            names = utils.string.english_list(
+                ['{c' + actor.nameFor(x) + '{g' for x in others]
+            )
+            for o in others:
+                dest.removeExit(o)
+            actor.tell("{gExits {rdeleted{g from {m", dest, "{g: ", names)
+

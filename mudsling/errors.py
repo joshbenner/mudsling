@@ -48,9 +48,11 @@ class FailedMatch(MatchError):
 
 class CommandError(Error):
     """
-    Used in command parsing to skip the rest of command parsing but let an
-    error bubble up.
+    A generic error occuring during execution of a command. Should be caught
+    by code processing input.
     """
+    def __init__(self, msg="An error has occurred."):
+        super(CommandError, self).__init__(msg=msg)
 
 
 class CommandInvalid(CommandError):

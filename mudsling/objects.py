@@ -128,14 +128,21 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         @type player: BasePlayer
         """
 
+    def tell(self, *parts):
+        """
+        "Tells" the object a multi-part message. A shortcut for: .msg([...]).
+        """
+        self.msg(parts)
+
     def msg(self, text, flags=None):
         """
         Primary method of emitting text to an object (and any players/sessions
         which are attached to it).
 
         @param text: The text to send to the object.
+        @type text: C{str} or C{list} or c{tuple}
+
         @param flags: Flags to modify how text is handled.
-        @type text: str or list
         """
         if self.possessed_by is not None:
             self.possessed_by.msg(self._format_msg(text), flags=flags)
@@ -157,6 +164,7 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
             return None
         if isinstance(parts, basestring):
             return parts
+        parts = list(parts)
         for i, part in enumerate(parts):
             if isinstance(part, ObjRef) or isinstance(part, StoredObject):
                 parts[i] = self.nameFor(part)

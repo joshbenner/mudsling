@@ -33,11 +33,18 @@ class Room(DescribableObject):
         super(Room, self).__init__()
         self.exits = []
 
-    def matchExit(self, search, exactOnly=True):
+    def matchExits(self, search, exactOnly=True):
         return self._match(search, self.exits, exactOnly=exactOnly)
 
+    def filterExits(self, filterfunc):
+        """
+        Retrieves a list of exits matching the specified filters.
+        @param filterfunc: Callback used to filter the list of exits.
+        """
+        return filter(filterfunc, self.exits)
+
     def handleUnmatchedInputFor(self, actor, raw):
-        matches = self.matchExit(raw)
+        matches = self.matchExits(raw)
         if len(matches) == 1:
             return ExitCmd(raw, raw, raw, self.game, matches[0], actor)
         elif len(matches) > 1:
@@ -84,21 +91,44 @@ class Room(DescribableObject):
     def addExit(self, exit):
         if exit.isValid(Exit):
             self.exits.append(exit)
+            if self.db.isValid(exit.dest, cls=Room):
+                exit.dest.entranceAdded(exit)
+
+    def entranceAdded(self, exit):
+        """
+        Called when another room adds an exit leading to this room.
+        @param exit: The exit that was added.
+        """
+
+    def removeExit(self, exit, delete=True):
+        if exit in self.exits:
+            self.exits.remove(exit)
+            if exit.isValid(Exit):
+                if self.db.isValid(exit.dest, cls=Room):
+                    exit.dest.entranceRemoved(exit)
+            if exit.isValid() and delete:
+                self.db.deleteObject(exit)
+
+    def entranceRemoved(self, exit):
+        """
+        Called when another room removes an exit leading to this room.
+        @param exit: The exit that was removed.
+        """
 
     def descTitle(self, obj):
         return '{y' + super(Room, self).descTitle(obj)
 
     def asSeenBy(self, obj):
         desc = super(Room, self).asSeenBy(obj)
-        contents = self.seenContents(obj)
-        exits = self.seenExits(obj)
+        contents = self.contentsAsSeenBy(obj)
+        exits = self.exitsAsSeenBy(obj)
         if contents:
             desc += '\n\n' + contents
         if exits:
             desc += '\n\n' + exits
         return desc
 
-    def seenContents(self, obj):
+    def contentsAsSeenBy(self, obj):
         """
         Return the contents of the room as seen by the passed object.
         """
@@ -118,7 +148,7 @@ class Room(DescribableObject):
         else:
             return ''
 
-    def seenExits(self, obj):
+    def exitsAsSeenBy(self, obj):
         if not self.exits:
             return "You do not see any obvious exits."
         names = "{c | {n".join([e.exitListName() for e in self.exits])
