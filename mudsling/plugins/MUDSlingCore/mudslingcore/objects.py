@@ -134,22 +134,22 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
                    type=type,
                    attr='building_room_class',
                    default=Room,
-                   parser=parsers.ObjClassParser),
+                   parser=parsers.ObjClassStaticParser),
         ObjSetting(name='building.exit_class',
                    type=type,
                    attr='building_exit_class',
                    default=Exit,
-                   parser=parsers.ObjClassParser),
+                   parser=parsers.ObjClassStaticParser),
     }
 
     messages = {
         'teleport_out': {
-            'actor': "{{bYou dematerialize.",
-            '*': "{{b{actor} vanishes."
+            'actor': "{bYou dematerialize.",
+            '*': "{c$actor {bvanishes."
         },
         'teleport_in': {
-            'actor': "{{bYou materialize in {{c{dest}{{b.",
-            '*': "{{c{actor} {{bmaterializes."
+            'actor': "{bYou materialize in {c$dest{b.",
+            '*': "{c$actor {bmaterializes."
         }
     }
 

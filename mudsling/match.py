@@ -2,8 +2,10 @@
 Various functions and utilities for matching game-world objects.
 """
 import re
+import inflect
 
 from mudsling.errors import AmbiguousMatch, FailedMatch
+from mudsling.utils import string
 from mudsling.utils.string import ansi
 
 ordinal_words = ('first', 'second', 'third', 'fourth', 'fifth', 'sixth',
@@ -133,3 +135,60 @@ def match(search, objlist, varname="names"):
             return matches
 
     return []
+
+
+def match_failed(matches, search=None, searchFor=None, show=False):
+    """
+    Utility method to handled failed matches. Will return a message if a
+    search for a single match has failed and return False if the search
+    succeeded.
+
+    @param matches: The result of the match search.
+    @type matches: list
+
+    @param search: The string used to search.
+    @type search: str
+
+    @param searchFor: A string describing what type of thing was being
+        searched for. This should be the singular form of the word.
+    @type searchFor: str
+
+    @param show: If true, will show the list of possible matches in the
+        case of an ambiguous match.
+    @type show: bool
+
+    @return: Message if match failed, or False if match did not fail.
+    @rtype: C{str} or C{bool}
+    """
+    p = inflect.engine()
+
+    if len(matches) == 1:
+        return False
+    elif len(matches) > 1:
+        if search is not None:
+            if searchFor is not None:
+                msg = ("Multiple %s match '%s'"
+                       % (p.plural(searchFor), search))
+            else:
+                msg = "Multiple matches for '%s'" % search
+        else:
+            if searchFor is not None:
+                msg = "Multiple %s found" % p.plural(searchFor)
+            else:
+                msg = "Multiple matches"
+        if show:
+            msg += ': ' + string.english_list(matches)
+        else:
+            msg += '.'
+    else:
+        if search is not None:
+            if searchFor is not None:
+                msg = "No %s called '%s' was found." % (searchFor, search)
+            else:
+                msg = "No '%s' was found." % search
+        else:
+            if searchFor is not None:
+                msg = "No matching %s found." % p.plural(searchFor)
+            else:
+                msg = "No match found."
+    return msg

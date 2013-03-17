@@ -68,7 +68,7 @@ class RenameCmd(Command):
     syntax = "<object> {to|as} <newNames>"
     arg_parsers = {
         'object': StoredObject,
-        'newNames': parsers.StringListParser,
+        'newNames': parsers.StringListStaticParser,
     }
 
     def run(self, this, actor, args):

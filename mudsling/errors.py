@@ -33,17 +33,19 @@ class MatchError(Error):
 class AmbiguousMatch(MatchError):
     def __init__(self, msg=None, query=None, matches=None):
         if msg is None:
-            self.message = "Ambiguous match"
+            msg = "Ambiguous match"
             if query is not None:
-                self.message += " for '%s'" % query
+                msg += " for '%s'" % query
+        super(AmbiguousMatch, self).__init__(msg)
 
 
 class FailedMatch(MatchError):
     def __init__(self, msg=None, query=None):
         if msg is None:
-            self.message = "Failed match"
+            msg = "Failed match"
             if query is not None:
-                self.message += " for '%s'" % query
+                msg += " for '%s'" % query
+        super(FailedMatch, self).__init__(msg)
 
 
 class CommandError(Error):

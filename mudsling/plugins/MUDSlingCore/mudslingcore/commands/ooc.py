@@ -5,6 +5,7 @@ OOC Commands.
 from mudsling.commands import Command
 from mudsling.objects import Object
 from mudsling import errors
+from mudsling import parsers
 
 from mudslingcore.misc import teleport_object
 
@@ -70,11 +71,9 @@ class GoCmd(Command):
     syntax = "<where>"
     required_perm = "teleport self"
     arg_parsers = {
-        'where': Object,
+        'where': parsers.MatchObject(cls=Object,
+                                     searchFor='location', show=True)
     }
-
-    # Allow children to easily substitute their own teleport function.
-    teleport = teleport_object
 
     def run(self, this, actor, args):
         """
@@ -85,9 +84,9 @@ class GoCmd(Command):
         if actor.isPosessing and actor.possessing.isValid(Object):
             #: @type: Object
             obj = actor.possessing
-            self.teleport(obj, args['where'])
+            teleport_object(obj, args['where'])
         else:
-            raise errors.CommandError("You are not possessing a valid object"
+            raise errors.CommandError("You are not attached to a valid object"
                                       " with location.")
 
 
@@ -101,11 +100,11 @@ class MoveCmd(Command):
     syntax = "<what> to <where>"
     required_perm = "teleport anything"
     arg_parsers = {
-        'what': Object,
-        'where': Object,
+        'what': parsers.MatchObject(cls=Object,
+                                    searchFor='locatable object', show=True),
+        'where': parsers.MatchObject(cls=Object,
+                                     searchFor='location', show=True),
     }
-
-    teleport = teleport_object
 
     def run(self, this, actor, args):
         """
@@ -113,4 +112,4 @@ class MoveCmd(Command):
         @type actor: mudslingcore.objects.Player
         @type args: dict
         """
-        self.teleport(args['what'], args['where'])
+        teleport_object(args['what'], args['where'])

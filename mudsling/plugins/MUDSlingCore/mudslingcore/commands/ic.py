@@ -2,9 +2,9 @@
 The basic commands to enable a character to do the essentials in a game, such
 as movement and looking at things.
 """
-from mudsling.storage import StoredObject
-
 from mudsling.commands import Command
+from mudsling import parsers
+
 from mudslingcore.objects import DescribableObject
 
 
@@ -12,7 +12,8 @@ class RoomLookCmd(Command):
     aliases = ('look', 'l')
     syntax = "[[at] <something>]"
     arg_parsers = {
-        'something': StoredObject
+        'something': parsers.MatchObject(searchFor='thing to look at',
+                                         show=True)
     }
 
     def run(self, this, actor, args):
@@ -39,5 +40,4 @@ class RoomLookCmd(Command):
             else:
                 actor.msg(actor.nameFor(target) + "\nYou see nothing of note.")
         else:
-            actor.msg("You don't see any '%s' here."
-                      % self.args['something'])
+            actor.msg("You don't see any '%s' here." % self.args['something'])

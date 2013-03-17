@@ -2,9 +2,8 @@ import logging
 import shlex
 import inspect
 
-import inflect
-
 from mudsling.storage import StoredObject
+from mudsling.match import match_failed
 from mudsling.utils import string
 from mudsling.utils.syntax import Syntax, SyntaxParseError
 from mudsling.utils.sequence import dictMerge
@@ -246,7 +245,7 @@ class Command(object):
             if key not in sp and key not in defaults:
                 raise CommandInvalid(msg="Unknown switch: %s" % key)
             if val == '':  # Set switch to true if it is present without val.
-                if key in sp and issubclass(sp[key], parsers.BoolParser):
+                if key in sp and issubclass(sp[key], parsers.BoolStaticParser):
                     val = sp[key].trueVals[0]
                 else:
                     val = True
@@ -265,8 +264,8 @@ class Command(object):
         arg_parsers value options:
           - 'this': Actor object match for this arg yields the command's host
             object. This is handled during syntax parsing/matching.
-          - Subclass of L{mudsling.parsers.Parser}: Use a Parser class to
-            translate the input to a value.
+          - Subclass of L{mudsling.parsers.StaticParser}: Use a StaticParser
+            class to translate the input to a value.
           - Class descendant from L{StoredObject}: command will match object
             with actor and validate the result is an object instance descendant
             of the specified class.
@@ -282,6 +281,11 @@ class Command(object):
         for argName, valid in arg_parsers.iteritems():
             if argName not in args or valid == 'this' or args[argName] is None:
                 continue
+            elif isinstance(valid, parsers.Parser):
+                parsed[argName] = valid.parse(args[argName], obj=self.actor)
+            elif (inspect.isclass(valid)
+                  and issubclass(valid, parsers.StaticParser)):
+                parsed[argName] = valid.parse(args[argName])
             elif inspect.isclass(valid) and issubclass(valid, StoredObject):
                 argVal = args[argName]
                 matches = self.actor.matchObject(argVal)
@@ -293,11 +297,6 @@ class Command(object):
                     parsed[argName] = match
                 else:
                     parsed[argName] = TypeError("Object is wrong type.")
-            elif inspect.isclass(valid) and issubclass(valid, parsers.Parser):
-                try:
-                    parsed[argName] = valid.parse(args[argName])
-                except Exception as e:
-                    parsed[argName] = e
             elif callable(valid) or isinstance(valid, tuple):
                 if isinstance(valid, tuple):
                     callback = valid[0]
@@ -353,6 +352,8 @@ class Command(object):
         search for a single match has failed and return True if the search
         failed.
 
+        @see: L{mudsling.match.match_failed}
+
         @param matches: The result of the match search.
         @type matches: list
 
@@ -370,40 +371,11 @@ class Command(object):
         @return: True if the searched failed, False otherwise.
         @rtype: bool
         """
-        p = inflect.engine()
-
-        if len(matches) == 1:
-            return False
-        elif len(matches) > 1:
-            if search is not None:
-                if searchFor is not None:
-                    msg = ("Multiple %s match '%s'"
-                           % (p.plural(searchFor), search))
-                else:
-                    msg = "Multiple matches for '%s'" % search
-            else:
-                if searchFor is not None:
-                    msg = "Multiple %s found" % p.plural(searchFor)
-                else:
-                    msg = "Multiple matches"
-            if show:
-                msg += ': ' + string.english_list(matches)
-            else:
-                msg += '.'
-        else:
-            if search is not None:
-                if searchFor is not None:
-                    msg = "No %s called '%s' was found." % (searchFor, search)
-                else:
-                    msg = "No '%s' was found." % search
-            else:
-                if searchFor is not None:
-                    msg = "No matching %s found." % p.plural(searchFor)
-                else:
-                    msg = "No match found."
-
-        self.actor.msg(msg)
-        return True
+        msg = match_failed(matches, search=search, searchFor=searchFor,
+                           show=show)
+        if msg:
+            self.actor.msg(msg)
+        return True if msg else False
 
     def _err(self, msg=None):
         """

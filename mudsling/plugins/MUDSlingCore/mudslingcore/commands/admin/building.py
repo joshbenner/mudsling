@@ -13,8 +13,8 @@ from mudslingcore.topography import Room, Exit
 
 def parseExitSpec(raw):
     exitNames, sep, returnExitNames = raw.partition('|')
-    return (parsers.StringListParser.parse(exitNames),
-            parsers.StringListParser.parse(returnExitNames))
+    return (parsers.StringListStaticParser.parse(exitNames),
+            parsers.StringListStaticParser.parse(returnExitNames))
 
 
 class DigCmd(Command):
@@ -45,10 +45,10 @@ class DigCmd(Command):
     )
     arg_parsers = {
         'exitSpec': parseExitSpec,
-        'newRoomNames': parsers.StringListParser,
+        'newRoomNames': parsers.StringListStaticParser,
     }
     switch_parsers = {
-        'tel': parsers.BoolParser,
+        'tel': parsers.BoolStaticParser,
     }
     switch_defaults = {
         'tel': False,
@@ -109,7 +109,8 @@ class DigCmd(Command):
 
         # No matches. Let's create a room!
         names = args['room'] if 'room' in args else args['newRoomNames']
-        return self._createRoom(actor, parsers.StringListParser.parse(names))
+        return self._createRoom(actor,
+                                parsers.StringListStaticParser.parse(names))
 
     def _createRoom(self, actor, names):
         """
@@ -167,7 +168,7 @@ class UndigCmd(Command):
     required_perm = 'use building commands'
     syntax = "<exit>"
     switch_parsers = {
-        'both': parsers.BoolParser,
+        'both': parsers.BoolStaticParser,
     }
     switch_defaults = {
         'both': False,
@@ -204,4 +205,3 @@ class UndigCmd(Command):
             for o in others:
                 dest.removeExit(o)
             actor.tell("{gExits {rdeleted{g from {m", dest, "{g: ", names)
-
