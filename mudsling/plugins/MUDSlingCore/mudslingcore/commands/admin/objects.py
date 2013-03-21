@@ -15,7 +15,7 @@ from mudslingcore import misc
 
 class CreateCmd(Command):
     """
-    @create <class> <names>
+    @create <class> called <names>
 
     Creates a new object of the specified class with the given names.
     """
