@@ -11,6 +11,7 @@ from mudsling.perms import Role
 
 from .mudslingcore.objects import Thing, Character, Player
 from .mudslingcore.topography import Room, Exit
+from .mudslingcore.help import help_db
 
 
 class MUDSlingCorePlugin(GamePlugin):
@@ -41,6 +42,22 @@ class MUDSlingCorePlugin(GamePlugin):
         This hook is invoked as the last step during server startup, after
         everything is loaded and otherwise ready to go.
         """
+        # Load help files to form an in-memory database of the entries.
+        for paths in self.game.invokeHook('helpPaths').itervalues():
+            for path in paths:
+                help_db.loadHelpPath(path, rebuildNameMap=False)
+        help_db.rebuildNameMap()
+
+    def hook_helpPaths(self):
+        """
+        This hook is called to get a list of paths where help files can be
+        found. This hook is implemented by mudslingcore, however, and may not
+        be called if you are not using mudslingcore.
+
+        The default implementaiton looks for a "help" directory in the plugin's
+        path. For most cases, that should be sufficient.
+        """
+        return super(MUDSlingCorePlugin, self).hook_helpPaths()
 
     def hook_serverShutdown(self, reload):
         """

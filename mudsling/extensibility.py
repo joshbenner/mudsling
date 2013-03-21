@@ -35,7 +35,7 @@ class MUDSlingPlugin(IPlugin):
 
     options = {}
     info = None
-    #: @type: mudsling.server.MUDSling
+    #: @type: mudsling.core.MUDSling
     game = None
 
 
@@ -103,6 +103,19 @@ class GamePlugin(MUDSlingPlugin):
         @rtype: list
         """
         path = os.path.join(self.pluginpath, 'patterns')
+        if os.path.exists(path) and os.path.isdir(path):
+            return [path]
+        return []
+
+    def hook_helpPaths(self):
+        """
+        Define the paths where MUDSling can find help files provided by this
+        plugin. Default implementation looks for "help" directory within the
+        plugin's directory.
+
+        @rtype: list
+        """
+        path = os.path.join(self.pluginpath, 'help')
         if os.path.exists(path) and os.path.isdir(path):
             return [path]
         return []
