@@ -133,6 +133,7 @@ class ANSIParser(object):
         hilite = ANSI_HILITE
         normal = ANSI_NORMAL
         self.ext_ansi_map = [
+            (r'{u', ANSI_UNDERLINE),
             (r'{r', hilite + ANSI_RED),
             (r'{R', normal + ANSI_RED),
             (r'{g', hilite + ANSI_GREEN),

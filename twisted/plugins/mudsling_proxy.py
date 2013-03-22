@@ -13,7 +13,7 @@ from zope.interface import implements
 from twisted.plugin import IPlugin
 from twisted.application.service import IServiceMaker
 from twisted.application.service import MultiService
-from twisted.conch.telnet import StatefulTelnetProtocol
+from twisted.conch.telnet import StatefulTelnetProtocol, Telnet
 from twisted.internet.protocol import ServerFactory, ReconnectingClientFactory
 from twisted.application import internet
 from twisted.protocols import amp
@@ -22,6 +22,7 @@ from twisted.internet import reactor
 from mudsling import proxy
 
 
+MXP = chr(91)
 max_session_id = 0
 sessions = {}
 
@@ -77,10 +78,17 @@ class ProxyTelnetSession(StatefulTelnetProtocol):
     output_buffer = []
 
     def __init__(self):
+#        Telnet.__init__(self)
         self.session_id = session_id()
         sessions[self.session_id] = self
         self.output_buffer = []
         self.MAX_LENGTH = amp.MAX_VALUE_LENGTH * 8
+
+#    def enableRemote(self, option):
+#        return option == MXP
+#
+#    def enableLocal(self, option):
+#        return option == MXP
 
     def callRemote(self, *args, **kwargs):
         kwargs['sessId'] = self.session_id

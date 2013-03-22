@@ -1,6 +1,7 @@
 import os
 import markdown
 import logging
+import re
 
 from fuzzywuzzy import process
 
@@ -25,8 +26,12 @@ class HelpEntry(object):
     meta = {}
     required_perm = None
 
+    plain_text_transforms = (
+        (re.compile(r"\[.*\]\((.*)\)"), r"{c{u\1{n"),
+    )
+
     def __init__(self, filepath):
-        self.filepath = filepath
+        self.filepath = os.path.abspath(filepath)
         filename = os.path.basename(filepath)
         self.id = filename.rsplit('.', 1)[0]
         self.title = self.id.replace('_', ' ')
@@ -57,6 +62,16 @@ class HelpEntry(object):
 
     def __repr__(self):
         return "<Help Topic '%s'>" % self.title
+
+    def plainText(self):
+        with open(os.devnull, 'w') as f:
+            md.reset().convertFile(self.filepath, output=f)
+            text = '\n'.join(md.lines).strip()
+#        with open(self.filepath, 'r') as f:
+#            text = f.read()
+        for regex, replace in self.plain_text_transforms:
+            text = regex.sub(replace, text)
+        return text
 
 
 class HelpManager(object):
@@ -96,14 +111,17 @@ class HelpManager(object):
         self.all_names = self.name_map.keys()
 
     def findTopic(self, search):
-        matches = process.extract(search, self.all_names)
+        matches = [x for x in process.extract(search.lower(), self.all_names)
+                   if x[1] >= 85]
         if not matches:
             raise errors.FailedMatch(msg="No help found for '%s'." % search)
-        elif len(matches) == 1 or matches[0][1] - matches[1][1] >= 10:
+        elif (len(matches) == 1
+              or matches[0][1] - matches[1][1] >= 10
+              or matches[0][0] == search.lower()):
             return self.name_map[matches[0][0]]
 
         # We know we have two or more elements that are 10 or more score apart.
-        msg = "Are you looking for help on any of these topics? %s"
+        msg = "Are you looking for help on any of these topics? {c%s"
         entries = utils.sequence.unique([self.name_map[x[0]] for x in matches])
         entries = utils.string.english_list(entries, andstr=' or ')
         raise errors.AmbiguousMatch(msg=msg % entries)

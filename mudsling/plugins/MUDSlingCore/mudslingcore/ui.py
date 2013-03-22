@@ -79,7 +79,7 @@ class BaseUI(object):
 
 class LimitedWidthUI(BaseUI):
     width = 100
-    indent = 0
+    indent = ''
 
     # Prefix and suffix are NOT counted in the width attribute. The width must
     # bet set to control width of content to appear BETWEEN prefix and suffix.
@@ -100,6 +100,7 @@ class LimitedWidthUI(BaseUI):
 
 class SimpleUI(LimitedWidthUI):
     fill_char = '-'
+    indent = ' '  # Indent for wrapped line.
     body_prefix = ' '
     body_suffix = ' '
     width = 98  # Space on either side adds up to 100 width.
@@ -161,6 +162,7 @@ class SimpleUI(LimitedWidthUI):
 class ClassicUI(LimitedWidthUI):
     hr = '{c' + ('-=' * 50)  # Half width because two chars.
     h1_format = "{{y{text}"
+    indent = '  '
     body_prefix = ' '
     body_suffix = ' '
     table_settings = {

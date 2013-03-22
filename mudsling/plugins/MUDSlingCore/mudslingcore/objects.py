@@ -5,6 +5,7 @@ from mudsling import parsers
 
 from objsettings import ObjSetting, ConfigurableObject
 
+from mudslingcore import commands
 import commands.admin.system
 import commands.admin.perms
 import commands.admin.tasks
@@ -106,9 +107,13 @@ class Player(BasePlayer, ConfigurableObject):
         @type raw: C{str}
         """
         if raw.startswith(';') and self.hasPerm("eval code"):
-            cmd = commands.admin.system.EvalCmd(raw, ';', raw[1:],
-                                                self.game, self.ref(),
-                                                self.ref())
+            return commands.admin.system.EvalCmd(raw, ';', raw[1:],
+                                                 self.game, self.ref(),
+                                                 self.ref())
+        if raw.startswith('?'):
+            cmd = commands.ooc.HelpCmd(raw, '?', raw[1:], self.game,
+                                       self.ref(), self.ref())
+            cmd.matchSyntax(cmd.argstr)
             return cmd
         return None
 

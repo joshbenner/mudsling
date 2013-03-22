@@ -106,7 +106,7 @@ class Persistent(object):
     @type _transientVars: list
     """
 
-    _transientVars = ['_transientVars']
+    _transientVars = ['_transientVars', 'temp', 'tmp']
 
     @classmethod
     def _getTransientVars(cls):

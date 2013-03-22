@@ -8,6 +8,8 @@ from mudsling import errors
 from mudsling import parsers
 
 from mudslingcore.misc import teleport_object
+from mudslingcore.help import help_db
+from mudslingcore.ui import ClassicUI
 
 
 class AnsiCmd(Command):
@@ -113,3 +115,26 @@ class MoveCmd(Command):
         @type args: dict
         """
         teleport_object(args['what'], args['where'])
+
+
+class HelpCmd(Command):
+    """
+    help [<topic>]
+
+    Retrieves help on the specified topic. If no topic is given, it will look
+    for the "index" help topic.
+    """
+    aliases = ('help', '@help', '+help')  # All the same help.
+    syntax = "[<topic>]"
+
+    def run(self, this, actor, args):
+        search = args['topic'] or 'index'
+        try:
+            topic = help_db.findTopic(search)
+        except errors.MatchError as e:
+            actor.msg('{y' + e.message)
+            return
+
+        ui = ClassicUI()
+        out = ui.report("Help: %s" % topic.title, topic.plainText())
+        actor.msg(out)
