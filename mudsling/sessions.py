@@ -30,6 +30,7 @@ class Session(object):
 
     ansi = False
     xterm256 = False
+    mxp = False
 
     def openSession(self, resync=False):
         self.time_connected = time.time()

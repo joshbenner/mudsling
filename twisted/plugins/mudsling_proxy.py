@@ -88,36 +88,44 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
         self.MAX_LENGTH = amp.MAX_VALUE_LENGTH * 8
 
     def enableRemote(self, option):
-        return option == mxp.TELNET_OPT
+        return False
 
     def enableLocal(self, option):
-        print "Wants to enable: %d" % ord(option)
-        return option == mxp.TELNET_OPT
+        if option == mxp.TELNET_OPT:
+            self.mxp = True
+            return True
+        return False
 
     def callRemote(self, *args, **kwargs):
         kwargs['sessId'] = self.session_id
         self.amp.callRemote(*args, **kwargs).addErrback(self.amp._onError)
 
     def connectionMade(self):
-        def proxySession(result):
+        def startProxySession(result):
             # If not in session list, then disconnect may have originated on
             # the server side, or there is some very fast disconnect.
             if self.session_id in sessions:
-                self.callRemote(proxy.NewSession, delim=self.delimiter)
-        self._negotiate_mxp().addBoth(proxySession)
+                print "start remote session"
+                print repr(self.mxp)
+                self.callRemote(proxy.NewSession,
+                                delim=self.delimiter,
+                                mxp=self.mxp)
+        self._negotiate_mxp().addBoth(startProxySession)
 
     def _negotiate_mxp(self):
         def enable_mxp(opt):
-            self.mxp = True
+            print "enable mxp"
             self.requestNegotiation(mxp.TELNET_OPT, '')
 
         def disable_mxp(opt):
-            self.mxp = False
+            pass
 
         return self.will(mxp.TELNET_OPT).addCallbacks(enable_mxp, disable_mxp)
 
     def connectionLost(self, reason):
         self.callRemote(proxy.EndSession)
+        basic.LineReceiver.connectionLost(self, reason)
+        Telnet.connectionLost(self, reason)
 
     def applicationDataReceived(self, bytes):
         basic.LineReceiver.dataReceived(self, bytes)
@@ -153,7 +161,8 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
         self.callRemote(proxy.ReSyncSession,
                         delim=self.delimiter,
                         playerId=self.playerId,
-                        time_connected=self.time_connected)
+                        time_connected=self.time_connected,
+                        mxp=self.mxp)
 
 
 class AmpClientProtocol(amp.AMP):

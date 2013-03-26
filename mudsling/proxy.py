@@ -69,7 +69,8 @@ class ProxySession(Session):
 class NewSession(amp.Command):
     arguments = [
         ('sessId', amp.Integer()),
-        ('delim', amp.String())
+        ('delim', amp.String()),
+        ('mxp', amp.Boolean())
     ]
     response = []
     errors = {Exception: 'EXCEPTION'}
@@ -89,7 +90,8 @@ class ReSyncSession(amp.Command):
         ('sessId', amp.Integer()),
         ('delim', amp.String()),
         ('playerId', amp.Integer()),
-        ('time_connected', amp.Integer())
+        ('time_connected', amp.Integer()),
+        ('mxp', amp.Boolean())
     ]
     response = []
     errors = {Exception: 'EXCEPTION'}
@@ -146,8 +148,9 @@ class AMPServerProtocol(amp.AMP):
         print 'AMPServerProtocol', error.__dict__
 
     @NewSession.responder
-    def newSession(self, sessId, delim):
+    def newSession(self, sessId, delim, mxp):
         session = ProxySession(sessId, delim)
+        session.mxp = mxp
         session.game = self.factory.game
         session.openSession()
         return {}
@@ -172,12 +175,13 @@ class AMPServerProtocol(amp.AMP):
         return {}
 
     @ReSyncSession.responder
-    def reSyncSession(self, sessId, delim, playerId, time_connected):
+    def reSyncSession(self, sessId, delim, playerId, time_connected, mxp):
         """
         Create a server session that corresponds to an already-established
         session on the proxy-side.
         """
         session = ProxySession(sessId, delim)
+        session.mxp = mxp
         session.game = self.factory.game
         session.openSession(resync=True)
         session.time_connected = time_connected
