@@ -16,13 +16,13 @@ from twisted.application.service import MultiService
 from twisted.conch.telnet import StatefulTelnetProtocol, Telnet
 from twisted.internet.protocol import ServerFactory, ReconnectingClientFactory
 from twisted.application import internet
-from twisted.protocols import amp
+from twisted.protocols import amp, basic
 from twisted.internet import reactor
 
 from mudsling import proxy
+from mudsling import mxp
 
 
-MXP = chr(91)
 max_session_id = 0
 sessions = {}
 
@@ -67,7 +67,7 @@ class MUDSlingProxyServiceMaker(object):
         return service
 
 
-class ProxyTelnetSession(StatefulTelnetProtocol):
+class ProxyTelnetSession(Telnet, basic.LineReceiver):
     factory = None
 
     session_id = None
@@ -76,32 +76,51 @@ class ProxyTelnetSession(StatefulTelnetProtocol):
     amp = None  # Set by AmpClientProtocol on class when it is instantiated.
 
     output_buffer = []
+    delimiter = '\n'
+
+    mxp = False
 
     def __init__(self):
-#        Telnet.__init__(self)
+        Telnet.__init__(self)
         self.session_id = session_id()
         sessions[self.session_id] = self
         self.output_buffer = []
         self.MAX_LENGTH = amp.MAX_VALUE_LENGTH * 8
 
-#    def enableRemote(self, option):
-#        return option == MXP
-#
-#    def enableLocal(self, option):
-#        return option == MXP
+    def enableRemote(self, option):
+        return option == mxp.TELNET_OPT
+
+    def enableLocal(self, option):
+        print "Wants to enable: %d" % ord(option)
+        return option == mxp.TELNET_OPT
 
     def callRemote(self, *args, **kwargs):
         kwargs['sessId'] = self.session_id
         self.amp.callRemote(*args, **kwargs).addErrback(self.amp._onError)
 
     def connectionMade(self):
-        # If not in session list, then disconnect may have originated on the
-        # server side, or there is some very fast disconnect.
-        if self.session_id in sessions:
-            self.callRemote(proxy.NewSession, delim=self.delimiter)
+        def proxySession(result):
+            # If not in session list, then disconnect may have originated on
+            # the server side, or there is some very fast disconnect.
+            if self.session_id in sessions:
+                self.callRemote(proxy.NewSession, delim=self.delimiter)
+        self._negotiate_mxp().addBoth(proxySession)
+
+    def _negotiate_mxp(self):
+        def enable_mxp(opt):
+            self.mxp = True
+            self.requestNegotiation(mxp.TELNET_OPT, '')
+
+        def disable_mxp(opt):
+            self.mxp = False
+
+        return self.will(mxp.TELNET_OPT).addCallbacks(enable_mxp, disable_mxp)
 
     def connectionLost(self, reason):
         self.callRemote(proxy.EndSession)
+
+    def applicationDataReceived(self, bytes):
+        basic.LineReceiver.dataReceived(self, bytes)
 
     def lineReceived(self, line):
         parts = proxy.message_chunks(line)
