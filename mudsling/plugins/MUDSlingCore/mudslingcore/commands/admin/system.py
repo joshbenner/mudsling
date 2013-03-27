@@ -81,11 +81,13 @@ class EvalCmd(Command):
             'me': char,
             'here': (char.location if self.game.db.isValid(char, Object)
                      else None),
+            'mudsling': mudsling,
             'mudslingcore': mudslingcore,
             'utils': mudsling.utils,
         }
 
-        actor.msg("{y>>> %s" % string.escape_ansi_tokens(code))
+        inMsg = string.parse_ansi('{y>>> ') + code + string.parse_ansi("{n")
+        actor.msg(inMsg, {'raw': True})
 
         mode = 'eval'
         duration = compile_time = None

@@ -69,8 +69,7 @@ class ProxySession(Session):
 class NewSession(amp.Command):
     arguments = [
         ('sessId', amp.Integer()),
-        ('delim', amp.String()),
-        ('mxp', amp.Boolean())
+        ('delim', amp.String())
     ]
     response = []
     errors = {Exception: 'EXCEPTION'}
@@ -92,6 +91,16 @@ class ReSyncSession(amp.Command):
         ('playerId', amp.Integer()),
         ('time_connected', amp.Integer()),
         ('mxp', amp.Boolean())
+    ]
+    response = []
+    errors = {Exception: 'EXCEPTION'}
+
+
+class SessionOption(amp.Command):
+    arguments = [
+        ('sessId', amp.Integer()),
+        ('optName', amp.String()),
+        ('optVal', amp.Integer())
     ]
     response = []
     errors = {Exception: 'EXCEPTION'}
@@ -148,9 +157,8 @@ class AMPServerProtocol(amp.AMP):
         print 'AMPServerProtocol', error.__dict__
 
     @NewSession.responder
-    def newSession(self, sessId, delim, mxp):
+    def newSession(self, sessId, delim):
         session = ProxySession(sessId, delim)
-        session.mxp = mxp
         session.game = self.factory.game
         session.openSession()
         return {}
@@ -188,6 +196,15 @@ class AMPServerProtocol(amp.AMP):
         player = session.game.db.getRef(playerId)
         if player.isValid():
             session.attachToPlayer(player)
+        return {}
+
+    @SessionOption.responder
+    def SessionOption(self, sessId, optName, optVal):
+        try:
+            session = proxy_sessions[sessId]
+        except KeyError:
+            raise InvalidSession()
+        session.setOption(optName, optVal)
         return {}
 
 

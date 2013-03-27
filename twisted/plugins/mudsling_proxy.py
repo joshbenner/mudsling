@@ -93,6 +93,14 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
     def enableLocal(self, option):
         if option == mxp.TELNET_OPT:
             self.mxp = True
+            self.callRemote(proxy.SessionOption, optName="mxp", optVal=1)
+            return True
+        return False
+
+    def disableLocal(self, option):
+        if option == mxp.TELNET_OPT:
+            self.mxp = False
+            self.callRemote(proxy.SessionOption, optName="mxp", optVal=0)
             return True
         return False
 
@@ -101,26 +109,21 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
         self.amp.callRemote(*args, **kwargs).addErrback(self.amp._onError)
 
     def connectionMade(self):
-        def startProxySession(result):
-            # If not in session list, then disconnect may have originated on
-            # the server side, or there is some very fast disconnect.
-            if self.session_id in sessions:
-                print "start remote session"
-                print repr(self.mxp)
-                self.callRemote(proxy.NewSession,
-                                delim=self.delimiter,
-                                mxp=self.mxp)
-        self._negotiate_mxp().addBoth(startProxySession)
+        # If not in session list, then disconnect may have originated on
+        # the server side, or there is some very fast disconnect.
+        if self.session_id in sessions:
+            self.callRemote(proxy.NewSession,
+                            delim=self.delimiter)
+        self._negotiate_mxp()
 
     def _negotiate_mxp(self):
         def enable_mxp(opt):
-            print "enable mxp"
             self.requestNegotiation(mxp.TELNET_OPT, '')
 
-        def disable_mxp(opt):
+        def no_mxp(opt):
             pass
 
-        return self.will(mxp.TELNET_OPT).addCallbacks(enable_mxp, disable_mxp)
+        return self.will(mxp.TELNET_OPT).addCallbacks(enable_mxp, no_mxp)
 
     def connectionLost(self, reason):
         self.callRemote(proxy.EndSession)

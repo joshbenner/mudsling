@@ -1,8 +1,15 @@
 import time
 import logging
 import traceback
+import re
 
 from mudsling.utils import string
+from mudsling import mxp
+
+
+# Do not allow players to use control codes. Would be difficult, but not
+# impossible, for a malicious user to send other players control sequences.
+ILLEGAL_INPUT = re.compile('[' + mxp.GT + mxp.LT + mxp.AMP + chr(27) + ']')
 
 
 class Session(object):
@@ -31,6 +38,19 @@ class Session(object):
     ansi = False
     xterm256 = False
     mxp = False
+
+    def setOption(self, name, value):
+        """
+        Map options and their values onto session attributes. This is used by
+        session protocols that do not need to understand types.
+        """
+        if name == 'mxp':
+            before = self.mxp
+            self.mxp = bool(value)
+            if not before and self.mxp:
+                # Make secure mode the default, since we do not allow other
+                # players to send MXP sequences.
+                self.sendOutput('', {"mxpmode": mxp.LINE_MODES.LOCK_SECURE})
 
     def openSession(self, resync=False):
         self.time_connected = time.time()
@@ -85,11 +105,25 @@ class Session(object):
         if not text.endswith(self.line_delimiter):
             text += self.line_delimiter
 
-        if self.ansi and ('raw' not in flags or not flags['raw']):
+        raw = flags.get('raw', False)
+
+        if self.mxp:
+            if raw:
+                # Locked mode parses no MXP at all.
+                text = mxp.lineMode(text, mxp.LINE_MODES.LOCKED)
+            else:
+                mxpMode = flags.get('mxpmode', None)
+                text = mxp.prepare(text)
+                if mxpMode is not None:
+                    text = mxp.lineMode(text, mxpMode)
+        else:
+            text = mxp.strip(text)
+
+        if self.ansi and not raw:
             text = text.replace('\n', string.ansi.ANSI_NORMAL + '\n')
             text = (string.parse_ansi(text, xterm256=self.xterm256)
                     + string.ansi.ANSI_NORMAL)
-        else:
+        elif not raw:
             text = string.parse_ansi(text, strip_ansi=True)
 
         self.rawSendOutput(text)

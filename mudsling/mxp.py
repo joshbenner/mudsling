@@ -15,15 +15,36 @@ TAG_RE = re.compile('(' + TAG_PAT + ')')
 ENTITY_RE = re.compile('(' + ENTITY_PAT + ')')
 TAG_ENTITY_RE = re.compile('(' + TAG_PAT + '|' + ENTITY_PAT + ')')
 SPECIAL_CHARS = (
+    ('&', '&amp;'),
     ('<', '&lt;'),
     ('>', '&gt;'),
-    ('&', '&amp;'),
 )
 MXP_ENCODING = (
     (LT, '<'),
     (GT, '>'),
     (AMP, '&'),
 )
+
+
+class LINE_MODES:
+    OPEN = 0
+    SECURE = 1
+    LOCKED = 2
+    RESET = 3
+    TEMP_SECURE = 4
+    LOCK_OPEN = 5
+    LOCK_SECURE = 6
+    LOCK_LOCKED = 7
+
+
+LINE_MODE_RE = re.compile('\x1b\[\d+z')
+RESET_MODE = "\x1b[3z\x1b[1z"  # Resets to secure as default.
+
+
+def lineMode(line, mode):
+    line = LINE_MODE_RE.sub('', line)
+    modeTag = "\x1b[%dz" % mode
+    return modeTag + line.replace('\n', '\n' + modeTag) + RESET_MODE
 
 
 def tag(name, **attr):
@@ -63,7 +84,19 @@ def closedTag(name, content, **attr):
 
     @rtype: str
     """
-    return tag(name, **attr) + str(content) + tag('/' + name)
+    filtered_attr = {}
+    for k, v in attr.iteritems():
+        if v is not None:
+            filtered_attr[k] = str(v)
+    return tag(name, **filtered_attr) + str(content) + tag('/' + name)
+
+
+def link(text, href, hint=None):
+    return closedTag('a', text, href=href, hint=hint)
+
+
+def send(text, cmd, hint=None):
+    return closedTag('send', text, href=cmd, hint=hint)
 
 
 def strip(text):
