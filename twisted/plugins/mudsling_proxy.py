@@ -114,9 +114,8 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
         if self.session_id in sessions:
             self.callRemote(proxy.NewSession,
                             delim=self.delimiter)
-        self._negotiate_mxp()
 
-    def _negotiate_mxp(self):
+    def negotiateMXP(self):
         def enable_mxp(opt):
             self.requestNegotiation(mxp.TELNET_OPT, '')
 
@@ -216,6 +215,7 @@ class AmpClientProtocol(amp.AMP):
         except KeyError:
             raise proxy.InvalidSession(str(sessId))
         session.playerId = playerId
+        session.negotiateMXP()
         return {}
 
 

@@ -38,7 +38,7 @@ class LINE_MODES:
 
 
 LINE_MODE_RE = re.compile('\x1b\[\d+z')
-RESET_MODE = "\x1b[3z\x1b[1z"  # Resets to secure as default.
+RESET_MODE = "\x1b[3z\x1b[6z"  # Resets to secure as default.
 
 
 def lineMode(line, mode):

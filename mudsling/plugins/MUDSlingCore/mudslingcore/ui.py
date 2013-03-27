@@ -98,12 +98,9 @@ class LimitedWidthUI(BaseUI):
         return self.body_prefix + self._wrapper.fill(line) + self.body_suffix
 
 
-class SimpleUI(LimitedWidthUI):
+class SimpleUI(BaseUI):
     fill_char = '-'
-    indent = ' '  # Indent for wrapped line.
     body_prefix = ' '
-    body_suffix = ' '
-    width = 98  # Space on either side adds up to 100 width.
     table_settings = {
         'width': 98,
         'hrule': '-',
@@ -114,8 +111,7 @@ class SimpleUI(LimitedWidthUI):
 
     def h1(self, text=''):
         text = '' if text == '' else "{y%s " % text
-        width = self.width + 2
-        return utils.string.ljust("%s{b" % text, width, self.fill_char)
+        return utils.string.ljust("%s{b" % text, 100, self.fill_char)
 
     def h2(self, text=''):
         return "{y%s" % text.upper()
@@ -123,9 +119,12 @@ class SimpleUI(LimitedWidthUI):
     def h3(self, text=''):
         return self.h2(text)
 
+    def body_line(self, line):
+        return self.body_prefix + line
+
     def footer(self, text=''):
         text = '' if text == '' else " {y%s" % text
-        return '{b' + utils.string.rjust(text, self.width + 2, self.fill_char)
+        return '{b' + utils.string.rjust(text, 100, self.fill_char)
 
     class SimpleUITable(utils.string.Table):
         def _build_header(self, settings=None):
@@ -159,10 +158,9 @@ class SimpleUI(LimitedWidthUI):
     table_class = SimpleUITable
 
 
-class ClassicUI(LimitedWidthUI):
+class ClassicUI(BaseUI):
     hr = '{c' + ('-=' * 50)  # Half width because two chars.
     h1_format = "{{y{text}"
-    indent = '  '
     body_prefix = ' '
     body_suffix = ' '
     table_settings = {
@@ -180,8 +178,7 @@ class ClassicUI(LimitedWidthUI):
 
     def h1(self, text=''):
         return '\n'.join([self.hr,
-                          ansi.center(super(ClassicUI, self).h1(text),
-                                      self.width),
+                          ansi.center(super(ClassicUI, self).h1(text), 100),
                           self.hr])
 
     def h2(self, text=''):

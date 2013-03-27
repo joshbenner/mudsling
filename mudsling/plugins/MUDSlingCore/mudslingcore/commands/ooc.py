@@ -136,5 +136,5 @@ class HelpCmd(Command):
             return
 
         ui = ClassicUI()
-        out = ui.report("Help: %s" % topic.title, topic.plainText())
+        out = ui.report("Help: %s" % topic.title, topic.mudText())
         actor.msg(out)

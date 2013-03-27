@@ -50,7 +50,8 @@ class Session(object):
             if not before and self.mxp:
                 # Make secure mode the default, since we do not allow other
                 # players to send MXP sequences.
-                self.sendOutput('', {"mxpmode": mxp.LINE_MODES.LOCK_SECURE})
+                self.sendOutput('MXP Enabled',
+                                {"mxpmode": mxp.LINE_MODES.LOCK_SECURE})
 
     def openSession(self, resync=False):
         self.time_connected = time.time()

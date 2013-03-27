@@ -7,6 +7,7 @@ from fuzzywuzzy import process
 
 from mudsling import parsers
 from mudsling import errors
+from mudsling import mxp
 
 from mudsling import utils
 import mudsling.utils.file
@@ -15,6 +16,18 @@ import mudsling.utils.sequence
 
 
 md = markdown.Markdown(extensions=['meta'])
+
+
+def mxpLink(text, topic):
+    return mxp.send(text, "?%s" % topic, "Get help for %s" % topic)
+
+
+def _mxpTopicLink(match):
+    """
+    Regex .sub() callback for replacing a Markdown link with an MXP tag to
+    send the help command for the topic.
+    """
+    return mxpLink(match.group(1), match.group(2))
 
 
 class HelpEntry(object):
@@ -26,8 +39,8 @@ class HelpEntry(object):
     meta = {}
     required_perm = None
 
-    plain_text_transforms = (
-        (re.compile(r"\[.*\]\((.*)\)"), r"{c{u\1{n"),
+    mud_text_transforms = (
+        (re.compile(r"\[(.*)\]\((.*)\)"), _mxpTopicLink),
     )
 
     def __init__(self, filepath):
@@ -63,13 +76,14 @@ class HelpEntry(object):
     def __repr__(self):
         return "<Help Topic '%s'>" % self.title
 
-    def plainText(self):
+    def mudText(self):
+        """
+        Get text appropriate to output to a MUD session.
+        """
         with open(os.devnull, 'w') as f:
             md.reset().convertFile(self.filepath, output=f)
             text = '\n'.join(md.lines).strip()
-#        with open(self.filepath, 'r') as f:
-#            text = f.read()
-        for regex, replace in self.plain_text_transforms:
+        for regex, replace in self.mud_text_transforms:
             text = regex.sub(replace, text)
         return text
 
