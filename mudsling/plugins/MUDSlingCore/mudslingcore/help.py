@@ -15,7 +15,7 @@ import mudsling.utils.string
 import mudsling.utils.sequence
 
 
-md = markdown.Markdown(extensions=['meta'])
+md = markdown.Markdown(extensions=['meta', 'wikilinks'])
 
 
 def mxpLink(text, topic):
@@ -30,6 +30,10 @@ def _mxpTopicLink(match):
     return mxpLink(match.group(1), match.group(2))
 
 
+def _mxpWikiLink(match):
+    return mxpLink(match.group(1), match.group(1))
+
+
 class HelpEntry(object):
     id = ""
     filepath = ""
@@ -40,7 +44,8 @@ class HelpEntry(object):
     required_perm = None
 
     mud_text_transforms = (
-        (re.compile(r"\[(.*)\]\((.*)\)"), _mxpTopicLink),
+        (re.compile(r"\[(.*?)\]\((.*?)\)"), _mxpTopicLink),
+        (re.compile(r"\[\[(.*?)\]\]"), _mxpWikiLink)
     )
 
     def __init__(self, filepath):
