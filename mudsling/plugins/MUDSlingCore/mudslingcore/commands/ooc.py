@@ -7,8 +7,11 @@ from mudsling.objects import Object
 from mudsling import errors
 from mudsling import parsers
 
+from mudsling import utils
+import mudsling.utils.string
+
 from mudslingcore.misc import teleport_object
-from mudslingcore.help import help_db
+from mudslingcore import help
 from mudslingcore.ui import ClassicUI
 
 
@@ -130,7 +133,18 @@ class HelpCmd(Command):
     def run(self, this, actor, args):
         search = args['topic'] or 'index'
         try:
-            topic = help_db.findTopic(search)
+            topic = help.help_db.findTopic(search)
+        except errors.AmbiguousMatch as e:
+            msg = "{yNo topic '%s' found." % search
+            if e.matches is not None:
+                entries = []
+                for topic in e.matches:
+                    entry = help.help_db.name_map[topic]
+                    entries.append(help.mxpLink(entry.title, entry.title))
+                lst = utils.string.english_list(entries, andstr=' or ')
+                msg += " Were you looking for any of these? {n%s" % lst
+            actor.msg(msg)
+            return
         except errors.MatchError as e:
             actor.msg('{y' + e.message)
             return

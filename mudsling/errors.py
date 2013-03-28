@@ -31,7 +31,12 @@ class MatchError(Error):
 
 
 class AmbiguousMatch(MatchError):
+    query = None
+    matches = None
+
     def __init__(self, msg=None, query=None, matches=None):
+        self.query = query
+        self.matches = matches
         if msg is None:
             msg = "Ambiguous match"
             if query is not None:

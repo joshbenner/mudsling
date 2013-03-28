@@ -140,10 +140,8 @@ class HelpManager(object):
             return self.name_map[matches[0][0]]
 
         # We know we have two or more elements that are 10 or more score apart.
-        msg = "Are you looking for help on any of these topics? {c%s"
-        entries = utils.sequence.unique([self.name_map[x[0]] for x in matches])
-        entries = utils.string.english_list(entries, andstr=' or ')
-        raise errors.AmbiguousMatch(msg=msg % entries)
+        raise errors.AmbiguousMatch(query=search,
+                                    matches=[x[0] for x in matches])
 
 
 help_db = HelpManager()
