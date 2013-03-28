@@ -1,3 +1,4 @@
 Useful starting points:
 
-* [Building](Building)
+* [[Building]]
+* [[Administration]]

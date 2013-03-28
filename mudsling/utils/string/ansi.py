@@ -52,6 +52,7 @@ ANSI_NORMAL = "\033[0m"
 
 ANSI_UNDERLINE = "\033[4m"
 ANSI_HILITE = "\033[1m"
+ANSI_ITALIC = "\033[3m"
 ANSI_BLINK = "\033[5m"
 ANSI_INVERSE = "\033[7m"
 ANSI_INV_HILITE = "\033[1;7m"
@@ -134,6 +135,7 @@ class ANSIParser(object):
         normal = ANSI_NORMAL
         self.ext_ansi_map = [
             (r'{u', ANSI_UNDERLINE),
+            (r'{i', ANSI_ITALIC),
             (r'{r', hilite + ANSI_RED),
             (r'{R', normal + ANSI_RED),
             (r'{g', hilite + ANSI_GREEN),

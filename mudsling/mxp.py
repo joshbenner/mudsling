@@ -99,6 +99,20 @@ def send(text, cmd, hint=None):
     return closedTag('send', text, href=cmd, hint=hint)
 
 
+def bold(text):
+    return closedTag('b', text)
+strong = bold
+
+
+def underline(text):
+    return closedTag('u', text)
+
+
+def italic(text):
+    return closedTag('i', text)
+em = italic
+
+
 def strip(text):
     """
     Strips encoded MXP tags and entities out of text.

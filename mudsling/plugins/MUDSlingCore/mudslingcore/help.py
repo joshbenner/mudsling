@@ -11,8 +11,6 @@ from mudsling import mxp
 
 from mudsling import utils
 import mudsling.utils.file
-import mudsling.utils.string
-import mudsling.utils.sequence
 
 
 md = markdown.Markdown(extensions=['meta', 'wikilinks'])
@@ -27,11 +25,27 @@ def _mxpTopicLink(match):
     Regex .sub() callback for replacing a Markdown link with an MXP tag to
     send the help command for the topic.
     """
-    return mxpLink(match.group(1), match.group(2))
+    return mxpLink(match.group('title'), match.group('link'))
 
 
 def _mxpWikiLink(match):
-    return mxpLink(match.group(1), match.group(1))
+    return mxpLink(match.group('link'), match.group('link'))
+
+
+def _mxpHeading(match):
+    return mxp.closedTag('b', match.group('text').strip())
+
+
+def _mxpBold(match):
+    return mxp.bold(match.group('text'))
+
+
+def _mxpUnderline(match):
+    return mxp.underline(match.group('text'))
+
+
+def _mxpItalic(match):
+    return mxp.italic(match.group('text'))
 
 
 class HelpEntry(object):
@@ -44,8 +58,12 @@ class HelpEntry(object):
     required_perm = None
 
     mud_text_transforms = (
-        (re.compile(r"\[(.*?)\]\((.*?)\)"), _mxpTopicLink),
-        (re.compile(r"\[\[(.*?)\]\]"), _mxpWikiLink)
+        (re.compile(r"\[(?P<title>.*?)\]\((?P<link>.*?)\)"), _mxpTopicLink),
+        (re.compile(r"\[\[(?P<link>.*?)\]\]"), _mxpWikiLink),
+        (re.compile(r"`(.*?)`"), r'{c\1{n'),
+        (re.compile(r"^#+\s*(?P<text>.+)$", re.MULTILINE), r"{y\1"),
+        (re.compile(r"(\*\*|__)(?P<text>.*?)\1"), _mxpBold),
+        (re.compile(r"(\*|_)(?P<text>.*?)\1"), _mxpItalic)
     )
 
     def __init__(self, filepath):
@@ -57,7 +75,12 @@ class HelpEntry(object):
 
         with open(os.devnull, 'w') as f:
             md.reset().convertFile(filepath, output=f)
-        self.meta = md.Meta
+
+        try:
+            self.meta = md.Meta
+            del md.Meta
+        except AttributeError:
+            self.meta = {}
 
         if 'id' in self.meta:
             self.id = str(self.meta['id'])
@@ -85,9 +108,14 @@ class HelpEntry(object):
         """
         Get text appropriate to output to a MUD session.
         """
+        if 'lines' in md.__dict__:
+            del md.lines
         with open(os.devnull, 'w') as f:
             md.reset().convertFile(self.filepath, output=f)
-            text = '\n'.join(md.lines).strip()
+            try:
+                text = '\n'.join(md.lines).strip()
+            except AttributeError:
+                text = "This help file has not yet been written."
         for regex, replace in self.mud_text_transforms:
             text = regex.sub(replace, text)
         return text

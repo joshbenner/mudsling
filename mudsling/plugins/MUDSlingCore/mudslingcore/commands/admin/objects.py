@@ -6,6 +6,7 @@ from mudsling.commands import Command
 from mudsling.objects import BasePlayer, Object as LocatedObject
 from mudsling import registry
 from mudsling import parsers
+from mudsling import errors
 
 from mudsling import utils
 import mudsling.utils.string
@@ -160,3 +161,57 @@ class ClassesCmd(Command):
                 break
             desc.append('  ' + line)
         return '\n'.join(desc)
+
+
+class GoCmd(Command):
+    """
+    @go <location>
+
+    Teleport one's self to the indicated location.
+    """
+    aliases = ('@go',)
+    syntax = "<where>"
+    required_perm = "teleport self"
+    arg_parsers = {
+        'where': parsers.MatchObject(cls=LocatedObject,
+                                     searchFor='location', show=True)
+    }
+
+    def run(self, this, actor, args):
+        """
+        @type this: mudslingcore.objects.Player
+        @type actor: mudslingcore.objects.Player
+        @type args: dict
+        """
+        if actor.isPosessing and actor.possessing.isValid(LocatedObject):
+            #: @type: mudsling.objects.Object
+            obj = actor.possessing
+            misc.teleport_object(obj, args['where'])
+        else:
+            raise errors.CommandError("You are not attached to a valid object"
+                                      " with location.")
+
+
+class MoveCmd(Command):
+    """
+    @move <object> to <location>
+
+    Moves the specified object to the specified location.
+    """
+    aliases = ('@move', '@tel', '@teleport')
+    syntax = "<what> to <where>"
+    required_perm = "teleport anything"
+    arg_parsers = {
+        'what': parsers.MatchObject(cls=LocatedObject,
+                                    searchFor='locatable object', show=True),
+        'where': parsers.MatchObject(cls=LocatedObject,
+                                     searchFor='location', show=True),
+    }
+
+    def run(self, this, actor, args):
+        """
+        @type this: mudslingcore.objects.Player
+        @type actor: mudslingcore.objects.Player
+        @type args: dict
+        """
+        misc.teleport_object(args['what'], args['where'])
