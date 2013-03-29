@@ -14,9 +14,9 @@ class LockFunc(object):
 
     def eval(self, *args):
         """
-        Evaluate the LockFunc and return the result. The position args will
-        be passed to the LockFunc (and on to any LockFuncs it contains) at the
-        front of parameter lists.
+        Evaluate the lock and return the result. The position args will be
+        passed to the lock function (and on to any functions it contains) at
+        the front of parameter list.
 
         @param args: Position arguments to prepend to argument lists.
         @type args: C{tuple}
@@ -64,20 +64,18 @@ def LockParser(funcMap):
         lhs, op, rhs = tok[0]
         return _lockFunc((op, [lhs, rhs]))
 
-    lpar = Suppress('(')
-    rpar = Suppress(')')
-
     opAnd = CaselessLiteral('and') | Literal('&')
     opOr = CaselessLiteral('or') | Literal('|')
     opNot = CaselessLiteral('not') | Literal('!')
 
     arg = Word(alphanums + r' #$%&*+-./:<=>?@[\]^_`{|}~')
     args = Group(ZeroOrMore(delimitedList(arg)))
+
     fname = Word(alphas, alphanums + '_')
-    func = fname + lpar + args + rpar
+    func = fname + Suppress('(') + args + Suppress(')')
     func.setParseAction(_lockFunc)
 
-    boolExpr = operatorPrecedence(
+    expr = operatorPrecedence(
         func,
         [
             (opNot, 1, opAssoc.RIGHT, unaryOp),
@@ -85,8 +83,7 @@ def LockParser(funcMap):
             (opAnd, 2, opAssoc.LEFT, binaryOp),
         ]
     )
-    _grammar = boolExpr | func
-    return _grammar
+    return expr
 
 
 if __name__ == '__main__':
