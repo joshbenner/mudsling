@@ -61,8 +61,8 @@ class MUDSling(MultiService):
 
     def __init__(self, gameDir, configPaths):
         """
-        @type gameDir: str
-        @type configPaths: list
+        @type gameDir: C{str}
+        @type configPaths: C{list}
         """
         MultiService.__init__(self)
 
@@ -73,12 +73,9 @@ class MUDSling(MultiService):
         self.config = ConfigParser.SafeConfigParser()
         self.config.read(configPaths)
 
-        #logging.debug('\n'.join(sys.path))
-
         # Setup session handler. Used by services.
         self.session_handler = SessionHandler(self)
 
-    def startService(self):
         # Load plugin manager. Locates, filters, and loads plugins.
         self.plugins = PluginManager(self, self.game_dir)
 
@@ -100,6 +97,7 @@ class MUDSling(MultiService):
             logging.debug("Using %s as LoginScreen" % name)
             self.login_screen = plugin.plugin_object
 
+    def startService(self):
         # Gather Twisted services and register them to our application.
         for info in self.plugins.activePlugins("TwistedService"):
             service = info.plugin_object.get_service()
@@ -217,7 +215,7 @@ class MUDSling(MultiService):
         @param args: Positional args to pass to the hook.
         @param kwargs: Keyword args to pass to the hook.
         @return: Dictionary of hook results keyed by plugin info.
-        @rtype: dict
+        @rtype: C{dict}
         """
         hook = "hook_" + hook
         return self.plugins.invokeHook('GamePlugin', hook, *args, **kwargs)

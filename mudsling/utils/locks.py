@@ -1,6 +1,30 @@
+"""
+Implements a generic pyparsing lock parser grammar.
+
+Syntax for a lock: [NOT] func1(args) [AND|OR] [NOT] func2() [...]
+
+Lock syntax involves functions, operators, and parentheses.
+* Functions take the form of: <funcName>([<arg1>[, ...]])
+* Binary (two-side) operators: and, or
+* Unary (one-side) operators: not
+* Parentheses can be used to logically group operations.
+
+Examples:
+
+    foo()
+    foo() and bar(1)
+    (foo() and bar(1)) or baz(a, b)
+
+Syntax based on Evennia's lock system.
+"""
+
 from pyparsing import Suppress, Literal, CaselessLiteral, Word, Group,\
     ZeroOrMore, alphanums, alphas, delimitedList, operatorPrecedence, opAssoc
 
+# Can be imported from this module by other modules, do not remove.
+from pyparsing import ParseException
+
+# Alias symbols to their built-in functions. Used in LockParser().
 opMap = {
     '!': 'not',
     '&': 'and',
@@ -9,6 +33,10 @@ opMap = {
 
 
 class LockFunc(object):
+    """
+    Generic form of a lock function. A child class using the specified function
+    map will be dynamically created when a new L{LockParser} is created.
+    """
     fname = ""
     args = []
 
@@ -28,6 +56,16 @@ class LockFunc(object):
 
 
 def LockParser(funcMap):
+    """
+    Generate a lock parsing expression tree.
+
+    @param funcMap: Dictionary of in-script function names to their Python
+        functions.
+    @rtype funcMap: C{dict}
+
+    @return: An expression tree which can be evaluated.
+    @rtype: L{LockFunc}
+    """
     funcs = {
         'not': lambda x: not x,
         'or': lambda l, r: l or r,
@@ -109,7 +147,7 @@ if __name__ == '__main__':
         start = time.clock()
         try:
             r = _grammar.parseString(t)[0]
-        except Exception as e:
+        except ParseException as e:
             r = e
         duration = time.clock() - start
         print "parsed: ", r

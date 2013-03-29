@@ -5,6 +5,9 @@ import string
 import random
 import copy
 
+from mudsling import utils
+import mudsling.utils.object
+
 
 class InvalidMessage(Exception):
     pass
@@ -113,7 +116,7 @@ class MessagedObject(object):
 
     def _searchForMessage(self, key):
         """
-        Climbs the mro of the object to search for the message. This can be
+        Ascends the mro of the object to search for the message. This can be
         overridden to implement alternate schemes for resolving messages that
         are not defined on self directly.
 
@@ -121,9 +124,7 @@ class MessagedObject(object):
         @rypte: C{dict} or C{None}
         """
         msg = None
-        mro = type.mro(self.__class__)
-        mro.reverse()
-        for cls in mro:
+        for cls in utils.object.ascendMro(self):
             if isinstance(cls, MessagedObject):
                 if key in cls.messages:
                     msg = cls.messages[key]

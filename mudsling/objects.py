@@ -3,13 +3,16 @@ import re
 
 from mudsling.storage import StoredObject, ObjRef
 from mudsling import errors
-from mudsling.utils.password import Password
-from mudsling.utils.input import LineReader
-from mudsling.utils.sequence import unique
-from mudsling.utils.object import filterByClass
+from mudsling import locks
 from mudsling.match import match_objlist, match_stringlists
 from mudsling.sessions import InputProcessor
 from mudsling.messages import MessagedObject
+
+from mudsling import utils
+import mudsling.utils.password
+import mudsling.utils.input
+import mudsling.utils.sequence
+import mudsling.utils.object
 
 
 class BaseObject(StoredObject, InputProcessor, MessagedObject):
@@ -35,6 +38,45 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
 
     #: @type: list
     possessable_by = []
+
+    # Default BaseObject locks. Will be used if object nor any intermediate
+    # child class defines the lock type being searched for.
+    locks = locks.LockSet()
+
+    def __init__(self):
+        super(BaseObject, self).__init__()
+        self.locks = locks.LockSet()
+
+    def allow(self, op, who):
+        """
+        Determine if C{who} is allowed to perform C{op}.
+
+        @param op: The operation (lock type) being checked.
+        @param who: The object attempting the operation.
+
+        @rtype: C{bool}
+        """
+        return self.getLock(op).eval(self, who)
+
+    def getLock(self, type):
+        """
+        Look for lock on object. If it's not there, ascend the object's MRO
+        looking for a default.
+
+        If no lock is found, then a Lock that always fails will be returned.
+
+        @param type: The lock type to retrieve.
+        @type type: C{str}
+
+        @rtype: L{mudsling.locks.Lock}
+        """
+        if isinstance(self.locks, locks.LockSet) and self.locks.hasType(type):
+            return self.locks.getLock(type)
+        for cls in utils.object.ascendMro(self):
+            if (hasattr(cls, "locks") and isinstance(cls.locks, locks.LockSet)
+                    and cls.locks.hasType(type)):
+                return cls.locks.getLock(type)
+        return locks.NonePass
 
     def objectDeleted(self):
         super(BaseObject, self).objectDeleted()
@@ -198,10 +240,13 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         if search.lower() == 'me':
             candidate = self.ref()
 
-        if candidate is not None and filterByClass([candidate], cls):
+        if (candidate is not None
+                and utils.object.filterByClass([candidate], cls)):
             return [candidate]
 
-        return self._match(search, filterByClass([self.ref()], cls), err=err)
+        return self._match(search,
+                           utils.object.filterByClass([self.ref()], cls),
+                           err=err)
 
     def matchObjectOfType(self, search, cls=None):
         """
@@ -304,7 +349,7 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         The same as self._getContext(), but with duplicates removed.
         @return:
         """
-        return unique(self._getContext())
+        return utils.sequence.unique(self._getContext())
 
     def _getContext(self):
         """
@@ -366,13 +411,15 @@ class Object(BaseObject):
         matches = super(Object, self).matchObject(search, cls=cls)
         if not matches:
             if search.lower() == 'here' and self.location is not None:
-                if filterByClass([self.location], cls):
+                if utils.object.filterByClass([self.location], cls):
                     return [self.location]
 
             objects = self.contents
             if self.hasLocation:
                 objects.extend(self.location.contents)
-            matches = self._match(search, filterByClass(objects, cls), err=err)
+            matches = self._match(search,
+                                  utils.object.filterByClass(objects, cls),
+                                  err=err)
 
         if err and len(matches) > 1:
             raise errors.AmbiguousMatch(matches=matches)
@@ -640,7 +687,7 @@ class BasePlayer(BaseObject):
         return self.possessing is not None
 
     def setPassword(self, password):
-        self.password = Password(password)
+        self.password = utils.password.Password(password)
 
     def sessionAttached(self, session):
         if self.session is not None:
@@ -691,13 +738,14 @@ class BasePlayer(BaseObject):
         """
         def _callback(lines):
             return callback(lines[0], *args)
-        self.redirectInput(LineReader(_callback, max_lines=1))
+        self.redirectInput(utils.input.LineReader(_callback, max_lines=1))
 
     def readLines(self, callback, args=(), max_lines=None, end_tokens=None):
         if end_tokens is None:
             end_tokens = ('.', '@end', '@abort')
-        self.redirectInput(LineReader(callback, args=args, max_lines=max_lines,
-                                      end_tokens=end_tokens))
+        self.redirectInput(utils.input.LineReader(callback, args=args,
+                                                  max_lines=max_lines,
+                                                  end_tokens=end_tokens))
 
     def prompt(self, callback, options, args=()):
         """

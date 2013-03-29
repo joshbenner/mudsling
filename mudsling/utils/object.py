@@ -1,3 +1,4 @@
+import inspect
 
 
 def filterByClass(objects, cls):
@@ -31,3 +32,24 @@ def filterByClass(objects, cls):
         return filtered
     else:
         return list(objects)
+
+
+def ascendMro(cls):
+    """
+    Return an iterable to ascend the MRO of the provided object, whether an
+    instance or a class.
+
+    @param cls: Instance or class whose MRO to ascend.
+
+    @rtype: C{list}
+    """
+    if not inspect.isclass(cls):
+        cls = cls.__class__
+    mro = type.mro(cls)
+    return mro
+
+
+def descendMro(cls):
+    mro = ascendMro(cls)
+    mro.reverse()
+    return mro
