@@ -8,6 +8,25 @@ opMap = {
 }
 
 
+class LockFunc(object):
+    fname = ""
+    args = []
+
+    def eval(self, *args):
+        """
+        Evaluate the LockFunc and return the result. The position args will
+        be passed to the LockFunc (and on to any LockFuncs it contains) at the
+        front of parameter lists.
+
+        @param args: Position arguments to prepend to argument lists.
+        @type args: C{tuple}
+
+        @return: The result of evaluating the LockFunc.
+        @rtype: bool
+        """
+        return False
+
+
 def LockParser(funcMap):
     funcs = {
         'not': lambda x: not x,
@@ -16,7 +35,7 @@ def LockParser(funcMap):
     }
     funcs.update(funcMap)
 
-    class LockFunc(object):
+    class _lockFunc(LockFunc):
         def __init__(self, tok):
             self.fname, self.args = tok
             if self.fname in opMap:
@@ -25,25 +44,25 @@ def LockParser(funcMap):
         def __repr__(self):
             return '%s(%s)' % (self.fname, str(self.args)[1:-1])
 
-        def eval(self):
+        def eval(self, *args):
             if self.fname in funcs:
-                args = []
+                myArgs = list(args)
                 for a in self.args:
-                    if isinstance(a, LockFunc):
-                        args.append(a.eval())
+                    if isinstance(a, _lockFunc):
+                        myArgs.append(a.eval(*args))
                     else:
-                        args.append(a)
-                return funcs[self.fname](*args)
+                        myArgs.append(a)
+                return funcs[self.fname](*myArgs)
             else:
                 raise NameError("Invalid lock function: %s" % self.fname)
 
     def unaryOp(tok):
         op, rhs = tok[0]
-        return LockFunc((op, [rhs]))
+        return _lockFunc((op, [rhs]))
 
     def binaryOp(tok):
         lhs, op, rhs = tok[0]
-        return LockFunc((op, [lhs, rhs]))
+        return _lockFunc((op, [lhs, rhs]))
 
     lpar = Suppress('(')
     rpar = Suppress(')')
@@ -56,7 +75,7 @@ def LockParser(funcMap):
     args = Group(ZeroOrMore(delimitedList(arg)))
     fname = Word(alphas, alphanums + '_')
     func = fname + lpar + args + rpar
-    func.setParseAction(LockFunc)
+    func.setParseAction(_lockFunc)
 
     boolExpr = operatorPrecedence(
         func,
