@@ -31,6 +31,7 @@ class Session(object):
     line_delimiter = '\r\n'
 
     input_processor = None
+    profile = False
 
     #: @type: mudsling.server.MUDSling
     game = None
@@ -75,6 +76,7 @@ class Session(object):
         self.redirectInput(self.player)
 
     def receiveInput(self, line):
+        start = time.clock()
         line = line.strip()
         if self.input_processor is None:
             self.game.login_screen.processInput(self, line)
@@ -87,6 +89,9 @@ class Session(object):
             except:
                 errmsg = "UNHANDLED EXCEPTION\n%s" % traceback.format_exc()
                 logging.error(errmsg)
+        if self.profile:
+            duration = (time.clock() - start) * 1000
+            self.sendOutput("Command time: %.3fms" % duration)
 
     def sendOutput(self, text, flags=None):
         """

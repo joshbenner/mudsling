@@ -56,6 +56,8 @@ class HelpEntry(object):
     title = ""
     names = ()
     meta = {}
+    mdText = ""
+
     lock = locks.AllPass  # Help entries universally viewable by default.
 
     mud_text_transforms = (
@@ -83,6 +85,12 @@ class HelpEntry(object):
         except AttributeError:
             self.meta = {}
 
+        try:
+            self.mdText = '\n'.join(md.lines).strip()
+            del md.lines
+        except AttributeError:
+            self.mdText = "This help file has not yet been written."
+
         if 'id' in self.meta:
             self.id = str(self.meta['id'][0])
         if 'title' in self.meta:
@@ -109,14 +117,7 @@ class HelpEntry(object):
         """
         Get text appropriate to output to a MUD session.
         """
-        if 'lines' in md.__dict__:
-            del md.lines
-        with open(os.devnull, 'w') as f:
-            md.reset().convertFile(self.filepath, output=f)
-            try:
-                text = '\n'.join(md.lines).strip()
-            except AttributeError:
-                text = "This help file has not yet been written."
+        text = self.mdText
         for regex, replace in self.mud_text_transforms:
             text = regex.sub(replace, text)
         return text
@@ -152,6 +153,7 @@ class HelpManager(object):
         mapping = {}
         for e in entries.itervalues():
             for n in e.names:
+                n = n.lower()
                 if n in mapping and mapping[n].priority >= e.priority:
                     continue
                 mapping[n] = e
@@ -164,6 +166,7 @@ class HelpManager(object):
     def findTopic(self, search, entryFilter=None):
         search = search.lower()
         if entryFilter is None:
+            nameMap = self.name_map
             names = self.all_names
         else:
             entries = dict(x for x in self.entries.iteritems()
@@ -171,6 +174,8 @@ class HelpManager(object):
             nameMap = self._nameMap(entries)
             names = nameMap.keys()
 
+        if search in nameMap:
+            return nameMap[search]
         matches = [x for x in process.extract(search, names) if x[1] >= 85]
         if not matches:
             raise errors.FailedMatch(msg="No help found for '%s'." % search)
