@@ -1,4 +1,4 @@
-required_perm: teleport anything
+lock: perm(teleport)
 
 **Syntax**: `@move <object> to <location>`
 

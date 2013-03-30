@@ -75,8 +75,12 @@ class HelpCmd(Command):
 
     def run(self, this, actor, args):
         search = args['topic'] or 'index'
+
+        def entryFilter(e):
+            return e.lock.eval(e, actor)
+
         try:
-            topic = help.help_db.findTopic(search)
+            topic = help.help_db.findTopic(search, entryFilter=entryFilter)
         except errors.AmbiguousMatch as e:
             msg = "{yNo topic '%s' found." % search
             if e.matches is not None:

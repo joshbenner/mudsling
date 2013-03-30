@@ -1,4 +1,4 @@
-required_perm: create objects
+lock: perm(create objects)
 
 See:
 

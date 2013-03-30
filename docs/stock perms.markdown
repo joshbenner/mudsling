@@ -9,9 +9,15 @@ mudslingcore
 ------------
 * eval code
 * manage tasks
+* create things -- Player may create objects of class Thing.
 * create objects
 * delete objects
 * use building commands
 * remote look
-* teleport self
-* teleport anything
+* teleport -- Player may access teleportation commands.
+
+## Object Lock types
+* control
+* rename
+* delete
+* move

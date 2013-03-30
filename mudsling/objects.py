@@ -22,6 +22,7 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
     directly subclassing L{StoredObject}.
 
     @cvar commands: Commands provided by this class. Classes, not instances.
+    @cvar createLock: The lock that must be satisfied to create an instance.
 
     @ivar possessed_by: The L{BasePlayer} who is currently possessing this obj.
     @ivar possessable_by: List of players who can possess this object.
@@ -39,9 +40,11 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
     #: @type: list
     possessable_by = []
 
+    createLock = locks.NonePass
+
     # Default BaseObject locks. Will be used if object nor any intermediate
     # child class defines the lock type being searched for.
-    locks = locks.LockSet()
+    locks = locks.LockSet('control:owner()')
 
     def __init__(self):
         super(BaseObject, self).__init__()
@@ -50,7 +53,8 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
     def allow(self, who, op):
         """
         Determine if C{who} is allowed to perform C{op}. Superusers and objects
-        they possess skip the check entirely.
+        they possess skip the check entirely. If C{who} has C{control} access,
+        then they are a superuser for this object.
 
         @param who: The object attempting the operation.
         @type who: L{BaseObject}
@@ -62,7 +66,8 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         """
         if who.player is not None and who.player.superuser:
             return True
-        return self.getLock(op).eval(self, who)
+        return (self.getLock(op).eval(self, who)
+                or self.getLock('control').eval(self, who))
 
     def getLock(self, type):
         """

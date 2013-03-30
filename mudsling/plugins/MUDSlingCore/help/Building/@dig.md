@@ -1,4 +1,4 @@
-required_perm: use building commands
+lock: perm(use building commands)
 
 ## Syntax
 

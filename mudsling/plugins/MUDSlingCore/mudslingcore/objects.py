@@ -2,6 +2,7 @@ from mudsling.objects import BasePlayer, BaseCharacter
 from mudsling.objects import Object
 from mudsling.commands import allCommands
 from mudsling import parsers
+from mudsling import locks
 
 from objsettings import ObjSetting, ConfigurableObject
 
@@ -66,6 +67,8 @@ class Thing(DescribableObject):
     """
     The basic object in the MUDSling core game world.
     """
+
+    createLock = locks.Lock('perm(create things)')
 
     #: @type: Object
     location = None  # Here for type resolution in editors that support it.

@@ -142,6 +142,7 @@ class StoredObject(Persistent):
     @ivar db: Reference to the containing database.
     @ivar _names: Tuple of all names this object is known by. First name is the
         primary name.
+    @ivar owner: ObjRef() of the owner of the object (if any).
     """
 
     _transientVars = ['db']
@@ -151,6 +152,7 @@ class StoredObject(Persistent):
 
     id = None
     _names = ()
+    owner = None
 
     def __init__(self):
         """
@@ -411,12 +413,14 @@ class Database(Persistent):
         self.max_obj_id += 1
         return self.max_obj_id
 
-    def createObject(self, cls, name, aliases=None):
+    def createObject(self, cls, name, aliases=None, creator=None):
         """
         Creates a new game-world database object that will persist.
         """
         obj = cls()
         obj.setNames((name,))
+        if self.isValid(creator, cls=StoredObject):
+            obj.owner = creator
         if isinstance(aliases, list) or isinstance(aliases, tuple):
             obj.setAliases(aliases)
         self.registerNewObject(obj)

@@ -1,4 +1,12 @@
 from mudsling.objects import BasePlayer
+from mudsling import registry
+
+
+def _isa(accessedObj, accessingObj, clsName):
+    cls = registry.classes.getClass(clsName)
+    if cls is not None:
+        return accessingObj.isa(cls)
+    return False
 
 
 def defaultFuncs():
@@ -12,7 +20,7 @@ def defaultFuncs():
     true = lambda *a: True
     false = lambda *a: False
     id = lambda o, w, id: w.id == id
-    perm = lambda o, w, p: o.hasPerm(p)
+    perm = lambda o, w, p: w.hasPerm(p)
     return {
         'id': id,
         'dbref': id,
@@ -24,5 +32,9 @@ def defaultFuncs():
         'hasPerm': perm,
         'has_perm': perm,
         'player': lambda o, w: w.isValid(BasePlayer),
-        'self': lambda o, w: o.ref() == w.ref()
+        'self': lambda o, w: o.ref() == w.ref(),
+        'owner': lambda o, w: (o.owner == w.ref()
+                               if o.owner is not None else False),
+        'class': _isa,
+        'isa': _isa
     }

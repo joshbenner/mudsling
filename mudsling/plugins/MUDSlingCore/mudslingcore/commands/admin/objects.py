@@ -3,7 +3,7 @@ Object commands.
 """
 from mudsling.storage import StoredObject
 from mudsling.commands import Command
-from mudsling.objects import BasePlayer, Object as LocatedObject
+from mudsling.objects import BaseObject, BasePlayer, Object as LocatedObject
 from mudsling import registry
 from mudsling import parsers
 from mudsling import errors
@@ -29,14 +29,21 @@ class CreateCmd(Command):
         if cls is None:
             actor.msg("Unknown class: %s" % args['class'])
             return
+        clsName = registry.classes.getClassName(cls)
+        if not actor.superuser and not cls.createLock.eval(cls, actor):
+            msg = "{yYou do not have permission to create {c%s{y objects."
+            actor.msg(msg % clsName)
+            return
         try:
             names = misc.parse_names(args['names'])
         except Exception as e:
             actor.msg('{r' + e.message)
             return
 
-        obj = self.game.db.createObject(cls, names[0], names[1:])
-        clsName = registry.classes.getClassName(cls)
+        obj = self.game.db.createObject(cls=cls,
+                                        name=names[0],
+                                        aliases=names[1:],
+                                        creator=actor)
         actor.msg("{gCreated new %s: {c%s" % (clsName, obj.nn))
 
         if obj.isa(LocatedObject):
@@ -65,7 +72,6 @@ class RenameCmd(Command):
     Renames an object to the new name.
     """
     aliases = ('@rename',)
-    required_perm = 'edit objects'
     syntax = "<object> {to|as} <newNames>"
     arg_parsers = {
         'object': StoredObject,
@@ -80,6 +86,9 @@ class RenameCmd(Command):
         """
         #: @type: StoredObject
         obj = args['object']
+        if obj.isa(BaseObject) and not obj.allow('rename', actor):
+            actor.tell("{yYou are not allowed to rename {c", obj, "{y.")
+            return
         names = args['newNames']
         oldNames = obj.setNames(names)
         msg = "{{gName of {{c#{id}{{g changed to '{{m{name}{{g'"
@@ -114,6 +123,10 @@ class DeleteCmd(Command):
 
         if obj == actor.ref():
             actor.msg("{rYou may not delete yourself.")
+            return
+
+        if obj.isa(BaseObject) and not obj.allow('delete', actor):
+            actor.tell("{yYou are not allowed to delete {c", obj, "{y.")
             return
 
         def _do_delete():
@@ -171,7 +184,7 @@ class GoCmd(Command):
     """
     aliases = ('@go',)
     syntax = "<where>"
-    required_perm = "teleport self"
+    required_perm = "teleport"
     arg_parsers = {
         'where': parsers.MatchObject(cls=LocatedObject,
                                      searchFor='location', show=True)
@@ -186,6 +199,9 @@ class GoCmd(Command):
         if actor.isPosessing and actor.possessing.isValid(LocatedObject):
             #: @type: mudsling.objects.Object
             obj = actor.possessing
+            if not obj.allow('move', actor):
+                actor.tell("{yYou are not allowed to move {c", obj, "{y.")
+                return
             misc.teleport_object(obj, args['where'])
         else:
             raise errors.CommandError("You are not attached to a valid object"
@@ -200,7 +216,7 @@ class MoveCmd(Command):
     """
     aliases = ('@move', '@tel', '@teleport')
     syntax = "<what> to <where>"
-    required_perm = "teleport anything"
+    required_perm = "teleport"
     arg_parsers = {
         'what': parsers.MatchObject(cls=LocatedObject,
                                     searchFor='locatable object', show=True),
@@ -210,8 +226,12 @@ class MoveCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: mudslingcore.objects.Player
-        @type actor: mudslingcore.objects.Player
-        @type args: dict
+        @type this: L{mudslingcore.objects.Player}
+        @type actor: L{mudslingcore.objects.Player}
+        @type args: C{dict}
         """
-        misc.teleport_object(args['what'], args['where'])
+        obj, where = (args['what'], args['where'])
+        if not obj.allow('move', actor):
+            actor.tell("{yYou are not allowed to move {c", obj, "{y.")
+            return
+        misc.teleport_object(obj, where)

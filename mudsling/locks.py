@@ -6,6 +6,8 @@ Inspired by Evennia's lock system.
 
 import logging
 
+import pyparsing
+
 from mudsling import storage
 
 from mudsling import utils
@@ -60,10 +62,12 @@ class Lock(storage.Persistent):
     def __init__(self, lockStr):
         self.raw = lockStr
 
-    def parse(self, parser=Parser):
+    def parse(self, parser=None):
         """
         Parses .raw to populate .parsed. Assumes Parser is already generated.
         """
+        if parser is None:
+            parser = Parser
         self.parsed = None
         if self.raw.lower() == 'true':
             self.parsed = True
@@ -71,7 +75,7 @@ class Lock(storage.Persistent):
             self.parsed = False
         else:
             try:
-                self.parsed = parser.parseString(self.raw, parseAll=True)
+                self.parsed = parser.parseString(self.raw, parseAll=True)[0]
             except utils.locks.ParseException as e:
                 logging.error("Error parsing lock: %r\n  %s",
                               self.raw, e.message)
@@ -79,10 +83,10 @@ class Lock(storage.Persistent):
     def eval(self, *args):
         if self.parsed is None:
             self.parse()
-        if isinstance(self.parsed, utils.locks.LockFunc):
-            return self.parsed.eval(*args)
-        else:
+        if isinstance(self.parsed, bool):
             return self.parsed
+        else:
+            return self.parsed.eval(*args)
 
 
 # Lock identities.

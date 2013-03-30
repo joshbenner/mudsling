@@ -8,6 +8,7 @@ from fuzzywuzzy import process
 from mudsling import parsers
 from mudsling import errors
 from mudsling import mxp
+from mudsling import locks
 
 from mudsling import utils
 import mudsling.utils.file
@@ -55,7 +56,7 @@ class HelpEntry(object):
     title = ""
     names = ()
     meta = {}
-    required_perm = None
+    lock = locks.AllPass  # Help entries universally viewable by default.
 
     mud_text_transforms = (
         (re.compile(r"\[(?P<title>.*?)\]\((?P<link>.*?)\)"), _mxpTopicLink),
@@ -83,18 +84,18 @@ class HelpEntry(object):
             self.meta = {}
 
         if 'id' in self.meta:
-            self.id = str(self.meta['id'])
+            self.id = str(self.meta['id'][0])
         if 'title' in self.meta:
-            self.title = self.meta['title']
+            self.title = str(self.meta['title'][0])
             self.names[0] = self.title.lower()
         if 'aliases' in self.meta:
             parse = parsers.StringListStaticParser.parse
-            self.names[1:] = map(str.lower, parse(self.meta['aliases']))
-        if 'required_perm' in self.meta:
-            self.required_perm = str(self.meta['required_perm'])
+            self.names[1:] = map(str.lower, parse(self.meta['aliases'][0]))
+        if 'lock' in self.meta:
+            self.lock = locks.Lock(str(self.meta['lock'][0]))
         if 'priority' in self.meta:
             try:
-                self.priority = int(self.meta['priority'])
+                self.priority = int(self.meta['priority'][0])
             except ValueError:
                 logging.warning("Invalid priority in %s" % filepath)
 
@@ -147,19 +148,30 @@ class HelpManager(object):
             self.rebuildNameMap()
         logging.info("Loaded %d help files from %s" % (count, path))
 
-    def rebuildNameMap(self):
+    def _nameMap(self, entries):
         mapping = {}
-        for e in self.entries.itervalues():
+        for e in entries.itervalues():
             for n in e.names:
                 if n in mapping and mapping[n].priority >= e.priority:
                     continue
                 mapping[n] = e
-        self.name_map = mapping
+        return mapping
+
+    def rebuildNameMap(self):
+        self.name_map = self._nameMap(self.entries)
         self.all_names = self.name_map.keys()
 
-    def findTopic(self, search):
-        matches = [x for x in process.extract(search.lower(), self.all_names)
-                   if x[1] >= 85]
+    def findTopic(self, search, entryFilter=None):
+        search = search.lower()
+        if entryFilter is None:
+            names = self.all_names
+        else:
+            entries = dict(x for x in self.entries.iteritems()
+                           if entryFilter(x[1]))
+            nameMap = self._nameMap(entries)
+            names = nameMap.keys()
+
+        matches = [x for x in process.extract(search, names) if x[1] >= 85]
         if not matches:
             raise errors.FailedMatch(msg="No help found for '%s'." % search)
         elif (len(matches) == 1

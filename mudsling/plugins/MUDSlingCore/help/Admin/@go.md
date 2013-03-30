@@ -1,4 +1,4 @@
-required_perm: teleport self
+lock: perm(teleport)
 
 ** Syntax**: `@go <where>`
 
