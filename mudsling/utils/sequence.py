@@ -2,6 +2,7 @@
 Sequence utilities.
 """
 from itertools import chain
+import operator
 
 
 class CaselessDict:
@@ -99,4 +100,12 @@ def unique(seq):
 
 
 def dictMerge(*dicts):
+    """Efficient merge of an arbitrary number of dictionaries."""
     return dict(chain(*[d.iteritems() for d in dicts]))
+
+
+def flattenList(lst):
+    """
+    Flattens one level of a list of lists.
+    """
+    return reduce(operator.iadd, lst, [])

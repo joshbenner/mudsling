@@ -25,11 +25,16 @@ from twisted.application.service import Service, MultiService
 from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
 from mudsling.storage import Database
-from mudsling.utils.modules import class_from_path
-from mudsling.utils.time import dhms_to_seconds
 from mudsling import proxy
 from mudsling import tasks
 from mudsling import registry
+from mudsling import locks
+from mudsling import lockfuncs
+
+from mudsling import utils
+import mudsling.utils.modules
+import mudsling.utils.time
+import mudsling.utils.sequence
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -79,6 +84,7 @@ class MUDSling(MultiService):
         # Load plugin manager. Locates, filters, and loads plugins.
         self.plugins = PluginManager(self, self.game_dir)
 
+        self.initLocks()
         self.loadClassConfigs()
         registry.classes.buildClassRegistry(self)
         self.loadDatabase()
@@ -139,7 +145,19 @@ class MUDSling(MultiService):
         """
         for config_name, class_path in self.config.items('Classes'):
             attrname = config_name.replace(' ', '_')
-            setattr(self, attrname, class_from_path(class_path))
+            setattr(self, attrname, utils.modules.class_from_path(class_path))
+
+    def initLocks(self):
+        """
+        Gather the lock functions and initialize the lock parser.
+        """
+        lockFuncs = lockfuncs.defaultFuncs()
+        hookResponses = self.invokeHook("lockFunctions")
+        lockFuncs.update(utils.sequence.dictMerge(*hookResponses.values()))
+        logging.info("Loaded %d lock functions", len(lockFuncs))
+        # Initialize the parser. The result is cached in the module for future
+        # calls to obtain the parser.
+        locks.parser(lockFuncs, reset=True)
 
     def loadDatabase(self):
         dbfilename = self.config.get('Main', 'db file')
@@ -202,6 +220,7 @@ class MUDSling(MultiService):
         if code != 10:
             self.session_handler.disconnectAllSessions("Shutting Down")
         self.saveDatabase()
+        #noinspection PyUnresolvedReferences
         reactor.stop()
 
     def invokeHook(self, hook, *args, **kwargs):
@@ -229,8 +248,9 @@ class CheckpointTask(tasks.Task):
         self.game.saveDatabase()
 
     def configuredInterval(self):
-        return dhms_to_seconds(self.game.config.get('Main',
-                                                    'checkpoint interval'))
+        return utils.time.dhms_to_seconds(
+            self.game.config.get('Main', 'checkpoint interval')
+        )
 
     def onServerStartup(self):
         self.restart(self.configuredInterval())

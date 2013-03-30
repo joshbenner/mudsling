@@ -82,3 +82,13 @@ class MUDSlingCorePlugin(GamePlugin):
             ('Room', Room),
             ('Exit', Exit),
         ]
+
+    def hook_lockFunctions(self):
+        """
+        This hook is called to get a list of functions that can be used in
+        lock strings.
+
+        @return: Map of function name to the function to run.
+        @rtype: C{dict}
+        """
+        return {}

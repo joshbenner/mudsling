@@ -47,15 +47,21 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         super(BaseObject, self).__init__()
         self.locks = locks.LockSet()
 
-    def allow(self, op, who):
+    def allow(self, who, op):
         """
-        Determine if C{who} is allowed to perform C{op}.
+        Determine if C{who} is allowed to perform C{op}. Superusers and objects
+        they possess skip the check entirely.
+
+        @param who: The object attempting the operation.
+        @type who: L{BaseObject}
 
         @param op: The operation (lock type) being checked.
-        @param who: The object attempting the operation.
+        @type op: C{str}
 
         @rtype: C{bool}
         """
+        if who.player is not None and who.player.superuser:
+            return True
         return self.getLock(op).eval(self, who)
 
     def getLock(self, type):
