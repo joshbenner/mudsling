@@ -78,6 +78,8 @@ class MUDSling(MultiService):
         self.config = ConfigParser.SafeConfigParser()
         self.config.read(configPaths)
 
+    def initGame(self):
+        logging.info("Initializing game...")
         # Setup session handler. Used by services.
         self.session_handler = SessionHandler(self)
 
@@ -104,6 +106,8 @@ class MUDSling(MultiService):
             self.login_screen = plugin.plugin_object
 
     def startService(self):
+        self.initGame()
+        logging.info("Starting services...")
         # Gather Twisted services and register them to our application.
         for info in self.plugins.activePlugins("TwistedService"):
             service = info.plugin_object.get_service()

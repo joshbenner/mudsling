@@ -1,17 +1,16 @@
 import os
-import markdown
 import logging
 import re
 
-from fuzzywuzzy import process
+import markdown
 
+from fuzzywuzzy import process
 from mudsling import parsers
 from mudsling import errors
-from mudsling import mxp
 from mudsling import locks
-
 from mudsling import utils
 import mudsling.utils.file
+from mudsling.utils.string import mxp
 
 
 md = markdown.Markdown(extensions=['meta', 'wikilinks'])

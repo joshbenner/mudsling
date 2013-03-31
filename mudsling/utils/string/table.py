@@ -43,7 +43,7 @@ class Table(object):
         """
         @type columns: list or None
         """
-        settings = self.default_settings
+        settings = dict(self.default_settings)
         for key, val in kwargs.iteritems():
             if key in settings:
                 settings[key] = val
@@ -111,7 +111,7 @@ class Table(object):
                     if content_area is None:
                         raise Exception("Table requires fixed width to use "
                                         "percentage widths")
-                    w = int(content_area * m.groups(1) / 100.0)
+                    w = int(content_area * int(m.group(1)) / 100.0)
             if isinstance(w, int):
                 widths[index] = w
         if expand is not None:
@@ -231,7 +231,7 @@ class Table(object):
             parts.extend(self._build_header(settings))
         parts.extend(self._build_rows(settings))
 
-        if settings['frame']:
+        if settings['frame'] and settings['show_header']:
             parts.append(parts[0])
 
         return parts

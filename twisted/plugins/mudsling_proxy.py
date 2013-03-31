@@ -2,6 +2,7 @@ import os
 import sys
 import imp
 import ConfigParser
+from mudsling.utils.string import mxp
 
 modulepath = os.path.dirname(os.path.realpath(__file__))
 options_module = imp.load_source('options',
@@ -13,14 +14,13 @@ from zope.interface import implements
 from twisted.plugin import IPlugin
 from twisted.application.service import IServiceMaker
 from twisted.application.service import MultiService
-from twisted.conch.telnet import StatefulTelnetProtocol, Telnet
+from twisted.conch.telnet import Telnet
 from twisted.internet.protocol import ServerFactory, ReconnectingClientFactory
 from twisted.application import internet
 from twisted.protocols import amp, basic
 from twisted.internet import reactor
 
 from mudsling import proxy
-from mudsling import mxp
 
 
 max_session_id = 0

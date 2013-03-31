@@ -328,7 +328,11 @@ class Command(object):
         """
         This is where the magic happens.
         """
-        raise NotImplementedError(self.aliases[0] if self.aliases else '')
+        if self.aliases:
+            msg = "The '%s' command" % self.aliases[0]
+        else:
+            msg = "That command"
+        raise NotImplementedError(msg)
 
     def syntaxHelp(self):
         """

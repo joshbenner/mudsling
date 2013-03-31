@@ -67,6 +67,21 @@ def english_list(things, nothingstr="nothing", andstr=" and ", commastr=", ",
     return commastr.join(things[:-1]) + finalcommastr + andstr + things[-1]
 
 
+def columnize(items, numCols, width=79, align='l'):
+    items = list(items)
+    numRows = (len(items) + numCols - 1) / numCols
+    items.extend([''] * (numRows * numCols - len(items)))
+    colWidth = 'auto' if width == 'auto' else '%d%%' % (100 / numCols)
+    columns = []
+    for i in range(0, numCols):
+        columns.append(TableColumn('', width=colWidth, align=align))
+    table = Table(columns, show_header=False, frame=False, width=width,
+                  vrule=' ', lpad='', rpad='')
+    for i in range(0, numRows):
+        table.addRow(items[i::numRows])
+    return str(table)
+
+
 def tabletest(who):
     x = Table(
         [
@@ -92,32 +107,3 @@ def tabletest(who):
     who.msg(repr(x._row_values(x.rows[0])))
 
     who.msg(str(x))
-
-
-def columnize(items, numCols, width=79):
-    """
-    Generate a multi-column list of items. ANSI-aware.
-
-    @param items: The items to columnize.
-    @type items: C{list}
-
-    @param numCols: The number of columns to form.
-    @type numCols: C{int}
-
-    @param width: The width of the text.
-    @type width: C{int}
-
-    @rtype: C{str}
-    """
-    height = (len(items) + numCols - 1) / numCols
-    items.extend('' * (height * numCols - len(items)))
-    widths = []
-    for col in range(0, numCols - 1):
-        widths.append(1 - (width + 1) * col / numCols)
-    result = []
-    for row in range(0, height):
-        line = str(items[row])
-        for col in range(0, numCols - 1):
-            line = ljust(line, widths[col]) + '{n ' + items[row + col * height]
-        result.append(line[:min(len(line), width)])
-    return '\n'.join(result)

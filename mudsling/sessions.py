@@ -4,11 +4,12 @@ import traceback
 import re
 
 from mudsling.utils import string
-from mudsling import mxp
 
 
 # Do not allow players to use control codes. Would be difficult, but not
 # impossible, for a malicious user to send other players control sequences.
+from mudsling.utils.string import mxp
+
 ILLEGAL_INPUT = re.compile('[' + mxp.GT + mxp.LT + mxp.AMP + chr(27) + ']')
 
 

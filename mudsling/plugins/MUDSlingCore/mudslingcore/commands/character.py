@@ -1,6 +1,6 @@
 """
 The basic commands to enable a character to do the essentials in a game, such
-as movement and looking at things.
+as inventory management and looking at things.
 """
 from mudsling.commands import Command
 from mudsling import parsers
@@ -26,9 +26,9 @@ class LookCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: mudslingcore.objects.Character
-        @type actor: mudslingcore.objects.Character
-        @type args: dict
+        @type this: L{mudslingcore.objects.Character}
+        @type actor: L{mudslingcore.objects.Character}
+        @type args: C{dict}
         """
         if args['something'] is None:
             # Naked look.
@@ -49,3 +49,23 @@ class LookCmd(Command):
                 actor.msg(actor.nameFor(target) + "\nYou see nothing of note.")
         else:
             actor.msg("You don't see any '%s' here." % self.args['something'])
+
+
+class InventoryCmd(Command):
+    """
+    inventory [<search>]
+
+    Show a list of all the objects you are carrying. If a search is specified,
+    then only those items matching the search are shown.
+    """
+    aliases = ('inventory', 'i')
+    syntax = "[<search>]"
+    lock = locks.AllPass  # Everyone can see their own inventory.
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.objects.Character}
+        @type actor: L{mudslingcore.objects.Character}
+        @type args: C{dict}
+        """
+        super(InventoryCmd, self).run(this, actor, args)  # Not implemented.

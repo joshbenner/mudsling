@@ -11,8 +11,8 @@ import commands.admin.system
 import commands.admin.perms
 import commands.admin.tasks
 import commands.admin.objects
-import commands.ooc
-import commands.ic
+import commands.player
+import commands.character
 
 
 class DescribableObject(Object):
@@ -103,7 +103,7 @@ class Player(BasePlayer, ConfigurableObject):
         commands.admin.perms,
         commands.admin.tasks,
         commands.admin.objects,
-        commands.ooc
+        commands.player
     )
 
     def preemptiveCommandMatch(self, raw):
@@ -115,8 +115,8 @@ class Player(BasePlayer, ConfigurableObject):
                                                  self.game, self.ref(),
                                                  self.ref())
         if raw.startswith('?'):
-            cmd = commands.ooc.HelpCmd(raw, '?', raw[1:], self.game,
-                                       self.ref(), self.ref())
+            cmd = commands.player.HelpCmd(raw, '?', raw[1:], self.game,
+                                          self.ref(), self.ref())
             cmd.matchSyntax(cmd.argstr)
             return cmd
         return None
@@ -131,10 +131,7 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
     import commands.admin.building
 
     private_commands = allCommands(
-        # Attach look to the character, because it's the Character that is
-        # providing the ability to look, not the room or the objects at which
-        # it might look.
-        commands.ic.LookCmd,
+        commands.character,
 
         # Building commands are administrative, but they apply in a "physical"
         # manner to the game world, so they are attached to the Character
