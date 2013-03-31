@@ -18,7 +18,7 @@ mudslingcore
 * create objects
 * delete objects
 * use building commands
-* remote look
+* remote look -- Look at objects outside of own context.
 * teleport -- Player may access teleportation commands.
 
 ## Object Lock types

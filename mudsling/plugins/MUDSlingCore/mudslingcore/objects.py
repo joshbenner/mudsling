@@ -12,6 +12,7 @@ import commands.admin.perms
 import commands.admin.tasks
 import commands.admin.objects
 import commands.ooc
+import commands.ic
 
 
 class DescribableObject(Object):
@@ -30,7 +31,7 @@ class DescribableObject(Object):
         this object. If you need just the string, use asSeenBy().
 
         @param obj: The object looking at this object.
-        @type obj: Thing
+
         @return: String describing this to the looking object.
         @rtype: str
         """
@@ -130,6 +131,11 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
     import commands.admin.building
 
     private_commands = allCommands(
+        # Attach look to the character, because it's the Character that is
+        # providing the ability to look, not the room or the objects at which
+        # it might look.
+        commands.ic.LookCmd,
+
         # Building commands are administrative, but they apply in a "physical"
         # manner to the game world, so they are attached to the Character
         # instead of the Player.

@@ -410,6 +410,9 @@ def allCommands(*objects):
     """
     commands = []
     for o in objects:
+        if inspect.isclass(o) and issubclass(o, Command):
+            commands.append(o)
+            continue
         for cmd in makeCommandList(o):
             if not cmd in commands:
                 commands.append(cmd)

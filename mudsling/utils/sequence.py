@@ -104,8 +104,37 @@ def dictMerge(*dicts):
     return dict(chain(*[d.iteritems() for d in dicts]))
 
 
+def isSequence(val):
+    return hasattr(val, '__iter__')
+
+
 def flattenList(lst):
     """
     Flattens one level of a list of lists.
     """
     return reduce(operator.iadd, lst, [])
+
+
+def flatten(iterable):
+    """
+    Flattens an iterable of arbitrary depth with a mixture of iterable and non-
+    iterable elements recursively.
+
+    Discards dictionary keys.
+
+    Recursive, possibly inefficient. Use with care.
+
+    @param iterable: The iterable to flatten into a list.
+    @return: A flattened list representation of the provided iterable.
+    @rtype: C{list}
+    """
+    out = []
+    if isinstance(iterable, dict):
+        iterable = iterable.itervalues()
+    for e in iterable:
+        if isSequence(e):
+            for ee in flatten(e):
+                out.append(ee)
+        else:
+            out.append(e)
+    return out

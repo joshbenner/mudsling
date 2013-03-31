@@ -10,7 +10,6 @@ from mudsling import utils
 import mudsling.utils.string
 
 from mudslingcore.objects import DescribableObject, Object
-from mudslingcore.commands import ic
 
 
 class Room(DescribableObject):
@@ -22,10 +21,6 @@ class Room(DescribableObject):
     * Exits
     """
     desc = "A very nondescript room."
-
-    public_commands = [
-        ic.RoomLookCmd
-    ]
 
     exits = []
 

@@ -91,4 +91,33 @@ def tabletest(who):
 
     who.msg(repr(x._row_values(x.rows[0])))
 
-    who.msg(x)
+    who.msg(str(x))
+
+
+def columnize(items, numCols, width=79):
+    """
+    Generate a multi-column list of items. ANSI-aware.
+
+    @param items: The items to columnize.
+    @type items: C{list}
+
+    @param numCols: The number of columns to form.
+    @type numCols: C{int}
+
+    @param width: The width of the text.
+    @type width: C{int}
+
+    @rtype: C{str}
+    """
+    height = (len(items) + numCols - 1) / numCols
+    items.extend('' * (height * numCols - len(items)))
+    widths = []
+    for col in range(0, numCols - 1):
+        widths.append(1 - (width + 1) * col / numCols)
+    result = []
+    for row in range(0, height):
+        line = str(items[row])
+        for col in range(0, numCols - 1):
+            line = ljust(line, widths[col]) + '{n ' + items[row + col * height]
+        result.append(line[:min(len(line), width)])
+    return '\n'.join(result)
