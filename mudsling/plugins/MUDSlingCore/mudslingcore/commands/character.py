@@ -6,6 +6,9 @@ from mudsling.commands import Command
 from mudsling import parsers
 from mudsling import locks
 
+from mudsling import utils
+import mudsling.utils.string
+
 
 class LookCmd(Command):
     """
@@ -68,4 +71,4 @@ class InventoryCmd(Command):
         @type actor: L{mudslingcore.objects.Character}
         @type args: C{dict}
         """
-        super(InventoryCmd, self).run(this, actor, args)  # Not implemented.
+        actor.msg("You are carrying:\n" + this.contentsAsSeenBy(this))

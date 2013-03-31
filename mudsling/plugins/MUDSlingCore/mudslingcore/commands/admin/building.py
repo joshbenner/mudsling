@@ -159,7 +159,8 @@ class UndigCmd(Command):
     """
     @undig[/both] <exit>
 
-    Removes an exit.
+    Removes an exit. Exit can be an exit name, or the numeric offset of the
+    exit in the list of exits for the current room.
 
     If the /both switch is used and true, then any exit in the destination of
     the specified exit which leads back to the exit's source is also removed.
@@ -190,7 +191,12 @@ class UndigCmd(Command):
             msg = msg % (args['exit'], utils.string.english_list(exits))
             raise errors.AmbiguousMatch(msg=msg)
         elif not exits:
-            raise errors.FailedMatch(query=args['exit'])
+            try:  # Maybe it's an exit offset?
+                exitDelta = int(args['exit'])
+                if 0 < exitDelta <= len(room.exits):
+                    exits = [room.exits[exitDelta - 1]]
+            except ValueError:
+                raise errors.FailedMatch(query=args['exit'])
         exit = exits[0]
         dest = exit.dest
         msg = actor._format_msg(["{gExit {c", exit,

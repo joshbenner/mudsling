@@ -88,7 +88,7 @@ class RenameCmd(Command):
         """
         #: @type: StoredObject
         obj = args['object']
-        if obj.isa(BaseObject) and not obj.allow('rename', actor):
+        if obj.isa(BaseObject) and not obj.allow(actor, 'rename'):
             actor.tell("{yYou are not allowed to rename {c", obj, "{y.")
             return
         names = args['newNames']
@@ -127,7 +127,7 @@ class DeleteCmd(Command):
             actor.msg("{rYou may not delete yourself.")
             return
 
-        if obj.isa(BaseObject) and not obj.allows('delete', actor):
+        if obj.isa(BaseObject) and not obj.allows(actor, 'delete'):
             actor.tell("{yYou are not allowed to delete {c", obj, "{y.")
             return
 
@@ -201,7 +201,7 @@ class GoCmd(Command):
         if actor.isPosessing and actor.possessing.isValid(LocatedObject):
             #: @type: mudsling.objects.Object
             obj = actor.possessing
-            if not obj.allows('move', actor):
+            if not obj.allows(actor, 'move'):
                 actor.tell("{yYou are not allowed to move {c", obj, "{y.")
                 return
             misc.teleport_object(obj, args['where'])
@@ -233,7 +233,7 @@ class MoveCmd(Command):
         @type args: C{dict}
         """
         obj, where = (args['what'], args['where'])
-        if not obj.allows('move', actor):
+        if not obj.allows(actor, 'move'):
             actor.tell("{yYou are not allowed to move {c", obj, "{y.")
             return
         misc.teleport_object(obj, where)

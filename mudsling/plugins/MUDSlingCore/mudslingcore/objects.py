@@ -1,8 +1,10 @@
-from mudsling.objects import BasePlayer, BaseCharacter
-from mudsling.objects import Object
+from mudsling.objects import BasePlayer, BaseCharacter, Object
 from mudsling.commands import allCommands
 from mudsling import parsers
 from mudsling import locks
+
+from mudsling import utils
+import mudsling.utils.string
 
 from objsettings import ObjSetting, ConfigurableObject
 
@@ -62,6 +64,19 @@ class DescribableObject(Object):
         Return the string describing this object to the passed object.
         """
         return self.desc if self.desc else "You see nothing special."
+
+    def contentsVisibleTo(self, obj):
+        """
+        Return the list of contents within self visible to the provided object.
+        """
+        return list(self.contents)
+
+    def contentsAsSeenBy(self, obj):
+        """
+        Return the text describing the contents of self to the given object.
+        """
+        names = [' ' + obj.nameFor(o) for o in self.contentsVisibleTo(obj)]
+        return utils.string.columnize(names, 2) if names else " Nothing"
 
 
 class Thing(DescribableObject):

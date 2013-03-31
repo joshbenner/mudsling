@@ -22,6 +22,7 @@ class AnsiCmd(Command):
 
     aliases = ('+ansi',)
     syntax = "[{ on | off }]"
+    lock = locks.AllPass
 
     def run(self, this, actor, args):
         """
