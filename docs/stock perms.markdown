@@ -7,8 +7,13 @@ MUDSling System
 
 mudslingcore
 ------------
+* shutdown server
+* reload server
 * eval code
 * manage tasks
+* view perms
+* manage roles
+* grant roles
 * create things -- Player may create objects of class Thing.
 * create objects
 * delete objects

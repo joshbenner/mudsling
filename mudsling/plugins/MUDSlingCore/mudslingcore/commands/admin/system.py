@@ -15,7 +15,7 @@ class ShutdownCmd(Command):
     Shutdown the server (and proxy).
     """
     aliases = ('@shutdown',)
-    required_perm = "shutdown server"
+    lock = "perm(shutdown server)"
 
     def run(self, this, actor, args):
         msg = "Shutting down server. Goodbye."
@@ -30,7 +30,7 @@ class ReloadCmd(Command):
     Reloads the server. Only works in proxy mode.
     """
     aliases = ('@reload',)
-    required_perm = "reload server"
+    lock = "perm(reload server)"
 
     def run(self, this, actor, args):
         msg = "Reloading server, please stand by..."
@@ -47,7 +47,7 @@ class EvalCmd(Command):
 
     aliases = ('@eval',)
     syntax = "<code>"
-    required_perm = "eval code"
+    lock = "perm(eval code)"
 
     def run(self, this, actor, args):
         """

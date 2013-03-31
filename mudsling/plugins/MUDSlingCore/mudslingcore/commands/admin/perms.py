@@ -12,7 +12,7 @@ class RolesCmd(Command):
     """
     aliases = ('@roles',)
     syntax = "[<player>]"
-    required_perm = 'view perms'
+    lock = 'perm(view perms)'
 
     def run(self, this, actor, args):
         """
@@ -46,7 +46,7 @@ class PermsCmd(Command):
     """
     aliases = ('@perms',)
     syntax = "<player>"
-    required_perm = 'view perms'
+    lock = 'perm(view perms)'
 
     def run(self, this, actor, args):
         """
@@ -59,9 +59,10 @@ class PermsCmd(Command):
         matches = actor.matchObjectOfType(self.argstr, cls=Player)
         if self.matchFailed(matches, self.argstr, 'player', show=True):
             return
+        #: @type: Player
         player = matches[0]
         perms = set()
-        for role in player.roles:
+        for role in player.getRoles():
             perms |= role.perms
         perms = string.english_list(perms)
 
@@ -77,7 +78,7 @@ class ShowRoleCmd(Command):
     """
     aliases = ('@show-role',)
     syntax = "<role>"
-    required_perm = 'view perms'
+    lock = 'perm(view perms)'
 
     def run(self, this, actor, args):
         """
@@ -104,7 +105,7 @@ class CreateRoleCmd(Command):
     """
     aliases = ('@create-role',)
     syntax = "<role>"
-    required_perm = 'manage roles'
+    lock = 'perm(manage roles)'
 
     def run(self, this, actor, args):
         """
@@ -130,7 +131,7 @@ class DeleteRoleCmd(Command):
     """
     aliases = ('@del-role',)
     syntax = "<role>"
-    required_perm = 'manage roles'
+    lock = 'perm(manage roles)'
 
     def run(self, this, actor, args):
         """
@@ -156,7 +157,7 @@ class AddRoleCmd(Command):
     """
     aliases = ('@add-role',)
     syntax = "<role> to <player>"
-    required_perm = 'grant roles'
+    lock = 'perm(grant roles)'
 
     def run(self, this, actor, args):
         """
@@ -194,7 +195,7 @@ class RemoveRoleCmd(Command):
     """
     aliases = ('@rem-role',)
     syntax = "<role> from <player>"
-    required_perm = 'grant roles'
+    lock = 'perm(grant roles)'
 
     def run(self, this, actor, args):
         """
@@ -232,7 +233,7 @@ class AddPermCmd(Command):
     """
     aliases = ('@add-perm',)
     syntax = "<perm> to <role>"
-    required_perm = 'manage roles'
+    lock = 'perm(manage roles)'
 
     def run(self, this, actor, args):
         """
@@ -261,7 +262,7 @@ class RemovePermCmd(Command):
     """
     aliases = ('@rem-perm',)
     syntax = "<perm> from <role>"
-    required_perm = 'manage roles'
+    lock = 'perm(manage roles)'
 
     def run(self, this, actor, args):
         """

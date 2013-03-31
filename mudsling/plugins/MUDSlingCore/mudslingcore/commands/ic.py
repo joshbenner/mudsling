@@ -4,6 +4,7 @@ as movement and looking at things.
 """
 from mudsling.commands import Command
 from mudsling import parsers
+from mudsling import locks
 
 from mudslingcore.objects import DescribableObject
 
@@ -15,6 +16,7 @@ class RoomLookCmd(Command):
         'something': parsers.MatchObject(searchFor='thing to look at',
                                          show=True)
     }
+    lock = locks.AllPass  # Everyone can have a look.
 
     def run(self, this, actor, args):
         """

@@ -4,6 +4,7 @@ OOC Commands.
 
 from mudsling.commands import Command
 from mudsling import errors
+from mudsling import locks
 
 from mudsling import utils
 import mudsling.utils.string
@@ -72,6 +73,7 @@ class HelpCmd(Command):
     """
     aliases = ('help', '@help', '+help')  # All the same help.
     syntax = "[<topic>]"
+    lock = locks.AllPass  # Everyone can have help.
 
     def run(self, this, actor, args):
         search = args['topic'] or 'index'

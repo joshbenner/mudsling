@@ -9,6 +9,7 @@ from mudsling.utils.syntax import Syntax, SyntaxParseError
 from mudsling.utils.sequence import dictMerge
 from mudsling import parsers
 from mudsling.errors import CommandInvalid
+from mudsling import locks
 
 
 prepositions = (
@@ -38,7 +39,7 @@ class Command(object):
     against input. Commands are only instantiated when they are run, so the
     command may feel free to use the command instance as it wishes.
 
-    @cvar required_perm: An object must have this perm to use this command.
+    @cvar runLock: Object must satisfy lock to execute command.
     @cvar aliases: Regular expressions that can match to trigger the command.
     @cvar syntax: String representation of the command's syntax that is parse-
         able by mudsling.utils.syntax.Syntax.
@@ -74,7 +75,7 @@ class Command(object):
     switch_parsers = {}
     switch_defaults = {}
 
-    required_perm = None
+    lock = locks.NonePass  # Commands are restricted by default.
 
     #: @type: mudsling.objects.BaseObject
     obj = None
@@ -106,7 +107,7 @@ class Command(object):
         return 'ERROR NO CMD ALIAS'
 
     @classmethod
-    def checkAccess(cls, actor):
+    def checkAccess(cls, obj, actor):
         """
         Determine if an object is allowed to use this command.
 
@@ -115,9 +116,9 @@ class Command(object):
 
         @rtype: bool
         """
-        if cls.required_perm is not None:
-            return actor.hasPerm(cls.required_perm)
-        return True
+        if isinstance(cls.lock, basestring):
+            cls.lock = locks.Lock(cls.lock)
+        return cls.lock.eval(obj, actor)
 
     @classmethod
     def matches(cls, cmdstr):

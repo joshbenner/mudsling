@@ -23,7 +23,7 @@ class Room(DescribableObject):
     """
     desc = "A very nondescript room."
 
-    commands = [
+    public_commands = [
         ic.RoomLookCmd
     ]
 

@@ -97,7 +97,7 @@ class Player(BasePlayer, ConfigurableObject):
     """
     Core player class.
     """
-    commands = allCommands(
+    private_commands = allCommands(
         commands.admin.system,
         commands.admin.perms,
         commands.admin.tasks,
@@ -129,7 +129,7 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
     from topography import Room, Exit
     import commands.admin.building
 
-    commands = allCommands(
+    private_commands = allCommands(
         # Building commands are administrative, but they apply in a "physical"
         # manner to the game world, so they are attached to the Character
         # instead of the Player.

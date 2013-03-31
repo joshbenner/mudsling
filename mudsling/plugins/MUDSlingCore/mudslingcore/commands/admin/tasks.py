@@ -1,8 +1,11 @@
 from mudsling.commands import Command
 from mudsling import tasks
 from mudsling import errors
+from mudsling import locks
 
 from . import ui  # Use the admin package ui.
+
+manageTasks = locks.Lock('perm(manage tasks)')
 
 
 class TasksCmd(Command):
@@ -12,7 +15,7 @@ class TasksCmd(Command):
     List all tasks registered with the database.
     """
     aliases = ('@tasks',)
-    required_perm = 'manage tasks'
+    lock = manageTasks
 
     def run(self, this, actor, args):
         """
@@ -47,7 +50,7 @@ class KillTaskCmd(Command):
     Kill the specified task.
     """
     aliases = ('@kill-task', '@killtask', '@kill')
-    required_perm = 'manage tasks'
+    lock = manageTasks
     syntax = r"<id:\d+>"
 
     def run(self, this, actor, args):
@@ -76,7 +79,7 @@ class PauseTaskCmd(Command):
     Pauses the specified task.
     """
     aliases = ('@pause-task', '@pausetask')
-    required_perm = 'manage tasks'
+    lock = manageTasks
     syntax = r"<id:\d+>"
 
     def run(self, this, actor, args):
@@ -104,7 +107,7 @@ class UnpauseTaskCmd(Command):
     Un-pauses the specified task.
     """
     aliases = ('@unpause-task', '@resume-task', '@unpausetask', '@resumetask')
-    required_perm = 'manage tasks'
+    lock = manageTasks
     syntax = r"<id:\d+>"
 
     def run(self, this, actor, args):

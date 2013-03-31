@@ -35,7 +35,7 @@ class DigCmd(Command):
     If you use the /tel switch, you will be moved to the destination room.
     """
     aliases = ('@dig',)
-    required_perm = 'use building commands'
+    lock = 'perm(use building commands)'
     syntax = (
         # Parse exitSpec as a single argument rather than including the '|' in
         # the syntax itself so that we can let users quote the entire exit spec
@@ -165,7 +165,7 @@ class UndigCmd(Command):
     the specified exit which leads back to the exit's source is also removed.
     """
     aliases = ('@undig',)
-    required_perm = 'use building commands'
+    lock = 'perm(use building commands)'
     syntax = "<exit>"
     switch_parsers = {
         'both': parsers.BoolStaticParser,

@@ -21,7 +21,8 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
     object without location or contents. You should use this instead of
     directly subclassing L{StoredObject}.
 
-    @cvar commands: Commands provided by this class. Classes, not instances.
+    @cvar private_commands: Private command classes for use by instances.
+    @cvar public_commands: Commands exposed to other objects by this class.
     @cvar createLock: The lock that must be satisfied to create an instance.
 
     @ivar possessed_by: The L{BasePlayer} who is currently possessing this obj.
@@ -32,7 +33,8 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
     _transientVars = ['possessed_by', 'commands', 'object_settings']
 
     #: @type: list
-    commands = []
+    private_commands = []
+    public_commands = []
 
     #: @type: BasePlayer
     possessed_by = None
@@ -50,7 +52,7 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         super(BaseObject, self).__init__()
         self.locks = locks.LockSet()
 
-    def allow(self, who, op):
+    def allows(self, who, op):
         """
         Determine if C{who} is allowed to perform C{op}. Superusers and objects
         they possess skip the check entirely. If C{who} has C{control} access,
@@ -305,7 +307,7 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         cmdstr, sep, argstr = raw.partition(' ')
         for obj in self.context:
             for cmdcls in obj.commandsFor(self):
-                if cmdcls.checkAccess(self) and cmdcls.matches(cmdstr):
+                if cmdcls.checkAccess(obj, self) and cmdcls.matches(cmdstr):
                     cmd = cmdcls(raw, cmdstr, argstr, self.game, obj.ref(),
                                  self.ref())
                     if cmd.matchSyntax(argstr):
@@ -320,10 +322,14 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
     def commandsFor(self, actor):
         """
         Return a list of commands made available by this object to the actor.
+
         @param actor: The object that wishes to use a command.
         @rtype: list
         """
-        return self.commands
+        if self.ref() == actor.ref():
+            return self.private_commands
+        else:
+            return self.public_commands
 
     def preemptiveCommandMatch(self, raw):
         """

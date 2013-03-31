@@ -115,7 +115,9 @@ class HelpEntry(object):
 
     def mudText(self):
         """
-        Get text appropriate to output to a MUD session.
+        Get text appropriate to output to a MUD session. Take the plain-text
+        markdown and run some transformations on it to present a version of the
+        text that is MUD-friendly (ANSI codes, MXP, etc).
         """
         text = self.mdText
         for regex, replace in self.mud_text_transforms:

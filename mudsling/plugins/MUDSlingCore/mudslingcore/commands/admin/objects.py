@@ -7,6 +7,7 @@ from mudsling.objects import BaseObject, BasePlayer, Object as LocatedObject
 from mudsling import registry
 from mudsling import parsers
 from mudsling import errors
+from mudsling import locks
 
 from mudsling import utils
 import mudsling.utils.string
@@ -21,7 +22,7 @@ class CreateCmd(Command):
     Creates a new object of the specified class with the given names.
     """
     aliases = ('@create',)
-    required_perm = 'create objects'
+    lock = 'perm(create objects)'
     syntax = "<class> {called|named|=} <names>"
 
     def run(self, this, actor, args):
@@ -77,6 +78,7 @@ class RenameCmd(Command):
         'object': StoredObject,
         'newNames': parsers.StringListStaticParser,
     }
+    lock = locks.AllPass  # Everyone can use @rename -- access check within.
 
     def run(self, this, actor, args):
         """
@@ -108,7 +110,7 @@ class DeleteCmd(Command):
     Deletes the specified object.
     """
     aliases = ('@delete',)
-    required_perm = 'delete objects'
+    lock = 'perm(delete objects)'
     syntax = "<object>"
 
     def run(self, this, actor, args):
@@ -125,7 +127,7 @@ class DeleteCmd(Command):
             actor.msg("{rYou may not delete yourself.")
             return
 
-        if obj.isa(BaseObject) and not obj.allow('delete', actor):
+        if obj.isa(BaseObject) and not obj.allows('delete', actor):
             actor.tell("{yYou are not allowed to delete {c", obj, "{y.")
             return
 
@@ -151,7 +153,7 @@ class ClassesCmd(Command):
     Displays a list of object classes available.
     """
     aliases = ('@classes',)
-    required_perm = 'create objects'
+    lock = 'perm(create objects)'
 
     def run(self, this, actor, args):
         out = []
@@ -184,7 +186,7 @@ class GoCmd(Command):
     """
     aliases = ('@go',)
     syntax = "<where>"
-    required_perm = "teleport"
+    lock = 'perm(teleport)'
     arg_parsers = {
         'where': parsers.MatchObject(cls=LocatedObject,
                                      searchFor='location', show=True)
@@ -199,7 +201,7 @@ class GoCmd(Command):
         if actor.isPosessing and actor.possessing.isValid(LocatedObject):
             #: @type: mudsling.objects.Object
             obj = actor.possessing
-            if not obj.allow('move', actor):
+            if not obj.allows('move', actor):
                 actor.tell("{yYou are not allowed to move {c", obj, "{y.")
                 return
             misc.teleport_object(obj, args['where'])
@@ -216,7 +218,7 @@ class MoveCmd(Command):
     """
     aliases = ('@move', '@tel', '@teleport')
     syntax = "<what> to <where>"
-    required_perm = "teleport"
+    lock = "perm(teleport)"
     arg_parsers = {
         'what': parsers.MatchObject(cls=LocatedObject,
                                     searchFor='locatable object', show=True),
@@ -231,7 +233,7 @@ class MoveCmd(Command):
         @type args: C{dict}
         """
         obj, where = (args['what'], args['where'])
-        if not obj.allow('move', actor):
+        if not obj.allows('move', actor):
             actor.tell("{yYou are not allowed to move {c", obj, "{y.")
             return
         misc.teleport_object(obj, where)
