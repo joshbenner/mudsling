@@ -417,6 +417,10 @@ class Object(BaseObject):
         # to reference _contents directly (and CAREFULLY).
         return list(self._contents)
 
+    def iterContents(self):
+        for o in self._contents:
+            yield o
+
     def objectDeleted(self):
         """
         Move self out of location and move contents out of self.
@@ -554,12 +558,14 @@ class Object(BaseObject):
 
         previous_location = self.location
         if self.game.db.isValid(self.location, Object):
-            self.location.contents.remove(me)
+            if me in self.location._contents:
+                self.location._contents.remove(me)
 
         self._location = dest
 
         if self.game.db.isValid(dest, Object):
-            dest.contents.append(me)
+            if me not in dest._contents:
+                dest._contents.append(me)
 
         # Now fire event hooks on the two locations and the moved object.
         if self.game.db.isValid(previous_location, Object):
