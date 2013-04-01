@@ -67,24 +67,25 @@ class DigCmd(Command):
         #: @type: L{Room}
         currentRoom = actor.location
         room = self._getRoom(actor, args)
-        exit = self._getExit(actor, args['exitSpec'][0])
-        returnExit = self._getExit(actor, args['exitSpec'][1])
+        if 'exitSpec' in args:
+            exit = self._getExit(actor, args['exitSpec'][0])
+            returnExit = self._getExit(actor, args['exitSpec'][1])
 
-        if exit:
-            exit.source = currentRoom
-            exit.dest = room
-            currentRoom.addExit(exit)
-            msg = ["{gExit ({m", exit, "{g) created from {c", exit.source,
-                   "{g to {c", exit.dest, "{g."]
-            actor.msg(msg)
+            if exit:
+                exit.source = currentRoom
+                exit.dest = room
+                currentRoom.addExit(exit)
+                msg = ["{gExit ({m", exit, "{g) created from {c", exit.source,
+                       "{g to {c", exit.dest, "{g."]
+                actor.msg(msg)
 
-        if returnExit:
-            returnExit.source = room
-            returnExit.dest = currentRoom
-            room.addExit(returnExit)
-            msg = ["{gExit ({m", returnExit, "{g) created from {c",
-                   returnExit.source, "{g to {c", returnExit.dest, "{g."]
-            actor.msg(msg)
+            if returnExit:
+                returnExit.source = room
+                returnExit.dest = currentRoom
+                room.addExit(returnExit)
+                msg = ["{gExit ({m", returnExit, "{g) created from {c",
+                       returnExit.source, "{g to {c", returnExit.dest, "{g."]
+                actor.msg(msg)
 
         if self.switches['tel']:
             actor.msg(["{bTeleporting you to {c", room, "{b."])
@@ -108,9 +109,11 @@ class DigCmd(Command):
                 return m[0]  # Single match, that's our room!
 
         # No matches. Let's create a room!
-        names = args['room'] if 'room' in args else args['newRoomNames']
-        return self._createRoom(actor,
-                                parsers.StringListStaticParser.parse(names))
+        if 'room' in args:
+            names = parsers.StringListStaticParser.parse(args['room'])
+        else:
+            names = args['newRoomNames']  # Already parsed.
+        return self._createRoom(actor, names)
 
     def _createRoom(self, actor, names):
         """
