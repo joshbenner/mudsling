@@ -83,28 +83,30 @@ class Thing(DescribableObject):
     """
     The basic object in the MUDSling core game world.
     """
+    import commands.thing
+
+    public_commands = allCommands(
+        commands.thing
+    )
 
     createLock = locks.Lock('perm(create things)')
 
-    #: @type: Object
-    location = None  # Here for type resolution in editors that support it.
-
     messages = {
         'drop': {
-            'actor': "You drop $thing.",
-            '*': "$actor drops $thing."
+            'actor': "You drop $this.",
+            '*': "$actor drops $this."
         },
         'drop_fail': {
-            'actor': "You can't seem to drop $thing.",
-            '*': "$actor tries to drop $thing, but fails."
+            'actor': "You can't seem to drop $this.",
+            '*': "$actor tries to drop $this, but fails."
         },
         'take': {
-            'actor': "You take $thing.",
-            '*': "$actor takes $thing."
+            'actor': "You take $this.",
+            '*': "$actor takes $this."
         },
         'take_fail': {
-            'actor': "You try to pick up $thing, but fail.",
-            '*': "$actor tires to pick up $thing, but fails."
+            'actor': "You try to pick up $this, but fail.",
+            '*': "$actor tires to pick up $this, but fails."
         }
     }
 

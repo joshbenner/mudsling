@@ -305,19 +305,51 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         if cmd is not None:
             return cmd
         cmdstr, sep, argstr = raw.partition(' ')
+        candidates = self.matchCommand(cmdstr)
+        if not candidates:
+            return None
+        cmdMatches = []
+        nameOnly = set()
+        for obj, cmdcls in candidates:
+            cmd = cmdcls(raw, cmdstr, argstr, self.game, obj.ref(), self.ref())
+            if cmd.matchSyntax(argstr):
+                cmdMatches.append(cmd)
+            else:
+                nameOnly.add(cmdcls)
+        if len(cmdMatches) > 1:
+            raise errors.AmbiguousMatch(msg="Ambiguous Command", query=raw,
+                                        matches=cmdMatches)
+        elif not cmdMatches:
+            if nameOnly:  # Command(s) that match name but not syntax.
+                # Give each command class an opportunity to explain why. Having
+                # a lot of similarly-named commands is a bad idea, so this
+                # should ideally only involve one command offering some help,
+                # so we raise with the first one that wants to help.
+                for cmdcls in nameOnly:
+                    msg = cmdcls.failedCommandMatchHelp(argstr)
+                    if msg:
+                        raise errors.CommandError(msg=msg)
+            else:
+                return self.handleUnmatchedInput(raw) or None
+        else:  # Single good match.
+            return cmdMatches[0]
+
+    def matchCommand(self, cmdName):
+        """
+        Match a command based on name (and access).
+
+        @param cmdName: The name of the command being search for.
+        @type cmdName: C{str}
+
+        @return: A list of tuples of (object, command class).
+        @rtype: C{list}
+        """
+        commands = []
         for obj in self.context:
             for cmdcls in obj.commandsFor(self):
-                if cmdcls.checkAccess(obj, self) and cmdcls.matches(cmdstr):
-                    cmd = cmdcls(raw, cmdstr, argstr, self.game, obj.ref(),
-                                 self.ref())
-                    if cmd.matchSyntax(argstr):
-                        return cmd
-                    elif not cmd.require_syntax_match:
-                        raise errors.CommandError(cmd.syntaxHelp())
-        cmd = self.handleUnmatchedInput(raw)
-        if cmd is not None:
-            return cmd
-        return None
+                if cmdcls.matches(cmdName) and cmdcls.checkAccess(obj, self):
+                    commands.append((obj, cmdcls))
+        return commands
 
     def commandsFor(self, actor):
         """
@@ -595,7 +627,7 @@ class Object(BaseObject):
                 locations.extend(self.location.locations())
         return locations
 
-    def emit(self, msg, exclude=None):
+    def emit(self, msg, exclude=None, location=None):
         """
         Emit a message to the object's location, optionally excluding some
         objects.
@@ -603,11 +635,13 @@ class Object(BaseObject):
         @see: L{Object.msgContents}
         @rtype: C{list}
         """
-        if not self.hasLocation:
+        if location is None:
+            location = self.location
+        if location is None or not location.isValid(Object):
             return []
-        return self.location.msgContents(msg, exclude=exclude)
+        return location.msgContents(msg, exclude=exclude)
 
-    def emitMessage(self, key, exclude=None, **keywords):
+    def emitMessage(self, key, exclude=None, location=None, **keywords):
         """
         Emit a message template to object's location.
 
@@ -617,8 +651,9 @@ class Object(BaseObject):
         @return: List of objects notified.
         @rtype: C{list}
         """
+        keywords['this'] = self.ref()
         msg = self.getMessage(key, **keywords)
-        return self.emit(msg, exclude=exclude)
+        return self.emit(msg, exclude=exclude, location=location)
 
     def msgContents(self, msg, exclude=None):
         """

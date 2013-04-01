@@ -43,8 +43,6 @@ class Command(object):
     @cvar aliases: Regular expressions that can match to trigger the command.
     @cvar syntax: String representation of the command's syntax that is parse-
         able by mudsling.utils.syntax.Syntax.
-    @cvar require_syntax_match: If True, then the command will only match if
-        the syntax parses the argstr successfully.
     @cvar arg_parsers: Dictionary with keys matching args keys and values
         giving hints about how the validator should parse the arg values. This
         is also used by the syntax matching phase for arguments that should
@@ -69,7 +67,6 @@ class Command(object):
     syntax = ""
     #: @type: list
     _syntax = None
-    require_syntax_match = False
 
     arg_parsers = {}
     switch_parsers = {}
@@ -214,6 +211,17 @@ class Command(object):
                     if len(matches) != 1 or matches[0] != self.obj:
                         return False
             return True
+        return False
+
+    @classmethod
+    def failedCommandMatchHelp(cls, argstr):
+        """
+        This method is called if this command was matched by name, but not by
+        syntax, and the command parser is asking the command for some help to
+        guide the user.
+
+        If the command has nothing to say, just return False.
+        """
         return False
 
     def execute(self):
