@@ -6,9 +6,6 @@ from mudsling.commands import Command
 from mudsling import parsers
 from mudsling import locks
 
-from mudsling import utils
-import mudsling.utils.string
-
 
 class LookCmd(Command):
     """

@@ -5,7 +5,7 @@ import inspect
 from mudsling.storage import StoredObject
 from mudsling.match import match_failed
 from mudsling.utils import string
-from mudsling.utils.syntax import Syntax, SyntaxParseError
+from mudsling.utils.syntax2 import Syntax, SyntaxParseError
 from mudsling.utils.sequence import dictMerge
 from mudsling import parsers
 from mudsling.errors import CommandInvalid

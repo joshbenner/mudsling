@@ -119,3 +119,25 @@ class Syntax(object):
                 out[nc] = quoted or unquoted or None
             return out
         return False
+
+
+if __name__ == '__main__':
+    import time
+    testCases = {
+        '<class> {named|called|=} <names>': [
+            'thing named foo',
+        ],
+        '<exitSpec> to <room>': [
+            '"Room to Delete"',
+        ],
+    }
+
+    for spec, tests in testCases.iteritems():
+        syntax = Syntax(spec)
+        print spec, '->', syntax.regex
+        for t in tests:
+            start = time.clock()
+            r = syntax.parse(t)
+            duration = (time.clock() - start) * 1000
+            print '  ', t, '->', r
+            print '  (%.3fms)' % duration
