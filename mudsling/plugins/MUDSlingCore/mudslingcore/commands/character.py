@@ -32,8 +32,8 @@ class LookCmd(Command):
         """
         if args['something'] is None:
             # Naked look.
-            #: @type actor.location: Object
             if self._isLookable(actor.location):
+                #noinspection PyUnresolvedReferences
                 actor.msg(actor.location.seenBy(actor))
                 return
             actor.msg("You don't seem to see anything...")
