@@ -66,5 +66,56 @@ class ClassRegistry(object):
                 return name
         return None
 
-# Canonical class registry instance.
+
+class PlayerRegistry(object):
+    def __init__(self):
+        self.names = {}
+        self.emails = {}
+
+    def findByName(self, name):
+        if name in self.names:
+            return self.names[name]
+        return None
+
+    def findByEmail(self, email):
+        if email in self.emails:
+            return self.emails[email]
+        return None
+
+    def registerPlayer(self, player):
+        """
+        Adds a player to the registry.
+
+        @param player: The player object to register.
+        @type player: L{mudsling.objects.BasePlayer}
+        """
+        #: @type: mudsling.objects.BasePlayer
+        player = player._realObject()
+        for name in player.names:
+            self.names[name] = player
+        self.emails[player.email] = player
+
+    def unregisterPlayer(self, player):
+        """
+        @type player: L{mudsling.objects.BasePlayer}
+        """
+        names_to_delete = []
+        #: @type: mudsling.objects.BasePlayer
+        player = player._realObject()
+        for name, p in self.names.iteritems():
+            if p == player:
+                names_to_delete.append(name)
+        for name in names_to_delete:
+            del self.names[name]
+
+        emails_to_delete = []
+        for email, p in self.emails.iteritems():
+            if p == player:
+                emails_to_delete.append(email)
+        for email in emails_to_delete:
+            del self.emails[email]
+
+
+# Canonical registry instances.
 classes = ClassRegistry()
+players = PlayerRegistry()

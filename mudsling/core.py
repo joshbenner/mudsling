@@ -25,6 +25,7 @@ from twisted.application.service import Service, MultiService
 from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
 from mudsling.storage import Database
+from mudsling.objects import BasePlayer
 from mudsling import proxy
 from mudsling import tasks
 from mudsling import registry
@@ -176,6 +177,10 @@ class MUDSling(MultiService):
             logging.info("Initializing new database at %s" % self.db_file_path)
             self.db = Database()
         self.db.onLoaded(self)
+
+        # Build the player registry.
+        for player in self.db.descendants(BasePlayer):
+            registry.players.registerPlayer(player)
 
     def initDatabase(self):
         self.db.initialized = True

@@ -20,6 +20,7 @@ mudslingcore
 * use building commands
 * remote look -- Look at objects outside of own context.
 * teleport -- Player may access teleportation commands.
+* create players -- Player may create other players.
 
 ## Object Lock types
 * control
