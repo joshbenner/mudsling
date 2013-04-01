@@ -129,7 +129,8 @@ class DigCmd(Command):
         name, aliases = names[0], names[1:]
         roomClass = actor.getObjSetting('building.room_class')
         if roomClass is not None and issubclass(roomClass, Room):
-            room = self.game.db.createObject(roomClass, name, aliases)
+            room = self.game.db.createObject(roomClass, name, aliases,
+                                             creator=actor)
             actor.msg(["{gCreated {c", room, "{g."])
         else:
             raise self._err("Invalid building.room_class: %r" % roomClass)
@@ -150,7 +151,8 @@ class DigCmd(Command):
             name, aliases = names[0], names[1:]
             exitClass = actor.getObjSetting('building.exit_class')
             if exitClass is not None and issubclass(exitClass, Exit):
-                exit = self.game.db.createObject(exitClass, name, aliases)
+                exit = self.game.db.createObject(exitClass, name, aliases,
+                                                 creator=actor)
             else:
                 raise self._err("Invalid building.exit_class: %r" % exitClass)
         else:

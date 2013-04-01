@@ -389,20 +389,33 @@ class Object(BaseObject):
     This should be the parent for most game objects. It is the object class
     that has location, and can contain other objects.
 
-    @ivar location: The object in which this object is located.
-    @type location: Object
+    @ivar _location: The object in which this object is located.
+    @type _location: L{Object}
 
-    @ivar contents: The set of objects contained by this object.
-    @type contents: list
+    @ivar _contents: The set of objects contained by this object.
+    @type _contents: C{list}
     """
 
     #: @type: Object
-    location = None
-    contents = None
+    _location = None
+    _contents = None
 
     def __init__(self):
         super(Object, self).__init__()
-        self.contents = []
+        self._contents = []
+
+    @property
+    def location(self):
+        """
+        @rtype: L{Object}
+        """
+        return self._location
+
+    @property
+    def contents(self):
+        # Read only, enforce copy. If performance is critical, make the effort
+        # to reference _contents directly (and CAREFULLY).
+        return list(self._contents)
 
     def objectDeleted(self):
         """
@@ -431,7 +444,7 @@ class Object(BaseObject):
                 if utils.object.filterByClass([self.location], cls):
                     return [self.location]
 
-            objects = self.contents
+            objects = list(self.contents)  # Copy is important!
             if self.hasLocation:
                 objects.extend(self.location.contents)
             matches = self._match(search,
@@ -543,7 +556,7 @@ class Object(BaseObject):
         if self.game.db.isValid(self.location, Object):
             self.location.contents.remove(me)
 
-        self.location = dest
+        self._location = dest
 
         if self.game.db.isValid(dest, Object):
             dest.contents.append(me)
