@@ -41,7 +41,7 @@ class MakePlayerCmd(Command):
 
         if not playerClass.validPlayerName(name):
             actor.msg("{yPlayer name invalid. Names may contain letters, "
-                      "numbers, hyphens, underscores, and apostraphes.")
+                      "numbers, hyphens, underscores, and apostrophes.")
             return
         if not utils.email.validEmail(email):
             actor.msg("{yEmail invalid.")
