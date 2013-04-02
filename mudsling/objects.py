@@ -4,6 +4,7 @@ import re
 from mudsling.storage import StoredObject, ObjRef
 from mudsling import errors
 from mudsling import locks
+from mudsling import registry
 from mudsling.match import match_objlist, match_stringlists
 from mudsling.sessions import InputProcessor
 from mudsling.messages import MessagedObject
@@ -732,6 +733,40 @@ class BasePlayer(BaseObject):
     _ansi = False
 
     __roles = set()
+
+    _validNameRE = re.compile(r"[-_a-zA-Z0-9']+")
+
+    @classmethod
+    def validPlayerName(cls, name):
+        """
+        Validate the given player name.
+        @rtype: C{bool}
+        """
+        return True if cls._validNameRE.match(name) else False
+
+    def _setNames(self, name=None, aliases=None, names=None):
+        """
+        Players get special name handling. Specifically, they are registered
+        with the player registry and cannot be duplicated.
+        """
+        if names is not None:
+            if isinstance(names, tuple) or isinstance(names, list):
+                newNames = list(names)
+            else:
+                raise TypeError("Names must be a list or tuple.")
+        else:
+            newNames = list(self._names)
+            if name is not None:
+                newNames[0] = name
+            if aliases is not None:
+                newNames[1:] = aliases
+        for n in newNames:
+            match = registry.players.findByName(n)
+            if match and match != self:
+                raise errors.DuplicatePlayerName("%s already in use" % name)
+        r = super(BasePlayer, self)._setNames(name, aliases, names)
+        registry.players.reregisterPlayer(self)
+        return r
 
     @property
     def connected(self):

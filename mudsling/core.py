@@ -194,7 +194,7 @@ class MUDSling(MultiService):
 
         #: @type: mudsling.objects.BaseCharacter
         char = self.db.createObject(self.character_class, 'Admin')
-        char.possessable_by.append(player)
+        char.possessable_by = [player]
 
         player.default_object = char
         player.possessObject(char)

@@ -259,9 +259,9 @@ class StoredObject(Persistent):
                 raise TypeError("Names must be list or tuple.")
         else:
             if name is not None:
-                newNames[0] = name
-            if aliases is not None:
-                newNames[1:] = aliases
+                newNames[0] = str(name)
+            if isinstance(aliases, tuple) or isinstance(aliases, list):
+                newNames[1:] = [str(a) for a in aliases]
         newNames = tuple(newNames)
         if newNames != oldNames:
             for n in newNames:

@@ -68,6 +68,10 @@ class ClassRegistry(object):
 
 
 class PlayerRegistry(object):
+    """
+    Player registry expects one player per name, but multiple players per
+    email address.
+    """
     def __init__(self):
         self.names = {}
         self.emails = {}
@@ -78,9 +82,12 @@ class PlayerRegistry(object):
         return None
 
     def findByEmail(self, email):
+        """
+        @rtype: C{list}
+        """
         if email in self.emails:
             return self.emails[email]
-        return None
+        return []
 
     def registerPlayer(self, player):
         """
@@ -93,7 +100,9 @@ class PlayerRegistry(object):
         player = player._realObject()
         for name in player.names:
             self.names[name] = player
-        self.emails[player.email] = player
+        if player.email not in self.emails:
+            self.emails[player.email] = []
+        self.emails[player.email].append(player)
 
     def unregisterPlayer(self, player):
         """
@@ -114,6 +123,10 @@ class PlayerRegistry(object):
                 emails_to_delete.append(email)
         for email in emails_to_delete:
             del self.emails[email]
+
+    def reregisterPlayer(self, player):
+        self.unregisterPlayer(player)
+        self.registerPlayer(player)
 
 
 # Canonical registry instances.

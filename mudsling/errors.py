@@ -53,6 +53,10 @@ class FailedMatch(MatchError):
         super(FailedMatch, self).__init__(msg)
 
 
+class DuplicatePlayerName(Error):
+    pass
+
+
 class CommandError(Error):
     """
     A generic error occuring during execution of a command. Should be caught
