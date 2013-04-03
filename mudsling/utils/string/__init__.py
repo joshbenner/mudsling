@@ -2,9 +2,16 @@
 Various string utilities.
 """
 import sys
+import random
+import string
 
 from .ansi import *
 from .table import *
+
+
+def randomString(length, candidates=None):
+    candidates = candidates or string.ascii_letters + string.digits
+    return ''.join(random.choice(candidates) for _ in xrange(length))
 
 
 def trimDocstring(docstring):
