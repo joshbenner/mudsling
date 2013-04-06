@@ -1,13 +1,16 @@
 import inspect
 import re
 
+import zope.interface
+
 from mudsling.storage import StoredObject, ObjRef
 from mudsling import errors
 from mudsling import locks
 from mudsling import registry
 from mudsling.match import match_objlist, match_stringlists
-from mudsling.sessions import InputProcessor
-from mudsling.messages import MessagedObject
+from mudsling.sessions import IInputProcessor
+from mudsling.messages import IHasMessages, Messages
+from mudsling.commands import IHasCommands
 
 from mudsling import utils
 import mudsling.utils.password
@@ -16,41 +19,24 @@ import mudsling.utils.sequence
 import mudsling.utils.object
 
 
-class BaseObject(StoredObject, InputProcessor, MessagedObject):
+class LockableObject(StoredObject):
     """
-    The base class for all other objects. You may subclass this if you need an
-    object without location or contents. You should use this instead of
-    directly subclassing L{StoredObject}.
+    Object that can have locks associated with it.
 
-    @cvar private_commands: Private command classes for use by instances.
-    @cvar public_commands: Commands exposed to other objects by this class.
     @cvar createLock: The lock that must be satisfied to create an instance.
 
-    @ivar possessed_by: The L{BasePlayer} who is currently possessing this obj.
-    @ivar possessable_by: List of players who can possess this object.
+    @ivar locks: The general lockset provided by the instance. Class values may
+        be scanned by self.getLock().
     """
 
-    # commands should never be set on instance, but... just in case.
-    _transientVars = ['possessed_by', 'commands', 'object_settings']
-
-    #: @type: list
-    private_commands = []
-    public_commands = []
-
-    #: @type: BasePlayer
-    possessed_by = None
-
-    #: @type: list
-    possessable_by = []
-
+    #: @type: locks.Lock
     createLock = locks.NonePass
 
-    # Default BaseObject locks. Will be used if object nor any intermediate
-    # child class defines the lock type being searched for.
-    locks = locks.LockSet('control:owner()')
+    #: @type: locks.LockSet
+    locks = locks.LockSet()
 
-    def __init__(self):
-        super(BaseObject, self).__init__()
+    def __init__(self, **kwargs):
+        super(LockableObject, self).__init__(**kwargs)
         self.locks = locks.LockSet()
 
     def allows(self, who, op):
@@ -60,7 +46,7 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         then they are a superuser for this object.
 
         @param who: The object attempting the operation.
-        @type who: L{BaseObject}
+        @type who: L{PossessableObject} or L{BasePlayer}
 
         @param op: The operation (lock type) being checked.
         @type op: C{str}
@@ -72,30 +58,135 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         return (self.getLock(op).eval(self, who)
                 or self.getLock('control').eval(self, who))
 
-    def getLock(self, type):
+    def getLock(self, lockType):
         """
         Look for lock on object. If it's not there, ascend the object's MRO
         looking for a default.
 
         If no lock is found, then a Lock that always fails will be returned.
 
-        @param type: The lock type to retrieve.
-        @type type: C{str}
+        @param lockType: The lock type to retrieve.
+        @type lockType: C{str}
 
         @rtype: L{mudsling.locks.Lock}
         """
-        if isinstance(self.locks, locks.LockSet) and self.locks.hasType(type):
-            return self.locks.getLock(type)
+        if (isinstance(self.locks, locks.LockSet)
+                and self.locks.hasType(lockType)):
+            return self.locks.getLock(lockType)
         for cls in utils.object.ascendMro(self):
             if (hasattr(cls, "locks") and isinstance(cls.locks, locks.LockSet)
-                    and cls.locks.hasType(type)):
-                return cls.locks.getLock(type)
+                    and cls.locks.hasType(lockType)):
+                return cls.locks.getLock(lockType)
         return locks.NonePass
 
-    def objectDeleted(self):
-        super(BaseObject, self).objectDeleted()
-        if self.possessed_by is not None:
-            self.possessed_by.dispossessObject(self.ref())
+
+class NamedObject(LockableObject):
+    """
+    An object with names and can discern the names of other NamedObjects.
+
+    @ivar _names: Tuple of all names this object is known by. First name is the
+        primary name.
+    """
+    _names = ()
+
+    def __init__(self, **kwargs):
+        super(NamedObject, self).__init__(**kwargs)
+        clsName = self.className()
+        self.setNames(kwargs.get('names', ("New " + clsName, clsName)))
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def name(self):
+        """
+        @rtype: str
+        """
+        return self._names[0]
+
+    @property
+    def aliases(self):
+        return self._names[1:]
+
+    @property
+    def names(self):
+        return self._names
+
+    @property
+    def nn(self):
+        """
+        Return the object's name and database ID.
+        @rtype: str
+        """
+        return "%s (#%d)" % (self.name, self.objId)
+
+    def _setNames(self, name=None, aliases=None, names=None):
+        """
+        Low-level method for maintaining the object's names. Should only be
+        called by setName or setAliases.
+
+        @param name: The new name. If None, do not change name.
+        @param aliases: The new aliases. If None, do not change aliases.
+        @param names: All names in one shot. If not None, other parameters are
+            ignored and only this paramter is used.
+        @return: Old names tuple.
+        @rtype: C{tuple}
+        """
+        oldNames = self._names
+        newNames = list(oldNames)
+        if names is not None:
+            if isinstance(names, tuple) or isinstance(names, list):
+                newNames = list(names)
+            else:
+                raise TypeError("Names must be list or tuple.")
+        else:
+            if name is not None:
+                # May be empty, so splice insert/set.
+                newNames[0:1] = [str(name)]
+            if isinstance(aliases, tuple) or isinstance(aliases, list):
+                newNames[1:] = [str(a) for a in aliases]
+        newNames = tuple(newNames)
+        if newNames != oldNames:
+            for n in newNames:
+                if not isinstance(n, basestring):
+                    raise TypeError("Names and aliases must be strings.")
+            self._names = newNames
+        return oldNames
+
+    def setName(self, name):
+        """
+        Canonical method for changing the object's name. Children can override
+        to attach other logic/actions to name changes.
+
+        @param name: The new name.
+        @return: The old name.
+        """
+        oldNames = self._setNames(name=name)
+        return oldNames[0] if oldNames else None
+
+    def setAliases(self, aliases):
+        """
+        Canonical method fo changing the object's aliases. Children can
+        override to attach other logic/actions to alias changes.
+
+        @param aliases: The new aliases.
+        @type aliases: C{list} or C{tuple}
+        @return: The old aliases.
+        """
+        return self._setNames(aliases=aliases)[1:]
+
+    def setNames(self, names):
+        """
+        Sets name and aliases is one shot, using a single list or tuple where
+        the first element is the name, and the other elements are the aliases.
+
+        @param names: The new names to use.
+        @return: Old names.
+        """
+        oldNames = self.names
+        self.setName(names[0])
+        self.setAliases(names[1:])
+        return oldNames
 
     def namesFor(self, obj):
         """
@@ -103,8 +194,8 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         self. Default implementation is to just return all aliases.
 
         @param obj: The object whose "known" names to retrieve.
-        @type obj: StoredObject or ObjRef
-        @rtype: list
+        @type obj: L{NamedObject} or L{ObjRef}
+        @rtype: C{list}
         """
         try:
             return obj.names
@@ -114,21 +205,33 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
     def nameFor(self, obj):
         """
         Returns a string representation of the given object as known by self.
-        The default implementation is to return the name for normal users, or
-        the name and ObjID for admin users.
 
         @param obj: The object to name.
-        @type obj: StoredObject or ObjRef
+        @type obj: L{NamedObject} or L{ObjRef}
 
         @return: String name of passed object as known by this object.
-        @rtype: str
+        @rtype: C{str}
         """
-        name = (self.namesFor(obj) or ["UNKNOWN"])[0]
-        try:
-            if self.player.hasPerm("see object numbers"):
-                name += " (#%d)" % obj.id
-        finally:
-            return name
+        return (self.namesFor(obj) or ["UNKNOWN"])[0]
+
+
+class PossessableObject(NamedObject):
+    """
+    An object which can be possessed by a player.
+
+    @ivar possessed_by: The L{BasePlayer} who is currently possessing this obj.
+    @ivar possessable_by: List of players who can possess this object.
+    """
+
+    #: @type: BasePlayer
+    possessed_by = None
+
+    #: @type: list
+    possessable_by = []
+
+    def __init__(self, **kwargs):
+        super(PossessableObject, self).__init__(**kwargs)
+        self.possessable_by = []
 
     @property
     def player(self):
@@ -184,6 +287,12 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         @type player: BasePlayer
         """
 
+    def hasPerm(self, perm):
+        """
+        Returns True if the player possessing this object has the passed perm.
+        """
+        return self.player.hasPerm(perm) if self.player is not None else False
+
     def tell(self, *parts):
         """
         "Tells" the object a multi-part message. A shortcut for: .msg([...]).
@@ -222,9 +331,89 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
             return parts
         parts = list(parts)
         for i, part in enumerate(parts):
-            if isinstance(part, ObjRef) or isinstance(part, StoredObject):
+            if self.db.isValid(part, StoredObject):
+                # Other children of StoredObject might be compatible with the
+                # nameFor method? Shows "UNKNOWN" if not.
                 parts[i] = self.nameFor(part)
         return ''.join(map(str, parts))
+
+    def objectDeleted(self):
+        if self.possessed_by is not None:
+            self.possessed_by.dispossessObject(self.ref())
+        super(PossessableObject, self).objectDeleted()
+
+    def nameFor(self, obj):
+        """
+        Return the name for normal users, or the name and ObjID for privileged
+        players possessing this object.
+
+        @param obj: The object to name.
+        @type obj: L{NamedObject} or L{ObjRef}
+
+        @return: String name of passed object as known by this object.
+        @rtype: C{str}
+        """
+        name = super(PossessableObject, self).nameFor(obj)
+        try:
+            if self.player.hasPerm("see object numbers"):
+                name += " (#%d)" % obj.objId
+        finally:
+            return name
+
+
+class BaseObject(PossessableObject):
+    """
+    An contextual, ownable object that provides message templates, can process
+    input into command execution, and provides contextual object matching.
+
+    Ideally, all other classes should not go any lower than this class.
+
+    @cvar private_commands: Private command classes for use by instances.
+    @cvar public_commands: Commands exposed to other objects by this class.
+
+    @ivar owner: ObjRef() of the owner of the object (if any).
+    """
+    zope.interface.implements(IInputProcessor, IHasMessages, IHasCommands)
+
+    # commands should never be set on instance, but... just in case.
+    _transientVars = ['possessed_by', 'commands', 'object_settings']
+
+    #: @type: StoredObject or ObjRef
+    owner = None
+
+    # Implement IHasCommands.
+    private_commands = []
+    public_commands = []
+
+    # Default BaseObject locks. Will be used if object nor any intermediate
+    # child class defines the lock type being searched for.
+    locks = locks.LockSet('control:owner()')
+
+    # Implements IHasMessages.
+    messages = Messages()
+
+    def __init__(self, **kwargs):
+        super(BaseObject, self).__init__(**kwargs)
+        self.owner = kwargs.get('owner', None)
+
+    def getMessage(self, key, **keywords):
+        """
+        Return a formatted Message template. Look on self's instance first,
+        then ascend the MRO looking for a class providing the requested
+        message template.
+
+        Implemented as part of L{IHasMessages}.
+        """
+        msg = self.messages.getMessage(key, **keywords)
+        if msg is not None:
+            return msg
+
+        for cls in utils.object.ascendMro(self):
+            if IHasMessages.implementedBy(cls):
+                msg = cls.messages.getMessage(key, **keywords)
+                return msg
+
+        return None
 
     def _match(self, search, objlist, exactOnly=False, err=False):
         """
@@ -281,6 +470,8 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
 
         The passedInput and err parameters help accommodate children overriding
         this method without having to jump through more hoops than needed.
+
+        Implemented as part of L{IInputProcessor}.
         """
         try:
             cmd = self.findCommand(raw)
@@ -410,12 +601,6 @@ class BaseObject(StoredObject, InputProcessor, MessagedObject):
         """
         return [self.ref()]
 
-    def hasPerm(self, perm):
-        """
-        Returns True if the player possessing this object has the passed perm.
-        """
-        return self.player.hasPerm(perm) if self.player is not None else False
-
 
 class Object(BaseObject):
     """
@@ -433,8 +618,8 @@ class Object(BaseObject):
     _location = None
     _contents = None
 
-    def __init__(self):
-        super(Object, self).__init__()
+    def __init__(self, **kwargs):
+        super(Object, self).__init__(**kwargs)
         self._contents = []
 
     @property
@@ -757,7 +942,8 @@ class BasePlayer(BaseObject):
         else:
             newNames = list(self._names)
             if name is not None:
-                newNames[0] = name
+                # List may be empty, so we are creative about inserting.
+                newNames[0:1] = [name]
             if aliases is not None:
                 newNames[1:] = aliases
         for n in newNames:

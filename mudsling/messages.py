@@ -5,6 +5,8 @@ import string
 import random
 import copy
 
+import zope.interface
+
 from mudsling import utils
 import mudsling.utils.object
 
@@ -80,15 +82,23 @@ class MessageParser(object):
         return out
 
 
-class MessagedObject(object):
+class IHasMessages(zope.interface.Interface):
     """
-    A base class to provide message template storage and retrieval to
-    subclasses.
+    Describes a class which provides a series of message templates.
+    """
+    messages = zope.interface.Attribute("""A Messages instance.""")
 
-    @ivar messages: The message keys and their template strings or tuples. Most
-        cases should ideally see this only set at the class level rather than
-        overridding on instances.
-    @type messages: C{dict}
+    def getMessage(key, **keywords):
+        """
+        Retrieve a formatted message string or dictionary.
+        @see: L{Messages.getMessage}
+        """
+
+
+class Messages(object):
+    """
+    A collection of message templates which can participate in message
+    retrieval and formatting.
     """
 
     messages = {}
@@ -114,28 +124,12 @@ class MessagedObject(object):
     ... }
     """
 
-    def _searchForMessage(self, key):
-        """
-        Ascends the mro of the object to search for the message. This can be
-        overridden to implement alternate schemes for resolving messages that
-        are not defined on self directly.
-
-        @param key: The key of the message to search for.
-        @rypte: C{dict} or C{None}
-        """
-        msg = None
-        for cls in utils.object.ascendMro(self):
-            if isinstance(cls, MessagedObject):
-                if key in cls.messages:
-                    msg = cls.messages[key]
-                    break
-        return msg
+    def __init__(self, messages=None):
+        self.messages = messages or {}
 
     def _getMessage(self, key, index=None):
         """
-        Retrieves the raw message configuration. Note, if this object does not
-        define a message for the key, it will climb the object's MRO for a
-        class that does define the message.
+        Retrieves the raw message configuration.
 
         If no message is found, returns C{None}.
 
@@ -154,8 +148,7 @@ class MessagedObject(object):
         @return: A message dictionary.
         @rtype: C{dict} or C{None}
         """
-        msg = (self.messages[key] if key in self.messages
-               else self._searchForMessage(key))
+        msg = self.messages.get(key, None)
 
         if msg is None:
             return msg
@@ -188,9 +181,6 @@ class MessagedObject(object):
         have its own key, then it should see the message in '*'.
 
         The values of the dictionary are Dynamic Message lists.
-
-        L{MessagedObject} does not provide an application of the return value.
-        That is up to the implementor.
 
         @param key: The key name of the message to generate. Alternately, can
             be an already-loaded message dict.

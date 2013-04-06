@@ -1,9 +1,8 @@
 """
 Object commands.
 """
-from mudsling.storage import StoredObject
 from mudsling.commands import Command
-from mudsling.objects import BaseObject, BasePlayer, Object as LocatedObject
+from mudsling.objects import NamedObject, BaseObject, BasePlayer, Object as LocatedObject
 from mudsling import registry
 from mudsling import parsers
 from mudsling import errors
@@ -41,10 +40,7 @@ class CreateCmd(Command):
             actor.msg('{r' + e.message)
             return
 
-        obj = self.game.db.createObject(cls=cls,
-                                        name=names[0],
-                                        aliases=names[1:],
-                                        creator=actor)
+        obj = self.game.db.createObject(cls, names=names, owner=actor)
         actor.msg("{gCreated new %s: {c%s" % (clsName, obj.nn))
 
         if obj.isa(LocatedObject):
@@ -75,7 +71,7 @@ class RenameCmd(Command):
     aliases = ('@rename',)
     syntax = "<object> {to|as} <newNames>"
     arg_parsers = {
-        'object': StoredObject,
+        'object': NamedObject,
         'newNames': parsers.StringListStaticParser,
     }
     lock = locks.AllPass  # Everyone can use @rename -- access check within.
@@ -86,15 +82,15 @@ class RenameCmd(Command):
         @type actor: mudslingcore.objects.Player
         @type args: dict
         """
-        #: @type: StoredObject
+        #: @type: BaseObject
         obj = args['object']
-        if obj.isa(BaseObject) and not obj.allow(actor, 'rename'):
+        if not obj.allows(actor, 'rename'):
             actor.tell("{yYou are not allowed to rename {c", obj, "{y.")
             return
         names = args['newNames']
         oldNames = obj.setNames(names)
         msg = "{{gName of {{c#{id}{{g changed to '{{m{name}{{g'"
-        keys = {'id': obj.id, 'name': obj.name}
+        keys = {'id': obj.objId, 'name': obj.name}
         if len(names) > 1:
             msg += " with aliases: {aliases}"
             aliases = ["{y%s{g" % a for a in obj.aliases]
@@ -133,7 +129,7 @@ class DeleteCmd(Command):
 
         def _do_delete():
             msg = "{c%s {yhas been {rdeleted{y." % obj.nn
-            self.game.db.deleteObject(obj)
+            obj.delete()
             actor.msg(msg)
 
         def _abort_delete():
@@ -220,8 +216,8 @@ class MoveCmd(Command):
     syntax = "<what> to <where>"
     lock = "perm(teleport)"
     arg_parsers = {
-        'what': parsers.MatchObject(cls=LocatedObject,
-                                    searchFor='locatable object', show=True),
+        'what':  parsers.MatchObject(cls=LocatedObject,
+                                     searchFor='locatable object', show=True),
         'where': parsers.MatchObject(cls=LocatedObject,
                                      searchFor='location', show=True),
     }

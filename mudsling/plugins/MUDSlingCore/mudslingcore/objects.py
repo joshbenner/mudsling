@@ -1,5 +1,6 @@
 from mudsling.objects import BasePlayer, BaseCharacter, Object
 from mudsling.commands import allCommands
+from mudsling.messages import Messages
 from mudsling import parsers
 from mudsling import locks
 
@@ -82,6 +83,8 @@ class DescribableObject(Object):
 class Thing(DescribableObject):
     """
     The basic object in the MUDSling core game world.
+
+    Can be picked up, dropped, and given.
     """
     import commands.thing
 
@@ -91,7 +94,7 @@ class Thing(DescribableObject):
 
     createLock = locks.Lock('perm(create things)')
 
-    messages = {
+    messages = Messages({
         'drop': {
             'actor': "You drop $this.",
             '*': "$actor drops $this."
@@ -108,7 +111,7 @@ class Thing(DescribableObject):
             'actor': "You try to pick up $this, but fail.",
             '*': "$actor tires to pick up $this, but fails."
         }
-    }
+    })
 
 
 class Player(BasePlayer, ConfigurableObject):
@@ -170,7 +173,7 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
                    parser=parsers.ObjClassStaticParser),
     }
 
-    messages = {
+    messages = Messages({
         'teleport_out': {
             'actor': "{bYou dematerialize.",
             '*': "{c$actor {bvanishes."
@@ -179,7 +182,7 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
             'actor': "{bYou materialize in {c$dest{b.",
             '*': "{c$actor {bmaterializes."
         }
-    }
+    })
 
     def possessableBy(self, player):
         """

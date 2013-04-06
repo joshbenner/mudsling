@@ -187,20 +187,20 @@ class MUDSling(MultiService):
 
         # Create first player.
         #: @type: mudsling.objects.BasePlayer
-        player = self.db.createObject(self.player_class, 'admin')
+        player = self.db.createObject(self.player_class, names=('admin',))
         player.setPassword('pass')
         player.email = 'admin@localhost'
         player.superuser = True
 
         #: @type: mudsling.objects.BaseCharacter
-        char = self.db.createObject(self.character_class, 'Admin')
+        char = self.db.createObject(self.character_class, names=('Admin',))
         char.possessable_by = [player]
 
         player.default_object = char
         player.possessObject(char)
 
         #: @type: mudsling.topography.Room
-        room = self.db.createObject(self.room_class, "The First Room")
+        room = self.db.createObject(self.room_class, names=("The First Room",))
         char.moveTo(room)
 
         task = CheckpointTask()
@@ -215,6 +215,7 @@ class MUDSling(MultiService):
         with open(self.db_file_path, 'wb') as dbfile:
             pickle.dump(self.db, dbfile, -1)
 
+    # noinspection PyShadowingBuiltins
     def shutdown(self, reload=False):
         # Call shutdown hooks.
         self.invokeHook('serverShutdown', reload=reload)

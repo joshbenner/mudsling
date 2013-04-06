@@ -2,6 +2,8 @@ import logging
 import shlex
 import inspect
 
+import zope.interface
+
 from mudsling.storage import StoredObject
 from mudsling.match import match_failed
 from mudsling.utils import string
@@ -398,6 +400,21 @@ class Command(object):
             raise self._err("That makes no sense!")
         """
         return CommandInvalid(cmdline=self.raw, msg=msg)
+
+
+class IHasCommands(zope.interface.Interface):
+    """
+    Provides public and/or proviate commands and functions to find them.
+    """
+    private_commands = zope.interface.Attribute(
+        """List of commands available only to self.""")
+    public_commands = zope.interface.Attribute(
+        """List of commands available to other objects.""")
+
+    def commandsFor(actor):
+        """
+        Return a list of commands available to the specified actor.
+        """
 
 
 def makeCommandList(obj):

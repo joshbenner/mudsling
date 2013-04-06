@@ -53,13 +53,13 @@ class ObjRef(namedtuple('ObjRef', 'id db')):
         return self.__object()().__str__()
 
     def __repr__(self):
-        repr = "#%d" % self.id
+        r = "#%d" % self.id
         ref = self.__object()
         if ref is not None:
-            repr += " (%s)" % str(ref())
+            r += " (%s)" % str(ref())
         else:
-            repr += " (invalid)"
-        return repr
+            r += " (invalid)"
+        return r
 
     def __getstate__(self):
         """
@@ -110,17 +110,17 @@ class Persistent(object):
 
     @classmethod
     def _getTransientVars(cls):
-        vars = set()
+        v = set()
         for parent in cls.__mro__:
             if '_transientVars' in parent.__dict__:
                 #noinspection PyBroadException
                 try:
                     # We read from the class
-                    vars = vars.union(parent._transientVars)
+                    v = v.union(parent._transientVars)
                 except:
                     # TODO: Do something here?
                     pass
-        return vars
+        return v
 
     def __getstate__(self):
         transient = self._getTransientVars()
@@ -138,11 +138,8 @@ class StoredObject(Persistent):
     This object cannot parse commands, cannot be connected to a player, etc. It
     only has the API required to interact with the database.
 
-    @ivar id: The unique object ID for this object in the Database.
+    @ivar objId: The unique object ID for this object in the Database.
     @ivar db: Reference to the containing database.
-    @ivar _names: Tuple of all names this object is known by. First name is the
-        primary name.
-    @ivar owner: ObjRef() of the owner of the object (if any).
     """
 
     _transientVars = ['db']
@@ -150,24 +147,34 @@ class StoredObject(Persistent):
     #: @type: mudsling.storage.Database
     db = None
 
-    id = None
-    _names = ()
-    owner = None
+    #: @type: int
+    objId = 0
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         """
         Initialization at this level is only run when the object is first
         created. Loading from the DB does not call __init__.
 
         This also fires BEFORE the object has an object ID or is part of the
         database, which could suggest using objectCreated() instead.
+
+        If you use __init__, only accept and pass **kwargs. super() can be
+        harmful. StoredObject defies this rule because it will be the last to
+        have its __init__ called among StoredObject descendants.
+
+        This also means that if you use multiple-inheritance, and you specify
+        a class AFTER a descendant of StoredObject, that other class will get
+        NO parameters passed to its __init__.
+
+        @see: U{https://fuhm.net/super-harmful/}
+
+        @param db: The database into which this object is being created.
+        @type db: L{Database}
         """
-        clsName = self.className()
-        self._names = ("New " + clsName, clsName)
-        pass
+        super(StoredObject, self).__init__()
 
     def __str__(self):
-        return self.name
+        return str(self.objId)
 
     def pythonClassName(self):
         return "%s.%s" % (self.__class__.__module__, self.__class__.__name__)
@@ -206,15 +213,7 @@ class StoredObject(Persistent):
         sure to introduce proxies as much as possible. We want to avoid storing
         objects directly.
         """
-        return ObjRef(id=self.id, db=self.db)
-
-    @property
-    def nn(self):
-        """
-        Return the object's name and database ID.
-        @rtype: str
-        """
-        return "%s (#%d)" % (self.name, self.id)
+        return ObjRef(id=self.objId, db=self.db)
 
     @property
     def game(self):
@@ -223,91 +222,17 @@ class StoredObject(Persistent):
         """
         return self.db.game
 
-    @property
-    def name(self):
-        """
-        @rtype: str
-        """
-        return self._names[0]
-
-    @property
-    def aliases(self):
-        return self._names[1:]
-
-    @property
-    def names(self):
-        return self._names
-
-    def _setNames(self, name=None, aliases=None, names=None):
-        """
-        Low-level method for maintaining the object's names. Should only be
-        called by setName or setAliases.
-
-        @param name: The new name. If None, do not change name.
-        @param aliases: The new aliases. If None, do not change aliases.
-        @param names: All names in one shot. If not None, other parameters are
-            ignored and only this paramter is used.
-        @return: Old names tuple.
-        @rtype: C{tuple}
-        """
-        oldNames = self._names
-        newNames = list(oldNames)
-        if names is not None:
-            if isinstance(names, tuple) or isinstance(names, list):
-                newNames = list(names)
-            else:
-                raise TypeError("Names must be list or tuple.")
-        else:
-            if name is not None:
-                newNames[0] = str(name)
-            if isinstance(aliases, tuple) or isinstance(aliases, list):
-                newNames[1:] = [str(a) for a in aliases]
-        newNames = tuple(newNames)
-        if newNames != oldNames:
-            for n in newNames:
-                if not isinstance(n, basestring):
-                    raise TypeError("Names and aliases must be strings.")
-            self._names = newNames
-        return oldNames
-
-    def setName(self, name):
-        """
-        Canonical method for changing the object's name. Children can override
-        to attach other logic/actions to name changes.
-
-        @param name: The new name.
-        @return: The old name.
-        """
-        return self._setNames(name=name)[0]
-
-    def setAliases(self, aliases):
-        """
-        Canonical method fo changing the object's aliases. Children can
-        override to attach other logic/actions to alias changes.
-
-        @param aliases: The new aliases.
-        @type aliases: C{list} or C{tuple}
-        @return: The old aliases.
-        """
-        return self._setNames(aliases=aliases)[1:]
-
-    def setNames(self, names):
-        """
-        Sets name and aliases is one shot, using a single list or tuple where
-        the first element is the name, and the other elements are the aliases.
-
-        @param names: The new names to use.
-        @return: Old names.
-        """
-        oldNames = self.names
-        self.setName(names[0])
-        self.setAliases(names[1:])
-        return oldNames
-
     def expungeRole(self, role):
         """
         API method to remove all reference to given role from this object.
         """
+
+    def delete(self):
+        """
+        Canonical method for deleting an object.
+        """
+        self.objectDeleted()
+        self.db.unregisterObject(self)
 
     def objectCreated(self):
         """
@@ -396,14 +321,14 @@ class Database(Persistent):
         for task in self.tasks.itervalues():
             task.serverShutdown()
 
-    def _getObject(self, id):
+    def _getObject(self, objid):
         try:
-            return self.objects[id]
+            return self.objects[objid]
         except KeyError:
             return None
 
-    def getRef(self, id):
-        return ObjRef(id=id, db=self)
+    def getRef(self, objid):
+        return ObjRef(id=objid, db=self)
 
     def _allocateObjId(self):
         """
@@ -413,20 +338,29 @@ class Database(Persistent):
         self.max_obj_id += 1
         return self.max_obj_id
 
-    def createObject(self, cls, name, aliases=None, creator=None):
+    def _addToTypeRegistry(self, obj):
+        cls = obj.__class__
+        if cls not in self.type_registry:
+            self.type_registry[cls] = []
+        if obj not in self.type_registry[cls]:
+            self.type_registry[cls].append(obj.ref())
+
+    def createObject(self, cls, **kwargs):
         """
         Creates a new game-world database object that will persist.
         """
-        obj = cls()
-        obj.setNames((name,))
-        if self.isValid(creator, cls=StoredObject):
-            obj.owner = creator
-        if isinstance(aliases, list) or isinstance(aliases, tuple):
-            obj.setAliases(aliases)
-        self.registerNewObject(obj)
-        return ObjRef(id=obj.id, db=self)
+        obj = cls(**kwargs)
+        self.registerObject(obj)
+        return ObjRef(id=obj.objId, db=self)
 
-    def deleteObject(self, obj):
+    def registerObject(self, obj):
+        obj.objId = self._allocateObjId()
+        self.objects[obj.objId] = obj
+        self._addToTypeRegistry(obj)
+        obj.db = self
+        obj.objectCreated()
+
+    def unregisterObject(self, obj):
         """
         Deletes the passed object from the database.
 
@@ -437,29 +371,14 @@ class Database(Persistent):
             raise errors.InvalidObject(obj)
 
         obj = obj._realObject()
-        obj.objectDeleted()
         try:
-            del self.objects[obj.id]
+            del self.objects[obj.objId]
         except KeyError:
             logging.error("%s missing from objects dictionary!" % obj)
         try:
             self.type_registry[obj.__class__].remove(obj.ref())
         except (ValueError, KeyError):
             logging.error("%s missing from type registry!" % obj)
-
-    def registerNewObject(self, obj):
-        obj.id = self._allocateObjId()
-        self.objects[obj.id] = obj
-        self._addToTypeRegistry(obj)
-        obj.db = self
-        obj.objectCreated()
-
-    def _addToTypeRegistry(self, obj):
-        cls = obj.__class__
-        if cls not in self.type_registry:
-            self.type_registry[cls] = []
-        if obj not in self.type_registry[cls]:
-            self.type_registry[cls].append(obj.ref())
 
     def isValid(self, obj, cls=None):
         """
@@ -472,7 +391,8 @@ class Database(Persistent):
         if isinstance(obj, int):
             valid = obj in self.objects
         elif isinstance(obj, StoredObject):
-            valid = obj.id in self.objects and self.objects[obj.id] == obj
+            valid = (obj.objId in self.objects
+                     and self.objects[obj.objId] == obj)
         elif isinstance(obj, ObjRef):
             return obj.isValid(cls)
         else:
@@ -510,12 +430,17 @@ class Database(Persistent):
             return list(self.type_registry[parent])
         return []
 
-    def matchDescendants(self, search, cls, varname="aliases",
-                         exactOnly=False):
+    def matchDescendants(self, search, cls, varname="names", exactOnly=False):
+        """
+        Convenience method for matching the descendants of a given class.
+        """
         objlist = self.descendants(cls)
         return match_objlist(search, objlist, varname, exactOnly)
 
-    def matchChidlren(self, search, cls, varname="aliases", exactOnly=False):
+    def matchChidlren(self, search, cls, varname="names", exactOnly=False):
+        """
+        Convenience method for matching the children of a given class.
+        """
         objlist = self.children(cls)
         return match_objlist(search, objlist, varname, exactOnly)
 
@@ -555,26 +480,26 @@ class Database(Persistent):
         task.alive = True
         self.tasks[task.id] = task
 
-    def getTask(self, id):
+    def getTask(self, taskId):
         """
         Retrieve a task from the Database.
 
-        @param id: The task ID (or perhaps the task itself).
+        @param taskId: The task ID (or perhaps the task itself).
         @return: A task object found within the Database.
         @rtype: mudsling.tasks.BaseTask
         """
         try:
-            id = id if isinstance(id, int) else id.id
-            task = self.tasks[id]
+            taskId = taskId if isinstance(taskId, int) else taskId.id
+            task = self.tasks[taskId]
         except (AttributeError, KeyError):
-            raise errors.InvalidTask("Invalid task or task ID: %r" % id)
+            raise errors.InvalidTask("Invalid task or task ID: %r" % taskId)
         return task
 
-    def killTask(self, id):
-        self.getTask(id).kill()
+    def killTask(self, taskId):
+        self.getTask(taskId).kill()
 
-    def removeTask(self, id):
-        task = self.getTask(id)
+    def removeTask(self, taskId):
+        task = self.getTask(taskId)
         if task.alive:
             return False
         else:

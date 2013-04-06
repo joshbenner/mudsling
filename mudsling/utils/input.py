@@ -1,8 +1,9 @@
 # todo: Refactor out of utils? io.py?
-from mudsling.sessions import InputProcessor
+import zope.interface
+from mudsling.sessions import IInputProcessor
 
 
-class LineReader(InputProcessor):
+class LineReader(object):
     """
     Descendant of InputProcessor which captures one or more lines of input from
     a session, passes the resulting list to a callback, then restores normal
@@ -11,6 +12,7 @@ class LineReader(InputProcessor):
     If callback returns boolean False, the input will remain directed to the
     LineReader and the captured line(s) will be erased.
     """
+    zope.interface.implements(IInputProcessor)
 
     def __init__(self, callback, max_lines=None, end_tokens=('.',), args=()):
         """

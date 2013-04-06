@@ -1,8 +1,10 @@
 """
 Rooms and exits.
 """
-from mudsling.storage import StoredObject
-from mudsling.messages import MessagedObject
+import zope.interface
+
+from mudsling.objects import NamedObject, BaseObject
+from mudsling.messages import IHasMessages, Messages
 from mudsling.commands import Command
 from mudsling import errors
 
@@ -12,6 +14,7 @@ import mudsling.utils.string
 from mudslingcore.objects import DescribableObject, Object
 
 
+# noinspection PyShadowingBuiltins
 class Room(DescribableObject):
     """
     A standard room.
@@ -24,8 +27,8 @@ class Room(DescribableObject):
 
     exits = []
 
-    def __init__(self):
-        super(Room, self).__init__()
+    def __init__(self, **kwargs):
+        super(Room, self).__init__(**kwargs)
         self.exits = []
 
     def matchExits(self, search, exactOnly=True):
@@ -150,24 +153,24 @@ class Room(DescribableObject):
         return "{c[{n %s {c]" % names
 
 
-class Exit(StoredObject, MessagedObject):
+# noinspection PyShadowingBuiltins
+class Exit(NamedObject):
     """
     Core exit class.
 
-    Exit subclasses StoredObject to avoid all the functionality that comes
-    along with BaseObject. Exits are mostly just data structures decorating
-    rooms, but having the API from StoredObject (and thereby, ObjRef) is nice.
+    Transisions an object between two rooms.
 
     @ivar source: The room where this exit exists.
     @ivar dest: The room to which this exit leads.
     """
+    zope.interface.implements(IHasMessages)
 
     #: @type: L{Room}
     source = None
     #: @type: L{Room}
     dest = None
 
-    messages = {
+    messages = Messages({
         'leave': {
             'actor': None,
             '*': "$actor leaves for $exit.",
@@ -177,7 +180,9 @@ class Exit(StoredObject, MessagedObject):
             'actor': None,
             '*': "$actor has arrived."
         },
-    }
+    })
+    # Borrow BaseObject's getMessage() implementation.
+    getMessage = BaseObject.getMessage
 
     def invoke(self, obj):
         """
@@ -256,6 +261,7 @@ class Exit(StoredObject, MessagedObject):
                                     aliases[0] if aliases else self.name)
 
 
+# noinspection PyShadowingBuiltins
 class ExitCmd(Command):
     """
     <exit-name>

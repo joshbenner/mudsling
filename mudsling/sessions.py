@@ -2,6 +2,7 @@ import time
 import logging
 import traceback
 import re
+import zope.interface
 
 from mudsling.utils import string
 
@@ -67,10 +68,10 @@ class Session(object):
         logging.info("Session %s disconnected." % self)
 
     def redirectInput(self, where):
-        if isinstance(self.input_processor, InputProcessor):
+        if IInputProcessor.providedBy(self.input_processor):
             self.input_processor.lostInputCapture(self)
         self.input_processor = where
-        if isinstance(where, InputProcessor):
+        if IInputProcessor.providedBy(where):
             where.gainedInputCapture(self)
 
     def resetInputCapture(self):
@@ -217,16 +218,24 @@ class SessionHandler(object):
             session.sendOutput(text, flags=flags)
 
 
-class InputProcessor(object):
+class IInputProcessor(zope.interface.Interface):
     """
-    Subclass InputProcessor when you wish your object able to receive raw input
-    from a connected session.
+    Receives input from sessions. Holds responsibility for parsing input and
+    dispatching resulting commands.
     """
-    def processInput(self, raw):
-        pass
 
-    def gainedInputCapture(self, session):
-        pass
+    def processInput(raw, session=None):
+        """
+        Handle the raw input. Return value not used.
+        """
 
-    def lostInputCapture(self, session):
-        pass
+    def gainedInputCapture(session):
+        """
+        Called when this IInputProcessor will now receive input from a session.
+        """
+
+    def lostInputCapture(session):
+        """
+        Called when this IInputProcess will no longer receive input from the
+        specified session.
+        """

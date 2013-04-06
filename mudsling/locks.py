@@ -6,8 +6,6 @@ Inspired by Evennia's lock system.
 
 import logging
 
-import pyparsing
-
 from mudsling import storage
 
 from mudsling import utils
@@ -106,16 +104,16 @@ class LockSet(storage.Persistent):
     def parse(self):
         locks = {}
         for lockStr in self.raw.split(';'):
-            type, sep, lockStr = lockStr.partition(':')
-            if type and lockStr:
+            lockType, sep, lockStr = lockStr.partition(':')
+            if lockType and lockStr:
                 # todo: Raise error on invalid type/str pair?
-                locks[type] = Lock(lockStr)
+                locks[lockType] = Lock(lockStr)
         self.locks = locks
 
-    def hasType(self, type):
+    def hasType(self, lockType):
         if self.locks is None:
             self.parse()
-        return type in self.locks
+        return lockType in self.locks
 
     @staticmethod
     def _compose(locks):
@@ -128,32 +126,32 @@ class LockSet(storage.Persistent):
         @return: A raw lock set string.
         @rtype: C{str}
         """
-        return ';'.join(["%s:%s" % (type, lock.raw)
-                         for type, lock in locks.iteritems()])
+        return ';'.join(["%s:%s" % (lockType, lock.raw)
+                         for lockType, lock in locks.iteritems()])
 
     def _init_locks(self):
         if self.locks is None:
             self.locks = {}
 
-    def getLock(self, type):
-        return self.locks[type] if self.hasType(type) else NonePass
+    def getLock(self, lockType):
+        return self.locks[lockType] if self.hasType(lockType) else NonePass
 
-    def setLock(self, type, lock):
+    def setLock(self, lockType, lock):
         self._init_locks()
         if isinstance(lock, basestring):
             lock = Lock(lock)
-        self.locks[type] = lock
+        self.locks[lockType] = lock
         self.raw = self._compose(self.locks)
 
-    def delLock(self, type):
+    def delLock(self, lockType):
         self._init_locks()
-        if type in self.locks:
-            del self.locks[type]
+        if lockType in self.locks:
+            del self.locks[lockType]
             self.raw = self._compose(self.locks)
 
     def delAll(self):
         self.raw = ""
         self.locks = {}
 
-    def check(self, type, *args):
-        return self.getLock(type).eval(*args)
+    def check(self, lockType, *args):
+        return self.getLock(lockType).eval(*args)
