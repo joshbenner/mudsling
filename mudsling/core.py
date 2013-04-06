@@ -179,28 +179,27 @@ class MUDSling(MultiService):
         self.db.onLoaded(self)
 
         # Build the player registry.
-        for player in self.db.descendants(BasePlayer):
-            registry.players.registerPlayer(player)
+        registry.players.registerPlayers(self.db.descendants(BasePlayer))
 
     def initDatabase(self):
         self.db.initialized = True
 
         # Create first player.
         #: @type: mudsling.objects.BasePlayer
-        player = self.db.createObject(self.player_class, names=('admin',))
+        player = self.player_class.create(names=['admin'])
         player.setPassword('pass')
         player.email = 'admin@localhost'
         player.superuser = True
 
         #: @type: mudsling.objects.BaseCharacter
-        char = self.db.createObject(self.character_class, names=('Admin',))
+        char = self.character_class.create(names=['Admin'])
         char.possessable_by = [player]
 
         player.default_object = char
         player.possessObject(char)
 
         #: @type: mudsling.topography.Room
-        room = self.db.createObject(self.room_class, names=("The First Room",))
+        room = self.room_class.create(names=['The First Room'])
         char.moveTo(room)
 
         task = CheckpointTask()

@@ -105,7 +105,7 @@ class Room(DescribableObject):
                 if self.db.isValid(exit.dest, cls=Room):
                     exit.dest.entranceRemoved(exit)
             if exit.isValid() and delete:
-                self.db.deleteObject(exit)
+                exit.delete()
 
     def entranceRemoved(self, exit):
         """

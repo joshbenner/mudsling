@@ -138,11 +138,10 @@ class StoredObject(Persistent):
     This object cannot parse commands, cannot be connected to a player, etc. It
     only has the API required to interact with the database.
 
-    @ivar objId: The unique object ID for this object in the Database.
-    @ivar db: Reference to the containing database.
-    """
+    @cvar db: Reference to the containing database. Set upon DB load.
 
-    _transientVars = ['db']
+    @ivar objId: The unique object ID for this object in the Database.
+    """
 
     #: @type: mudsling.storage.Database
     db = None
@@ -222,10 +221,28 @@ class StoredObject(Persistent):
         """
         return self.db.game
 
+    # TODO: Refactor this... it smells.
     def expungeRole(self, role):
         """
         API method to remove all reference to given role from this object.
         """
+
+    @classmethod
+    def create(cls, **kwargs):
+        """
+        Create an instance of the class and register it with the database.
+
+        @param cls: The class to instantiate.
+        @param kwargs: Any initialization arguments to pass to the class.
+
+        @return: A reference to the new object.
+        """
+        if cls.db is None:
+            raise Exception("Database not available to %s" % cls.__name__)
+        obj = cls(**kwargs)
+        cls.db.registerObject(obj)
+        obj.objectCreated()
+        return obj.ref()
 
     def delete(self):
         """
@@ -237,7 +254,7 @@ class StoredObject(Persistent):
     def objectCreated(self):
         """
         Called when the object is first created. Only called once in the life
-        of the object, by Database.createObject().
+        of the object.
         """
 
     def objectDeleted(self):
@@ -345,20 +362,10 @@ class Database(Persistent):
         if obj not in self.type_registry[cls]:
             self.type_registry[cls].append(obj.ref())
 
-    def createObject(self, cls, **kwargs):
-        """
-        Creates a new game-world database object that will persist.
-        """
-        obj = cls(**kwargs)
-        self.registerObject(obj)
-        return ObjRef(id=obj.objId, db=self)
-
     def registerObject(self, obj):
         obj.objId = self._allocateObjId()
         self.objects[obj.objId] = obj
         self._addToTypeRegistry(obj)
-        obj.db = self
-        obj.objectCreated()
 
     def unregisterObject(self, obj):
         """

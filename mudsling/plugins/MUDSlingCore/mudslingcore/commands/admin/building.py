@@ -17,6 +17,7 @@ def parseExitSpec(raw):
             parsers.StringListStaticParser.parse(returnExitNames))
 
 
+# noinspection PyShadowingBuiltins
 class DigCmd(Command):
     """
     @dig <exit-spec> to <exiting-room>    -- Dig exit to existing room.
@@ -126,11 +127,9 @@ class DigCmd(Command):
 
         @rtype: L{mudsling.topography.Room}
         """
-        name, aliases = names[0], names[1:]
         roomClass = actor.getObjSetting('building.room_class')
         if roomClass is not None and issubclass(roomClass, Room):
-            room = self.game.db.createObject(roomClass, name, aliases,
-                                             creator=actor)
+            room = roomClass.create(names=names, owner=actor)
             actor.msg(["{gCreated {c", room, "{g."])
         else:
             raise self._err("Invalid building.room_class: %r" % roomClass)
@@ -148,11 +147,9 @@ class DigCmd(Command):
         @rtype: L{mudslingcore.topography.Exit}
         """
         if isinstance(names, list):
-            name, aliases = names[0], names[1:]
             exitClass = actor.getObjSetting('building.exit_class')
             if exitClass is not None and issubclass(exitClass, Exit):
-                exit = self.game.db.createObject(exitClass, name, aliases,
-                                                 creator=actor)
+                exit = exitClass.create(names=names, owner=actor)
             else:
                 raise self._err("Invalid building.exit_class: %r" % exitClass)
         else:
@@ -160,6 +157,7 @@ class DigCmd(Command):
         return exit
 
 
+# noinspection PyShadowingBuiltins
 class UndigCmd(Command):
     """
     @undig[/both] <exit>

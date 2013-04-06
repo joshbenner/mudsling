@@ -48,7 +48,6 @@ class ClassRegistry(object):
         Searches the class registry for a class matching the given name.
         @param name: The class name to search for.
         @return: The class with the specified pretty name.
-        @rtype: type or None
         """
         if name in self.classes:
             return self.classes[name]
@@ -103,6 +102,10 @@ class PlayerRegistry(object):
         if player.email not in self.emails:
             self.emails[player.email] = []
         self.emails[player.email].append(player)
+
+    def registerPlayers(self, players):
+        for player in players:
+            self.registerPlayer(player)
 
     def unregisterPlayer(self, player):
         """

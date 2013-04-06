@@ -2,7 +2,8 @@
 Object commands.
 """
 from mudsling.commands import Command
-from mudsling.objects import NamedObject, BaseObject, BasePlayer, Object as LocatedObject
+from mudsling.objects import LockableObject, NamedObject, BaseObject
+from mudsling.objects import BasePlayer, Object as LocatedObject
 from mudsling import registry
 from mudsling import parsers
 from mudsling import errors
@@ -30,7 +31,8 @@ class CreateCmd(Command):
             actor.msg("Unknown class: %s" % args['class'])
             return
         clsName = registry.classes.getClassName(cls)
-        if not actor.superuser and not cls.createLock.eval(cls, actor):
+        if not actor.superuser and not (issubclass(cls, LockableObject)
+                                        and cls.createLock.eval(cls, actor)):
             msg = "{yYou do not have permission to create {c%s{y objects."
             actor.msg(msg % clsName)
             return
@@ -40,7 +42,7 @@ class CreateCmd(Command):
             actor.msg('{r' + e.message)
             return
 
-        obj = self.game.db.createObject(cls, names=names, owner=actor)
+        obj = cls.create(names=names, owner=actor)
         actor.msg("{gCreated new %s: {c%s" % (clsName, obj.nn))
 
         if obj.isa(LocatedObject):
