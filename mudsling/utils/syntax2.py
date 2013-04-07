@@ -7,18 +7,55 @@ class MissingParameter(ParseException):
     pass
 
 
-class SyntaxLiteral(object):
+class SyntaxToken(object):
+    _exprCache = None
+
+    def expr(self, nextToken=None):
+        # Call with a nextToken first, and subsequent calls include it.
+        if not self._exprCache:
+            self._exprCache = self._expr(nextToken)
+        return self._exprCache.copy()
+
+    def _expr(self, nextToken):
+        raise NotImplemented
+
+    def firstToken(self):
+        """
+        Get the leading token in this token set. Usually, it's just self.
+        """
+        return self
+
+
+class SyntaxEnd(SyntaxToken):
+    def _expr(self, nextToken):
+        return StringEnd()
+
+
+class SyntaxLiteral(SyntaxToken):
     def __init__(self, tok):
         self.text = tok[0].strip()
 
     def __repr__(self):
         return 'Literal("%s")' % self.text
 
-    def parser(self, nextToken):
+    def _expr(self, nextToken):
         return Literal(self.text)
 
 
-class SyntaxParam(object):
+class SyntaxChoice(SyntaxToken):
+    def __init__(self, tok):
+        self.choices = tok[1]
+
+    def __repr__(self):
+        return '{%s}' % '|'.join(map(str, self.choices))
+
+    def _expr(self, nextToken):
+        r = oneOf([x.text for x in self.choices])
+        r.setParseAction(lambda l, t: ('__optset__', t[0], '', l))
+        return r
+
+
+class SyntaxParam(SyntaxToken):
     def __init__(self, tok):
         self.name = tok[1]
 
@@ -28,27 +65,17 @@ class SyntaxParam(object):
     def result(self, loc, tok):
         return self.name, (tok[0].strip() or None), 'required', loc
 
-    def parser(self, nextToken):
-        terminate = nextToken if nextToken else StringEnd()
+    def _expr(self, nextToken):
+        terminate = nextToken.expr() if nextToken else StringEnd()
+        firstToken = nextToken.firstToken() if nextToken else None
+        if isinstance(firstToken, SyntaxParam):
+            terminate = White() | StringEnd()
         parm = QuotedString('"') | SkipTo(terminate)
         parm.setParseAction(self.result)
         return parm
 
 
-class SyntaxChoice(object):
-    def __init__(self, tok):
-        self.choices = tok[1]
-
-    def __repr__(self):
-        return '{%s}' % '|'.join(map(str, self.choices))
-
-    def parser(self, nextToken):
-        r = oneOf([x.text for x in self.choices])
-        r.setParseAction(lambda l, t: ('__optset__', t[0], '', l))
-        return r
-
-
-class SyntaxOptional(object):
+class SyntaxOptional(SyntaxToken):
     def __init__(self, tok):
         self.inside = tok[1:-1]
 
@@ -63,11 +90,14 @@ class SyntaxOptional(object):
                 tok[i] = tuple(t)
         return tok
 
-    def parser(self, nextToken):
+    def _expr(self, nextToken):
         p = Optional(commandParser(self.inside, nextToken))
-        p += FollowedBy(nextToken)
+        p += FollowedBy(nextToken.expr())
         p.setParseAction(self.parseAction)
         return p
+
+    def firstToken(self):
+        return self.inside[0] if len(self.inside) > 0 else None
 
 
 def syntaxGrammar():
@@ -98,14 +128,15 @@ def syntaxGrammar():
 
 
 def commandParser(syntaxTokens, nextToken=None):
-    outTokens = []
-    lastToken = nextToken or StringEnd()
-    for i in range(len(syntaxTokens) - 1, -1, -1):
-        token = syntaxTokens[i]
-        lastToken = token.parser(lastToken)
-        outTokens.append(lastToken)
-    outTokens.reverse()
-    return And(outTokens)
+    expressions = []
+    nextToken = nextToken or SyntaxEnd()
+    tokens = list(syntaxTokens)
+    tokens.reverse()
+    for token in tokens:
+        expressions.append(token.expr(nextToken))
+        nextToken = token
+    expressions.reverse()
+    return And(expressions)
 
 
 def parse(text, parser):
@@ -186,6 +217,18 @@ if __name__ == '__main__':
         ('[<foo>] for <bar>', [
             'for bar',
             'foo for bar',
+        ]),
+        ('<names> [<password>]', [
+            'hesterly',
+            'hesterly test',
+            '"Mr. Hesterly" test',
+            'hesterly,blah test',
+            '"just a long name"',
+        ]),
+        ('<foo> [<bar> to] <baz>', [
+            'foo bar to baz',
+            'foo to baz',
+            'foo baz',
         ])
     ]
 

@@ -1006,6 +1006,16 @@ class BasePlayer(BaseObject):
 
         player = super(BasePlayer, cls).create(**kwargs)
         registry.players.registerPlayer(player)
+
+        if kwargs.get('makeChar', False):
+            try:
+                char = cls.db.game.character_class.create(player=player.ref())
+            except:
+                player.delete()
+                raise
+            else:
+                player.default_object = char
+
         return player
 
     def objectDeleted(self):
@@ -1366,4 +1376,10 @@ class BaseCharacter(Object):
     Keep this as minimal as possible so that plugins can completely replace if
     they wish.
     """
-    pass
+    def __init__(self, **kwargs):
+        super(BaseCharacter, self).__init__(**kwargs)
+        player = kwargs.get('player', None)
+        if self.game.db.isValid(player, BasePlayer):
+            self.possessable_by.append(player.ref())
+            if 'names' not in kwargs:
+                self.setNames(player.names)

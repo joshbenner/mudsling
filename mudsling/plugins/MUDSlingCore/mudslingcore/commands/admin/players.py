@@ -5,25 +5,22 @@ from mudsling import parsers
 from mudsling import errors
 from mudsling.commands import Command
 
+from mudsling import utils
+import mudsling.utils.string
+
 
 class MakePlayerCmd(Command):
     """
-    @make-player[/send] <name(s)> for <email>
+    @make-player <name(s)> [<password>]
 
     Creates a new player (and corresponding character) registered with the
     given email. Sends the new player an email if the /send switch is used.
     """
     aliases = ('@make-player', '@new-player', '@create-player')
-    syntax = "<names> for <email>"
+    syntax = "<names> [<password>]"
     lock = 'perm(create players)'
     arg_parsers = {
         'names': parsers.StringListStaticParser,
-    }
-    switch_parsers = {
-        'send': parsers.BoolStaticParser,
-    }
-    switch_defaults = {
-        'send': False,
     }
 
     def run(self, this, actor, args):
@@ -33,25 +30,16 @@ class MakePlayerCmd(Command):
         @type args: C{dict}
         """
         playerClass = self.game.player_class
-        charClass = self.game.character_class
+        password = args['password'] or utils.string.randomString(10)
 
         try:
             newPlayer = playerClass.create(names=args['names'],
-                                           email=args['email'])
+                                           password=password,
+                                           makeChar=True)
         except errors.Error as e:
             actor.msg("{y%s" % e)
             return
-
-        try:
-            char = charClass.create(names=args['names'])
-        except errors.Error as e:
-            actor.msg("{y%s" % e)
-            newPlayer.delete()
-            return
-
-        char.possessable_by = [newPlayer]
-        newPlayer.default_object = char
 
         actor.tell("{gPlayer created: {m", newPlayer,
-                   "{g With email {y", newPlayer.email, "{g.")
-        actor.tell("{gCharacter created: {c", char, "{g.")
+                   "{g with password '{r", password, "{g'.")
+        actor.tell("{gCharacter created: {c", newPlayer.default_object, "{g.")
