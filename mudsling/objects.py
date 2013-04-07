@@ -372,6 +372,7 @@ class BaseObject(PossessableObject):
 
     @cvar private_commands: Private command classes for use by instances.
     @cvar public_commands: Commands exposed to other objects by this class.
+    @cvar _commandCache: Cache of the compiled list of commands.
 
     @ivar owner: ObjRef() of the owner of the object (if any).
     """
@@ -386,6 +387,7 @@ class BaseObject(PossessableObject):
     # Implement IHasCommands.
     private_commands = []
     public_commands = []
+    _commandCache = {}
 
     # Default BaseObject locks. Will be used if object nor any intermediate
     # child class defines the lock type being searched for.
@@ -549,13 +551,29 @@ class BaseObject(PossessableObject):
         """
         Return a list of commands made available by this object to the actor.
 
+        Returns contents of 'private_commands' if the actor is self, else it
+        returns 'public_commands'. The full list of commands is built by
+        ascending the MRO and adding commands from any L{IHasCommands} class.
+
         @param actor: The object that wishes to use a command.
         @rtype: list
         """
         if self.ref() == actor.ref():
-            return self.private_commands
+            attr = 'private_commands'
         else:
-            return self.public_commands
+            attr = 'public_commands'
+
+        cls = self.__class__
+        if attr in cls._commandCache:
+            return cls._commandCache[attr]
+
+        commands = []
+        for objClass in utils.object.ascendMro(cls):
+            if IHasCommands.providedBy(objClass):
+                commands.extend(getattr(objClass, attr))
+
+        cls._commandCache[attr] = commands
+        return commands
 
     def preemptiveCommandMatch(self, raw):
         """
