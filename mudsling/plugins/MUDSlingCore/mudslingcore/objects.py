@@ -14,6 +14,7 @@ import commands.admin.system
 import commands.admin.perms
 import commands.admin.tasks
 import commands.admin.objects
+import commands.admin.players
 import commands.player
 import commands.character
 
@@ -123,6 +124,7 @@ class Player(BasePlayer, ConfigurableObject):
         commands.admin.perms,
         commands.admin.tasks,
         commands.admin.objects,
+        commands.admin.players,
         commands.player
     )
 

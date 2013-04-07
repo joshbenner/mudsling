@@ -564,12 +564,14 @@ class BaseObject(PossessableObject):
             attr = 'public_commands'
 
         cls = self.__class__
+        if '_commandCache' not in cls.__dict__:
+            cls._commandCache = {}
         if attr in cls._commandCache:
             return cls._commandCache[attr]
 
         commands = []
         for objClass in utils.object.ascendMro(cls):
-            if IHasCommands.providedBy(objClass):
+            if IHasCommands.implementedBy(objClass):
                 commands.extend(getattr(objClass, attr))
 
         cls._commandCache[attr] = commands

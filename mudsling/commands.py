@@ -424,10 +424,10 @@ def makeCommandList(obj):
     """
     commands = []
     for name in obj.__dict__:
-        cmd = getattr(obj, name)
-        if inspect.isclass(cmd) and issubclass(cmd, Command):
-            if not cmd in commands:
-                commands.append(cmd)
+        c = getattr(obj, name)
+        if inspect.isclass(c) and issubclass(c, Command) and c != Command:
+            if not c in commands:
+                commands.append(c)
     return commands
 
 
