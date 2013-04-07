@@ -215,8 +215,7 @@ class Command(object):
             return True
         return False
 
-    @classmethod
-    def failedCommandMatchHelp(cls, argstr):
+    def failedCommandMatchHelp(self):
         """
         This method is called if this command was matched by name, but not by
         syntax, and the command parser is asking the command for some help to
@@ -224,7 +223,7 @@ class Command(object):
 
         If the command has nothing to say, just return False.
         """
-        return False
+        return self.syntaxHelp()
 
     def execute(self):
         """

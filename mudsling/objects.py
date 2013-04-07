@@ -505,13 +505,13 @@ class BaseObject(PossessableObject):
         if not candidates:
             return None
         cmdMatches = []
-        nameOnly = set()
+        nameOnly = []
         for obj, cmdcls in candidates:
             cmd = cmdcls(raw, cmdstr, argstr, self.game, obj.ref(), self.ref())
             if cmd.matchSyntax(argstr):
                 cmdMatches.append(cmd)
             else:
-                nameOnly.add(cmdcls)
+                nameOnly.append(cmd)
         if len(cmdMatches) > 1:
             raise errors.AmbiguousMatch(msg="Ambiguous Command", query=raw,
                                         matches=cmdMatches)
@@ -521,8 +521,8 @@ class BaseObject(PossessableObject):
                 # a lot of similarly-named commands is a bad idea, so this
                 # should ideally only involve one command offering some help,
                 # so we raise with the first one that wants to help.
-                for cmdcls in nameOnly:
-                    msg = cmdcls.failedCommandMatchHelp(argstr)
+                for cmd in nameOnly:
+                    msg = cmd.failedCommandMatchHelp()
                     if msg:
                         raise errors.CommandError(msg=msg)
             else:

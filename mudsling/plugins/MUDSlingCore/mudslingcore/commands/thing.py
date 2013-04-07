@@ -40,9 +40,8 @@ class TakeThingCmd(Command):
         else:
             actor.msg("You don't see that here.")
 
-    @classmethod
-    def failedCommandMatchHelp(cls, argstr):
-        return "You don't see a '%s' to take." % argstr
+    def failedCommandMatchHelp(self):
+        return "You don't see a '%s' to take." % self.argstr
 
 
 class DropThingCmd(Command):
@@ -77,6 +76,5 @@ class DropThingCmd(Command):
         else:
             actor.msg("You don't have that.")
 
-    @classmethod
-    def failedCommandMatchHelp(cls, argstr):
-        return "You don't see a '%s' to drop." % argstr
+    def failedCommandMatchHelp(self):
+        return "You don't see a '%s' to drop." % self.argstr

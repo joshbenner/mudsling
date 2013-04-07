@@ -3,6 +3,10 @@ from pyparsing import *
 __all__ = ['Syntax', 'SyntaxParseError']
 
 
+class MissingParameter(ParseException):
+    pass
+
+
 class SyntaxLiteral(object):
     def __init__(self, tok):
         self.text = tok[0].strip()
@@ -21,8 +25,12 @@ class SyntaxParam(object):
     def __repr__(self):
         return '<%s>' % self.name
 
-    def result(self, tok):
-        return self.name, (tok[0].strip() or None)
+    def result(self, s, loc, tok):
+        val = tok[0].strip()
+        if not val:
+            msg = "%r parameter is required" % self.name
+            raise MissingParameter(s, loc=loc, msg=msg)
+        return self.name, val
 
     def parser(self, nextToken):
         terminate = nextToken if nextToken else StringEnd()
@@ -51,8 +59,13 @@ class SyntaxOptional(object):
     def __repr__(self):
         return 'Optional(%s)' % repr(self.inside)[1:-1]
 
+    def failAction(self, s, loc, expr, err):
+        t = s
+
     def parser(self, nextToken):
-        return Optional(commandParser(self.inside))
+        p = Optional(commandParser(self.inside))
+        p.setFailAction(self.failAction)
+        return p
 
 
 def syntaxGrammar():
