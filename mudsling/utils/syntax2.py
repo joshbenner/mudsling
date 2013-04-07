@@ -25,12 +25,8 @@ class SyntaxParam(object):
     def __repr__(self):
         return '<%s>' % self.name
 
-    def result(self, s, loc, tok):
-        val = tok[0].strip()
-        if not val:
-            msg = "%r parameter is required" % self.name
-            raise MissingParameter(s, loc=loc, msg=msg)
-        return self.name, val
+    def result(self, loc, tok):
+        return self.name, (tok[0].strip() or None), 'required', loc
 
     def parser(self, nextToken):
         terminate = nextToken if nextToken else StringEnd()
@@ -48,7 +44,7 @@ class SyntaxChoice(object):
 
     def parser(self, nextToken):
         r = oneOf([x.text for x in self.choices])
-        r.setParseAction(lambda t: ('__optset__', t[0]))
+        r.setParseAction(lambda l, t: ('__optset__', t[0], '', l))
         return r
 
 
@@ -59,12 +55,18 @@ class SyntaxOptional(object):
     def __repr__(self):
         return 'Optional(%s)' % repr(self.inside)[1:-1]
 
-    def failAction(self, s, loc, expr, err):
-        t = s
+    def parseAction(self, tok):
+        for i, t in enumerate(tok):
+            if isinstance(t, tuple):  # Make contained parameters optional.
+                t = list(t)
+                t[2] = 'optional'
+                tok[i] = tuple(t)
+        return tok
 
     def parser(self, nextToken):
-        p = Optional(commandParser(self.inside))
-        p.setFailAction(self.failAction)
+        p = Optional(commandParser(self.inside, nextToken))
+        p += FollowedBy(nextToken)
+        p.setParseAction(self.parseAction)
         return p
 
 
@@ -95,27 +97,29 @@ def syntaxGrammar():
     return syntax
 
 
-def commandParser(syntaxTokens):
+def commandParser(syntaxTokens, nextToken=None):
     outTokens = []
-    length = len(syntaxTokens)
-    for i in range(0, length):
+    lastToken = nextToken or StringEnd()
+    for i in range(len(syntaxTokens) - 1, -1, -1):
         token = syntaxTokens[i]
-        next = syntaxTokens[i + 1] if i < length - 1 else None
-        outToken = token.parser(next.parser(None) if next else None)
-        outTokens.append(outToken)
+        lastToken = token.parser(lastToken)
+        outTokens.append(lastToken)
+    outTokens.reverse()
     return And(outTokens)
 
 
 def parse(text, parser):
     parsed = {'argstr': text}
     optsets = 0
-    for token in (x for x in parser.parseString(text, parseAll=True)
-                  if isinstance(x, tuple)):
-        if token[0] == '__optset__':
+    all_tokens = parser.parseString(text, parseAll=True)
+    value_tokens = (x for x in all_tokens if isinstance(x, tuple))
+    for name, value, status, loc in value_tokens:
+        if name == '__optset__':
             optsets += 1
-            parsed['optset%d' % optsets] = token[1]
-        else:
-            parsed[token[0]] = token[1]
+            name = 'optset%d' % optsets
+        elif status == 'required' and value is None:
+            raise ParseException("Parameter %r is required" % name, loc=loc)
+        parsed[name] = value
     return parsed
 
 
@@ -142,7 +146,8 @@ class Syntax(object):
             return False
         try:
             return parse(string, self.parser)
-        except ParseException:
+        except ParseException as e:
+            self.err = e
             return False
 
 # Confirm to Syntax API.
@@ -152,26 +157,39 @@ if __name__ == '__main__':
     import time
     ssp = syntaxGrammar()
 
-    test = {
-        '<exitSpec> to <room>': [
+    test = [
+        ('<exitSpec> to <room>', [
             'In,i|Out,o to My New Room',
             '"Room to Delete"',  # Should error.
-        ],
-        'look [[at] <something>]': [
+        ]),
+        ('look [[at] <something>]', [
             'look',
             'look at that',
             'look "at another thing"',
-        ],
-        '<class> {named|called|=} <names>': [
+            ]),
+        ('<class> {named|called|=} <names>', [
             'thing called Foo',
             'another thing named Foo Too'
-        ],
-        '<newRoomName>': [
+        ]),
+        ('<newRoomName>', [
             'My New Room'
-        ],
-    }
+        ]),
+        ('<something> [to <somewhere>]', [
+            'me',
+            'me to there',
+            'to',
+            ]),
+        ('<foo> [to <bar>] as <baz>', [
+            'foo to bar as baz',
+            'foo as baz',
+            ]),
+        ('[<foo>] for <bar>', [
+            'for bar',
+            'foo for bar',
+            ])
+    ]
 
-    for spec, tests in test.iteritems():
+    for spec, tests in test:
         syntax = Syntax(spec)
         print spec, '->', repr(syntax.parser)
         for t in tests:
@@ -181,4 +199,6 @@ if __name__ == '__main__':
             #noinspection PyUnresolvedReferences
             duration = (time.clock() - start) * 1000
             print '  ', t, '->', r
-            print '  (%.3fms)' % duration
+            if not r:
+                print '    ERROR:', syntax.err
+            print '  (%.3fms)\n' % duration
