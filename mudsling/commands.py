@@ -354,9 +354,9 @@ class Command(object):
         out = []
         for i, line in enumerate(self.__class__.getSyntax().splitlines()):
             if i == 0:
-                line = "Syntax: " + line
+                line = "{ySyntax: {c" + line
             else:
-                line = "        " + line
+                line = "        {c" + line
             out.append(line)
         return '\n'.join(out)
 
