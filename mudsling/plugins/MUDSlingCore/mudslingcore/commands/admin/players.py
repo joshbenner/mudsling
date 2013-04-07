@@ -2,11 +2,8 @@
 Administrative commands for managing players.
 """
 from mudsling import parsers
-from mudsling import registry
+from mudsling import errors
 from mudsling.commands import Command
-
-from mudsling import utils
-import mudsling.utils.email
 
 
 class MakePlayerCmd(Command):
@@ -35,36 +32,26 @@ class MakePlayerCmd(Command):
         @type actor: L{mudslingcore.objects.Player}
         @type args: C{dict}
         """
-        name, aliases = args['names'][0], args['names'][1:]
-        email = args['email']
         playerClass = self.game.player_class
+        charClass = self.game.character_class
 
-        if not playerClass.validPlayerName(name):
-            actor.msg("{yPlayer name invalid. Names may contain letters, "
-                      "numbers, hyphens, underscores, and apostrophes.")
-            return
-        if not utils.email.validEmail(email):
-            actor.msg("{yEmail invalid.")
-            return
-        alreadyClaimed = False
-        for n in args['names']:
-            if registry.players.findByName(n):
-                alreadyClaimed = True
-                actor.msg("{yThe name '%s' is already taken." % n)
-        if alreadyClaimed:
+        try:
+            newPlayer = playerClass.create(names=args['names'],
+                                           email=args['email'])
+        except errors.Error as e:
+            actor.msg("{y%s" % e)
             return
 
-        #: @type: mudsling.objects.BasePlayer
-        newPlayer = self.game.db.createObject(cls=playerClass,
-                                              name=name, aliases=aliases)
-        newPlayer.email = email
+        try:
+            char = charClass.create(names=args['names'])
+        except errors.Error as e:
+            actor.msg("{y%s" % e)
+            newPlayer.delete()
+            return
 
-        #: @type: mudsling.objects.BaseCharacter
-        char = self.game.db.createObject(cls=self.game.character_class,
-                                         name=name, aliases=aliases)
         char.possessable_by = [newPlayer]
         newPlayer.default_object = char
 
         actor.tell("{gPlayer created: {m", newPlayer,
-                   "{g With email {y", email, "{g.")
+                   "{g With email {y", newPlayer.email, "{g.")
         actor.tell("{gCharacter created: {c", char, "{g.")

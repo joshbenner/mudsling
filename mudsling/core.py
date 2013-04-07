@@ -186,9 +186,9 @@ class MUDSling(MultiService):
 
         # Create first player.
         #: @type: mudsling.objects.BasePlayer
-        player = self.player_class.create(names=['admin'])
-        player.setPassword('pass')
-        player.email = 'admin@localhost'
+        player = self.player_class.create(names=['admin'],
+                                          email='admin@localhost',
+                                          password='pass')
         player.superuser = True
 
         #: @type: mudsling.objects.BaseCharacter

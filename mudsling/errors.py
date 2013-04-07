@@ -53,7 +53,19 @@ class FailedMatch(MatchError):
         super(FailedMatch, self).__init__(msg)
 
 
-class DuplicatePlayerName(Error):
+class PlayerNameError(Error):
+    pass
+
+
+class InvalidPlayerName(PlayerNameError):
+    pass
+
+
+class DuplicatePlayerName(PlayerNameError):
+    pass
+
+
+class InvalidEmail(Error):
     pass
 
 

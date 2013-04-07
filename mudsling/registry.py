@@ -72,6 +72,7 @@ class PlayerRegistry(object):
     email address.
     """
     def __init__(self):
+        self.players = []
         self.names = {}
         self.emails = {}
 
@@ -97,6 +98,9 @@ class PlayerRegistry(object):
         """
         #: @type: mudsling.objects.BasePlayer
         player = player._realObject()
+        if player in self.players:
+            self.unregisterPlayer(player)
+        self.players.append(player)
         for name in player.names:
             self.names[name] = player
         if player.email not in self.emails:
@@ -114,18 +118,17 @@ class PlayerRegistry(object):
         names_to_delete = []
         #: @type: mudsling.objects.BasePlayer
         player = player._realObject()
+        if player in self.players:
+            self.players.remove(player)
         for name, p in self.names.iteritems():
             if p == player:
                 names_to_delete.append(name)
         for name in names_to_delete:
             del self.names[name]
 
-        emails_to_delete = []
-        for email, p in self.emails.iteritems():
-            if p == player:
-                emails_to_delete.append(email)
-        for email in emails_to_delete:
-            del self.emails[email]
+        for email, players in self.emails.iteritems():
+            if p in players:
+                self.emails[email].remove(p)
 
     def reregisterPlayer(self, player):
         self.unregisterPlayer(player)

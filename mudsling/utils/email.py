@@ -1,11 +1,12 @@
 import re
+from importlib import import_module
 
 from twisted.mail.smtp import ESMTPSenderFactory, sendmail
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 
 from cStringIO import StringIO
-from email.generator import Generator
+Generator = import_module('email.generator').Generator
 
 import mailer
 

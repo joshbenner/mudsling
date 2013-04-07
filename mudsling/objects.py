@@ -17,6 +17,8 @@ import mudsling.utils.password
 import mudsling.utils.input
 import mudsling.utils.sequence
 import mudsling.utils.object
+import mudsling.utils.string
+import mudsling.utils.email
 
 
 class LockableObject(StoredObject):
@@ -885,13 +887,15 @@ class Object(BaseObject):
 
 class BasePlayer(BaseObject):
     """
-    Base player class.
+    Base player class. Tracks account information, processes input, can possess
+    objects, tracks permissions, and handles interaction with a connected
+    session.
 
     Players are essentially 'accounts' that are connected to sessions. They can
     then possess other objects (usually Characters).
 
     @ivar password: The hash of the password used to login to this player.
-    @ivar email: The player's email address.
+    @ivar _email: The player's email address.
     @ivar session: The session object connected to this player.
     @ivar default_object: The object this player will possess upon connecting.
     @ivar __roles: The set of roles granted to this player.
@@ -904,7 +908,7 @@ class BasePlayer(BaseObject):
     password = None
 
     #: @type: str
-    email = ""
+    _email = ""
 
     superuser = False
 
@@ -921,6 +925,17 @@ class BasePlayer(BaseObject):
 
     _validNameRE = re.compile(r"[-_a-zA-Z0-9']+")
 
+    def __init__(self, **kwargs):
+        super(BasePlayer, self).__init__(**kwargs)
+        self.email = kwargs.get('email', '')
+        password = kwargs.get('password', None)
+        if not password:
+            password = utils.password.Password(utils.string.randomString(10))
+        if isinstance(password, basestring):
+            password = utils.password.Password(password)
+        if isinstance(password, utils.password.Password):
+            self.password = password
+
     @classmethod
     def validPlayerName(cls, name):
         """
@@ -928,6 +943,54 @@ class BasePlayer(BaseObject):
         @rtype: C{bool}
         """
         return True if cls._validNameRE.match(name) else False
+
+    @classmethod
+    def create(cls, **kwargs):
+        """
+        Create a player.
+
+        @raise errors.PlayerNameError: When no names given or names parameter
+            is of the wrong type.
+        @raise errors.InvalidPlayerName: When first name is invalid.
+        @raise errors.DuplicatePlayerName: When player name is already used.
+        @raise errors.InvalidEmail: When provided email is not valid.
+
+        @return: A new player.
+        @rtype: L{BasePlayer} or L{mudsling.storage.ObjRef}
+        """
+        names = kwargs.get('names', ())
+        if not names:
+            raise errors.PlayerNameError("Players require a name.")
+        if not isinstance(names, tuple) and not isinstance(names, list):
+            raise errors.PlayerNameError("Names must be tuple or list.")
+
+        claimed = []
+        for n in names:
+            if not cls.validPlayerName(n):
+                m = "%r is not a valid player name. " % n
+                m += "Player names may contain "
+                m += "letters, numbers, apostrophes, hyphens, and underscores."
+                raise errors.InvalidPlayerName(m)
+            if registry.players.findByName(n):
+                claimed.append(n)
+        if claimed:
+            t = utils.string.english_list(claimed)
+            m = "These names are already taken: %s" % t
+            raise errors.DuplicatePlayerName(m)
+
+        email = kwargs.get('email', '')
+        if email and not utils.email.validEmail(email):
+            m = "%r is not a valid email address." % email
+            raise errors.InvalidEmail(m)
+        # Default is to allow players to have duplicate emails.
+
+        player = super(BasePlayer, cls).create(**kwargs)
+        registry.players.registerPlayer(player)
+        return player
+
+    def objectDeleted(self):
+        registry.players.unregisterPlayer(self)
+        super(BasePlayer, self).objectDeleted()
 
     def _setNames(self, name=None, aliases=None, names=None):
         """
@@ -953,6 +1016,15 @@ class BasePlayer(BaseObject):
         r = super(BasePlayer, self)._setNames(name, aliases, names)
         registry.players.reregisterPlayer(self)
         return r
+
+    @property
+    def email(self):
+        return self._email
+
+    @email.setter
+    def email(self, val):
+        self._email = val
+        registry.players.reregisterPlayer(self)
 
     @property
     def connected(self):
