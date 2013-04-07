@@ -166,7 +166,7 @@ if __name__ == '__main__':
             'look',
             'look at that',
             'look "at another thing"',
-            ]),
+        ]),
         ('<class> {named|called|=} <names>', [
             'thing called Foo',
             'another thing named Foo Too'
@@ -178,15 +178,15 @@ if __name__ == '__main__':
             'me',
             'me to there',
             'to',
-            ]),
+        ]),
         ('<foo> [to <bar>] as <baz>', [
             'foo to bar as baz',
             'foo as baz',
-            ]),
+        ]),
         ('[<foo>] for <bar>', [
             'for bar',
             'foo for bar',
-            ])
+        ])
     ]
 
     for spec, tests in test:
