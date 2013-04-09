@@ -67,3 +67,28 @@ class NewPasswordCmd(Command):
         args['player'].setPassword(args['password'])
         actor.tell("{gPassword for {m", args['player'],
                    "{g updated to '{r", args['password'], "{g'.")
+
+
+class BootCmd(Command):
+    """
+    @boot <player> [for <reason>]
+
+    Disconnects the specified player.
+    """
+    aliases = ('@boot',)
+    syntax = "<player> [{for|because|=|due to} <reason>]"
+    lock = "perm(boot players)"
+    arg_parsers = {
+        'player': parsers.MatchDescendants(cls=BasePlayer,
+                                           searchFor='player',
+                                           show=True),
+    }
+
+    def run(self, this, actor, args):
+        player = args['player']
+        reason = args.get('reason', None) or "No reason given"
+        if not player.connected:
+            actor.tell("{m", player, "{y is not connected.")
+        player.tell("{yYou have been {rbooted{y by {m", actor, "{y.")
+        player.session.disconnect("{yReason: {c%s" % reason)
+        actor.tell("{yYou have {rbooted {m", player, "{y because: {c", reason)

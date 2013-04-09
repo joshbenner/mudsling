@@ -21,7 +21,8 @@ mudslingcore
 * remote look -- Look at objects outside of own context.
 * teleport -- Player may access teleportation commands.
 * create players -- Player may create other players.
-* manage players -- Change passwords
+* manage players -- Change other players' passwords.
+* boot players -- Disconnect other players.
 
 ## Object Lock types
 * control
