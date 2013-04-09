@@ -6,3 +6,4 @@ game
 *dropin.cache*
 *.iml
 .idea
+out
