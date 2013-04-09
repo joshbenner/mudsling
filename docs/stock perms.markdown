@@ -23,6 +23,7 @@ mudslingcore
 * create players -- Player may create other players.
 * manage players -- Change other players' passwords.
 * boot players -- Disconnect other players.
+* shout -- Can shout.
 
 ## Object Lock types
 * control

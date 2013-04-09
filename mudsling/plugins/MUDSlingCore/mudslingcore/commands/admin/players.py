@@ -92,3 +92,19 @@ class BootCmd(Command):
         player.tell("{yYou have been {rbooted{y by {m", actor, "{y.")
         player.session.disconnect("{yReason: {c%s" % reason)
         actor.tell("{yYou have {rbooted {m", player, "{y because: {c", reason)
+
+
+class ShoutCmd(Command):
+    """
+    @shout <message>
+
+    Displays the message to all connected players.
+    """
+    aliases = ('@shout', '@wall')
+    syntax = "<message>"
+    lock = "perm(shout)"
+
+    def run(self, this, actor, args):
+        m = '{m%s {gshouts: "{y%s{g".' % (actor.name, args['message'])
+        for conn in self.game.session_handler.sessions:
+            conn.sendOutput(m)
