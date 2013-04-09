@@ -204,8 +204,8 @@ class GoCmd(Command):
                 return
             misc.teleport_object(obj, args['where'])
         else:
-            raise errors.CommandError("You are not attached to a valid object"
-                                      " with location.")
+            m = "You are not attached to a valid object with location."
+            raise self._err(m)
 
 
 class MoveCmd(Command):

@@ -79,6 +79,9 @@ class CommandError(Error):
 
 
 class CommandInvalid(CommandError):
+    """
+    Command is not valid or correct in some way, and cannot continue.
+    """
 
     input = None
 

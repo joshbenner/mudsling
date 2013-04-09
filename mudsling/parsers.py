@@ -163,10 +163,13 @@ class MatchObject(Parser):
         self.searchFor = searchFor
         self.show = show
 
+    def _match(self, obj, input):
+        return obj.matchObject(input, cls=self.objClass, err=False)
+
     def parse(self, input, obj=None):
         if obj is None:
             return False
-        m = obj.matchObject(input, cls=self.objClass, err=False)
+        m = self._match(obj, input)
         if len(m) == 1:
             return m[0]
         else:
@@ -181,3 +184,19 @@ class MatchObject(Parser):
                 raise err
             else:
                 return err
+
+
+class MatchChildren(MatchObject):
+    """
+    Parser to match an object among the children of a given type.
+    """
+    def _match(self, obj, input):
+        return obj.db.matchChildren(input, self.objClass)
+
+
+class MatchDescendants(MatchObject):
+    """
+    Parser to match an object among the descendants of a given type.
+    """
+    def _match(self, obj, input):
+        return obj.db.matchDescendants(input, self.objClass)

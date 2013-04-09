@@ -4,6 +4,7 @@ Administrative commands for managing players.
 from mudsling import parsers
 from mudsling import errors
 from mudsling.commands import Command
+from mudsling.objects import BasePlayer
 
 from mudsling import utils
 import mudsling.utils.string
@@ -43,3 +44,26 @@ class MakePlayerCmd(Command):
         actor.tell("{gPlayer created: {m", newPlayer,
                    "{g with password '{r", password, "{g'.")
         actor.tell("{gCharacter created: {c", newPlayer.default_object, "{g.")
+
+
+class NewPasswordCmd(Command):
+    """
+    @new-password <player> is <new password>
+
+    Changes the password for the specified player.
+    """
+    aliases = ('@new-password', '@change-password', '@set-password')
+    syntax = "<player> {is|to|=} <password>"
+    lock = 'perm(manage players)'
+    arg_parsers = {
+        'player': parsers.MatchDescendants(cls=BasePlayer,
+                                           searchFor='player',
+                                           show=True),
+    }
+
+    def run(self, this, actor, args):
+        if not args['password']:
+            raise self._err("Password cannot be blank.")
+        args['player'].setPassword(args['password'])
+        actor.tell("{gPassword for {m", args['player'],
+                   "{g updated to '{r", args['password'], "{g'.")
