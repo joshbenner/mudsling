@@ -4,3 +4,4 @@ syntax: glob
 *.pyc
 game
 *dropin.cache*
+*.iml
