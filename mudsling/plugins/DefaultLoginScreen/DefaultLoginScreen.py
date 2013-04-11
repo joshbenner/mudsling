@@ -51,7 +51,6 @@ class DefaultLoginScreen(LoginScreenPlugin):
 
     def sessionConnected(self, session):
         self.doLook(session)
-        self.doHelp(session)
 
     def processInput(self, session, input):
         for cmd in self.commands:
@@ -64,6 +63,7 @@ class DefaultLoginScreen(LoginScreenPlugin):
 
     def doLook(self, session, input=None, args=None):
         session.sendOutput(self.screen)
+        self.doHelp(session, input, args)
 
     def doHelp(self, session, input=None, args=None):
         #: @type: mudsling.sessions.Session
