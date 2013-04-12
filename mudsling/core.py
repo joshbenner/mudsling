@@ -6,6 +6,7 @@ services... everything.
 import sys
 import os
 import cPickle as pickle
+import logging
 
 # Prefer libs we ship with.
 basepath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -13,14 +14,14 @@ libpath = os.path.join(basepath, "lib")
 sys.path.insert(1, libpath)
 del basepath, libpath
 
-import ConfigParser
-import logging
-
-# Alias configparser -> ConfigParser for yapsy (Python 3 naming)
-sys.modules['configparser'] = sys.modules['ConfigParser']
-
 from twisted.internet import reactor
 from twisted.application.service import Service, MultiService
+
+from mudsling.config import config
+
+# Alias configparser -> ConfigParser for yapsy (Python 3 naming)
+# Works best if it comes between config and plugin imports.
+sys.modules['configparser'] = sys.modules['ConfigParser']
 
 from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
@@ -34,7 +35,6 @@ from mudsling import lockfuncs
 
 from mudsling import utils
 import mudsling.utils.modules
-import mudsling.utils.time
 import mudsling.utils.sequence
 
 logging.basicConfig(level=logging.DEBUG)
@@ -43,9 +43,6 @@ logging.basicConfig(level=logging.DEBUG)
 class MUDSling(MultiService):
     #: @type: C{str}
     game_dir = "game"
-
-    #: @type: L{ConfigParser.SafeConfigParser}
-    config = None
 
     #: @type: L{PluginManager}
     plugins = None
@@ -76,8 +73,7 @@ class MUDSling(MultiService):
         self.initGameDir()
 
         # Load configuration.
-        self.config = ConfigParser.SafeConfigParser()
-        self.config.read(configPaths)
+        config.read(configPaths)
 
     def initGame(self):
         logging.info("Initializing game...")
@@ -100,7 +96,7 @@ class MUDSling(MultiService):
             self.initDatabase()
 
         # Setup the plugin handling the login screen.
-        name = self.config.get('Main', 'login screen')
+        name = config.get('Main', 'login screen')
         plugin = self.plugins.getPluginByMachineName(name, "LoginScreen")
         if plugin is not None:
             logging.debug("Using %s as LoginScreen" % name)
@@ -117,9 +113,9 @@ class MUDSling(MultiService):
                 self.addService(service)
 
         # Setup the AMP server if we are using proxy.
-        if self.config.getboolean('Proxy', 'enabled'):
+        if config.getboolean('Proxy', 'enabled'):
             service = proxy.AMP_server(self,
-                                       self.config.getint('Proxy', 'AMP port'))
+                                       config.getint('Proxy', 'AMP port'))
             self.addService(service)
 
         # Fire server startup hooks.
@@ -148,7 +144,7 @@ class MUDSling(MultiService):
         classes, making sure their modules are loaded and the game has a ref
         to the class object.
         """
-        for config_name, class_path in self.config.items('Classes'):
+        for config_name, class_path in config.items('Classes'):
             attrname = config_name.replace(' ', '_')
             setattr(self, attrname, utils.modules.class_from_path(class_path))
 
@@ -165,7 +161,7 @@ class MUDSling(MultiService):
         locks.parser(lockFuncs, reset=True)
 
     def loadDatabase(self):
-        dbfilename = self.config.get('Main', 'db file')
+        dbfilename = config.get('Main', 'db file')
         self.db_file_path = os.path.join(self.game_dir, dbfilename)
         if os.path.exists(self.db_file_path):
             logging.info("Loading database from %s" % self.db_file_path)
@@ -257,9 +253,7 @@ class CheckpointTask(tasks.Task):
         self.game.saveDatabase()
 
     def configuredInterval(self):
-        return utils.time.dhms_to_seconds(
-            self.game.config.get('Main', 'checkpoint interval')
-        )
+        return config.getinterval('Main', 'checkpoint interval')
 
     def onServerStartup(self):
         self.restart(self.configuredInterval())

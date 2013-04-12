@@ -5,6 +5,8 @@ from yapsy.IPlugin import IPlugin
 from yapsy.PluginInfo import PluginInfo
 import yapsy.PluginManager
 
+from mudsling.config import config
+
 
 class MUDSlingPluginInfo(PluginInfo):
     """
@@ -159,9 +161,9 @@ class PluginManager(yapsy.PluginManager.PluginManager):
         enabled_in_config = []
         sec = self.PLUGIN_ENABLE_SECTION
         enabled = self.PLUGIN_ENABLE_VALUES
-        if game.config.has_section(sec):
-            for opt_name in game.config.options(sec):
-                if game.config.get(sec, opt_name).lower() in enabled:
+        if config.has_section(sec):
+            for opt_name in config.options(sec):
+                if config.get(sec, opt_name).lower() in enabled:
                     enabled_in_config.append(opt_name)
 
         # Filter candidates to only those enabled in config.
@@ -182,8 +184,8 @@ class PluginManager(yapsy.PluginManager.PluginManager):
                 info.plugin_object.game = game
                 info.plugin_object.info = info
                 sec = "Plugin:%s" % info.machine_name
-                if game.config.has_section(sec):
-                    info.plugin_object.options = dict(game.config.items(sec))
+                if config.has_section(sec):
+                    info.plugin_object.options = dict(config.items(sec))
             self.activatePluginByName(info.name, info.category)
 
     def pluginPaths(self, game_dir):

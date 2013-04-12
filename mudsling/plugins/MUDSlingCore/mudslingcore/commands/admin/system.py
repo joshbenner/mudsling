@@ -59,6 +59,7 @@ class EvalCmd(Command):
         import mudslingcore
         import sys
         from mudsling import registry
+        from mudsling.config import config
 
         # args['code'] isn't reliable since the semicolon shortcut may skip
         # parsing the args via syntax.
@@ -77,6 +78,7 @@ class EvalCmd(Command):
             'game': self.game,
             'ref': self.game.db.getRef,
             'registry': registry,
+            'config': config,
             'player': actor,
             'me': char,
             'here': (char.location if self.game.db.isValid(char, Object)

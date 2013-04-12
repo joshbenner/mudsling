@@ -12,6 +12,7 @@ from twisted.plugin import IPlugin
 from twisted.application.service import IServiceMaker
 
 from mudsling.core import MUDSling
+from mudsling.config import config
 
 
 class MUDSlingServiceMaker(object):
@@ -24,8 +25,8 @@ class MUDSlingServiceMaker(object):
         game = MUDSling(options['gamedir'], options.configPaths())
         game.setName('main')  # Used by AppRunner to find exit code
         if options['debugger']:
-            game.config.set('Plugins', 'SimpleTelnetServer', 'Enabled')
-            game.config.set('Proxy', 'enabled', 'No')
+            config.set('Plugins', 'SimpleTelnetServer', 'Enabled')
+            config.set('Proxy', 'enabled', 'No')
         return game
 
 
