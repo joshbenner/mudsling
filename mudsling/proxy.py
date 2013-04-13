@@ -196,6 +196,8 @@ class AMPServerProtocol(amp.AMP):
         player = session.game.db.getRef(playerId)
         if player.isValid():
             session.attachToPlayer(player)
+        else:
+            self.factory.game.login_screen.sessionConnected(session)
         return {}
 
     @SessionOption.responder

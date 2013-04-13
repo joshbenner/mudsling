@@ -282,6 +282,11 @@ class Database(Persistent):
         load of the database.
     @type type_registry: dict
 
+    @ivar settings: Key/val store for arbitrary data. Can be used to store
+        settings or other values that are DB-specific. Otherwise, coder should
+        use the config system.
+    @type settings: C{dict}
+
     @ivar game: Reference to the game instance.
     @type game: mudsling.core.MUDSling
     """
@@ -298,6 +303,8 @@ class Database(Persistent):
 
     type_registry = {}
 
+    settings = {}
+
     #: @type: mudsling.server.MUDSling
     game = None
 
@@ -309,6 +316,7 @@ class Database(Persistent):
         self.roles = []
         self.tasks = {}
         self.type_registry = {}
+        self.settings = {}
 
     def onLoaded(self, game):
         """
@@ -512,3 +520,10 @@ class Database(Persistent):
         else:
             del self.tasks[task.id]
             return True
+
+    # Satisfies the law of demeter, and lets us change implementation later.
+    def getSetting(self, name, default=None):
+        return self.settings.get(name, default)
+
+    def setSetting(self, name, value):
+        self.settings[name] = value

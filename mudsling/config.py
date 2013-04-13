@@ -14,6 +14,13 @@ class Config(ConfigParser.SafeConfigParser):
     """
     Custom config class that adds just a little sugar.
     """
+    _boolean_states = {'1': True, 'yes': True, 'true': True, 'on': True,
+                       '0': False, 'no': False, 'false': False, 'off': False,
+                       'enabled': True, 'disabled': False}
+
+    def __init__(self, *args, **kwargs):
+        ConfigParser.SafeConfigParser.__init__(self, *args, **kwargs)
+        self._configSections = {}
 
     # Follow naming of other get*() functions.
     def getobject(self, section, option):
@@ -53,6 +60,73 @@ class Config(ConfigParser.SafeConfigParser):
         @rtype: C{int}
         """
         return utils.time.dhms_to_seconds(self.get(section, option))
+
+    def section(self, section):
+        if section not in self._configSections:
+            if self.has_section(section):
+                self._configSections[section] = ConfigSection(self, section)
+            else:
+                raise ConfigParser.NoSectionError(section)
+        return self._configSections[section]
+
+    def __getitem__(self, item):
+        return self.section(item)
+
+
+class ConfigSection(object):
+    """
+    Encapsulates a section of configuration within a ConfigParser.
+    """
+    def __init__(self, configParser, section):
+        """
+        @param configParser: The ConfigParser instance upon which to base this
+            config section.
+        @param section: The config section to bind to.
+        """
+        self.config = configParser
+        self.section = section
+
+    def __getitem__(self, item):
+        return self.get(item)
+
+    # Yes, there are ways to do this that would be more succinct. However, this
+    # is explicit, readable, obvious, and very compatible with IDE completion.
+
+    def get(self, option):
+        return self.config.get(self.section, option)
+
+    def getint(self, option):
+        return self.config.getint(self.section, option)
+
+    def getfloat(self, option):
+        return self.config.getfloat(self.section, option)
+
+    def getboolean(self, option):
+        return self.config.getboolean(self.section, option)
+
+    def getobject(self, option):
+        return self.config.getobject(self.section, option)
+
+    def getclass(self, option):
+        return self.config.getclass(self.section, option)
+
+    def getinterval(self, option):
+        return self.config.getinterval(self.section, option)
+
+    def items(self):
+        return self.config.items(self.section)
+
+    def set(self, option, value):
+        return self.config.set(self.section, option, value)
+
+    def remove_option(self, option):
+        return self.config.remove_option(self.section, option)
+
+    def has_option(self, option):
+        return self.config.has_option(self.section, option)
+
+    def options(self):
+        return self.config.options(self.section)
 
 
 config = Config()

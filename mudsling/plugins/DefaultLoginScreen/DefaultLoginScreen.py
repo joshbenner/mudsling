@@ -35,6 +35,12 @@ class DefaultLoginScreen(LoginScreenPlugin):
             'doConnect'
         ),
         LoginCmd(
+            r'reg(?:ister)? +(?P<name>[^ ]+) +(?P<pass>.+)$',
+            'register <name> <password>',
+            'Create a new account.',
+            'doRegister'
+        ),
+        LoginCmd(
             r'q(?:uit)?$',
             'quit',
             'Disconnect.',
@@ -101,3 +107,22 @@ class DefaultLoginScreen(LoginScreenPlugin):
             session.attachToPlayer(player)
         else:
             session.sendOutput(errmsg)
+
+    def doRegister(self, session, input=None, args=None):
+        if not self.options.getboolean('registration'):
+            session.sendOutput("Registration is currently disabled.")
+            return
+
+        username, password = args
+        names = [n.strip() for n in username.split(',')]
+        playerClass = self.game.player_class
+
+        try:
+            player = playerClass.create(names=names,
+                                        password=password,
+                                        makeChar=True)
+        except Exception as e:
+            session.sendOutput(e.message)
+        else:
+            session.sendOutput("Account '%s' has been created!" % player.name)
+            self.doConnect(session, args=(player.name, password))

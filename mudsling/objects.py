@@ -1015,6 +1015,9 @@ class BasePlayer(BaseObject):
                 raise
             else:
                 player.default_object = char
+                room = cls.db.getSetting('player start')
+                if cls.db.isValid(room, Object):
+                    char.moveTo(room)
 
         return player
 

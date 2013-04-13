@@ -35,7 +35,8 @@ class MUDSlingPlugin(IPlugin):
     @ivar info: Reference back to the plugin info object.
     """
 
-    options = {}
+    #: @type: mudsling.config.ConfigSection
+    options = None
     info = None
     #: @type: mudsling.core.MUDSling
     game = None
@@ -183,9 +184,8 @@ class PluginManager(yapsy.PluginManager.PluginManager):
             if isinstance(info.plugin_object, MUDSlingPlugin):
                 info.plugin_object.game = game
                 info.plugin_object.info = info
-                sec = "Plugin:%s" % info.machine_name
-                if config.has_section(sec):
-                    info.plugin_object.options = dict(config.items(sec))
+                if config.has_section(info.machine_name):
+                    info.plugin_object.options = config[info.machine_name]
             self.activatePluginByName(info.name, info.category)
 
     def pluginPaths(self, game_dir):

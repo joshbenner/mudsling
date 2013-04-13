@@ -1,5 +1,4 @@
 import os
-import sys
 import imp
 import ConfigParser
 from mudsling.utils.string import mxp
@@ -28,7 +27,8 @@ sessions = {}
 
 
 def session_id():
-    sys.modules[__name__].max_session_id += 1
+    global max_session_id
+    max_session_id += 1
     return max_session_id
 
 
@@ -72,7 +72,7 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
 
     session_id = None
     time_connected = 0
-    playerId = None
+    playerId = 0
     amp = None  # Set by AmpClientProtocol on class when it is instantiated.
 
     output_buffer = []

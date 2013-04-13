@@ -12,8 +12,8 @@ class SimpleTelnetServer(TwistedServicePlugin):
 
     def activate(self):
         super(SimpleTelnetServer, self).activate()
-        if 'port' in self.options:
-            self.port = int(self.options['port'])
+        if self.options.has_option('port'):
+            self.port = self.options.getint('port')
 
     def get_service(self):
         factory = ServerFactory()

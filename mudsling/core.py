@@ -196,6 +196,7 @@ class MUDSling(MultiService):
 
         #: @type: mudsling.topography.Room
         room = self.room_class.create(names=['The First Room'])
+        self.db.setSetting('player start', room)
         char.moveTo(room)
 
         task = CheckpointTask()
