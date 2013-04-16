@@ -26,7 +26,9 @@ class ProxySession(Session):
 
     input_buffer = []
 
-    def __init__(self, id, delim):
+    def __init__(self, id, ip, delim):
+        self.ip = ip
+        self.hostname = ip  # Until we resolve it.
         self.line_delimiter = delim
         self.proxy_session_id = id
         proxy_sessions[id] = self
@@ -69,7 +71,17 @@ class ProxySession(Session):
 class NewSession(amp.Command):
     arguments = [
         ('sessId', amp.Integer()),
-        ('delim', amp.String())
+        ('ip', amp.String()),
+        ('delim', amp.String()),
+    ]
+    response = []
+    errors = {Exception: 'EXCEPTION'}
+
+
+class SetHostname(amp.Command):
+    arguments = [
+        ('sessId', amp.Integer()),
+        ('hostname', amp.String()),
     ]
     response = []
     errors = {Exception: 'EXCEPTION'}
@@ -87,6 +99,8 @@ class AttachPlayer(amp.Command):
 class ReSyncSession(amp.Command):
     arguments = [
         ('sessId', amp.Integer()),
+        ('ip', amp.String()),
+        ('hostname', amp.String()),
         ('delim', amp.String()),
         ('playerId', amp.Integer()),
         ('time_connected', amp.Integer()),
@@ -157,10 +171,19 @@ class AMPServerProtocol(amp.AMP):
         print 'AMPServerProtocol', error.__dict__
 
     @NewSession.responder
-    def newSession(self, sessId, delim):
-        session = ProxySession(sessId, delim)
+    def newSession(self, sessId, ip, delim):
+        session = ProxySession(sessId, ip, delim)
         session.game = self.factory.game
         session.openSession()
+        return {}
+
+    @SetHostname.responder
+    def setHostname(self, sessId, hostname):
+        try:
+            session = proxy_sessions[sessId]
+        except KeyError:
+            raise InvalidSession()
+        session.hostname = hostname
         return {}
 
     @EndSession.responder
@@ -183,12 +206,14 @@ class AMPServerProtocol(amp.AMP):
         return {}
 
     @ReSyncSession.responder
-    def reSyncSession(self, sessId, delim, playerId, time_connected, mxp):
+    def reSyncSession(self, sessId, ip, hostname, delim, playerId,
+                      time_connected, mxp):
         """
         Create a server session that corresponds to an already-established
         session on the proxy-side.
         """
-        session = ProxySession(sessId, delim)
+        session = ProxySession(sessId, ip, delim)
+        session.hostname = hostname
         session.mxp = mxp
         session.game = self.factory.game
         session.openSession(resync=True)

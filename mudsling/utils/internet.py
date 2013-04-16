@@ -1,12 +1,14 @@
 import re
-from importlib import import_module
+import socket
 
 from twisted.mail.smtp import ESMTPSenderFactory, sendmail
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor
+from twisted.names.client import lookupPointer
+from twisted.internet import threads
 
 from cStringIO import StringIO
-Generator = import_module('email.generator').Generator
+from email.generator import Generator
 
 import mailer
 
@@ -24,7 +26,7 @@ class TwistedMailer(mailer.Mailer):
 
     def send(self, msg):
         if self._usr or self._pwd:
-            factor = ESMTPSenderFactory(self._usr, self._pwd)
+            factory = ESMTPSenderFactory(self._usr, self._pwd)
 
 
 def _sendmail(fromAddress, toAddress, message, host='localhost', port=0,
@@ -65,3 +67,16 @@ def validEmail(email):
     @rtype: C{bool}
     """
     return True if EMAIL_RE.match(email) else False
+
+
+def reverseDNS(ip):
+    """
+    Perform a reverse-DNS lookup on a given IP address string. The lookup is
+    asynchronous, so a callback is also required.
+
+    @param ip: A string IP address.
+
+    @return: A deferred. You should probably .addCallback().
+    @rtype: L{twisted.internet.defer.Deferred}
+    """
+    return threads.deferToThread(lambda: socket.gethostbyaddr(ip)[0])

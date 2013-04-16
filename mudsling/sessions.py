@@ -26,6 +26,9 @@ class Session(object):
     """
 
     time_connected = 0
+    last_activity = 0
+    ip = ''
+    hostname = ''
 
     #: @type: mudsling.objects.BasePlayer
     player = None

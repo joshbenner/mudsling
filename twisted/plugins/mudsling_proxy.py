@@ -1,7 +1,7 @@
 import os
 import imp
 import ConfigParser
-from mudsling.utils.string import mxp
+import logging
 
 modulepath = os.path.dirname(os.path.realpath(__file__))
 options_module = imp.load_source('options',
@@ -20,6 +20,10 @@ from twisted.protocols import amp, basic
 from twisted.internet import reactor
 
 from mudsling import proxy
+from mudsling.utils.string import mxp
+
+from mudsling import utils
+import mudsling.utils.internet
 
 
 max_session_id = 0
@@ -72,6 +76,9 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
 
     session_id = None
     time_connected = 0
+    last_activity = 0
+    hostname = ''
+    ip = ''
     playerId = 0
     amp = None  # Set by AmpClientProtocol on class when it is instantiated.
 
@@ -111,9 +118,21 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
     def connectionMade(self):
         # If not in session list, then disconnect may have originated on
         # the server side, or there is some very fast disconnect.
+        self.ip = self.transport.client[0]
+        self.hostname = self.ip  # Until we resolve it.
+
+        def saveHost(hostname):
+            self.hostname = hostname
+            self.callRemote(proxy.SetHostname, hostname=hostname)
+
+        def noHost(err):
+            msg = "Unable to resolve hostname for %r: %s"
+            logging.warning(msg % (self.ip, err.message))
+
+        utils.internet.reverseDNS(self.ip).addCallbacks(saveHost, noHost)
+
         if self.session_id in sessions:
-            self.callRemote(proxy.NewSession,
-                            delim=self.delimiter)
+            self.callRemote(proxy.NewSession, ip=self.ip, delim=self.delimiter)
 
     def negotiateMXP(self):
         def enable_mxp(opt):
@@ -161,6 +180,8 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
 
     def reSync(self):
         self.callRemote(proxy.ReSyncSession,
+                        ip=self.ip,
+                        hostname=self.hostname,
                         delim=self.delimiter,
                         playerId=self.playerId,
                         time_connected=self.time_connected,

@@ -18,7 +18,7 @@ import mudsling.utils.input
 import mudsling.utils.sequence
 import mudsling.utils.object
 import mudsling.utils.string
-import mudsling.utils.email
+import mudsling.utils.internet
 
 
 class LockableObject(StoredObject):
@@ -999,7 +999,7 @@ class BasePlayer(BaseObject):
             raise errors.DuplicatePlayerName(m)
 
         email = kwargs.get('email', '')
-        if email and not utils.email.validEmail(email):
+        if email and not utils.internet.validEmail(email):
             m = "%r is not a valid email address." % email
             raise errors.InvalidEmail(m)
         # Default is to allow players to have duplicate emails.
