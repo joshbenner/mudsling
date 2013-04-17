@@ -8,6 +8,7 @@ from mudsling import utils
 import mudsling.utils.string
 
 from objsettings import ObjSetting, ConfigurableObject
+from bans import checkBans
 
 from mudslingcore import commands
 import commands.admin.system
@@ -127,6 +128,13 @@ class Player(BasePlayer, ConfigurableObject):
         commands.admin.players,
         commands.player
     )
+
+    def authenticate(self, password, session=None):
+        bans = self.db.getSetting('bans', default=[])
+        applicable = checkBans(session, bans)
+        if applicable:
+            raise Exception("Connection banned: %s" % applicable[0].reason)
+        return super(Player, self).authenticate(password, session)
 
     def preemptiveCommandMatch(self, raw):
         """

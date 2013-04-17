@@ -145,3 +145,9 @@ class WhoFromCmd(Command):
                 s = p.session
                 actor.tell("{m", p, "{n is connected from IP {y", s.ip,
                            "{n ({c", s.hostname, "{n)")
+
+
+class BanCmd(Command):
+    """
+    @ban <player> [for <duration>]
+    """

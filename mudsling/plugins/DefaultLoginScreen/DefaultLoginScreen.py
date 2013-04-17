@@ -102,8 +102,14 @@ class DefaultLoginScreen(LoginScreenPlugin):
 
         #: @type: BasePlayer
         player = matches[0]
-        if (isinstance(player.password, Password)
-                and player.password.matchesPassword(password)):
+        try:
+            auth = player.authenticate(password, session)
+        except TypeError:
+            auth = False
+        except Exception as e:
+            session.sendOutput(e.message)
+            return
+        if auth:
             session.attachToPlayer(player)
         else:
             session.sendOutput(errmsg)

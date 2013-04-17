@@ -1086,6 +1086,15 @@ class BasePlayer(BaseObject):
     def setPassword(self, password):
         self.password = utils.password.Password(password)
 
+    def authenticate(self, password, session=None):
+        """
+        Attempt to authenticate with the given password. Session is optional
+        but can also be used to authenticate (IP/host auth, etc).
+        """
+        if isinstance(self.password, utils.password.Password):
+            return self.password.matchesPassword(password)
+        raise TypeError("Password not set.")
+
     def sessionAttached(self, session):
         if self.session is not None:
             # This should result in self.sessionDetached() being called
