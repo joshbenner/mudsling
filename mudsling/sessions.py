@@ -4,6 +4,7 @@ import traceback
 import re
 import zope.interface
 
+from mudsling.config import config
 from mudsling.utils import string
 
 
@@ -44,6 +45,7 @@ class Session(object):
     ansi = False
     xterm256 = False
     mxp = False
+    idle_cmd = 'IDLE'
 
     def setOption(self, name, value):
         """
@@ -61,6 +63,7 @@ class Session(object):
 
     def openSession(self, resync=False):
         self.time_connected = time.time()
+        self.idle_cmd = config.get('Main', 'idle command')
         self.game.session_handler.connectSession(self, resync=resync)
         logging.info("Session %s connected." % self)
 
@@ -81,7 +84,10 @@ class Session(object):
         self.redirectInput(self.player)
 
     def receiveInput(self, line):
+        if line == self.idle_cmd:
+            return
         start = time.clock()
+        self.last_activity = time.time()
         line = line.strip()
         if self.input_processor is None:
             self.game.login_screen.processInput(self, line)
@@ -171,6 +177,9 @@ class Session(object):
             self.input_processor = None
             self.player = None
 
+    def idleSeconds(self):
+        return time.time() - self.last_activity
+
 
 class SessionHandler(object):
     """
@@ -182,12 +191,12 @@ class SessionHandler(object):
     @ivar game: Reference to the game
     @type game: mudsling.core.MUDSling
     """
-
-    sessions = set()
+    sessions = None
     game = None
 
     def __init__(self, game):
         self.game = game
+        self.sessions = set()
 
     def connectSession(self, session, resync=False):
         """

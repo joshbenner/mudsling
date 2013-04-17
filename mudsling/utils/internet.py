@@ -4,7 +4,6 @@ import socket
 from twisted.mail.smtp import ESMTPSenderFactory, sendmail
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor
-from twisted.names.client import lookupPointer
 from twisted.internet import threads
 
 from cStringIO import StringIO

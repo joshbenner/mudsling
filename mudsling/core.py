@@ -7,6 +7,7 @@ import sys
 import os
 import cPickle as pickle
 import logging
+import time
 
 # Prefer libs we ship with.
 basepath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -53,6 +54,8 @@ class MUDSling(MultiService):
 
     #: @type: L{SessionHandler}
     session_handler = None
+    start_time = 0
+    restart_time = 0
 
     #: @type: L{mudsling.plugins.LoginScreenPlugin}
     login_screen = None
@@ -77,6 +80,8 @@ class MUDSling(MultiService):
 
     def initGame(self):
         logging.info("Initializing game...")
+        self.start_time = time.time()  # Will be re-set by proxy, possibly.
+        self.restart_time = self.start_time
         # Setup session handler. Used by services.
         self.session_handler = SessionHandler(self)
 
@@ -228,6 +233,12 @@ class MUDSling(MultiService):
         self.saveDatabase()
         #noinspection PyUnresolvedReferences
         reactor.stop()
+
+    def uptime(self, sinceRestart=False):
+        if sinceRestart:
+            return time.time() - self.restart_time
+        else:
+            return time.time() - self.start_time
 
     def invokeHook(self, hook, *args, **kwargs):
         """

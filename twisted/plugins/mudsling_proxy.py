@@ -2,6 +2,7 @@ import os
 import imp
 import ConfigParser
 import logging
+import time
 
 modulepath = os.path.dirname(os.path.realpath(__file__))
 options_module = imp.load_source('options',
@@ -20,12 +21,13 @@ from twisted.protocols import amp, basic
 from twisted.internet import reactor
 
 from mudsling import proxy
+from mudsling.config import config
 from mudsling.utils.string import mxp
 
 from mudsling import utils
 import mudsling.utils.internet
 
-
+start_time = time.time()
 max_session_id = 0
 sessions = {}
 
@@ -45,10 +47,9 @@ class MUDSlingProxyServiceMaker(object):
     def makeService(self, options):
         service = MultiService()
 
-        config = ConfigParser.SafeConfigParser()
         config.read(options.configPaths())
 
-        port = int(config.get('Proxy', 'AMP port'))
+        port = config.getint('Proxy', 'AMP port')
         factory = ReconnectingClientFactory()
         factory.maxDelay = 1
         factory.protocol = AmpClientProtocol
@@ -93,6 +94,7 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
         sessions[self.session_id] = self
         self.output_buffer = []
         self.MAX_LENGTH = amp.MAX_VALUE_LENGTH * 8
+        self.idle_cmd = config.get('Main', 'idle command')
 
     def enableRemote(self, option):
         return False
@@ -152,6 +154,9 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
         basic.LineReceiver.dataReceived(self, bytes)
 
     def lineReceived(self, line):
+        if line == self.idle_cmd:
+            return
+        self.last_activity = time.time()
         parts = proxy.message_chunks(line)
         for part in parts:
             self.callRemote(proxy.ProxyToServer,
@@ -185,6 +190,7 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
                         delim=self.delimiter,
                         playerId=self.playerId,
                         time_connected=self.time_connected,
+                        last_activity=self.last_activity,
                         mxp=self.mxp)
 
 
@@ -194,7 +200,11 @@ class AmpClientProtocol(amp.AMP):
         ProxyTelnetSession.amp = self
 
     def connectionMade(self):
+        # noinspection PyUnresolvedReferences
         self.factory.resetDelay()
+        # noinspection PyTypeChecker
+        d = self.callRemote(proxy.SetUptime, start_time=start_time)
+        d.addErrback(self._onError)
         # If we already have telnet sessions up connect, it's because the
         # server restarted, and we need to re-establish sessions via AMP.
         for session in sessions.itervalues():
