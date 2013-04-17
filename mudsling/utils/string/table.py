@@ -212,14 +212,17 @@ class Table(object):
                         values[i] = row[key]
         else:
             for i, col in enumerate(self.columns):
-                try:
-                    attr = getattr(row, col.data_key, None)
-                    if callable(attr):
-                        values[i] = attr()
-                    else:
-                        values[i] = attr
-                except AttributeError:
-                    values[i] = ''
+                if col.data_key is None:
+                    values[i] = row
+                else:
+                    try:
+                        attr = getattr(row, col.data_key, None)
+                        if callable(attr):
+                            values[i] = attr()
+                        else:
+                            values[i] = attr
+                    except AttributeError:
+                        values[i] = ''
 
         return values
 

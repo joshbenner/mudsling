@@ -84,6 +84,8 @@ def dhms_to_seconds(dhms_str):
 
 
 def format_dhms(seconds):
+    if not seconds:
+        return '0s'
     units = ['day', 'hour', 'minute', 'second']
     remain = seconds
     out = ''

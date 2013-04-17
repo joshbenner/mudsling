@@ -45,6 +45,8 @@ class BaseUI(object):
         mro = list(self.__class__.__mro__)
         mro.reverse()
         settings = self.table_class.default_settings
+        if 'table_settings' in self.__dict__:
+            settings.update(self.table_settings)
         for cls in mro:
             if issubclass(cls, BaseUI):
                 settings.update(cls.table_settings)
@@ -99,6 +101,7 @@ class LimitedWidthUI(BaseUI):
 
 
 class SimpleUI(BaseUI):
+    width = 100
     fill_char = '-'
     body_prefix = ' '
     table_settings = {
@@ -109,9 +112,17 @@ class SimpleUI(BaseUI):
         'header_formatter': lambda c: '{c' + str(c.name),
     }
 
+    def __init__(self, **kwargs):
+        settings = ('width', 'fill_char', 'body_prefix', 'table_settings')
+        self.table_settings = {}
+        for k, v in kwargs.iteritems():
+            if k in settings:
+                setattr(self, k, v)
+        self.table_settings['width'] = self.width - 2 * len(self.body_prefix)
+
     def h1(self, text=''):
         text = '' if text == '' else "{y%s " % text
-        return utils.string.ljust("%s{b" % text, 100, self.fill_char)
+        return utils.string.ljust("%s{b" % text, self.width, self.fill_char)
 
     def h2(self, text=''):
         return "{y%s" % text.upper()
@@ -124,7 +135,7 @@ class SimpleUI(BaseUI):
 
     def footer(self, text=''):
         text = '' if text == '' else " {y%s" % text
-        return '{b' + utils.string.rjust(text, 100, self.fill_char)
+        return '{b' + utils.string.rjust(text, self.width, self.fill_char)
 
     class SimpleUITable(utils.string.Table):
         def _build_header(self, settings=None):
@@ -159,6 +170,7 @@ class SimpleUI(BaseUI):
 
 
 class ClassicUI(BaseUI):
+    width = 100
     hr = '{c' + ('-=' * 50)  # Half width because two chars.
     h1_format = "{{y{text}"
     body_prefix = ' '
@@ -176,13 +188,28 @@ class ClassicUI(BaseUI):
         'header_formatter': lambda c: '{c' + str(c.name)
     }
 
+    def __init__(self, **kwargs):
+        settings = ('width', 'h1_format', 'body_prefix', 'body_suffix',
+                    'table_settings')
+        self.table_settings = {}
+        for k, v in kwargs.iteritems():
+            if k in settings:
+                setattr(self, k, v)
+        w = self.width - len(self.body_prefix) - len(self.body_suffix)
+        self.table_settings['width'] = w
+        if self.width != 100:
+            self.hr = '{c' + ('-=' * (self.width / 2))
+
     def h1(self, text=''):
-        return '\n'.join([self.hr,
-                          ansi.center(super(ClassicUI, self).h1(text), 100),
-                          self.hr])
+        if text:
+            text = ansi.center(super(ClassicUI, self).h1(text), self.width)
+        return '\n'.join([self.hr, text, self.hr])
 
     def h2(self, text=''):
         return super(ClassicUI, self).h2(text.upper())
+
+    def body_line(self, line):
+        return self.body_prefix + line + self.body_suffix
 
     def footer(self, text=''):
         lines = [self.hr]

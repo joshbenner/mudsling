@@ -102,3 +102,49 @@ class HelpCmd(Command):
         ui = ClassicUI()
         out = ui.report("Help: %s" % topic.title, topic.mudText())
         actor.msg(out)
+
+
+class WhoCmd(Command):
+    """
+    who
+
+    Displays a list of connected players.
+    """
+    aliases = ('who', '+who')
+    lock = locks.AllPass
+
+    def format_attached(self, player):
+        if player.isPosessing:
+            return self.actor.nameFor(player.possessing)
+        else:
+            return ''
+
+    def format_location(self, player):
+        try:
+            return self.actor.nameFor(player.possessing.location)
+        except AttributeError:
+            return ''
+
+    def run(self, this, actor, args):
+        title = 'Who is Online'
+        admin = actor.hasPerm('manage players')
+        ui = ClassicUI(width=100 if admin else 60)
+        cols = [
+            ui.Column('Player name', data_key='player', align='l', width='*',
+                      cell_formatter=actor.nameFor),
+            ui.Column('Connected', data_key='connectedSeconds', align='r',
+                      cell_formatter=ui.format_dhms),
+            ui.Column('Idle time', data_key='idleSeconds', align='r',
+                      cell_formatter=ui.format_dhms),
+        ]
+        if admin:
+            title += ' (admin view)'
+            cols.extend([
+                ui.Column('Attached to', data_key='player', align='l',
+                          cell_formatter=self.format_attached),
+                ui.Column('Location', data_key='player', align='l',
+                          cell_formatter=self.format_location),
+            ])
+        table = ui.Table(cols)
+        table.addRows(*self.game.session_handler.sessions)
+        actor.msg(ui.report(title, table))

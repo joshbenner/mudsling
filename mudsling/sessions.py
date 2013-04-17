@@ -177,6 +177,9 @@ class Session(object):
             self.input_processor = None
             self.player = None
 
+    def connectedSeconds(self):
+        return time.time() - self.time_connected
+
     def idleSeconds(self):
         return time.time() - self.last_activity
 

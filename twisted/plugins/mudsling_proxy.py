@@ -122,6 +122,7 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
         # the server side, or there is some very fast disconnect.
         self.ip = self.transport.client[0]
         self.hostname = self.ip  # Until we resolve it.
+        self.time_connected = time.time()
 
         def saveHost(hostname):
             self.hostname = hostname
