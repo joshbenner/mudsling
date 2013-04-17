@@ -150,6 +150,7 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
         self.callRemote(proxy.EndSession)
         basic.LineReceiver.connectionLost(self, reason)
         Telnet.connectionLost(self, reason)
+        del sessions[self.session_id]
 
     def applicationDataReceived(self, bytes):
         basic.LineReceiver.dataReceived(self, bytes)

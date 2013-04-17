@@ -9,6 +9,8 @@ from mudsling.objects import BasePlayer
 from mudsling import utils
 import mudsling.utils.string
 
+from . import ui
+
 
 class MakePlayerCmd(Command):
     """
@@ -108,3 +110,38 @@ class ShoutCmd(Command):
         m = '{m%s {gshouts: "{y%s{g".' % (actor.name, args['message'])
         for conn in self.game.session_handler.sessions:
             conn.sendOutput(m)
+
+
+class WhoFromCmd(Command):
+    """
+    @who [<player>]
+
+    Display connection information for the specified player.
+    """
+    aliases = ('@who', '@@who')
+    syntax = "[<player>]"
+    lock = "perm(manage players)"
+    arg_parsers = {
+        'player': parsers.MatchDescendants(cls=BasePlayer,
+                                           searchFor='player',
+                                           show=True),
+    }
+
+    def run(self, this, actor, args):
+        if args['player'] is None:
+            table = ui.Table([
+                ui.Column('Player', data_key='player', align='l',
+                          cell_formatter=actor.nameFor),
+                ui.Column('IP', data_key='ip', align='l'),
+                ui.Column('Host', data_key='hostname', align='l'),
+            ])
+            table.addRows(*self.game.session_handler.sessions)
+            actor.msg(ui.report("Player Connection Info", table))
+        else:
+            p = args['player']
+            if not p.connected:
+                actor.tell("{m", p, "{y is not connected.")
+            else:
+                s = p.session
+                actor.tell("{m", p, "{n is connected from IP {y", s.ip,
+                           "{n ({c", s.hostname, "{n)")

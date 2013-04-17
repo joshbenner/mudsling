@@ -146,5 +146,8 @@ class WhoCmd(Command):
                           cell_formatter=self.format_location),
             ])
         table = ui.Table(cols)
-        table.addRows(*self.game.session_handler.sessions)
+        sessions = [s for s in self.game.session_handler.sessions
+                    if s.player is not None]
+        sessions.sort(key=lambda s: s.idleSeconds())
+        table.addRows(*sessions)
         actor.msg(ui.report(title, table))

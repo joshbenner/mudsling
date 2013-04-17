@@ -84,8 +84,6 @@ def dhms_to_seconds(dhms_str):
 
 
 def format_dhms(seconds):
-    if not seconds:
-        return '0s'
     units = ['day', 'hour', 'minute', 'second']
     remain = seconds
     out = ''
@@ -94,7 +92,7 @@ def format_dhms(seconds):
             count, remain = divmod(remain, unit.seconds)
             if count:
                 out += "%d%s" % (count, unit.singular[0])
-    return out
+    return out if out else '0s'  # 0 or sub-1 seconds.
 
 
 def format_timestamp(timestamp, format="%Y-%m-%d %H:%M:%S"):
