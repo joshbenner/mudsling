@@ -36,7 +36,7 @@ class AppRunner(_SomeApplicationRunner):
 
 
 def run_app(plugin):
-    def runApp(config):
+    def __run_app(config):
         AppRunner(config).run()
     argv.insert(1, plugin)
-    app.run(runApp, ServerOptions)
+    app.run(__run_app, ServerOptions)

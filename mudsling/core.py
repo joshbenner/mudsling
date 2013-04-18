@@ -73,12 +73,12 @@ class MUDSling(MultiService):
         MultiService.__init__(self)
 
         self.game_dir = gameDir
-        self.initGameDir()
+        self.init_game_dir()
 
         # Load configuration.
         config.read(configPaths)
 
-    def initGame(self):
+    def init_game(self):
         logging.info("Initializing game...")
         self.start_time = time.time()  # Will be re-set by proxy, possibly.
         self.restart_time = self.start_time
@@ -88,30 +88,31 @@ class MUDSling(MultiService):
         # Load plugin manager. Locates, filters, and loads plugins.
         self.plugins = PluginManager(self, self.game_dir)
 
-        self.initLocks()
-        self.loadClassConfigs()
-        registry.classes.buildClassRegistry(self)
-        self.loadDatabase()
+        self.init_locks()
+        self.load_class_configs()
+        registry.classes.build_class_registry(self)
+        self.load_database()
 
         # Dependency injection.
         tasks.BaseTask.game = self
         tasks.BaseTask.db = self.db
 
         if not self.db.initialized:
-            self.initDatabase()
+            self.init_database()
 
         # Setup the plugin handling the login screen.
         name = config.get('Main', 'login screen')
-        plugin = self.plugins.getPluginByMachineName(name, "LoginScreen")
+        plugin = self.plugins.get_plugins_by_machine_name(name, "LoginScreen")
         if plugin is not None:
             logging.debug("Using %s as LoginScreen" % name)
             self.login_screen = plugin.plugin_object
 
+    # Non-PEP8 naming by Twisted.
     def startService(self):
-        self.initGame()
+        self.init_game()
         logging.info("Starting services...")
         # Gather Twisted services and register them to our application.
-        for info in self.plugins.activePlugins("TwistedService"):
+        for info in self.plugins.active_plugins("TwistedService"):
             service = info.plugin_object.get_service()
             if isinstance(service, Service):
                 #service.setServiceParent(self.parent)
@@ -124,12 +125,12 @@ class MUDSling(MultiService):
             self.addService(service)
 
         # Fire server startup hooks.
-        self.db.onServerStartup()
-        self.invokeHook('serverStartup')
+        self.db.on_server_startup()
+        self.invoke_hook('server_startup')
 
         MultiService.startService(self)
 
-    def initGameDir(self):
+    def init_game_dir(self):
         """
         If game dir doesn't exist, try to create it.
         """
@@ -143,7 +144,7 @@ class MUDSling(MultiService):
         elif not os.path.isdir(self.game_dir):
             raise Exception("Game dir is a file!")
 
-    def loadClassConfigs(self):
+    def load_class_configs(self):
         """
         Cycle through the [Classes] config section, finding the configured
         classes, making sure their modules are loaded and the game has a ref
@@ -153,19 +154,19 @@ class MUDSling(MultiService):
             attrname = config_name.replace(' ', '_')
             setattr(self, attrname, utils.modules.class_from_path(class_path))
 
-    def initLocks(self):
+    def init_locks(self):
         """
         Gather the lock functions and initialize the lock parser.
         """
-        lockFuncs = lockfuncs.defaultFuncs()
-        hookResponses = self.invokeHook("lockFunctions")
-        lockFuncs.update(utils.sequence.dictMerge(*hookResponses.values()))
+        lockFuncs = lockfuncs.default_funcs()
+        hookResponses = self.invoke_hook("lock_functions")
+        lockFuncs.update(utils.sequence.dict_merge(*hookResponses.values()))
         logging.info("Loaded %d lock functions", len(lockFuncs))
         # Initialize the parser. The result is cached in the module for future
         # calls to obtain the parser.
         locks.parser(lockFuncs, reset=True)
 
-    def loadDatabase(self):
+    def load_database(self):
         dbfilename = config.get('Main', 'db file')
         self.db_file_path = os.path.join(self.game_dir, dbfilename)
         if os.path.exists(self.db_file_path):
@@ -177,12 +178,13 @@ class MUDSling(MultiService):
         else:
             logging.info("Initializing new database at %s" % self.db_file_path)
             self.db = Database()
-        self.db.onLoaded(self)
+        self.db.on_loaded(self)
 
         # Build the player registry.
-        registry.players.registerPlayers(self.db.descendants(BasePlayer))
+        registry.players.register_players(self.db.descendants(BasePlayer))
 
-    def initDatabase(self):
+    # TODO: Refactor this into hooks?
+    def init_database(self):
         self.db.initialized = True
 
         # Create first player.
@@ -197,30 +199,31 @@ class MUDSling(MultiService):
         char.possessable_by = [player]
 
         player.default_object = char
-        player.possessObject(char)
+        player.possess_object(char)
 
         #: @type: mudsling.topography.Room
         room = self.room_class.create(names=['The First Room'])
-        self.db.setSetting('player start', room)
-        char.moveTo(room)
+        self.db.set_setting('player start', room)
+        char.move_to(room)
 
         task = CheckpointTask()
-        task.start(task.configuredInterval())
+        task.start(task.configured_interval())
 
-        self.invokeHook('initDatabase', self.db)
+        self.invoke_hook('init_database', self.db)
 
         # Get the db on disk.
-        self.saveDatabase()
+        self.save_database()
 
-    def saveDatabase(self):
+    # TODO: Refactor this into the DB layer, so a DB knows how to save itself.
+    def save_database(self):
         with open(self.db_file_path, 'wb') as dbfile:
             pickle.dump(self.db, dbfile, -1)
 
     # noinspection PyShadowingBuiltins
     def shutdown(self, reload=False):
         # Call shutdown hooks.
-        self.invokeHook('serverShutdown', reload=reload)
-        self.db.onServerShutdown()
+        self.invoke_hook('server_shutdown', reload=reload)
+        self.db.on_server_shutdown()
         self.__exit(10 if reload else 0)
 
     def reload(self):
@@ -229,8 +232,8 @@ class MUDSling(MultiService):
     def __exit(self, code=0):
         self.exit_code = code
         if code != 10:
-            self.session_handler.disconnectAllSessions("Shutting Down")
-        self.saveDatabase()
+            self.session_handler.disconnect_all_sessions("Shutting Down")
+        self.save_database()
         #noinspection PyUnresolvedReferences
         reactor.stop()
 
@@ -240,7 +243,7 @@ class MUDSling(MultiService):
         else:
             return time.time() - self.start_time
 
-    def invokeHook(self, hook, *args, **kwargs):
+    def invoke_hook(self, hook, *args, **kwargs):
         """
         Invoke an arbitrary hook on all activated GamePlugins.
 
@@ -253,8 +256,7 @@ class MUDSling(MultiService):
         @return: Dictionary of hook results keyed by plugin info.
         @rtype: C{dict}
         """
-        hook = "hook_" + hook
-        return self.plugins.invokeHook('GamePlugin', hook, *args, **kwargs)
+        return self.plugins.invoke_hook('GamePlugin', hook, *args, **kwargs)
 
 
 class CheckpointTask(tasks.Task):
@@ -262,10 +264,10 @@ class CheckpointTask(tasks.Task):
         return "The Checkpoint Task"
 
     def run(self):
-        self.game.saveDatabase()
+        self.game.save_database()
 
-    def configuredInterval(self):
+    def configured_interval(self):
         return config.getinterval('Main', 'checkpoint interval')
 
-    def onServerStartup(self):
-        self.restart(self.configuredInterval())
+    def on_server_startup(self):
+        self.restart(self.configured_interval())

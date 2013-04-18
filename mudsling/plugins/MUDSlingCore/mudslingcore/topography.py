@@ -31,18 +31,18 @@ class Room(DescribableObject):
         super(Room, self).__init__(**kwargs)
         self.exits = []
 
-    def matchExits(self, search, exactOnly=True):
+    def match_exits(self, search, exactOnly=True):
         return self._match(search, self.exits, exactOnly=exactOnly)
 
-    def filterExits(self, filterfunc):
+    def filter_exits(self, filterfunc):
         """
         Retrieves a list of exits matching the specified filters.
         @param filterfunc: Callback used to filter the list of exits.
         """
         return filter(filterfunc, self.exits)
 
-    def handleUnmatchedInputFor(self, actor, raw):
-        matches = self.matchExits(raw)
+    def handle_unmatched_input_for(self, actor, raw):
+        matches = self.match_exits(raw)
         if len(matches) == 1:
             return ExitCmd(raw, raw, raw, self.game, matches[0], actor)
         elif len(matches) > 1:
@@ -52,81 +52,81 @@ class Room(DescribableObject):
             )
             raise errors.CommandError(msg)
         else:
-            return super(Room, self).handleUnmatchedInput(raw)
+            return super(Room, self).handle_unmatched_input(raw)
 
-    def allowEnter(self, what, exit=None):
+    def allow_enter(self, what, exit=None):
         """
         Determines if what may enter this room via the given exit.
         @rtype: bool
         """
-        return what.isValid(Object)
+        return what.is_valid(Object)
 
-    def allowLeave(self, what, exit=None):
+    def allow_leave(self, what, exit=None):
         """
         Determines if what may leave this room via the given exit.
         """
         return True
 
-    def enterAllowed(self, what, exit=None):
+    def enter_allowed(self, what, exit=None):
         """
         Exits call this to ask the room if it has allowed an actual attempt by
         what to transit the exit. This gives the room the opportunity to emit
         messages to the object, itself, etc. apart from the actual evaluation
         of whether the entrance is permitted.
         """
-        return self.allowEnter(what, exit=exit)
+        return self.allow_enter(what, exit=exit)
 
-    def leaveAllowed(self, what, exit=None):
+    def leave_allowed(self, what, exit=None):
         """
         @see: L{Room.enterStopped}
         """
-        return self.allowLeave(what, exit=exit)
+        return self.allow_leave(what, exit=exit)
 
-    def contentAdded(self, what, previous_location):
-        super(Room, self).contentAdded(what, previous_location)
-        what.msg(self.seenBy(what))
+    def content_added(self, what, previous_location):
+        super(Room, self).content_added(what, previous_location)
+        what.msg(self.seen_by(what))
 
-    def addExit(self, exit):
-        if exit.isValid(Exit):
+    def add_exit(self, exit):
+        if exit.is_valid(Exit):
             self.exits.append(exit)
-            if self.db.isValid(exit.dest, cls=Room):
-                exit.dest.entranceAdded(exit)
+            if self.db.is_valid(exit.dest, cls=Room):
+                exit.dest.entrance_added(exit)
 
-    def entranceAdded(self, exit):
+    def entrance_added(self, exit):
         """
         Called when another room adds an exit leading to this room.
         @param exit: The exit that was added.
         """
 
-    def removeExit(self, exit, delete=True):
+    def remove_exit(self, exit, delete=True):
         if exit in self.exits:
             self.exits.remove(exit)
-            if exit.isValid(Exit):
-                if self.db.isValid(exit.dest, cls=Room):
-                    exit.dest.entranceRemoved(exit)
-            if exit.isValid() and delete:
+            if exit.is_valid(Exit):
+                if self.db.is_valid(exit.dest, cls=Room):
+                    exit.dest.entrance_removed(exit)
+            if exit.is_valid() and delete:
                 exit.delete()
 
-    def entranceRemoved(self, exit):
+    def entrance_removed(self, exit):
         """
         Called when another room removes an exit leading to this room.
         @param exit: The exit that was removed.
         """
 
-    def descTitle(self, obj):
-        return '{y' + super(Room, self).descTitle(obj)
+    def desc_title(self, obj):
+        return '{y' + super(Room, self).desc_title(obj)
 
-    def asSeenBy(self, obj):
-        desc = super(Room, self).asSeenBy(obj)
-        contents = self.contentsAsSeenBy(obj)
-        exits = self.exitsAsSeenBy(obj)
+    def as_seen_by(self, obj):
+        desc = super(Room, self).as_seen_by(obj)
+        contents = self.contents_as_seen_by(obj)
+        exits = self.exits_as_seen_by(obj)
         if contents:
             desc += '\n\n' + contents
         if exits:
             desc += '\n\n' + exits
         return desc
 
-    def contentsAsSeenBy(self, obj):
+    def contents_as_seen_by(self, obj):
         """
         Return the contents of the room as seen by the passed object.
         """
@@ -135,9 +135,9 @@ class Room(DescribableObject):
             contents.remove(obj)
         if contents:
             fmt = "{c%s{n"
-            if self.game.db.isValid(obj):
+            if self.game.db.is_valid(obj):
                 def name(o):
-                    return fmt % obj.nameFor(o)
+                    return fmt % obj.name_for(o)
             else:
                 def name(o):
                     return fmt % o.name
@@ -146,10 +146,10 @@ class Room(DescribableObject):
         else:
             return ''
 
-    def exitsAsSeenBy(self, obj):
+    def exits_as_seen_by(self, obj):
         if not self.exits:
             return "You do not see any obvious exits."
-        names = "{c | {n".join([e.exitListName() for e in self.exits])
+        names = "{c | {n".join([e.exit_list_name() for e in self.exits])
         return "{c[{n %s {c]" % names
 
 
@@ -181,8 +181,8 @@ class Exit(NamedObject):
             '*': "$actor has arrived."
         },
     })
-    # Borrow BaseObject's getMessage() implementation.
-    getMessage = BaseObject.getMessage
+    # Borrow BaseObject's get_message() implementation.
+    get_message = BaseObject.get_message
 
     def invoke(self, obj):
         """
@@ -192,45 +192,45 @@ class Exit(NamedObject):
         @param obj: The object attempting to pass through the exit.
         @type obj: L{Object}
         """
-        if self.transitAllowed(obj):
+        if self.transit_allowed(obj):
             self._move(obj)
         else:
-            obj.emit(self.getMessage('leave_failed',
-                                     actor=obj,
-                                     exit=self.ref(),
-                                     dest=self.dest,
-                                     room=self.source,
-                                     source=self.source))
+            obj.emit(self.get_message('leave_failed',
+                                      actor=obj,
+                                      exit=self.ref(),
+                                      dest=self.dest,
+                                      room=self.source,
+                                      source=self.source))
 
-    def _invalid_enterAllowed(self, what, exit=None):
+    def _invalid_enter_allowed(self, what, exit=None):
         """
-        This is used as the enterAllowed call in the event that the destination
+        This is used as the enter_allowed call in the event that the destination
         is not a valid Room.
         """
         what.msg("You cannot walk through an exit to nowhere!")
         return False
 
-    def transitAllowed(self, obj):
+    def transit_allowed(self, obj):
         """
         Returns True if obj has been allowed to continue on an actual attempt
         to transit the exit. This is not a simple permission check, it is a
         permission check AND resulting in-game effects of the actual attempt to
         transit the exit.
 
-        @see: L{Room.leaveAllowed} and L{Room.enterAllowed}
+        @see: L{Room.leave_allowed} and L{Room.enter_allowed}
 
         @param obj: The object under consideration.
         @type obj: L{Object}
         """
         # Acquire references to the transition attempt result methods from the
         # involved rooms, else placeholder functions.
-        leaveAllowed = (obj.location.leaveAllowed
-                        if obj.hasLocation and obj.location.isValid(Room)
-                        else lambda w, e: True)
-        enterAllowed = (self.dest.enterAllowed
-                        if self.dest is not None and self.dest.isValid(Room)
-                        else self._invalid_enterAllowed)
-        return leaveAllowed(obj, self) and enterAllowed(obj, self)
+        leave_allowed = (obj.location.leave_allowed
+                         if obj.has_location and obj.location.is_valid(Room)
+                         else lambda w, e: True)
+        enter_allowed = (self.dest.enter_allowed
+                         if self.dest is not None and self.dest.is_valid(Room)
+                         else self._invalid_enter_allowed)
+        return leave_allowed(obj, self) and enter_allowed(obj, self)
 
     def _move(self, obj):
         """
@@ -240,19 +240,19 @@ class Exit(NamedObject):
         @param obj: The object to pass through the exit.
         @type obj: L{Object}
         """
-        msgKeys = {
+        msg_keys = {
             'actor': obj.ref(),
             'exit': self.ref(),
             'dest': self.dest,
             'room': self.source,
             'source': self.source,
         }
-        obj.emit(self.getMessage('leave', **msgKeys))
-        obj.moveTo(self.dest)
-        if obj.hasLocation and obj.location == self.dest:
-            obj.emit(self.getMessage('arrive', **msgKeys))
+        obj.emit(self.get_message('leave', **msg_keys))
+        obj.move_to(self.dest)
+        if obj.has_location and obj.location == self.dest:
+            obj.emit(self.get_message('arrive', **msg_keys))
 
-    def exitListName(self):
+    def exit_list_name(self):
         """
         Return the string to show when the exit is listed.
         """

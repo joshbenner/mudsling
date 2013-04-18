@@ -489,7 +489,7 @@ def slice(string, start=None, end=None, parser=ANSI_PARSER):
     return parser.slice(string, start, end)
 
 
-def _strPassThru(func, string, parser, *args, **kwargs):
+def _str_passthru(func, string, parser, *args, **kwargs):
     """
     @rtype: str
     """
@@ -503,7 +503,7 @@ def center(string, width, fillchar=' ', parser=ANSI_PARSER):
     ANSI-aware centering.
     @rtype: str
     """
-    return _strPassThru(str.center, string, parser, width, fillchar)
+    return _str_passthru(str.center, string, parser, width, fillchar)
 
 
 def ljust(string, width, fillchar=' ', parser=ANSI_PARSER):
@@ -511,7 +511,7 @@ def ljust(string, width, fillchar=' ', parser=ANSI_PARSER):
     ANSI-aware ljust.
     @rtype: str
     """
-    return _strPassThru(str.ljust, string, parser, width, fillchar)
+    return _str_passthru(str.ljust, string, parser, width, fillchar)
 
 
 def rjust(string, width, fillchar=' ', parser=ANSI_PARSER):
@@ -519,7 +519,7 @@ def rjust(string, width, fillchar=' ', parser=ANSI_PARSER):
     ANSI-aware rjust.
     @rtype: str
     """
-    return _strPassThru(str.rjust, string, parser, width, fillchar)
+    return _str_passthru(str.rjust, string, parser, width, fillchar)
 
 
 def endswith(string, suffix, start=None, end=None, parser=ANSI_PARSER):

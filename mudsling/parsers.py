@@ -84,53 +84,53 @@ class ObjClassStaticParser(StaticParser):
 
     @classmethod
     def parse(cls, input):
-        objClass = registry.classes.getClass(input)
+        objClass = registry.classes.get_class(input)
         if objClass is None or not issubclass(objClass, StoredObject):
             raise ValueError("Invalid object class name: %r" % input)
         return objClass
 
     @classmethod
     def unparse(cls, val, obj=None):
-        return registry.classes.getClassName(val) or cls.invalid_str
+        return registry.classes.get_class_name(val) or cls.invalid_str
 
 
 class BoolStaticParser(StaticParser):
     """
     Parses various boolean representations into a C{bool} value.
     """
-    trueVals = ('yes', 'true', '1', 'on')
-    falseVals = ('no', 'false', '0', 'off')
+    true_vals = ('yes', 'true', '1', 'on')
+    false_vals = ('no', 'false', '0', 'off')
     err = "Invalid true/false value: %r"
 
     @classmethod
     def parse(cls, input):
         m = input.strip().lower()
-        if m in cls.trueVals:
+        if m in cls.true_vals:
             return True
-        elif m in cls.falseVals:
+        elif m in cls.false_vals:
             return False
         else:
             raise ValueError(cls.err % input)
 
     @classmethod
     def unparse(cls, val, obj=None):
-        return cls.trueVals[0] if val else cls.falseVals[0]
+        return cls.true_vals[0] if val else cls.false_vals[0]
 
 
 class YesNoStaticParser(BoolStaticParser):
-    trueVals = ('yes',)
-    falseVals = ('no',)
+    true_vals = ('yes',)
+    false_vals = ('no',)
     err = "Invalid yes/no value: %r"
 
 
 class TrueFalseStaticParser(BoolStaticParser):
-    trueVals = ('true',)
-    falseVals = ('false',)
+    true_vals = ('true',)
+    false_vals = ('false',)
 
 
 class OnOffStaticParser(BoolStaticParser):
-    trueVals = ('on',)
-    falseVals = ('off',)
+    true_vals = ('on',)
+    false_vals = ('off',)
     err = "Invalid on/off value: %r"
 
 
@@ -151,20 +151,21 @@ class MatchObject(Parser):
     """
     Parser to match an object from the perspective of another object.
     """
-    def __init__(self, cls=StoredObject, err=True, searchFor=None, show=False):
+    def __init__(self, cls=StoredObject, err=True, search_for=None,
+                 show=False):
         """
         @param cls: Matching object must be of this objClass.
         @param err: If True, raises a L{mudsling.errors.MatchError}.
-        @param searchFor: String describing what is being sought.
+        @param search_for: String describing what is being sought.
         @param show: If true, includes list of objects for ambiguous matches.
         """
         self.objClass = cls
         self.err = err
-        self.searchFor = searchFor
+        self.search_for = search_for
         self.show = show
 
     def _match(self, obj, input):
-        return obj.matchObject(input, cls=self.objClass, err=False)
+        return obj.match_object(input, cls=self.objClass, err=False)
 
     def parse(self, input, obj=None):
         if obj is None:
@@ -176,7 +177,7 @@ class MatchObject(Parser):
             msg = match.match_failed(
                 matches=m,
                 search=input,
-                searchFor=self.searchFor,
+                search_for=self.search_for,
                 show=self.show
             )
             err = errors.AmbiguousMatch(msg) if m else errors.FailedMatch(msg)
@@ -191,7 +192,7 @@ class MatchChildren(MatchObject):
     Parser to match an object among the children of a given type.
     """
     def _match(self, obj, input):
-        return obj.db.matchChildren(input, self.objClass)
+        return obj.db.match_children(input, self.objClass)
 
 
 class MatchDescendants(MatchObject):
@@ -199,4 +200,4 @@ class MatchDescendants(MatchObject):
     Parser to match an object among the descendants of a given type.
     """
     def _match(self, obj, input):
-        return obj.db.matchDescendants(input, self.objClass)
+        return obj.db.match_descendants(input, self.objClass)

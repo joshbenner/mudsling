@@ -6,7 +6,6 @@ from mudsling.objects import LockableObject, NamedObject, BaseObject
 from mudsling.objects import BasePlayer, Object as LocatedObject
 from mudsling import registry
 from mudsling import parsers
-from mudsling import errors
 from mudsling import locks
 
 from mudsling import utils
@@ -26,11 +25,11 @@ class CreateCmd(Command):
     syntax = "<class> {called|named|=} <names>"
 
     def run(self, this, actor, args):
-        cls = registry.classes.getClass(args['class'])
+        cls = registry.classes.get_class(args['class'])
         if cls is None:
             actor.msg("Unknown class: %s" % args['class'])
             return
-        clsName = registry.classes.getClassName(cls)
+        clsName = registry.classes.get_class_name(cls)
         if not actor.superuser and not (issubclass(cls, LockableObject)
                                         and cls.createLock.eval(cls, actor)):
             msg = "{yYou do not have permission to create {c%s{y objects."
@@ -58,7 +57,7 @@ class CreateCmd(Command):
                 where = None
 
             if where is not None:
-                obj.moveTo(where)
+                obj.move_to(where)
                 actor.msg("{c%s {yplaced in: {m%s" % (obj.nn, where.nn))
             else:
                 actor.msg("{c%s {yis {rnowhere{y.")
@@ -76,7 +75,7 @@ class RenameCmd(Command):
         'object': NamedObject,
         'newNames': parsers.StringListStaticParser,
     }
-    lock = locks.AllPass  # Everyone can use @rename -- access check within.
+    lock = locks.all_pass  # Everyone can use @rename -- access check within.
 
     def run(self, this, actor, args):
         """
@@ -90,9 +89,9 @@ class RenameCmd(Command):
             actor.tell("{yYou are not allowed to rename {c", obj, "{y.")
             return
         names = args['newNames']
-        oldNames = obj.setNames(names)
+        oldNames = obj.set_names(names)
         msg = "{{gName of {{c#{id}{{g changed to '{{m{name}{{g'"
-        keys = {'id': obj.objId, 'name': obj.name}
+        keys = {'id': obj.obj_id, 'name': obj.name}
         if len(names) > 1:
             msg += " with aliases: {aliases}"
             aliases = ["{y%s{g" % a for a in obj.aliases]
@@ -119,7 +118,7 @@ class DeleteCmd(Command):
         """
         # err=True means we'll either exit with error or have single-element
         # list containing the match. Use .ref()... just in case.
-        obj = actor.matchObject(args['object'], err=True)[0].ref()
+        obj = actor.match_object(args['object'], err=True)[0].ref()
 
         if obj == actor.ref():
             actor.msg("{rYou may not delete yourself.")
@@ -139,9 +138,9 @@ class DeleteCmd(Command):
 
         p = ("{yYou are about to {rDELETE {c%s{y.\n"
              "{yAre you sure you want to {rDELETE {ythis object?")
-        actor.player.promptYesNo(p % obj.nn,
-                                 yesCallback=_do_delete,
-                                 noCallback=_abort_delete)
+        actor.player.prompt_yes_no(p % obj.nn,
+                                 yes_callback=_do_delete,
+                                 no_callback=_abort_delete)
 
 
 class ClassesCmd(Command):
@@ -156,18 +155,18 @@ class ClassesCmd(Command):
     def run(self, this, actor, args):
         out = []
         for name, cls in registry.classes.classes.iteritems():
-            desc = self._classDesc(cls)
+            desc = self._class_desc(cls)
             out.append("{c%s{n\n%s" % (name, desc))
         actor.msg('\n\n'.join(out))
 
-    def _classDesc(self, cls):
+    def _class_desc(self, cls):
         """
         Return just the syntax portion of the command class's docstring.
 
         @return: Syntax string
         @rtype: str
         """
-        trimmed = utils.string.trimDocstring(cls.__doc__)
+        trimmed = utils.string.trim_docstring(cls.__doc__)
         desc = []
         for line in trimmed.splitlines():
             if line == "":
@@ -187,7 +186,7 @@ class GoCmd(Command):
     lock = 'perm(teleport)'
     arg_parsers = {
         'where': parsers.MatchObject(cls=LocatedObject,
-                                     searchFor='location', show=True)
+                                     search_for='location', show=True)
     }
 
     def run(self, this, actor, args):
@@ -196,7 +195,7 @@ class GoCmd(Command):
         @type actor: mudslingcore.objects.Player
         @type args: dict
         """
-        if actor.isPosessing and actor.possessing.isValid(LocatedObject):
+        if actor.is_possessing and actor.possessing.is_valid(LocatedObject):
             #: @type: mudsling.objects.Object
             obj = actor.possessing
             if not obj.allows(actor, 'move'):
@@ -219,9 +218,9 @@ class MoveCmd(Command):
     lock = "perm(teleport)"
     arg_parsers = {
         'what':  parsers.MatchObject(cls=LocatedObject,
-                                     searchFor='locatable object', show=True),
+                                     search_for='locatable object', show=True),
         'where': parsers.MatchObject(cls=LocatedObject,
-                                     searchFor='location', show=True),
+                                     search_for='location', show=True),
     }
 
     def run(self, this, actor, args):

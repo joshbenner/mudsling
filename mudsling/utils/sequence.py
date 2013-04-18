@@ -99,16 +99,16 @@ def unique(seq):
     return [x for x in seq if x not in seen and not add(x)]
 
 
-def dictMerge(*dicts):
+def dict_merge(*dicts):
     """Efficient merge of an arbitrary number of dictionaries."""
     return dict(chain(*[d.iteritems() for d in dicts]))
 
 
-def isSequence(val):
+def is_sequence(val):
     return hasattr(val, '__iter__')
 
 
-def flattenList(lst):
+def flatten_list(lst):
     """
     Flattens one level of a list of lists.
     """
@@ -132,7 +132,7 @@ def flatten(iterable):
     if isinstance(iterable, dict):
         iterable = iterable.itervalues()
     for e in iterable:
-        if isSequence(e):
+        if is_sequence(e):
             for ee in flatten(e):
                 out.append(ee)
         else:

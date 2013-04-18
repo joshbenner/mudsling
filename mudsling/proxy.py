@@ -34,18 +34,18 @@ class ProxySession(Session):
         proxy_sessions[id] = self
         self.input_buffer = []
 
-    def callRemote(self, *args, **kwargs):
+    def call_remote(self, *args, **kwargs):
         kwargs['sessId'] = self.proxy_session_id
-        self.amp.callRemote(*args, **kwargs).addErrback(self.amp._onError)
+        self.amp.callRemote(*args, **kwargs).addErrback(self.amp._on_error)
 
-    def rawSendOutput(self, text):
+    def raw_send_output(self, text):
         chunks = message_chunks(text)
         for chunk in chunks:
-            self.callRemote(ServerToProxy,
-                            nchunks=len(chunks),
-                            chunk=chunk)
+            self.call_remote(ServerToProxy,
+                             nchunks=len(chunks),
+                             chunk=chunk)
 
-    def receiveMultipartInput(self, nchunks, chunk):
+    def receive_multipart_input(self, nchunks, chunk):
         if nchunks > 1:
             self.input_buffer.append(chunk)
             if len(self.input_buffer) < nchunks:
@@ -55,17 +55,17 @@ class ProxySession(Session):
                 self.input_buffer = []
         else:
             line = chunk
-        self.receiveInput(line)
+        self.receive_input(line)
 
     def disconnect(self, reason):
-        self.sendOutput(reason)
-        self.callRemote(EndSession)
+        self.send_output(reason)
+        self.call_remote(EndSession)
 
-    def attachToPlayer(self, player, report=True):
-        super(ProxySession, self).attachToPlayer(player)
+    def attach_to_player(self, player, report=True):
+        super(ProxySession, self).attach_to_player(player)
         if report:
-            player_id = player.id if self.game.db.isValid(player) else -1
-            self.callRemote(AttachPlayer, playerId=player_id)
+            player_id = player.id if self.game.db.is_valid(player) else -1
+            self.call_remote(AttachPlayer, playerId=player_id)
 
 
 class SetUptime(amp.Command):
@@ -169,30 +169,30 @@ class AMPServerProtocol(amp.AMP):
     def __init__(self):
         super(AMPServerProtocol, self).__init__()
         ProxySession.amp = self
-        reactor.addSystemEventTrigger('before', 'shutdown', self._onShutdown)
+        reactor.addSystemEventTrigger('before', 'shutdown', self._on_shutdown)
 
-    def _onShutdown(self):
+    def _on_shutdown(self):
         if self.factory.game.exit_code != 10:
-            self.callRemote(Shutdown).addErrback(self._onError)
+            self.callRemote(Shutdown).addErrback(self._on_error)
 
-    def _onError(self, error):
+    def _on_error(self, error):
         error.trap(Exception)
         print 'AMPServerProtocol', error.__dict__
 
     @SetUptime.responder
-    def setUptime(self, start_time):
+    def set_uptime(self, start_time):
         self.factory.game.start_time = start_time
         return {}
 
     @NewSession.responder
-    def newSession(self, sessId, ip, delim):
+    def new_session(self, sessId, ip, delim):
         session = ProxySession(sessId, ip, delim)
         session.game = self.factory.game
-        session.openSession()
+        session.open_session()
         return {}
 
     @SetHostname.responder
-    def setHostname(self, sessId, hostname):
+    def set_hostname(self, sessId, hostname):
         try:
             session = proxy_sessions[sessId]
         except KeyError:
@@ -201,27 +201,27 @@ class AMPServerProtocol(amp.AMP):
         return {}
 
     @EndSession.responder
-    def endSession(self, sessId):
+    def end_session(self, sessId):
         try:
             session = proxy_sessions[sessId]
             del proxy_sessions[sessId]
         except KeyError:
             return {}
-        session.sessionClosed()
+        session.session_closed()
         return {}
 
     @ProxyToServer.responder
-    def proxyToServer(self, sessId, nchunks, chunk):
+    def proxy_to_server(self, sessId, nchunks, chunk):
         try:
             session = proxy_sessions[sessId]
         except KeyError:
             raise InvalidSession()
-        session.receiveMultipartInput(nchunks, chunk)
+        session.receive_multipart_input(nchunks, chunk)
         return {}
 
     @ReSyncSession.responder
-    def reSyncSession(self, sessId, ip, hostname, delim, playerId,
-                      time_connected, last_activity, mxp):
+    def resync_session(self, sessId, ip, hostname, delim, playerId,
+                       time_connected, last_activity, mxp):
         """
         Create a server session that corresponds to an already-established
         session on the proxy-side.
@@ -231,22 +231,22 @@ class AMPServerProtocol(amp.AMP):
         session.last_activity = last_activity
         session.mxp = mxp
         session.game = self.factory.game
-        session.openSession(resync=True)
+        session.open_session(resync=True)
         session.time_connected = time_connected
-        player = session.game.db.getRef(playerId)
-        if player.isValid():
-            session.attachToPlayer(player)
+        player = session.game.db.get_ref(playerId)
+        if player.is_valid():
+            session.attach_to_player(player)
         else:
-            self.factory.game.login_screen.sessionConnected(session)
+            self.factory.game.login_screen.session_connected(session)
         return {}
 
     @SessionOption.responder
-    def SessionOption(self, sessId, optName, optVal):
+    def session_option(self, sessId, optName, optVal):
         try:
             session = proxy_sessions[sessId]
         except KeyError:
             raise InvalidSession()
-        session.setOption(optName, optVal)
+        session.set_option(optName, optVal)
         return {}
 
 
@@ -260,5 +260,5 @@ def AMP_server(game, port):
     factory.protocol = AMPServerProtocol
     factory.game = game
     service = internet.TCPServer(port, factory)
-    service.setName("AMPServer")
+    service.set_name("AMPServer")
     return service

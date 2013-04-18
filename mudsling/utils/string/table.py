@@ -52,9 +52,9 @@ class Table(object):
         self.columns = []
         if columns is not None:
             for col in columns:
-                self.addColumn(col)
+                self.add_column(col)
 
-    def addColumn(self, col, width=None, align=None):
+    def add_column(self, col, width=None, align=None):
         if not isinstance(col, TableColumn):
             col = TableColumn(col, width=width, align=align)
         else:
@@ -64,7 +64,7 @@ class Table(object):
                 col.align = align
         self.columns.append(col)
 
-    def addRow(self, row):
+    def add_row(self, row):
         """
         @param row: Object containing data for the row. If a list, uses numeric
             offsets. If dict, uses keys mapped to column data_key values. If
@@ -73,9 +73,9 @@ class Table(object):
         """
         self.rows.append(row)
 
-    def addRows(self, *rows):
+    def add_rows(self, *rows):
         for row in rows:
-            self.addRow(row)
+            self.add_row(row)
 
     def _calc_widths(self, settings=None):
         s = settings or self.settings

@@ -32,12 +32,12 @@ class SimpleTelnetSession(StatefulTelnetProtocol, Session):
 
     def connectionMade(self):
         self.game = self.factory.game
-        self.openSession()
+        self.open_session()
         if self.line_delimiter != self.delimiter:
             self.line_delimiter = self.delimiter
 
     def connectionLost(self, reason):
-        self.sessionClosed()
+        self.session_closed()
 
     def lineReceived(self, line):
         """
@@ -45,15 +45,15 @@ class SimpleTelnetSession(StatefulTelnetProtocol, Session):
         input is received from the client. We let the Session side of things
         handle this.
         """
-        self.receiveInput(line)
+        self.receive_input(line)
 
-    def rawSendOutput(self, text):
+    def raw_send_output(self, text):
         """
-        Overrides Session.rawSendOutput() so we can forward the line via the
+        Overrides Session.raw_send_output() so we can forward the line via the
         protocol.
         """
         self.transport.write(text)
 
     def disconnect(self, reason):
-        self.sendOutput(reason)
+        self.send_output(reason)
         self.transport.loseConnection()

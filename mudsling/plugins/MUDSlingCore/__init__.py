@@ -20,61 +20,15 @@ class MUDSlingCorePlugin(GamePlugin):
     search path, such that modules and packages within it can be imported, used
     when specifying classes in configs, etc.
     """
-    def patternPaths(self):
-        """
-        Called to get a list of pattern file directories. The easiest approach
-        is to just let MUDSling find a "patterns" directory in the plugin
-        directory. However, if you need to customize paths, this is where you
-        have the opportunity.
-        """
-        return super(MUDSlingCorePlugin, self).patternPaths()
 
-    def hook_initDatabase(self, db):
-        """
-        This hook is called when performing initial setup of a database, giving
-        GamePlugin instances the opportunity to perform setup of their own.
-
-        @param db: The database being setup.
-        """
-
-    def hook_serverStartup(self):
-        """
-        This hook is invoked as the last step during server startup, after
-        everything is loaded and otherwise ready to go.
-        """
+    def server_startup(self):
         # Load help files to form an in-memory database of the entries.
-        for paths in self.game.invokeHook('helpPaths').itervalues():
+        for paths in self.game.invoke_hook('help_paths').itervalues():
             for path in paths:
-                help_db.loadHelpPath(path, rebuildNameMap=False)
-        help_db.rebuildNameMap()
+                help_db.load_help_path(path, rebuild_name_map=False)
+        help_db.rebuild_name_map()
 
-    def hook_helpPaths(self):
-        """
-        This hook is called to get a list of paths where help files can be
-        found. This hook is implemented by mudslingcore, however, and may not
-        be called if you are not using mudslingcore.
-
-        The default implementaiton looks for a "help" directory in the plugin's
-        path. For most cases, that should be sufficient.
-        """
-        return super(MUDSlingCorePlugin, self).hook_helpPaths()
-
-    def hook_serverShutdown(self, reload):
-        """
-        This hook is invoked as the first step in the shutdown process.
-
-        @param reload: If True, the server intends to reload.
-        """
-
-    def hook_objectClasses(self):
-        """
-        This hook is called during startup, when MUDSling asks each GamePlugin
-        to inform it of object classes the plugin provides which can be
-        instantiated via tools like @create.
-
-        @return: (pretty name, class) pairs
-        @rtype: list
-        """
+    def object_classes(self):
         return [
             ('Thing', Thing),
             ('Player', Player),
@@ -82,13 +36,3 @@ class MUDSlingCorePlugin(GamePlugin):
             ('Room', Room),
             ('Exit', Exit),
         ]
-
-    def hook_lockFunctions(self):
-        """
-        This hook is called to get a list of functions that can be used in
-        lock strings.
-
-        @return: Map of function name to the function to run.
-        @rtype: C{dict}
-        """
-        return {}

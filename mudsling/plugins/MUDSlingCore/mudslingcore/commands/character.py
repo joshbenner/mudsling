@@ -16,13 +16,13 @@ class LookCmd(Command):
     aliases = ('look', 'l')
     syntax = "[[at] <something>]"
     arg_parsers = {
-        'something': parsers.MatchObject(searchFor='thing to look at',
+        'something': parsers.MatchObject(search_for='thing to look at',
                                          show=True)
     }
-    lock = locks.AllPass  # Everyone can have a look.
+    lock = locks.all_pass  # Everyone can have a look.
 
-    def _isLookable(self, obj):
-        return hasattr(obj, 'seenBy') and callable(obj.seenBy)
+    def _is_lookable(self, obj):
+        return hasattr(obj, 'seen_by') and callable(obj.seen_by)
 
     def run(self, this, actor, args):
         """
@@ -32,9 +32,9 @@ class LookCmd(Command):
         """
         if args['something'] is None:
             # Naked look.
-            if self._isLookable(actor.location):
+            if self._is_lookable(actor.location):
                 #noinspection PyUnresolvedReferences
-                actor.msg(actor.location.seenBy(actor))
+                actor.msg(actor.location.seen_by(actor))
                 return
             actor.msg("You don't seem to see anything...")
             return
@@ -42,11 +42,12 @@ class LookCmd(Command):
         #: @type: Object
         target = args['something']
 
-        if target in actor._getContext() or actor.hasPerm('remote look'):
-            if self._isLookable(target):
-                actor.msg(target.seenBy(actor))
+        if target in actor._get_context() or actor.has_perm('remote look'):
+            if self._is_lookable(target):
+                actor.msg(target.seen_by(actor))
             else:
-                actor.msg(actor.nameFor(target) + "\nYou see nothing of note.")
+                actor.msg(actor.name_for(target)
+                          + "\nYou see nothing of note.")
         else:
             actor.msg("You don't see any '%s' here." % self.args['something'])
 
@@ -60,7 +61,7 @@ class InventoryCmd(Command):
     """
     aliases = ('inventory', 'i')
     syntax = "[<search>]"
-    lock = locks.AllPass  # Everyone can see their own inventory.
+    lock = locks.all_pass  # Everyone can see their own inventory.
 
     def run(self, this, actor, args):
         """
@@ -68,4 +69,4 @@ class InventoryCmd(Command):
         @type actor: L{mudslingcore.objects.Character}
         @type args: C{dict}
         """
-        actor.msg("You are carrying:\n" + this.contentsAsSeenBy(this))
+        actor.msg("You are carrying:\n" + this.contents_as_seen_by(this))

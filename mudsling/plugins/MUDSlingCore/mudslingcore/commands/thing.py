@@ -17,7 +17,7 @@ class TakeThingCmd(Command):
     arg_parsers = {
         'obj': 'this',
     }
-    lock = locks.AllPass
+    lock = locks.all_pass
 
     def run(self, this, actor, args):
         """
@@ -27,20 +27,20 @@ class TakeThingCmd(Command):
         """
         if this.location == actor.location:
             try:
-                this.moveTo(actor)
+                this.move_to(actor)
             except errors.InvalidObject:
                 pass  # take_fail message will run.
             if this.location == actor:
-                this.emitMessage('take', location=actor.location, actor=actor)
+                this.emit_message('take', location=actor.location, actor=actor)
             else:
-                this.emitMessage('take_fail', location=actor.location,
-                                 actor=actor)
+                this.emit_message('take_fail', location=actor.location,
+                                  actor=actor)
         elif this.location == actor:
             actor.msg("You already have that!")
         else:
             actor.msg("You don't see that here.")
 
-    def failedCommandMatchHelp(self):
+    def failed_command_match_help(self):
         return "You don't see a '%s' to take." % self.argstr
 
 
@@ -55,7 +55,7 @@ class DropThingCmd(Command):
     arg_parsers = {
         'obj': 'this',
     }
-    lock = locks.AllPass
+    lock = locks.all_pass
 
     def run(self, this, actor, args):
         """
@@ -65,16 +65,16 @@ class DropThingCmd(Command):
         """
         if this.location == actor:
             try:
-                this.moveTo(actor.location)
+                this.move_to(actor.location)
             except errors.InvalidObject:
                 pass
             if this.location == actor:
-                this.emitMessage('drop_fail', location=actor.location,
-                                 actor=actor)
+                this.emit_message('drop_fail', location=actor.location,
+                                  actor=actor)
             else:
-                this.emitMessage('drop', location=this.location, actor=actor)
+                this.emit_message('drop', location=this.location, actor=actor)
         else:
             actor.msg("You don't have that.")
 
-    def failedCommandMatchHelp(self):
+    def failed_command_match_help(self):
         return "You don't see a '%s' to drop." % self.argstr

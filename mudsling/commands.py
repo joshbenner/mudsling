@@ -8,7 +8,7 @@ from mudsling.storage import StoredObject
 from mudsling.match import match_failed
 from mudsling.utils import string
 from mudsling.utils.syntax2 import Syntax, SyntaxParseError
-from mudsling.utils.sequence import dictMerge
+from mudsling.utils.sequence import dict_merge
 from mudsling import parsers
 from mudsling.errors import CommandInvalid
 from mudsling import locks
@@ -74,7 +74,7 @@ class Command(object):
     switch_parsers = {}
     switch_defaults = {}
 
-    lock = locks.NonePass  # Commands are restricted by default.
+    lock = locks.none_pass  # Commands are restricted by default.
 
     #: @type: mudsling.objects.BaseObject
     obj = None
@@ -106,7 +106,7 @@ class Command(object):
         return 'ERROR NO CMD ALIAS'
 
     @classmethod
-    def checkAccess(cls, obj, actor):
+    def check_access(cls, obj, actor):
         """
         Determine if an object is allowed to use this command.
 
@@ -132,7 +132,7 @@ class Command(object):
         return cmdstr.split('/')[0] in cls.aliases
 
     @classmethod
-    def _compileSyntax(cls):
+    def _compile_syntax(cls):
         cls._syntax = []
         try:
             if isinstance(cls.syntax, basestring):
@@ -147,14 +147,14 @@ class Command(object):
             return False
 
     @classmethod
-    def getSyntax(cls):
+    def get_syntax(cls):
         """
         Return just the syntax portion of the command class's docstring.
 
         @return: Syntax string
         @rtype: str
         """
-        trimmed = string.trimDocstring(cls.__doc__)
+        trimmed = string.trim_docstring(cls.__doc__)
         syntax = []
         for line in trimmed.splitlines():
             if line == "":
@@ -191,13 +191,13 @@ class Command(object):
         self.obj = obj
         self.actor = actor
 
-    def matchSyntax(self, argstr):
+    def match_syntax(self, argstr):
         """
         Determine if the input matches the command syntax.
         @rtype: bool
         """
         if self._syntax is None:
-            self._compileSyntax()
+            self._compile_syntax()
 
         parsed = {}
         for syntax in self._syntax:
@@ -209,13 +209,13 @@ class Command(object):
             # Check for 'this' in any of the validators.
             for argName, valid in self.arg_parsers.iteritems():
                 if valid == 'this':
-                    matches = self.actor.matchObject(parsed[argName])
+                    matches = self.actor.match_object(parsed[argName])
                     if len(matches) != 1 or matches[0] != self.obj:
                         return False
             return True
         return False
 
-    def failedCommandMatchHelp(self):
+    def failed_command_match_help(self):
         """
         This method is called if this command was matched by name, but not by
         syntax, and the command parser is asking the command for some help to
@@ -223,21 +223,21 @@ class Command(object):
 
         If the command has nothing to say, just return False.
         """
-        return self.syntaxHelp()
+        return self.syntax_help()
 
     def execute(self):
         """
         Execution entry point for the command. The object system should call
         this once it has decided to run the command.
         """
-        switches = self.parseArgs(self.parseSwitches(self.switchstr),
-                                  self.switch_parsers)
-        self.switches = dictMerge(self.switch_defaults, switches)
-        self.parsed_args = self.parseArgs(self.args, self.arg_parsers)
+        switches = self.parse_args(self.parse_switches(self.switchstr),
+                                   self.switch_parsers)
+        self.switches = dict_merge(self.switch_defaults, switches)
+        self.parsed_args = self.parse_args(self.args, self.arg_parsers)
         if self.prepare():
             self.run(self.obj, self.actor, self.parsed_args)
 
-    def parseSwitches(self, switchstr):
+    def parse_switches(self, switchstr):
         """
         Parses raw switch string into key/val string pairs. No value resolution
         beyond just getting the key and value strings is done.
@@ -262,7 +262,7 @@ class Command(object):
             switches[key] = val
         return switches
 
-    def parseArgs(self, args, arg_parsers):
+    def parse_args(self, args, arg_parsers):
         """
         Process args against arg_parsers.
 
@@ -298,12 +298,12 @@ class Command(object):
                 parsed[argName] = valid.parse(args[argName])
             elif inspect.isclass(valid) and issubclass(valid, StoredObject):
                 argVal = args[argName]
-                matches = self.actor.matchObject(argVal)
-                if self.matchFailed(matches, argVal):
+                matches = self.actor.match_object(argVal)
+                if self.match_failed(matches, argVal):
                     parsed[argName] = None
                     continue
                 match = matches[0]
-                if match.isValid(valid):
+                if match.is_valid(valid):
                     parsed[argName] = match
                 else:
                     parsed[argName] = TypeError("Object is wrong type.")
@@ -343,7 +343,7 @@ class Command(object):
             msg = "That command"
         raise NotImplementedError(msg)
 
-    def syntaxHelp(self):
+    def syntax_help(self):
         """
         Return a string to show to a player to help them understand the syntax
         of the command. Useful to output when a command is used incorrectly.
@@ -352,7 +352,7 @@ class Command(object):
         @return: str
         """
         out = []
-        for i, line in enumerate(self.__class__.getSyntax().splitlines()):
+        for i, line in enumerate(self.__class__.get_syntax().splitlines()):
             if i == 0:
                 line = "{ySyntax: {c" + line
             else:
@@ -360,7 +360,7 @@ class Command(object):
             out.append(line)
         return '\n'.join(out)
 
-    def matchFailed(self, matches, search=None, searchFor=None, show=False):
+    def match_failed(self, matches, search=None, search_for=None, show=False):
         """
         Utility method to handled failed matches. Will inform the actor if a
         search for a single match has failed and return True if the search
@@ -374,9 +374,9 @@ class Command(object):
         @param search: The string used to search.
         @type search: str
 
-        @param searchFor: A string describing what type of thing was being
+        @param search_for: A string describing what type of thing was being
             searched for. This should be the singular form of the word.
-        @type searchFor: str
+        @type search_for: str
 
         @param show: If true, will show the list of possible matches in the
             case of an ambiguous match.
@@ -385,7 +385,7 @@ class Command(object):
         @return: True if the searched failed, False otherwise.
         @rtype: bool
         """
-        msg = match_failed(matches, search=search, searchFor=searchFor,
+        msg = match_failed(matches, search=search, search_for=search_for,
                            show=show)
         if msg:
             self.actor.msg(msg)
@@ -410,13 +410,13 @@ class IHasCommands(zope.interface.Interface):
     public_commands = zope.interface.Attribute(
         """List of commands available to other objects.""")
 
-    def commandsFor(actor):
+    def commands_for(actor):
         """
         Return a list of commands available to the specified actor.
         """
 
 
-def makeCommandList(obj):
+def make_command_list(obj):
     """
     Return a list of command classes provided by an object (ie: a module).
     @rtype: list
@@ -430,7 +430,7 @@ def makeCommandList(obj):
     return commands
 
 
-def allCommands(*objects):
+def all_commands(*objects):
     """
     Takes objects (including modules), and pulls out all command classes
     provided in their members and flattens them into a single command list.
@@ -441,7 +441,7 @@ def allCommands(*objects):
         if inspect.isclass(o) and issubclass(o, Command):
             commands.append(o)
             continue
-        for cmd in makeCommandList(o):
+        for cmd in make_command_list(o):
             if not cmd in commands:
                 commands.append(cmd)
     return commands

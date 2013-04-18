@@ -19,7 +19,7 @@ class SyntaxToken(object):
     def _expr(self, nextToken):
         raise NotImplemented
 
-    def firstToken(self):
+    def first_token(self):
         """
         Get the leading token in this token set. Usually, it's just self.
         """
@@ -67,7 +67,7 @@ class SyntaxParam(SyntaxToken):
 
     def _expr(self, nextToken):
         terminate = nextToken.expr() if nextToken else StringEnd()
-        firstToken = nextToken.firstToken() if nextToken else None
+        firstToken = nextToken.first_token() if nextToken else None
         if isinstance(firstToken, SyntaxParam):
             terminate = White() | StringEnd()
         parm = QuotedString('"') | SkipTo(terminate)
@@ -82,7 +82,7 @@ class SyntaxOptional(SyntaxToken):
     def __repr__(self):
         return 'Optional(%s)' % repr(self.inside)[1:-1]
 
-    def parseAction(self, tok):
+    def parse_action(self, tok):
         for i, t in enumerate(tok):
             if isinstance(t, tuple):  # Make contained parameters optional.
                 t = list(t)
@@ -91,16 +91,16 @@ class SyntaxOptional(SyntaxToken):
         return tok
 
     def _expr(self, nextToken):
-        p = Optional(commandParser(self.inside, nextToken))
+        p = Optional(command_parser(self.inside, nextToken))
         p += FollowedBy(nextToken.expr())
-        p.setParseAction(self.parseAction)
+        p.setParseAction(self.parse_action)
         return p
 
-    def firstToken(self):
+    def first_token(self):
         return self.inside[0] if len(self.inside) > 0 else None
 
 
-def syntaxGrammar():
+def syntax_grammar():
     """
     A parser for the syntax which describes command syntax.
     """
@@ -127,7 +127,7 @@ def syntaxGrammar():
     return syntax
 
 
-def commandParser(syntaxTokens, nextToken=None):
+def command_parser(syntaxTokens, nextToken=None):
     expressions = []
     nextToken = nextToken or SyntaxEnd()
     tokens = list(syntaxTokens)
@@ -158,7 +158,7 @@ class Syntax(object):
     """
     Container object to conform to original Syntax API.
     """
-    syntaxGrammar = syntaxGrammar()
+    syntaxGrammar = syntax_grammar()
     empty = False
     parser = None
 
@@ -168,7 +168,7 @@ class Syntax(object):
             self.empty = True
         else:
             tokens = self.syntaxGrammar.parseString(syntax, parseAll=True)
-            self.parser = commandParser(tokens)
+            self.parser = command_parser(tokens)
 
     def parse(self, string):
         if self.empty:
@@ -186,7 +186,7 @@ SyntaxParseError = ParseException
 
 if __name__ == '__main__':
     import time
-    ssp = syntaxGrammar()
+    ssp = syntax_grammar()
 
     test = [
         ('<exitSpec> to <room>', [

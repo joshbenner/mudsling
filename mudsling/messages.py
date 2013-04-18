@@ -7,9 +7,6 @@ import copy
 
 import zope.interface
 
-from mudsling import utils
-import mudsling.utils.object
-
 
 class InvalidMessage(Exception):
     pass
@@ -88,10 +85,10 @@ class IHasMessages(zope.interface.Interface):
     """
     messages = zope.interface.Attribute("""A Messages instance.""")
 
-    def getMessage(key, **keywords):
+    def get_message(key, **keywords):
         """
         Retrieve a formatted message string or dictionary.
-        @see: L{Messages.getMessage}
+        @see: L{Messages.get_message}
         """
 
 
@@ -127,7 +124,7 @@ class Messages(object):
     def __init__(self, messages=None):
         self.messages = messages or {}
 
-    def _getMessage(self, key, index=None):
+    def _get_message(self, key, index=None):
         """
         Retrieves the raw message configuration.
 
@@ -172,7 +169,7 @@ class Messages(object):
 
         return msg
 
-    def getMessage(self, key, **keywords):
+    def get_message(self, key, **keywords):
         """
         Retrieve a dictionary whose keys are either objects or the string '*'.
 
@@ -192,7 +189,7 @@ class Messages(object):
         @return: The message dictionary.
         @rtype: C{dict}
         """
-        msg = key if isinstance(key, dict) else self._getMessage(key)
+        msg = key if isinstance(key, dict) else self._get_message(key)
 
         for who, tpl in msg.iteritems():
             msg[who] = MessageParser._parse(tpl, keywords)

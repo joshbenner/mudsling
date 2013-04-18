@@ -19,7 +19,7 @@ class ShutdownCmd(Command):
 
     def run(self, this, actor, args):
         msg = "Shutting down server. Goodbye."
-        self.game.session_handler.outputToAllSessions(msg)
+        self.game.session_handler.output_to_all_sessions(msg)
         self.game.shutdown()
 
 
@@ -34,7 +34,7 @@ class ReloadCmd(Command):
 
     def run(self, this, actor, args):
         msg = "Reloading server, please stand by..."
-        self.game.session_handler.outputToAllSessions(msg)
+        self.game.session_handler.output_to_all_sessions(msg)
         self.game.shutdown(reload=True)
 
 
@@ -69,19 +69,19 @@ class EvalCmd(Command):
         char = actor.possessing
 
         if not code:
-            actor.msg(self.syntaxHelp())
+            actor.msg(self.syntax_help())
             return False
 
         available_vars = {
             'eval_cmd': self,
             'sys': sys,
             'game': self.game,
-            'ref': self.game.db.getRef,
+            'ref': self.game.db.get_ref,
             'registry': registry,
             'config': config,
             'player': actor,
             'me': char,
-            'here': (char.location if self.game.db.isValid(char, Object)
+            'here': (char.location if self.game.db.is_valid(char, Object)
                      else None),
             'mudsling': mudsling,
             'mudslingcore': mudslingcore,
@@ -111,9 +111,9 @@ class EvalCmd(Command):
             if mode == 'eval':
                 out = "<<< %s" % string.escape_ansi_tokens(repr(ret))
                 if isinstance(ret, ObjRef):
-                    if ret.isValid():
-                        name = "%s (%s)" % (ret.className(),
-                                            ret.pythonClassName())
+                    if ret.is_valid():
+                        name = "%s (%s)" % (ret.class_name(),
+                                            ret.python_class_name())
                     else:
                         name = 'INVALID'
                     out += " [%s]" % name

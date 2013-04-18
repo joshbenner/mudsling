@@ -39,7 +39,7 @@ class TasksCmd(Command):
                           cell_formatter=format_next_run),
             ]
         )
-        table.addRows(*self.game.db.tasks.itervalues())
+        table.add_rows(*self.game.db.tasks.itervalues())
         actor.msg(ui.report("Tasks", table))
 
 
@@ -60,7 +60,7 @@ class KillTaskCmd(Command):
         @type args: dict
         """
         try:
-            task = self.game.db.getTask(int(args['id']))
+            task = self.game.db.get_task(int(args['id']))
             task.kill()
         except Exception as e:
             actor.msg("{r%s" % e.message)
@@ -85,7 +85,7 @@ class PauseTaskCmd(Command):
     def run(self, this, actor, args):
         try:
             #: @type: mudsling.tasks.IntervalTask
-            task = self.game.db.getTask(int(args['id']))
+            task = self.game.db.get_task(int(args['id']))
             if not isinstance(task, tasks.IntervalTask):
                 raise errors.InvalidTask("Only IntervalTask tasks may be "
                                          "paused or unpaused.")
@@ -113,7 +113,7 @@ class UnpauseTaskCmd(Command):
     def run(self, this, actor, args):
         try:
             #: @type: mudsling.tasks.IntervalTask
-            task = self.game.db.getTask(int(args['id']))
+            task = self.game.db.get_task(int(args['id']))
             if not isinstance(task, tasks.IntervalTask):
                 raise errors.InvalidTask("Only IntervalTask tasks may be "
                                          "paused or unpaused.")

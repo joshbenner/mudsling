@@ -2,14 +2,14 @@ import time
 import re
 
 
-def checkBans(session, bans):
+def check_bans(session, bans):
     """
     Check an iterable of bans for any that actively apply to the session.
 
     @return: A list of applicable bans.
     @rtype: C{list}
     """
-    return [b for b in bans if b.appliesTo(session) and b.isActive()]
+    return [b for b in bans if b.applies_to(session) and b.is_active()]
 
 
 class Ban(object):
@@ -34,7 +34,7 @@ class Ban(object):
             if k in self._settings:
                 setattr(self, k, v)
 
-    def isActive(self):
+    def is_active(self):
         """
         Return True if the ban is currently active.
         """
@@ -42,7 +42,7 @@ class Ban(object):
             return True
         return time.time() <= self.expires
 
-    def appliesTo(self, session):
+    def applies_to(self, session):
         """
         Returns True if the ban applies to the provided session.
 
@@ -61,7 +61,7 @@ class PlayerBan(Ban):
         super(PlayerBan, self).__init__(*args, **kwargs)
         self.player = player
 
-    def appliesTo(self, session):
+    def applies_to(self, session):
         try:
             return session.player.ref() == self.player.ref()
         except AttributeError:
@@ -72,19 +72,19 @@ class IPBan(Ban):
     """
     A ban that applies to an IP range.
     """
-    ipPattern = ''
-    ipRegex = None
+    ip_pattern = ''
+    ip_regex = None
 
-    def __init__(self, ipPattern, *args, **kwargs):
+    def __init__(self, ip_pattern, *args, **kwargs):
         super(IPBan, self).__init__(*args, **kwargs)
-        self.ipPattern = ipPattern
-        regex = ipPattern.strip()
+        self.ip_pattern = ip_pattern
+        regex = ip_pattern.strip()
         regex = regex.replace('.', '\.')
         regex = regex.replace('*', '\d{1,3}')
-        self.ipRegex = re.compile("^%s$" % regex)
+        self.ip_regex = re.compile("^%s$" % regex)
 
-    def appliesTo(self, session):
+    def applies_to(self, session):
         try:
-            return True if self.ipRegex.match(session.ip) else False
+            return True if self.ip_regex.match(session.ip) else False
         except AttributeError:
             return False

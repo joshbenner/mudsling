@@ -47,7 +47,7 @@ class Session(object):
     mxp = False
     idle_cmd = 'IDLE'
 
-    def setOption(self, name, value):
+    def set_option(self, name, value):
         """
         Map options and their values onto session attributes. This is used by
         session protocols that do not need to understand types.
@@ -58,43 +58,43 @@ class Session(object):
             if not before and self.mxp:
                 # Make secure mode the default, since we do not allow other
                 # players to send MXP sequences.
-                self.sendOutput('MXP Enabled',
+                self.send_output('MXP Enabled',
                                 {"mxpmode": mxp.LINE_MODES.LOCK_SECURE})
 
-    def openSession(self, resync=False):
+    def open_session(self, resync=False):
         self.time_connected = time.time()
         self.idle_cmd = config.get('Main', 'idle command')
-        self.game.session_handler.connectSession(self, resync=resync)
+        self.game.session_handler.connect_session(self, resync=resync)
         logging.info("Session %s connected." % self)
 
-    def sessionClosed(self):
-        self.game.session_handler.disconnectSession(self)
+    def session_closed(self):
+        self.game.session_handler.disconnect_session(self)
         if self.player is not None:
-            self.player.sessionDetached(self)
+            self.player.session_detached(self)
         logging.info("Session %s disconnected." % self)
 
-    def redirectInput(self, where):
+    def redirect_input(self, where):
         if IInputProcessor.providedBy(self.input_processor):
-            self.input_processor.lostInputCapture(self)
+            self.input_processor.lost_input_capture(self)
         self.input_processor = where
         if IInputProcessor.providedBy(where):
-            where.gainedInputCapture(self)
+            where.gained_input_capture(self)
 
-    def resetInputCapture(self):
-        self.redirectInput(self.player)
+    def reset_input_capture(self):
+        self.redirect_input(self.player)
 
-    def receiveInput(self, line):
+    def receive_input(self, line):
         if line == self.idle_cmd:
             return
         start = time.clock()
         self.last_activity = time.time()
         line = line.strip()
         if self.input_processor is None:
-            self.game.login_screen.processInput(self, line)
+            self.game.login_screen.process_input(self, line)
         else:
             #noinspection PyBroadException
             try:
-                self.input_processor.processInput(line)
+                self.input_processor.process_input(line)
             except SystemExit:
                 raise
             except:
@@ -102,9 +102,9 @@ class Session(object):
                 logging.error(errmsg)
         if self.profile:
             duration = (time.clock() - start) * 1000
-            self.sendOutput("Command time: %.3fms" % duration)
+            self.send_output("Command time: %.3fms" % duration)
 
-    def sendOutput(self, text, flags=None):
+    def send_output(self, text, flags=None):
         """
         Send output to the Session.
 
@@ -116,7 +116,7 @@ class Session(object):
             flags = {}
         if isinstance(text, list):
             for l in text:
-                self.sendOutput(l)
+                self.send_output(l)
             return
         text = str(text)
         if not text.endswith(self.line_delimiter):
@@ -127,12 +127,12 @@ class Session(object):
         if self.mxp:
             if raw:
                 # Locked mode parses no MXP at all.
-                text = mxp.lineMode(text, mxp.LINE_MODES.LOCKED)
+                text = mxp.line_mode(text, mxp.LINE_MODES.LOCKED)
             else:
                 mxpMode = flags.get('mxpmode', None)
                 text = mxp.prepare(text)
                 if mxpMode is not None:
-                    text = mxp.lineMode(text, mxpMode)
+                    text = mxp.line_mode(text, mxpMode)
         else:
             text = mxp.strip(text)
 
@@ -143,9 +143,9 @@ class Session(object):
         elif not raw:
             text = string.parse_ansi(text, strip_ansi=True)
 
-        self.rawSendOutput(text)
+        self.raw_send_output(text)
 
-    def rawSendOutput(self, text):
+    def raw_send_output(self, text):
         """
         Children should override!
         """
@@ -155,7 +155,7 @@ class Session(object):
         Disconnect this session. Children must implement!
         """
 
-    def attachToPlayer(self, player):
+    def attach_to_player(self, player):
         """
         Attach this session to a player object.
 
@@ -164,23 +164,23 @@ class Session(object):
         """
         if self.player is not None:
             self.detach()
-        self.player = player._realObject()
+        self.player = player._real_object()
         self.input_processor = self.player
-        player.sessionAttached(self)
+        player.session_attached(self)
 
     def detach(self):
         """
         Detaches the session from the object it's currently connected to.
         """
         if self.player is not None:
-            self.player.sessionDetached(self)
+            self.player.session_detached(self)
             self.input_processor = None
             self.player = None
 
-    def connectedSeconds(self):
+    def connected_seconds(self):
         return time.time() - self.time_connected
 
-    def idleSeconds(self):
+    def idle_seconds(self):
         return time.time() - self.last_activity
 
 
@@ -201,7 +201,7 @@ class SessionHandler(object):
         self.game = game
         self.sessions = set()
 
-    def connectSession(self, session, resync=False):
+    def connect_session(self, session, resync=False):
         """
         Attach a new session to the handler.
 
@@ -209,9 +209,9 @@ class SessionHandler(object):
         """
         self.sessions.add(session)
         if not resync:
-            self.game.login_screen.sessionConnected(session)
+            self.game.login_screen.session_connected(session)
 
-    def disconnectSession(self, session):
+    def disconnect_session(self, session):
         """
         Detatch a session from the handler. Do not call this to disconnect a
         session. Instead, call session.disconnect(), which will in turn call
@@ -221,16 +221,16 @@ class SessionHandler(object):
         """
         self.sessions.remove(session)
 
-    def disconnectAllSessions(self, reason):
+    def disconnect_all_sessions(self, reason):
         """
         Disconnects all sessions.
         """
         for session in list(self.sessions):
             session.disconnect(reason)
 
-    def outputToAllSessions(self, text, flags=None):
+    def output_to_all_sessions(self, text, flags=None):
         for session in self.sessions:
-            session.sendOutput(text, flags=flags)
+            session.send_output(text, flags=flags)
 
 
 class IInputProcessor(zope.interface.Interface):
@@ -239,17 +239,17 @@ class IInputProcessor(zope.interface.Interface):
     dispatching resulting commands.
     """
 
-    def processInput(raw, session=None):
+    def process_input(raw, session=None):
         """
         Handle the raw input. Return value not used.
         """
 
-    def gainedInputCapture(session):
+    def gained_input_capture(session):
         """
         Called when this IInputProcessor will now receive input from a session.
         """
 
-    def lostInputCapture(session):
+    def lost_input_capture(session):
         """
         Called when this IInputProcess will no longer receive input from the
         specified session.

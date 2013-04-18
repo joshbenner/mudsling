@@ -55,7 +55,7 @@ class Lock(storage.Persistent):
     #: @type: L{mudsling.utils.locks.LockFunc}
     parsed = None
 
-    _transientVars = ['parsed']
+    _transient_vars = ['parsed']
 
     def __init__(self, lockStr):
         self.raw = lockStr
@@ -88,15 +88,15 @@ class Lock(storage.Persistent):
 
 
 # Lock identities.
-NonePass = Lock('False')  # Always False
-AllPass = Lock('True')    # Always True
+none_pass = Lock('False')  # Always False
+all_pass = Lock('True')    # Always True
 
 
 class LockSet(storage.Persistent):
     raw = ""
     locks = None
 
-    _transientVars = ['locks']
+    _transient_vars = ['locks']
 
     def __init__(self, lockSetStr=''):
         self.raw = lockSetStr
@@ -110,7 +110,7 @@ class LockSet(storage.Persistent):
                 locks[lockType] = Lock(lockStr)
         self.locks = locks
 
-    def hasType(self, lockType):
+    def has_type(self, lockType):
         if self.locks is None:
             self.parse()
         return lockType in self.locks
@@ -133,25 +133,25 @@ class LockSet(storage.Persistent):
         if self.locks is None:
             self.locks = {}
 
-    def getLock(self, lockType):
-        return self.locks[lockType] if self.hasType(lockType) else NonePass
+    def get_lock(self, lockType):
+        return self.locks[lockType] if self.has_type(lockType) else none_pass
 
-    def setLock(self, lockType, lock):
+    def set_lock(self, lockType, lock):
         self._init_locks()
         if isinstance(lock, basestring):
             lock = Lock(lock)
         self.locks[lockType] = lock
         self.raw = self._compose(self.locks)
 
-    def delLock(self, lockType):
+    def del_lock(self, lockType):
         self._init_locks()
         if lockType in self.locks:
             del self.locks[lockType]
             self.raw = self._compose(self.locks)
 
-    def delAll(self):
+    def del_all(self):
         self.raw = ""
         self.locks = {}
 
     def check(self, lockType, *args):
-        return self.getLock(lockType).eval(*args)
+        return self.get_lock(lockType).eval(*args)

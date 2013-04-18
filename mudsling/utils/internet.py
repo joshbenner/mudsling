@@ -60,7 +60,7 @@ def _sendmail(fromAddress, toAddress, message, host='localhost', port=0,
     return d
 
 
-def validEmail(email):
+def valid_email(email):
     """
     Very basic check to see if provided email address seems valid.
     @rtype: C{bool}
@@ -68,7 +68,7 @@ def validEmail(email):
     return True if EMAIL_RE.match(email) else False
 
 
-def reverseDNS(ip):
+def reverse_dns(ip):
     """
     Perform a reverse-DNS lookup on a given IP address string. The lookup is
     asynchronous, so a callback is also required.

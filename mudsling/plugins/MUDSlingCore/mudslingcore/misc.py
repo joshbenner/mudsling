@@ -27,7 +27,7 @@ def teleport_object(obj, dest):
     @param dest: The destination to teleport to.
     @type dest: mudsling.objects.Object
     """
-    if obj.isValid(Object) and dest.isValid(Object):
-        obj.emitMessage('teleport_out', actor=obj, dest=dest)
-        obj.moveTo(dest)
-        obj.emitMessage('teleport_in', actor=obj, dest=dest)
+    if obj.is_valid(Object) and dest.is_valid(Object):
+        obj.emit_message('teleport_out', actor=obj, dest=dest)
+        obj.move_to(dest)
+        obj.emit_message('teleport_in', actor=obj, dest=dest)

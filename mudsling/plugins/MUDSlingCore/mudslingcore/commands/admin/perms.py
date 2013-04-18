@@ -28,13 +28,13 @@ class RolesCmd(Command):
             actor.msg(msg % string.english_list(self.game.db.roles, 'none'))
             return
 
-        matches = actor.matchObjectOfType(self.argstr, cls=Player)
-        if self.matchFailed(matches, self.argstr, 'player', show=True):
+        matches = actor.match_obj_of_type(self.argstr, cls=Player)
+        if self.match_failed(matches, self.argstr, 'player', show=True):
             return
         player = matches[0]
 
         msg = ("{yRoles for {c%s{y: {m%s"
-               % (player.nn, string.english_list(player.getRoles(), 'none')))
+               % (player.nn, string.english_list(player.get_roles(), 'none')))
         actor.msg(msg)
 
 
@@ -56,13 +56,13 @@ class PermsCmd(Command):
         """
         from mudslingcore.objects import Player
 
-        matches = actor.matchObjectOfType(self.argstr, cls=Player)
-        if self.matchFailed(matches, self.argstr, 'player', show=True):
+        matches = actor.match_obj_of_type(self.argstr, cls=Player)
+        if self.match_failed(matches, self.argstr, 'player', show=True):
             return
         #: @type: Player
         player = matches[0]
         perms = set()
-        for role in player.getRoles():
+        for role in player.get_roles():
             perms |= role.perms
         perms = string.english_list(perms)
 
@@ -87,7 +87,7 @@ class ShowRoleCmd(Command):
         @type args: dict
         """
         try:
-            role = self.game.db.matchRole(args['role'])
+            role = self.game.db.match_role(args['role'])
         except MatchError as e:
             actor.msg(e.message)
             return
@@ -140,12 +140,12 @@ class DeleteRoleCmd(Command):
         @type args: dict
         """
         try:
-            role = self.game.db.matchRole(args['role'])
+            role = self.game.db.match_role(args['role'])
         except MatchError as e:
             actor.msg(e.message)
             return
 
-        self.game.db.expungeRole(role)
+        self.game.db.expunge_role(role)
         actor.msg('{rRole {m%s {rhas been deleted.' % role.name)
 
 
@@ -168,21 +168,21 @@ class AddRoleCmd(Command):
         from mudslingcore.objects import Player
 
         try:
-            role = self.game.db.matchRole(args['role'])
+            role = self.game.db.match_role(args['role'])
         except MatchError as e:
             actor.msg(e.message)
             return
 
-        matches = actor.matchObjectOfType(args['player'], cls=Player)
-        if self.matchFailed(matches, args['player'], 'player', show=True):
+        matches = actor.match_obj_of_type(args['player'], cls=Player)
+        if self.match_failed(matches, args['player'], 'player', show=True):
             return
         player = matches[0]
 
-        if player.hasRole(role):
+        if player.has_role(role):
             actor.msg('{c%s {yalready has the {m%s {yrole.'
                       % (player.nn, role.name))
         else:
-            player.addRole(role)
+            player.add_role(role)
             actor.msg("{c%s {yhas been given the {m%s {yrole."
                       % (player.nn, role.name))
 
@@ -206,18 +206,18 @@ class RemoveRoleCmd(Command):
         from mudslingcore.objects import Player
 
         try:
-            role = self.game.db.matchRole(args['role'])
+            role = self.game.db.match_role(args['role'])
         except MatchError as e:
             actor.msg(e.message)
             return
 
-        matches = actor.matchObjectOfType(args['player'], cls=Player)
-        if self.matchFailed(matches, args['player'], 'player', show=True):
+        matches = actor.match_obj_of_type(args['player'], cls=Player)
+        if self.match_failed(matches, args['player'], 'player', show=True):
             return
         player = matches[0]
 
-        if player.hasRole(role):
-            player.removeRole(role)
+        if player.has_role(role):
+            player.remove_role(role)
             actor.msg("{m%s {yrole removed from {c%s{y."
                       % (role.name, player.nn))
         else:
@@ -242,12 +242,12 @@ class AddPermCmd(Command):
         @type args: dict
         """
         try:
-            role = self.game.db.matchRole(args['role'])
+            role = self.game.db.match_role(args['role'])
         except MatchError as e:
             actor.msg(e.message)
             return
 
-        if role.addPerm(args['perm']):
+        if role.add_perm(args['perm']):
             actor.msg("{g%s {yadded to {m%s{y.", (args['perm'], role))
         else:
             actor.msg("{m%s {yalready has the {g%s {ypermission."
@@ -271,12 +271,12 @@ class RemovePermCmd(Command):
         @type args: dict
         """
         try:
-            role = self.game.db.matchRole(args['role'])
+            role = self.game.db.match_role(args['role'])
         except MatchError as e:
             actor.msg(e.message)
             return
 
-        if role.removePerm(args['perm']):
+        if role.remove_perm(args['perm']):
             actor.msg("{g%s {yremoved from {m%s{y." % (args['perm'], role))
         else:
             actor.msg("{m%s {ydoes not have the {g%s {ypermission."

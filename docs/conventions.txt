@@ -3,9 +3,9 @@ Code formatting, naming, etc:
     generally use camelCase, though underscore_names are fine too.
 
 Hooks:
-    * Module hooks: hook_eventName()
+    * Module hooks: hook_name()
     * General event hooks: onEventName()
     * System-only hooks: eventName()
-        * For instance: tasks have serverStartup(), which is a system-level
+        * For instance: tasks have server_startup(), which is a system-level
           hook that most child classes should not override. This hook in turn
-          calls the user-overridable hook: onServerStartup().
+          calls the user-overridable hook: on_server_startup().

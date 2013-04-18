@@ -41,19 +41,19 @@ class LineReader(object):
         self.session = None
         self.reset()
 
-    def gainedInputCapture(self, session):
+    def gained_input_capture(self, session):
         self.session = session
 
-    def processInput(self, raw):
+    def process_input(self, raw):
         if raw in self.end_tokens:
-            self.endCapture()
+            self.end_capture()
         else:
             self.lines.append(raw)
 
             if self.max_lines and len(self.lines) >= self.max_lines:
-                self.endCapture()
+                self.end_capture()
 
-    def endCapture(self):
+    def end_capture(self):
         """
         Stop capturing input and pass the input to the callback. If callback
         returns boolean False, then capture will be reset and maintained.
@@ -61,7 +61,7 @@ class LineReader(object):
         result = self.callback(self.lines, *self.args)
         if result is not False:
             if self.session is not None:
-                self.session.resetInputCapture()
+                self.session.reset_input_capture()
         else:
             self.reset()
 

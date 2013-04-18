@@ -41,7 +41,7 @@ LINE_MODE_RE = re.compile('\x1b\[\d+z')
 RESET_MODE = "\x1b[3z\x1b[6z"  # Resets to secure as default.
 
 
-def lineMode(line, mode):
+def line_mode(line, mode):
     line = LINE_MODE_RE.sub('', line)
     modeTag = "\x1b[%dz" % mode
     return modeTag + line.replace('\n', '\n' + modeTag) + RESET_MODE
@@ -69,7 +69,7 @@ def entity(entity):
     return AMP + str(entity) + ';'
 
 
-def closedTag(name, content, **attr):
+def closed_tag(name, content, **attr):
     """
     Return an encoded MXP tag including content and closing tag.
 
@@ -92,24 +92,24 @@ def closedTag(name, content, **attr):
 
 
 def link(text, href, hint=None):
-    return closedTag('a', text, href=href, hint=hint)
+    return closed_tag('a', text, href=href, hint=hint)
 
 
 def send(text, cmd, hint=None):
-    return closedTag('send', text, href=cmd, hint=hint)
+    return closed_tag('send', text, href=cmd, hint=hint)
 
 
 def bold(text):
-    return closedTag('b', text)
+    return closed_tag('b', text)
 strong = bold
 
 
 def underline(text):
-    return closedTag('u', text)
+    return closed_tag('u', text)
 
 
 def italic(text):
-    return closedTag('i', text)
+    return closed_tag('i', text)
 em = italic
 
 
@@ -120,7 +120,7 @@ def strip(text):
     return TAG_ENTITY_RE.sub('', text)
 
 
-def encodeSpecial(text):
+def encode_special(text):
     """
     Replaces special characters with their entity-encoded versions.
     """
@@ -129,7 +129,7 @@ def encodeSpecial(text):
     return text
 
 
-def unencodeMxp(text):
+def unencode_mxp(text):
     """
     Replaces encoded MXP characters with the natural form. ie: LT to '<'.
     """
@@ -147,7 +147,7 @@ def prepare(text):
     parts = TAG_ENTITY_RE.split(text)
     for i, part in enumerate(parts):
         if i % 2 == 0:  # Only create entities outside MXP-encoded sequences.
-            parts[i] = encodeSpecial(part)
+            parts[i] = encode_special(part)
         else:  # Convert encoded MXP sequences to their normal form.
-            parts[i] = unencodeMxp(part)
+            parts[i] = unencode_mxp(part)
     return ''.join(parts)

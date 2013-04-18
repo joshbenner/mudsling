@@ -11,7 +11,7 @@ import mudsling.utils.string
 from mudslingcore.topography import Room, Exit
 
 
-def parseExitSpec(raw):
+def parse_exit_spec(raw):
     exitNames, sep, returnExitNames = raw.partition('|')
     return (parsers.StringListStaticParser.parse(exitNames),
             parsers.StringListStaticParser.parse(returnExitNames))
@@ -45,7 +45,7 @@ class DigCmd(Command):
         "<newRoomNames>",
     )
     arg_parsers = {
-        'exitSpec': parseExitSpec,
+        'exitSpec': parse_exit_spec,
         'newRoomNames': parsers.StringListStaticParser,
     }
     switch_parsers = {
@@ -62,20 +62,20 @@ class DigCmd(Command):
         @type args: C{dict}
         """
         if 'exitSpec' in args:  # exit-spec syntax was used, require location.
-            if not actor.hasLocation or not actor.location.isValid(Room):
+            if not actor.has_location or not actor.location.is_valid(Room):
                 raise self._err("You may only dig exits from within a room.")
 
         #: @type: L{Room}
         currentRoom = actor.location
-        room = self._getRoom(actor, args)
+        room = self._get_room(actor, args)
         if 'exitSpec' in args:
-            exit = self._getExit(actor, args['exitSpec'][0])
-            returnExit = self._getExit(actor, args['exitSpec'][1])
+            exit = self._get_exit(actor, args['exitSpec'][0])
+            returnExit = self._get_exit(actor, args['exitSpec'][1])
 
             if exit:
                 exit.source = currentRoom
                 exit.dest = room
-                currentRoom.addExit(exit)
+                currentRoom.add_exit(exit)
                 msg = ["{gExit ({m", exit, "{g) created from {c", exit.source,
                        "{g to {c", exit.dest, "{g."]
                 actor.msg(msg)
@@ -83,16 +83,16 @@ class DigCmd(Command):
             if returnExit:
                 returnExit.source = room
                 returnExit.dest = currentRoom
-                room.addExit(returnExit)
+                room.add_exit(returnExit)
                 msg = ["{gExit ({m", returnExit, "{g) created from {c",
                        returnExit.source, "{g to {c", returnExit.dest, "{g."]
                 actor.msg(msg)
 
         if self.switches['tel']:
             actor.msg(["{bTeleporting you to {c", room, "{b."])
-            actor.moveTo(room)
+            actor.move_to(room)
 
-    def _getRoom(self, actor, args):
+    def _get_room(self, actor, args):
         """
         @type actor: L{mudslingcore.objects.Character}
         @type args: C{dict}
@@ -103,7 +103,7 @@ class DigCmd(Command):
         """
         if 'room' in args:
             # Attempt match.
-            m = actor.matchObject(args['room'], cls=Room)
+            m = actor.match_object(args['room'], cls=Room)
             if len(m) > 1:
                 raise errors.AmbiguousMatch(query=args['room'], matches=m)
             elif len(m) == 1:
@@ -114,9 +114,9 @@ class DigCmd(Command):
             names = parsers.StringListStaticParser.parse(args['room'])
         else:
             names = args['newRoomNames']  # Already parsed.
-        return self._createRoom(actor, names)
+        return self._create_room(actor, names)
 
-    def _createRoom(self, actor, names):
+    def _create_room(self, actor, names):
         """
         Create and return a room.
 
@@ -127,7 +127,7 @@ class DigCmd(Command):
 
         @rtype: L{mudsling.topography.Room}
         """
-        roomClass = actor.getObjSetting('building.room_class')
+        roomClass = actor.get_obj_setting('building.room_class')
         if roomClass is not None and issubclass(roomClass, Room):
             room = roomClass.create(names=names, owner=actor)
             actor.msg(["{gCreated {c", room, "{g."])
@@ -135,7 +135,7 @@ class DigCmd(Command):
             raise self._err("Invalid building.room_class: %r" % roomClass)
         return room
 
-    def _getExit(self, actor, names):
+    def _get_exit(self, actor, names):
         """
         Create an exit or return None.
 
@@ -147,7 +147,7 @@ class DigCmd(Command):
         @rtype: L{mudslingcore.topography.Exit}
         """
         if isinstance(names, list):
-            exitClass = actor.getObjSetting('building.exit_class')
+            exitClass = actor.get_obj_setting('building.exit_class')
             if exitClass is not None and issubclass(exitClass, Exit):
                 exit = exitClass.create(names=names, owner=actor)
             else:
@@ -186,9 +186,9 @@ class UndigCmd(Command):
         """
         #: @type: Room
         room = actor.location
-        if not self.game.db.isValid(room, Room):
+        if not self.game.db.is_valid(room, Room):
             raise errors.CommandError("You must be in a room.")
-        exits = room.matchExits(args['exit'])
+        exits = room.match_exits(args['exit'])
         if len(exits) > 1:
             msg = "%r can match multiple exits: %s"
             msg = msg % (args['exit'], utils.string.english_list(exits))
@@ -204,13 +204,13 @@ class UndigCmd(Command):
         dest = exit.dest
         msg = actor._format_msg(["{gExit {c", exit,
                                  "{g has been {rdeleted{g."])
-        room.removeExit(exit)
+        room.remove_exit(exit)
         actor.msg(msg)
-        if self.switches['both'] and self.game.db.isValid(dest, Room):
-            others = dest.filterExits(lambda e: e.dest == room)
+        if self.switches['both'] and self.game.db.is_valid(dest, Room):
+            others = dest.filter_exits(lambda e: e.dest == room)
             names = utils.string.english_list(
-                ['{c' + actor.nameFor(x) + '{g' for x in others]
+                ['{c' + actor.name_for(x) + '{g' for x in others]
             )
             for o in others:
-                dest.removeExit(o)
+                dest.remove_exit(o)
             actor.tell("{gExits {rdeleted{g from {m", dest, "{g: ", names)

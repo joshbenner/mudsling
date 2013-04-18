@@ -62,14 +62,14 @@ class LoginScreenPlugin(MUDSlingPlugin):
     of connecting a 'bare' session with an object.
     """
 
-    def sessionConnected(self, session):
+    def session_connected(self, session):
         """
         Called when a new session is connected.
         @param session: The session that has connected.
         @type session: mudsling.sessions.Session
         """
 
-    def processInput(self, session, input):
+    def process_input(self, session, input):
         """
         Called when a command is entered by the session.
 
@@ -97,7 +97,30 @@ class GamePlugin(MUDSlingPlugin):
         self.pluginpath = os.path.dirname(self.info.path)
         sys.path.append(self.pluginpath)
 
-    def patternPaths(self):
+    def server_startup(self):
+        """
+        This hook is invoked as the last step during server startup, after
+        everything is loaded and otherwise ready to go.
+        """
+
+    def server_shutdown(self, reload):
+        """
+        This hook is invoked as the first step in the shutdown process.
+
+        @param reload: If True, the server intends to reload.
+        """
+
+    def object_classes(self):
+        """
+        This hook is called during startup, when MUDSling asks each GamePlugin
+        to inform it of object classes the plugin provides which can be
+        instantiated via tools like @create.
+
+        @return: (pretty name, class) pairs
+        @rtype: list
+        """
+
+    def pattern_paths(self):
         """
         Define the paths where MUDSling can find pattern files provided by this
         plugin. Default implementation looks for "patterns" directory within
@@ -110,7 +133,25 @@ class GamePlugin(MUDSlingPlugin):
             return [path]
         return []
 
-    def hook_helpPaths(self):
+    def lock_functions(self):
+        """
+        This hook is called to get a list of functions that can be used in
+        lock strings.
+
+        @return: Map of function name to the function to run.
+        @rtype: C{dict}
+        """
+        return {}
+
+    def init_database(self, db):
+        """
+        This hook is called when performing initial setup of a database, giving
+        GamePlugin instances the opportunity to perform setup of their own.
+
+        @param db: The database being setup.
+        """
+
+    def help_paths(self):
         """
         Define the paths where MUDSling can find help files provided by this
         plugin. Default implementation looks for "help" directory within the
@@ -150,7 +191,7 @@ class PluginManager(yapsy.PluginManager.PluginManager):
         """
         super(PluginManager, self).__init__(
             plugin_info_ext=MUDSlingPluginInfo.PLUGIN_INFO_EXTENSION,
-            directories_list=self.pluginPaths(game_dir),
+            directories_list=self.plugin_paths(game_dir),
             categories_filter=self.PLUGIN_CATEGORIES
         )
         self.setPluginInfoClass(MUDSlingPluginInfo)
@@ -188,10 +229,10 @@ class PluginManager(yapsy.PluginManager.PluginManager):
                     info.plugin_object.options = config[info.machine_name]
             self.activatePluginByName(info.name, info.category)
 
-    def pluginPaths(self, game_dir):
+    def plugin_paths(self, game_dir):
         return ['mudsling/plugins', "%s/plugins" % game_dir]
 
-    def activePlugins(self, category=None):
+    def active_plugins(self, category=None):
         if category is None:
             all = self.getAllPlugins()
         else:
@@ -199,7 +240,7 @@ class PluginManager(yapsy.PluginManager.PluginManager):
 
         return [info for info in all if info.is_activated]
 
-    def getPluginByMachineName(self, name, category=None):
+    def get_plugins_by_machine_name(self, name, category=None):
         """
         Retrieve an active plugin using its machine name.
 
@@ -208,12 +249,12 @@ class PluginManager(yapsy.PluginManager.PluginManager):
 
         @return: MUDSlingPlugin
         """
-        for info in self.activePlugins(category):
+        for info in self.active_plugins(category):
             if info.machine_name == name:
                 return info
         return None
 
-    def invokeHook(self, category, hook, *args, **kwargs):
+    def invoke_hook(self, category, hook, *args, **kwargs):
         """
         Invoke an arbitrary hook on all activated plugins of a category.
 
@@ -225,7 +266,7 @@ class PluginManager(yapsy.PluginManager.PluginManager):
         @rtype: dict
         """
         result = {}
-        for info in self.activePlugins(category):
+        for info in self.active_plugins(category):
             plugin = info.plugin_object
             try:
                 func = getattr(plugin, hook)

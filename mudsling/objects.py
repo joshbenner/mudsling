@@ -28,11 +28,11 @@ class LockableObject(StoredObject):
     @cvar createLock: The lock that must be satisfied to create an instance.
 
     @ivar locks: The general lockset provided by the instance. Class values may
-        be scanned by self.getLock().
+        be scanned by self.get_lock().
     """
 
     #: @type: locks.Lock
-    createLock = locks.NonePass
+    create_lock = locks.none_pass
 
     #: @type: locks.LockSet
     locks = locks.LockSet()
@@ -57,10 +57,10 @@ class LockableObject(StoredObject):
         """
         if who.player is not None and who.player.superuser:
             return True
-        return (self.getLock(op).eval(self, who)
-                or self.getLock('control').eval(self, who))
+        return (self.get_lock(op).eval(self, who)
+                or self.get_lock('control').eval(self, who))
 
-    def getLock(self, lockType):
+    def get_lock(self, lockType):
         """
         Look for lock on object. If it's not there, ascend the object's MRO
         looking for a default.
@@ -73,13 +73,13 @@ class LockableObject(StoredObject):
         @rtype: L{mudsling.locks.Lock}
         """
         if (isinstance(self.locks, locks.LockSet)
-                and self.locks.hasType(lockType)):
-            return self.locks.getLock(lockType)
-        for cls in utils.object.ascendMro(self):
+                and self.locks.has_type(lockType)):
+            return self.locks.get_lock(lockType)
+        for cls in utils.object.ascend_mro(self):
             if (hasattr(cls, "locks") and isinstance(cls.locks, locks.LockSet)
-                    and cls.locks.hasType(lockType)):
-                return cls.locks.getLock(lockType)
-        return locks.NonePass
+                    and cls.locks.has_type(lockType)):
+                return cls.locks.get_lock(lockType)
+        return locks.none_pass
 
 
 class NamedObject(LockableObject):
@@ -93,8 +93,8 @@ class NamedObject(LockableObject):
 
     def __init__(self, **kwargs):
         super(NamedObject, self).__init__(**kwargs)
-        clsName = self.className()
-        self.setNames(kwargs.get('names', ("New " + clsName, clsName)))
+        clsName = self.class_name()
+        self.set_names(kwargs.get('names', ("New " + clsName, clsName)))
 
     def __str__(self):
         return self.name
@@ -120,9 +120,9 @@ class NamedObject(LockableObject):
         Return the object's name and database ID.
         @rtype: str
         """
-        return "%s (#%d)" % (self.name, self.objId)
+        return "%s (#%d)" % (self.name, self.obj_id)
 
-    def _setNames(self, name=None, aliases=None, names=None):
+    def _set_names(self, name=None, aliases=None, names=None):
         """
         Low-level method for maintaining the object's names. Should only be
         called by setName or setAliases.
@@ -155,7 +155,7 @@ class NamedObject(LockableObject):
             self._names = newNames
         return oldNames
 
-    def setName(self, name):
+    def set_name(self, name):
         """
         Canonical method for changing the object's name. Children can override
         to attach other logic/actions to name changes.
@@ -163,10 +163,10 @@ class NamedObject(LockableObject):
         @param name: The new name.
         @return: The old name.
         """
-        oldNames = self._setNames(name=name)
+        oldNames = self._set_names(name=name)
         return oldNames[0] if oldNames else None
 
-    def setAliases(self, aliases):
+    def set_aliases(self, aliases):
         """
         Canonical method fo changing the object's aliases. Children can
         override to attach other logic/actions to alias changes.
@@ -175,9 +175,9 @@ class NamedObject(LockableObject):
         @type aliases: C{list} or C{tuple}
         @return: The old aliases.
         """
-        return self._setNames(aliases=aliases)[1:]
+        return self._set_names(aliases=aliases)[1:]
 
-    def setNames(self, names):
+    def set_names(self, names):
         """
         Sets name and aliases is one shot, using a single list or tuple where
         the first element is the name, and the other elements are the aliases.
@@ -186,11 +186,11 @@ class NamedObject(LockableObject):
         @return: Old names.
         """
         oldNames = self.names
-        self.setName(names[0])
-        self.setAliases(names[1:])
+        self.set_name(names[0])
+        self.set_aliases(names[1:])
         return oldNames
 
-    def namesFor(self, obj):
+    def names_for(self, obj):
         """
         Returns a list of names representing the passed object as known by
         self. Default implementation is to just return all aliases.
@@ -204,7 +204,7 @@ class NamedObject(LockableObject):
         except (TypeError, AttributeError):
             return []
 
-    def nameFor(self, obj):
+    def name_for(self, obj):
         """
         Returns a string representation of the given object as known by self.
 
@@ -214,7 +214,7 @@ class NamedObject(LockableObject):
         @return: String name of passed object as known by this object.
         @rtype: C{str}
         """
-        return (self.namesFor(obj) or ["UNKNOWN"])[0]
+        return (self.names_for(obj) or ["UNKNOWN"])[0]
 
 
 class PossessableObject(NamedObject):
@@ -245,16 +245,16 @@ class PossessableObject(NamedObject):
             return self.possessed_by.player
         return None
 
-    def possessableBy(self, player):
+    def is_possessable_by(self, player):
         """
         Returns True if the player can possess this object.
         @param player: The player.
         @return: bool
         """
         return (player in self.possessable_by
-                or player.hasPerm("possess anything"))
+                or player.has_perm("possess anything"))
 
-    def possessBy(self, player):
+    def become_possessed(self, player):
         """
         Become possessed by a player.
         @param player: The player possessing this object.
@@ -262,9 +262,9 @@ class PossessableObject(NamedObject):
         """
         # TODO: Refactor this into a property?
         if self.possessed_by is not None:
-            self.possessed_by.dispossessObject(self.ref())
+            self.possessed_by.dispossess_object(self.ref())
         self.possessed_by = player
-        self.onPossessed(player)
+        self.on_possessed(player)
 
     def dispossessed(self):
         """
@@ -273,27 +273,27 @@ class PossessableObject(NamedObject):
         previous = self.possessed_by
         del self.possessed_by
         if previous is not None:
-            self.onDispossessed(previous)
+            self.on_dispossessed(previous)
 
-    def onPossessed(self, player):
+    def on_possessed(self, player):
         """
         Event hook called when this object has been possessed by a BasePlayer.
         @param player: BasePlayer which has possessed the object.
         @type player: BasePlayer
         """
 
-    def onDispossessed(self, player):
+    def on_dispossessed(self, player):
         """
         Event hook called when this object has been dispossessed by a player.
         @param player: The player that previously possessed this object.
         @type player: BasePlayer
         """
 
-    def hasPerm(self, perm):
+    def has_perm(self, perm):
         """
         Returns True if the player possessing this object has the passed perm.
         """
-        return self.player.hasPerm(perm) if self.player is not None else False
+        return self.player.has_perm(perm) if self.player is not None else False
 
     def tell(self, *parts):
         """
@@ -333,18 +333,18 @@ class PossessableObject(NamedObject):
             return parts
         parts = list(parts)
         for i, part in enumerate(parts):
-            if self.db.isValid(part, StoredObject):
+            if self.db.is_valid(part, StoredObject):
                 # Other children of StoredObject might be compatible with the
                 # nameFor method? Shows "UNKNOWN" if not.
-                parts[i] = self.nameFor(part)
+                parts[i] = self.name_for(part)
         return ''.join(map(str, parts))
 
-    def objectDeleted(self):
+    def object_deleted(self):
         if self.possessed_by is not None:
-            self.possessed_by.dispossessObject(self.ref())
-        super(PossessableObject, self).objectDeleted()
+            self.possessed_by.dispossess_object(self.ref())
+        super(PossessableObject, self).object_deleted()
 
-    def nameFor(self, obj):
+    def name_for(self, obj):
         """
         Return the name for normal users, or the name and ObjID for privileged
         players possessing this object.
@@ -355,10 +355,10 @@ class PossessableObject(NamedObject):
         @return: String name of passed object as known by this object.
         @rtype: C{str}
         """
-        name = super(PossessableObject, self).nameFor(obj)
+        name = super(PossessableObject, self).name_for(obj)
         try:
-            if self.player.hasPerm("see object numbers"):
-                name += " (#%d)" % obj.objId
+            if self.player.has_perm("see object numbers"):
+                name += " (#%d)" % obj.obj_id
         finally:
             return name
 
@@ -379,7 +379,7 @@ class BaseObject(PossessableObject):
     zope.interface.implements(IInputProcessor, IHasMessages, IHasCommands)
 
     # commands should never be set on instance, but... just in case.
-    _transientVars = ['possessed_by', 'commands', 'object_settings']
+    _transient_vars = ['possessed_by', 'commands', 'object_settings']
 
     #: @type: StoredObject or ObjRef
     owner = None
@@ -400,7 +400,7 @@ class BaseObject(PossessableObject):
         super(BaseObject, self).__init__(**kwargs)
         self.owner = kwargs.get('owner', None)
 
-    def getMessage(self, key, **keywords):
+    def get_message(self, key, **keywords):
         """
         Return a formatted Message template. Look on self's instance first,
         then ascend the MRO looking for a class providing the requested
@@ -408,13 +408,13 @@ class BaseObject(PossessableObject):
 
         Implemented as part of L{IHasMessages}.
         """
-        msg = self.messages.getMessage(key, **keywords)
+        msg = self.messages.get_message(key, **keywords)
         if msg is not None:
             return msg
 
-        for cls in utils.object.ascendMro(self):
+        for cls in utils.object.ascend_mro(self):
             if IHasMessages.implementedBy(cls):
-                msg = cls.messages.getMessage(key, **keywords)
+                msg = cls.messages.get_message(key, **keywords)
                 return msg
 
         return None
@@ -425,10 +425,10 @@ class BaseObject(PossessableObject):
         instead of just pulling aliases, it pulls namesFor().
         @rtype: list
         """
-        strings = dict(zip(objlist, map(lambda o: self.namesFor(o), objlist)))
-        return match_stringlists(search, strings, exactOnly=exactOnly, err=err)
+        strings = dict(zip(objlist, map(lambda o: self.names_for(o), objlist)))
+        return match_stringlists(search, strings, exact=exactOnly, err=err)
 
-    def matchObject(self, search, cls=None, err=False):
+    def match_object(self, search, cls=None, err=False):
         """
         A general object match for this object. Uses .namesFor() values in the
         match rather than direct aliases.
@@ -443,19 +443,19 @@ class BaseObject(PossessableObject):
         """
         candidate = None
         if search[0] == '#' and re.match(r"#\d+", search):
-            candidate = self.game.db.getRef(int(search[1:]))
+            candidate = self.game.db.get_ref(int(search[1:]))
         if search.lower() == 'me':
             candidate = self.ref()
 
         if (candidate is not None
-                and utils.object.filterByClass([candidate], cls)):
+                and utils.object.filter_by_class([candidate], cls)):
             return [candidate]
 
         return self._match(search,
-                           utils.object.filterByClass([self.ref()], cls),
+                           utils.object.filter_by_class([self.ref()], cls),
                            err=err)
 
-    def matchObjectOfType(self, search, cls=None):
+    def match_obj_of_type(self, search, cls=None):
         """
         Match against all objects of a given class. Uses aliases, NOT namesFor.
 
@@ -467,7 +467,7 @@ class BaseObject(PossessableObject):
         cls = cls or BaseObject
         return match_objlist(search, self.game.db.descendants(cls))
 
-    def processInput(self, raw, err=True):
+    def process_input(self, raw, err=True):
         """
         Parses raw input as a command from this object and executes the first
         matching command it can find.
@@ -478,7 +478,7 @@ class BaseObject(PossessableObject):
         Implemented as part of L{IInputProcessor}.
         """
         try:
-            cmd = self.findCommand(raw)
+            cmd = self.find_command(raw)
         except errors.CommandError as e:
             self.msg(e.message)
             return True
@@ -489,7 +489,7 @@ class BaseObject(PossessableObject):
             raise errors.CommandInvalid(raw)
         return False
 
-    def findCommand(self, raw):
+    def find_command(self, raw):
         """
         Resolve the command to execute.
 
@@ -497,18 +497,18 @@ class BaseObject(PossessableObject):
         @return: An instantiated, ready-to-run command.
         @rtype: mudsling.commands.Command or None
         """
-        cmd = self.preemptiveCommandMatch(raw)
+        cmd = self.preemptive_command_match(raw)
         if cmd is not None:
             return cmd
         cmdstr, sep, argstr = raw.partition(' ')
-        candidates = self.matchCommand(cmdstr)
+        candidates = self.match_command(cmdstr)
         if not candidates:
             return None
         cmdMatches = []
         nameOnly = []
         for obj, cmdcls in candidates:
             cmd = cmdcls(raw, cmdstr, argstr, self.game, obj.ref(), self.ref())
-            if cmd.matchSyntax(argstr):
+            if cmd.match_syntax(argstr):
                 cmdMatches.append(cmd)
             else:
                 nameOnly.append(cmd)
@@ -522,15 +522,15 @@ class BaseObject(PossessableObject):
                 # should ideally only involve one command offering some help,
                 # so we raise with the first one that wants to help.
                 for cmd in nameOnly:
-                    msg = cmd.failedCommandMatchHelp()
+                    msg = cmd.failed_command_match_help()
                     if msg:
                         raise errors.CommandError(msg=msg)
             else:
-                return self.handleUnmatchedInput(raw) or None
+                return self.handle_unmatched_input(raw) or None
         else:  # Single good match.
             return cmdMatches[0]
 
-    def matchCommand(self, cmdName):
+    def match_command(self, cmdName):
         """
         Match a command based on name (and access).
 
@@ -542,12 +542,12 @@ class BaseObject(PossessableObject):
         """
         commands = []
         for obj in self.context:
-            for cmdcls in obj.commandsFor(self):
-                if cmdcls.matches(cmdName) and cmdcls.checkAccess(obj, self):
+            for cmdcls in obj.commands_for(self):
+                if cmdcls.matches(cmdName) and cmdcls.check_access(obj, self):
                     commands.append((obj, cmdcls))
         return commands
 
-    def commandsFor(self, actor):
+    def commands_for(self, actor):
         """
         Return a list of commands made available by this object to the actor.
 
@@ -570,14 +570,14 @@ class BaseObject(PossessableObject):
             return cls._commandCache[attr]
 
         commands = []
-        for objClass in utils.object.ascendMro(cls):
+        for objClass in utils.object.ascend_mro(cls):
             if IHasCommands.implementedBy(objClass):
                 commands.extend(getattr(objClass, attr))
 
         cls._commandCache[attr] = commands
         return commands
 
-    def preemptiveCommandMatch(self, raw):
+    def preemptive_command_match(self, raw):
         """
         The object may preemptively do its own command matching (or raw data
         massaging). If this returns None, normal command matching occurs. If it
@@ -593,7 +593,7 @@ class BaseObject(PossessableObject):
         """
         return None
 
-    def handleUnmatchedInput(self, raw):
+    def handle_unmatched_input(self, raw):
         """
         Lets an object attempt to do its own parsing on command raw that was
         not handled by normal command matching.
@@ -609,12 +609,12 @@ class BaseObject(PossessableObject):
     @property
     def context(self):
         """
-        The same as self._getContext(), but with duplicates removed.
+        The same as self._get_context(), but with duplicates removed.
         @return:
         """
-        return utils.sequence.unique(self._getContext())
+        return utils.sequence.unique(self._get_context())
 
-    def _getContext(self):
+    def _get_context(self):
         """
         Return a list of objects which will be checked, in order, for commands
         or object matches when parsing command arguments.
@@ -661,18 +661,18 @@ class Object(BaseObject):
         for o in self._contents:
             yield o
 
-    def objectDeleted(self):
+    def object_deleted(self):
         """
         Move self out of location and move contents out of self.
         """
-        super(Object, self).objectDeleted()
-        self.moveTo(None)
+        super(Object, self).object_deleted()
+        self.move_to(None)
         this = self.ref()
         for o in list(self.contents):
             if o.location == this:
-                o.moveTo(None)
+                o.move_to(None)
 
-    def matchObject(self, search, cls=None, err=False):
+    def match_object(self, search, cls=None, err=False):
         """
         @type search: str
         @rtype: list
@@ -680,19 +680,19 @@ class Object(BaseObject):
         # Any match in parent bypasses further matching. This means, in theory,
         # that if parent matched something, something else that could match in
         # contents or location will not match. Fortunately, all we match in
-        # L{BaseObject.matchObject} is object literals and self, so this sould
+        # L{BaseObject.match_object} is object literals and self, so this sould
         # not really be an issue.
-        matches = super(Object, self).matchObject(search, cls=cls)
+        matches = super(Object, self).match_object(search, cls=cls)
         if not matches:
             if search.lower() == 'here' and self.location is not None:
-                if utils.object.filterByClass([self.location], cls):
+                if utils.object.filter_by_class([self.location], cls):
                     return [self.location]
 
             objects = list(self.contents)  # Copy is important!
-            if self.hasLocation:
+            if self.has_location:
                 objects.extend(self.location.contents)
             matches = self._match(search,
-                                  utils.object.filterByClass(objects, cls),
+                                  utils.object.filter_by_class(objects, cls),
                                   err=err)
 
         if err and len(matches) > 1:
@@ -701,19 +701,19 @@ class Object(BaseObject):
         return matches
 
     @property
-    def hasLocation(self):
+    def has_location(self):
         """
         Returns true if the object is located somewhere valid.
         @rtype: bool
         """
-        return self.location is not None and self.location.isValid(Object)
+        return self.location is not None and self.location.is_valid(Object)
 
-    def _getContext(self):
+    def _get_context(self):
         """
         Add the object's location after self.
         @rtype: list
         """
-        hosts = super(Object, self)._getContext()
+        hosts = super(Object, self)._get_context()
         if self.location is not None:
             hosts.append(self.location)
         if isinstance(self.contents, list):
@@ -724,24 +724,24 @@ class Object(BaseObject):
 
         return hosts
 
-    def handleUnmatchedInput(self, raw):
+    def handle_unmatched_input(self, raw):
         # Let location offer commands at this stage, too.
-        cmd = super(Object, self).handleUnmatchedInput(raw)
+        cmd = super(Object, self).handle_unmatched_input(raw)
         if not cmd:
-            if self.hasLocation:
+            if self.has_location:
                 try:
-                    cmd = self.location.handleUnmatchedInputFor(self, raw)
+                    cmd = self.location.handle_unmatched_input_for(self, raw)
                 except AttributeError:
                     cmd = None
         return cmd
 
-    def handleUnmatchedInputFor(self, actor, raw):
+    def handle_unmatched_input_for(self, actor, raw):
         """
         Object may ask its container for last-try command matching.
         """
         return None
 
-    def contentRemoved(self, what, destination):
+    def content_removed(self, what, destination):
         """
         Called if an object was removed from this object.
 
@@ -752,7 +752,7 @@ class Object(BaseObject):
         @type destination: Object
         """
 
-    def contentAdded(self, what, previous_location):
+    def content_added(self, what, previous_location):
         """
         Called when an object is added to this object's contents.
 
@@ -763,7 +763,7 @@ class Object(BaseObject):
         @type previous_location: Object
         """
 
-    def objectMoved(self, moved_from, moved_to):
+    def object_moved(self, moved_from, moved_to):
         """
         Called when this object was moved.
 
@@ -774,7 +774,7 @@ class Object(BaseObject):
         @type moved_to: Object
         """
 
-    def moveTo(self, dest):
+    def move_to(self, dest):
         """
         Move the object to a new location. Updates contents on source and
         destination, and fires corresponding hooks on all involved.
@@ -788,40 +788,40 @@ class Object(BaseObject):
         me = self.ref()
         dest = dest.ref() if dest is not None else None
 
-        if not me.isValid():
+        if not me.is_valid():
             raise errors.InvalidObject(me)
 
         # We allow moving to None
         if dest is not None:
-            if not dest.isValid(Object):
+            if not dest.is_valid(Object):
                 raise errors.InvalidObject(dest, "Destination invalid")
 
         previous_location = self.location
-        if self.game.db.isValid(self.location, Object):
+        if self.game.db.is_valid(self.location, Object):
             if me in self.location._contents:
                 self.location._contents.remove(me)
 
         self._location = dest
 
-        if self.game.db.isValid(dest, Object):
+        if self.game.db.is_valid(dest, Object):
             if me not in dest._contents:
                 dest._contents.append(me)
 
         # Now fire event hooks on the two locations and the moved object.
-        if self.game.db.isValid(previous_location, Object):
-            previous_location.contentRemoved(me, dest)
-        if self.game.db.isValid(dest, Object):
-            dest.contentAdded(me, previous_location)
+        if self.game.db.is_valid(previous_location, Object):
+            previous_location.content_removed(me, dest)
+        if self.game.db.is_valid(dest, Object):
+            dest.content_added(me, previous_location)
 
-        self.objectMoved(previous_location, dest)
+        self.object_moved(previous_location, dest)
 
-    def locations(self, excludeInvalid=True):
+    def locations(self, exclude_invalid=True):
         """
         Get a list of all the nested locations where this object resides. Child
         classes should be very reluctant to override this. Unexpected return
         results may yield unexpected behaviors.
 
-        @param excludeInvalid: If true, does not consider an invalid ObjRef to
+        @param exclude_invalid: If true, does not consider an invalid ObjRef to
             be a valid location, and will not include it in the list.
 
         @return: List of nested locations, from deepest to shallowest.
@@ -829,9 +829,9 @@ class Object(BaseObject):
         """
         locations = []
         if (isinstance(self.location, ObjRef)
-                and (self.location.isValid() or not excludeInvalid)):
+                and (self.location.is_valid() or not exclude_invalid)):
             locations.append(self.location)
-            if self.location.isValid(Object):
+            if self.location.is_valid(Object):
                 locations.extend(self.location.locations())
         return locations
 
@@ -840,16 +840,16 @@ class Object(BaseObject):
         Emit a message to the object's location, optionally excluding some
         objects.
 
-        @see: L{Object.msgContents}
+        @see: L{Object.msg_contents}
         @rtype: C{list}
         """
         if location is None:
             location = self.location
-        if location is None or not location.isValid(Object):
+        if location is None or not location.is_valid(Object):
             return []
-        return location.msgContents(msg, exclude=exclude)
+        return location.msg_contents(msg, exclude=exclude)
 
-    def emitMessage(self, key, exclude=None, location=None, **keywords):
+    def emit_message(self, key, exclude=None, location=None, **keywords):
         """
         Emit a message template to object's location.
 
@@ -860,15 +860,15 @@ class Object(BaseObject):
         @rtype: C{list}
         """
         keywords['this'] = self.ref()
-        msg = self.getMessage(key, **keywords)
+        msg = self.get_message(key, **keywords)
         return self.emit(msg, exclude=exclude, location=location)
 
-    def msgContents(self, msg, exclude=None):
+    def msg_contents(self, msg, exclude=None):
         """
         Send a message to the contents of this object.
 
         @param msg: The message to send. This can be a string, dynamic message
-            list, or a dict from L{MessagedObject.getMessage}.
+            list, or a dict from L{MessagedObject.get_message}.
         @type msg: C{str} or C{dict} or C{list}
 
         @param exclude: List of objects to exclude from receiving the message.
@@ -897,7 +897,7 @@ class Object(BaseObject):
 
         receivers = []
         for o in self.contents:
-            if o in exclude or not o.isValid(Object):
+            if o in exclude or not o.is_valid(Object):
                 continue
             o.msg(_msg(o))
             receivers.append(o)
@@ -921,7 +921,7 @@ class BasePlayer(BaseObject):
     @ivar __roles: The set of roles granted to this player.
     """
 
-    _transientVars = ['session', 'possessing']
+    _transient_vars = ['session', 'possessing']
     session = None
 
     #: @type: Password
@@ -943,26 +943,26 @@ class BasePlayer(BaseObject):
 
     __roles = set()
 
-    _validNameRE = re.compile(r"[-_a-zA-Z0-9']+")
+    _valid_name_re = re.compile(r"[-_a-zA-Z0-9']+")
 
     def __init__(self, **kwargs):
         super(BasePlayer, self).__init__(**kwargs)
         self.email = kwargs.get('email', '')
         password = kwargs.get('password', None)
         if not password:
-            password = utils.password.Password(utils.string.randomString(10))
+            password = utils.password.Password(utils.string.random_string(10))
         if isinstance(password, basestring):
             password = utils.password.Password(password)
         if isinstance(password, utils.password.Password):
             self.password = password
 
     @classmethod
-    def validPlayerName(cls, name):
+    def valid_player_name(cls, name):
         """
         Validate the given player name.
         @rtype: C{bool}
         """
-        return True if cls._validNameRE.match(name) else False
+        return True if cls._valid_name_re.match(name) else False
 
     @classmethod
     def create(cls, **kwargs):
@@ -986,12 +986,12 @@ class BasePlayer(BaseObject):
 
         claimed = []
         for n in names:
-            if not cls.validPlayerName(n):
+            if not cls.valid_player_name(n):
                 m = "%r is not a valid player name. " % n
                 m += "Player names may contain "
                 m += "letters, numbers, apostrophes, hyphens, and underscores."
                 raise errors.InvalidPlayerName(m)
-            if registry.players.findByName(n):
+            if registry.players.find_by_name(n):
                 claimed.append(n)
         if claimed:
             t = utils.string.english_list(claimed)
@@ -999,13 +999,13 @@ class BasePlayer(BaseObject):
             raise errors.DuplicatePlayerName(m)
 
         email = kwargs.get('email', '')
-        if email and not utils.internet.validEmail(email):
+        if email and not utils.internet.valid_email(email):
             m = "%r is not a valid email address." % email
             raise errors.InvalidEmail(m)
         # Default is to allow players to have duplicate emails.
 
         player = super(BasePlayer, cls).create(**kwargs)
-        registry.players.registerPlayer(player)
+        registry.players.register_player(player)
 
         if kwargs.get('makeChar', False):
             try:
@@ -1015,17 +1015,17 @@ class BasePlayer(BaseObject):
                 raise
             else:
                 player.default_object = char
-                room = cls.db.getSetting('player start')
-                if cls.db.isValid(room, Object):
-                    char.moveTo(room)
+                room = cls.db.get_setting('player start')
+                if cls.db.is_valid(room, Object):
+                    char.move_to(room)
 
         return player
 
-    def objectDeleted(self):
-        registry.players.unregisterPlayer(self)
-        super(BasePlayer, self).objectDeleted()
+    def object_deleted(self):
+        registry.players.unregister_player(self)
+        super(BasePlayer, self).object_deleted()
 
-    def _setNames(self, name=None, aliases=None, names=None):
+    def _set_names(self, name=None, aliases=None, names=None):
         """
         Players get special name handling. Specifically, they are registered
         with the player registry and cannot be duplicated.
@@ -1043,11 +1043,11 @@ class BasePlayer(BaseObject):
             if aliases is not None:
                 newNames[1:] = aliases
         for n in newNames:
-            match = registry.players.findByName(n)
+            match = registry.players.find_by_name(n)
             if match and match != self:
                 raise errors.DuplicatePlayerName("%s already in use" % name)
-        r = super(BasePlayer, self)._setNames(name, aliases, names)
-        registry.players.reregisterPlayer(self)
+        r = super(BasePlayer, self)._set_names(name, aliases, names)
+        registry.players.reregister_player(self)
         return r
 
     @property
@@ -1057,7 +1057,7 @@ class BasePlayer(BaseObject):
     @email.setter
     def email(self, val):
         self._email = val
-        registry.players.reregisterPlayer(self)
+        registry.players.reregister_player(self)
 
     @property
     def connected(self):
@@ -1076,14 +1076,14 @@ class BasePlayer(BaseObject):
         return self.ref()
 
     @property
-    def isPosessing(self):
+    def is_possessing(self):
         """
         @rtype: bool
         @return: Whether or not player is possessing an object.
         """
         return self.possessing is not None
 
-    def setPassword(self, password):
+    def set_password(self, password):
         self.password = utils.password.Password(password)
 
     def authenticate(self, password, session=None):
@@ -1092,21 +1092,21 @@ class BasePlayer(BaseObject):
         but can also be used to authenticate (IP/host auth, etc).
         """
         if isinstance(self.password, utils.password.Password):
-            return self.password.matchesPassword(password)
+            return self.password.matches_password(password)
         raise TypeError("Password not set.")
 
-    def sessionAttached(self, session):
+    def session_attached(self, session):
         if self.session is not None:
-            # This should result in self.sessionDetached() being called
+            # This should result in self.session_detached() being called
             # which will free up self.session
             self.session.disconnect("Player taken over by another connection")
         else:
             # This is a new connection as opposed to a reconnect. Attach to an
             # object.
             if self.possessing is None and self.default_object is not None:
-                if (self.game.db.isValid(self.default_object, BaseObject)
+                if (self.game.db.is_valid(self.default_object, BaseObject)
                         and self.default_object.possessed_by is None):
-                    self.possessObject(self.default_object)
+                    self.possess_object(self.default_object)
             # TODO: Player is connecting. Should we tell someone?
             pass
         self.session = session
@@ -1115,7 +1115,7 @@ class BasePlayer(BaseObject):
         if self.possessing is None:
             self.msg("{rYou are not attached to any game object!")
 
-    def sessionDetached(self, session):
+    def session_detached(self, session):
         """
         Called by a session that thinks it is connected to this player upon
         disconnect.
@@ -1123,18 +1123,18 @@ class BasePlayer(BaseObject):
         if self.session == session:
             del self.session
 
-    def redirectInput(self, where):
+    def redirect_input(self, where):
         if self.connected:
-            self.session.redirectInput(where)
+            self.session.redirect_input(where)
         else:
             raise errors.PlayerNotConnected("Cannot redirect input of a "
                                             "disconnected player.")
 
-    def resetInput(self):
+    def reset_input(self):
         if self.connected:
-            self.session.resetInputCapture()
+            self.session.reset_input_capture()
 
-    def readLine(self, callback, args=()):
+    def read_line(self, callback, args=()):
         """
         Captures a single line of input from the player and pass it to the
         callback.
@@ -1144,18 +1144,18 @@ class BasePlayer(BaseObject):
         """
         def _callback(lines):
             return callback(lines[0], *args)
-        self.redirectInput(utils.input.LineReader(_callback, max_lines=1))
+        self.redirect_input(utils.input.LineReader(_callback, max_lines=1))
 
-    def readLines(self, callback, args=(), max_lines=None, end_tokens=None):
+    def read_lines(self, callback, args=(), max_lines=None, end_tokens=None):
         if end_tokens is None:
             end_tokens = ('.', '@end', '@abort')
-        self.redirectInput(utils.input.LineReader(callback, args=args,
-                                                  max_lines=max_lines,
-                                                  end_tokens=end_tokens))
+        self.redirect_input(utils.input.LineReader(callback, args=args,
+                                                   max_lines=max_lines,
+                                                   end_tokens=end_tokens))
 
     def prompt(self, callback, options, args=()):
         """
-        Slight improvement on readLine which specifies a list of options. Note
+        Slight improvement on read_line which specifies a list of options. Note
         that the options are case insensitive.
 
         @param options: Tuple of valid values. Can be strings or compiled regex
@@ -1179,9 +1179,9 @@ class BasePlayer(BaseObject):
             else:
                 return False
 
-        self.readLine(_callback)
+        self.read_line(_callback)
 
-    def promptCallbacks(self, options, invalidCallback=None):
+    def prompt_callbacks(self, options, invalidCallback=None):
         """
         Capture player input for a prompt, and call the callback corresponding
         to the option entered.
@@ -1212,21 +1212,21 @@ class BasePlayer(BaseObject):
                     return _do_callback(options[o])
             return invalidCallback(line)
 
-        self.readLine(_callback)
+        self.read_line(_callback)
 
-    def promptYesNo(self, prompt=None, yesCallback=None, noCallback=None,
-                    invalidCallback=None):
+    def prompt_yes_no(self, prompt=None, yes_callback=None, no_callback=None,
+                      invalid_callback=None):
         """
         Prompt user to enter 'yes' or 'no', then call the corresponding
         callback function.
 
         @param prompt: Text to prompt the user. Can pass False to suppress the
             default prompt.
-        @param yesCallback: The callback to call upon entering 'yes'.
-        @param noCallback: The callback to call upon entering 'no'.
-        @param invalidCallback: The callback to be called upon invalid input.
+        @param yes_callback: The callback to call upon entering 'yes'.
+        @param no_callback: The callback to call upon entering 'no'.
+        @param invalid_callback: The callback to be called upon invalid input.
         """
-        def showPrompt():
+        def __show_prompt():
             if prompt is not False:
                 p = ''
                 if isinstance(prompt, basestring):
@@ -1234,15 +1234,15 @@ class BasePlayer(BaseObject):
                 p += "{c[Enter '{gyes{c' or '{rno{c']"
                 self.msg(p)
 
-        if invalidCallback is None:
-            def invalidCallback(line):
+        if invalid_callback is None:
+            def invalid_callback(line):
                 self.msg("{rInvalid option.")
-                showPrompt()
+                __show_prompt()
                 return False
 
-        showPrompt()
-        self.promptCallbacks({'yes': yesCallback, 'no': noCallback},
-                             invalidCallback=invalidCallback)
+        __show_prompt()
+        self.prompt_callbacks({'yes': yes_callback, 'no': no_callback},
+                              invalidCallback=invalid_callback)
 
     def msg(self, text, flags=None):
         """
@@ -1254,50 +1254,50 @@ class BasePlayer(BaseObject):
         @type text: str
         """
         if self.session is not None and text is not None:
-            self.session.sendOutput(self._format_msg(text), flags=flags)
+            self.session.send_output(self._format_msg(text), flags=flags)
 
-    def possessObject(self, obj):
+    def possess_object(self, obj):
         """
         Possess an object.
         @param obj: The object to possess.
         @type obj: BaseObject
         """
         if self.possessing is not None:
-            self.dispossessObject(self.possessing)
-        obj.possessBy(self.ref())
+            self.dispossess_object(self.possessing)
+        obj.become_possessed(self.ref())
         if obj.possessed_by == self.ref():
             self.possessing = obj
-            self.msg("{gYou have attached to {c%s{g." % self.nameFor(obj))
-            self.onObjectPossessed(obj)
+            self.msg("{gYou have attached to {c%s{g." % self.name_for(obj))
+            self.on_object_possessed(obj)
 
-    def dispossessObject(self, obj):
+    def dispossess_object(self, obj):
         if self.possessing == obj:
             del self.possessing
-            self.msg("{yYou have detached from {c%s{y." % self.nameFor(obj))
+            self.msg("{yYou have detached from {c%s{y." % self.name_for(obj))
             obj.dispossessed()
-            self.onObjectDispossessed(obj)
+            self.on_object_dispossessed(obj)
 
-    def onObjectPossessed(self, obj):
+    def on_object_possessed(self, obj):
         """
         Event hook that fires right after BasePlayer has possessed an object.
         @param obj: The object that is now possessed by the player.
         @type obj: BaseObject
         """
 
-    def onObjectDispossessed(self, obj):
+    def on_object_dispossessed(self, obj):
         """
         Event hook that fires right after player has dispossessed an object.
         @param obj: The object that was previously possessed.
         @type obj: BaseObject
         """
 
-    def processInput(self, raw, err=True):
+    def process_input(self, raw, err=True):
         possessing = self.possessing is not None
         try:
-            handled = super(BasePlayer, self).processInput(raw,
-                                                           err=not possessing)
+            handled = super(BasePlayer, self).process_input(raw,
+                                                            err=not possessing)
             if not handled and possessing:
-                self.possessing.processInput(raw)
+                self.possessing.process_input(raw)
         except errors.CommandInvalid as e:
             self.msg("{r" + e.message)
         except errors.MatchError as e:
@@ -1309,36 +1309,36 @@ class BasePlayer(BaseObject):
             self.msg("{rAn error has occurred.")
             raise
 
-    def hasPerm(self, perm):
+    def has_perm(self, perm):
         """
         Checks if this object has the permission specified. An object has a
         perm if it has a role in which that permission can be found.
         """
         if self.superuser:
             return True
-        return len([role for role in self.__roles if role.hasPerm(perm)]) > 0
+        return len([role for role in self.__roles if role.has_perm(perm)]) > 0
 
-    def getRoles(self):
+    def get_roles(self):
         return set(self.__roles)
 
-    def hasRole(self, role):
+    def has_role(self, role):
         return role in self.__roles
 
-    def addRole(self, role):
+    def add_role(self, role):
         if 'roles' not in self.__dict__:
             self.__roles = set()
         if role not in self.__roles:
             self.__roles.add(role)
 
-    def removeRole(self, role):
+    def remove_role(self, role):
         if role in self.__roles:
             self.__roles.remove(role)
         if len(self.__roles) == 0:
             del self.__roles
 
-    def expungeRole(self, role):
-        if self.hasRole(role):
-            self.removeRole(role)
+    def expunge_role(self, role):
+        if self.has_role(role):
+            self.remove_role(role)
 
     @property
     def ansi(self):
@@ -1358,13 +1358,13 @@ class BasePlayer(BaseObject):
             else:
                 self.msg("ANSI DISABLED.")
 
-    def matchObjectOfType(self, search, cls=None):
+    def match_obj_of_type(self, search, cls=None):
         if inspect.isclass(cls) and issubclass(cls, BasePlayer):
             if search.lower() == 'me':
                 return [self.ref()]
-        return super(BasePlayer, self).matchObjectOfType(search, cls=cls)
+        return super(BasePlayer, self).match_obj_of_type(search, cls=cls)
 
-    def matchObject(self, search, cls=None, err=False):
+    def match_object(self, search, cls=None, err=False):
         """
         Matching on the player will also pass the match call through to the
         object the player is possessing.
@@ -1372,10 +1372,10 @@ class BasePlayer(BaseObject):
         Note that 'me' will match the possessed object if the player is
         possessing something, else it will match player object.
         """
-        matches = self.possessing.matchObject(search, cls=cls, err=False)
-        if not matches and self.isPosessing:
-            matches = super(BasePlayer, self).matchObject(search,
-                                                          cls=cls, err=err)
+        matches = self.possessing.match_object(search, cls=cls, err=False)
+        if not matches and self.is_possessing:
+            matches = super(BasePlayer, self).match_object(search,
+                                                           cls=cls, err=err)
 
         if err and len(matches) > 1:
             raise errors.AmbiguousMatch(matches=matches)
@@ -1391,7 +1391,7 @@ class BaseCharacter(Object):
     def __init__(self, **kwargs):
         super(BaseCharacter, self).__init__(**kwargs)
         player = kwargs.get('player', None)
-        if self.game.db.isValid(player, BasePlayer):
+        if self.game.db.is_valid(player, BasePlayer):
             self.possessable_by.append(player.ref())
             if 'names' not in kwargs:
-                self.setNames(player.names)
+                self.set_names(player.names)

@@ -33,7 +33,7 @@ class MakePlayerCmd(Command):
         @type args: C{dict}
         """
         playerClass = self.game.player_class
-        password = args['password'] or utils.string.randomString(10)
+        password = args['password'] or utils.string.random_string(10)
 
         try:
             newPlayer = playerClass.create(names=args['names'],
@@ -59,14 +59,14 @@ class NewPasswordCmd(Command):
     lock = 'perm(manage players)'
     arg_parsers = {
         'player': parsers.MatchDescendants(cls=BasePlayer,
-                                           searchFor='player',
+                                           search_for='player',
                                            show=True),
     }
 
     def run(self, this, actor, args):
         if not args['password']:
             raise self._err("Password cannot be blank.")
-        args['player'].setPassword(args['password'])
+        args['player'].set_password(args['password'])
         actor.tell("{gPassword for {m", args['player'],
                    "{g updated to '{r", args['password'], "{g'.")
 
@@ -82,7 +82,7 @@ class BootCmd(Command):
     lock = "perm(boot players)"
     arg_parsers = {
         'player': parsers.MatchDescendants(cls=BasePlayer,
-                                           searchFor='player',
+                                           search_for='player',
                                            show=True),
     }
 
@@ -109,7 +109,7 @@ class ShoutCmd(Command):
     def run(self, this, actor, args):
         m = '{m%s {gshouts: "{y%s{g".' % (actor.name, args['message'])
         for conn in self.game.session_handler.sessions:
-            conn.sendOutput(m)
+            conn.send_output(m)
 
 
 class WhoFromCmd(Command):
@@ -123,7 +123,7 @@ class WhoFromCmd(Command):
     lock = "perm(manage players)"
     arg_parsers = {
         'player': parsers.MatchDescendants(cls=BasePlayer,
-                                           searchFor='player',
+                                           search_for='player',
                                            show=True),
     }
 
@@ -131,11 +131,11 @@ class WhoFromCmd(Command):
         if args['player'] is None:
             table = ui.Table([
                 ui.Column('Player', data_key='player', align='l',
-                          cell_formatter=actor.nameFor),
+                          cell_formatter=actor.name_for),
                 ui.Column('IP', data_key='ip', align='l'),
                 ui.Column('Host', data_key='hostname', align='l'),
             ])
-            table.addRows(*self.game.session_handler.sessions)
+            table.add_rows(*self.game.session_handler.sessions)
             actor.msg(ui.report("Player Connection Info", table))
         else:
             p = args['player']

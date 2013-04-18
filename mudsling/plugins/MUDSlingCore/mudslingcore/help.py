@@ -16,35 +16,35 @@ from mudsling.utils.string import mxp
 md = markdown.Markdown(extensions=['meta', 'wikilinks'])
 
 
-def mxpLink(text, topic):
+def mxp_link(text, topic):
     return mxp.send(text, "?%s" % topic, "Get help for %s" % topic)
 
 
-def _mxpTopicLink(match):
+def _mxp_topic_link(match):
     """
     Regex .sub() callback for replacing a Markdown link with an MXP tag to
     send the help command for the topic.
     """
-    return mxpLink(match.group('title'), match.group('link'))
+    return mxp_link(match.group('title'), match.group('link'))
 
 
-def _mxpWikiLink(match):
-    return mxpLink(match.group('link'), match.group('link'))
+def _mxp_wiki_link(match):
+    return mxp_link(match.group('link'), match.group('link'))
 
 
-def _mxpHeading(match):
-    return mxp.closedTag('b', match.group('text').strip())
+def _mxp_heading(match):
+    return mxp.closed_tag('b', match.group('text').strip())
 
 
-def _mxpBold(match):
+def _mxp_bold(match):
     return mxp.bold(match.group('text'))
 
 
-def _mxpUnderline(match):
+def _mxp_underline(match):
     return mxp.underline(match.group('text'))
 
 
-def _mxpItalic(match):
+def _mxp_italic(match):
     return mxp.italic(match.group('text'))
 
 
@@ -57,15 +57,15 @@ class HelpEntry(object):
     meta = {}
     mdText = ""
 
-    lock = locks.AllPass  # Help entries universally viewable by default.
+    lock = locks.all_pass  # Help entries universally viewable by default.
 
     mud_text_transforms = (
-        (re.compile(r"\[(?P<title>.*?)\]\((?P<link>.*?)\)"), _mxpTopicLink),
-        (re.compile(r"\[\[(?P<link>.*?)\]\]"), _mxpWikiLink),
+        (re.compile(r"\[(?P<title>.*?)\]\((?P<link>.*?)\)"), _mxp_topic_link),
+        (re.compile(r"\[\[(?P<link>.*?)\]\]"), _mxp_wiki_link),
         (re.compile(r"`(.*?)`"), r'{c\1{n'),
         (re.compile(r"^#+\s*(?P<text>.+)$", re.MULTILINE), r"{y\1"),
-        (re.compile(r"(\*\*|__)(?P<text>.*?)\1"), _mxpBold),
-        (re.compile(r"(\*|_)(?P<text>.*?)\1"), _mxpItalic)
+        (re.compile(r"(\*\*|__)(?P<text>.*?)\1"), _mxp_bold),
+        (re.compile(r"(\*|_)(?P<text>.*?)\1"), _mxp_italic)
     )
 
     def __init__(self, filepath):
@@ -112,7 +112,7 @@ class HelpEntry(object):
     def __repr__(self):
         return "<Help Topic '%s'>" % self.title
 
-    def mudText(self):
+    def mud_text(self):
         """
         Get text appropriate to output to a MUD session. Take the plain-text
         markdown and run some transformations on it to present a version of the
@@ -130,7 +130,7 @@ class HelpManager(object):
         self.name_map = {}
         self.all_names = []
 
-    def loadHelpPath(self, path, rebuildNameMap=True):
+    def load_help_path(self, path, rebuild_name_map=True):
         count = 0
         for filepath in utils.file.scan_path(path, "*.md", recursive=True):
             entry = HelpEntry(filepath)
@@ -146,11 +146,11 @@ class HelpManager(object):
                 continue
             self.entries[entry.id] = entry
             count += 1
-        if rebuildNameMap:
-            self.rebuildNameMap()
+        if rebuild_name_map:
+            self.rebuild_name_map()
         logging.info("Loaded %d help files from %s" % (count, path))
 
-    def _nameMap(self, entries):
+    def _name_map(self, entries):
         mapping = {}
         for e in entries.itervalues():
             for n in e.names:
@@ -160,11 +160,11 @@ class HelpManager(object):
                 mapping[n] = e
         return mapping
 
-    def rebuildNameMap(self):
-        self.name_map = self._nameMap(self.entries)
+    def rebuild_name_map(self):
+        self.name_map = self._name_map(self.entries)
         self.all_names = self.name_map.keys()
 
-    def findTopic(self, search, entryFilter=None):
+    def find_topic(self, search, entryFilter=None):
         search = search.lower()
         if entryFilter is None:
             nameMap = self.name_map
@@ -172,7 +172,7 @@ class HelpManager(object):
         else:
             entries = dict(x for x in self.entries.iteritems()
                            if entryFilter(x[1]))
-            nameMap = self._nameMap(entries)
+            nameMap = self._name_map(entries)
             names = nameMap.keys()
 
         if search in nameMap:

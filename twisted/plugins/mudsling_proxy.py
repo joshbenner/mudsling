@@ -44,6 +44,7 @@ class MUDSlingProxyServiceMaker(object):
     description = "The MUDSling proxy service."
     options = Options
 
+    # Non-PEP8 naming required by IServiceMaker.
     def makeService(self, options):
         service = MultiService()
 
@@ -115,7 +116,7 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
 
     def callRemote(self, *args, **kwargs):
         kwargs['sessId'] = self.session_id
-        self.amp.callRemote(*args, **kwargs).addErrback(self.amp._onError)
+        self.amp.callRemote(*args, **kwargs).addErrback(self.amp._on_error)
 
     def connectionMade(self):
         # If not in session list, then disconnect may have originated on
@@ -132,7 +133,7 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
             msg = "Unable to resolve hostname for %r: %s"
             logging.warning(msg % (self.ip, err.message))
 
-        utils.internet.reverseDNS(self.ip).addCallbacks(saveHost, noHost)
+        utils.internet.reverse_dns(self.ip).addCallbacks(saveHost, noHost)
 
         if self.session_id in sessions:
             self.callRemote(proxy.NewSession, ip=self.ip, delim=self.delimiter)

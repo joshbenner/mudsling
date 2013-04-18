@@ -25,7 +25,7 @@ class BaseTask(Persistent):
     """
 
     # Avoid saving (probably mistaken) db reference.
-    _transientVars = ['db']
+    _transient_vars = ['db']
 
     #: @type: mudsling.storage.Database
     db = None
@@ -38,7 +38,7 @@ class BaseTask(Persistent):
     alive = False
 
     def __init__(self):
-        self.db.registerTask(self)
+        self.db.register_task(self)
 
     def kill(self):
         """
@@ -46,14 +46,14 @@ class BaseTask(Persistent):
         to their task mechanism!
         """
         self.alive = False
-        self.db.removeTask(self.id)
+        self.db.remove_task(self.id)
 
-    def serverStartup(self):
+    def server_startup(self):
         """
         Called on all registered tasks upon server startup.
         """
 
-    def serverShutdown(self):
+    def server_shutdown(self):
         """
         Called on all registered tasks upon server shutdown.
         """
@@ -72,7 +72,7 @@ class IntervalTask(BaseTask):
     Example: IntervalTask(myFunc, 60) -- calls myFunc() every 60 seconds.
     """
 
-    _transientVars = ['_looper']
+    _transient_vars = ['_looper']
 
     _callback = None
     _interval = None
@@ -140,13 +140,13 @@ class IntervalTask(BaseTask):
             self._looper = LoopingCall(self._run)
             self._next_run_time = time.time() + interval
             d = self._looper.start(interval, now=now)
-            d.addErrback(self._errBack)
+            d.addErrback(self._errback)
 
     def kill(self):
-        self._killLooper()
+        self._kill_looper()
         super(IntervalTask, self).kill()
 
-    def _killLooper(self):
+    def _kill_looper(self):
         if self._looper is not None and self._looper.running:
             self._looper.stop()
 
@@ -155,7 +155,7 @@ class IntervalTask(BaseTask):
             last = self._last_run_time or self._scheduled_time or time.time()
             self._elapsed_at_pause = time.time() - last
             self.paused = True
-            self._killLooper()
+            self._kill_looper()
             return True
         else:
             return False
@@ -178,10 +178,10 @@ class IntervalTask(BaseTask):
             self.kill()
         if self._elapsed_at_pause:
             del self._elapsed_at_pause
-            self._killLooper()
+            self._kill_looper()
             self._schedule()
 
-    def _errBack(self, error):
+    def _errback(self, error):
         """
         @type error: twisted.python.failure.Failure
         """
@@ -192,7 +192,7 @@ class IntervalTask(BaseTask):
                                                 error.getTraceback()))
         logging.error("Error in %s:\n%s" % (self, tb))
 
-    def serverStartup(self):
+    def server_startup(self):
         if not self.alive:
             return
         if not self._paused_at_shutdown:
@@ -201,12 +201,12 @@ class IntervalTask(BaseTask):
             del self._paused_at_shutdown
         except AttributeError:
             pass
-        super(IntervalTask, self).serverStartup()
+        super(IntervalTask, self).server_startup()
 
-    def serverShutdown(self):
+    def server_shutdown(self):
         self._paused_at_shutdown = self.paused
         self.pause()
-        super(IntervalTask, self).serverShutdown()
+        super(IntervalTask, self).server_shutdown()
 
 
 class DelayedTask(IntervalTask):
@@ -238,18 +238,18 @@ class Task(IntervalTask):
             del self._elapsed_at_pause
         self._iterations = iterations
         self._interval = interval
-        self.onStart()  # Task could modify settings here.
+        self.on_start()  # Task could modify settings here.
         self._schedule()
 
     def stop(self):
-        self._killLooper()
+        self._kill_looper()
         if 'paused' in self.__dict__:
             del self.paused
         if '_elapsed_at_pause' in self.__dict__:
             del self._elapsed_at_pause
         if self.started:
             del self.started
-            self.onStop()
+            self.on_stop()
 
     def restart(self, interval=None, iterations=None):
         self.stop()
@@ -258,19 +258,19 @@ class Task(IntervalTask):
 
     def pause(self):
         super(Task, self).pause()
-        self.onPause()
+        self.on_pause()
 
     def unpause(self):
         super(Task, self).unpause()
-        self.onUnpause()
+        self.on_unpause()
 
-    def serverStartup(self):
-        super(Task, self).serverStartup()
-        self.onServerStartup()
+    def server_startup(self):
+        super(Task, self).server_startup()
+        self.on_server_startup()
 
-    def serverShutdown(self):
-        super(Task, self).serverShutdown()
-        self.onServerShutdown()
+    def server_shutdown(self):
+        super(Task, self).server_shutdown()
+        self.on_server_shutdown()
 
     def run(self):
         """
@@ -278,20 +278,20 @@ class Task(IntervalTask):
         is generally called every <interval> seconds.
         """
 
-    def onStart(self):
+    def on_start(self):
         pass
 
-    def onStop(self):
+    def on_stop(self):
         pass
 
-    def onPause(self):
+    def on_pause(self):
         pass
 
-    def onUnpause(self):
+    def on_unpause(self):
         pass
 
-    def onServerStartup(self):
+    def on_server_startup(self):
         pass
 
-    def onServerShutdown(self):
+    def on_server_shutdown(self):
         pass

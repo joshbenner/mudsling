@@ -15,7 +15,7 @@ class ClassRegistry(object):
     def __init__(self):
         self.classes = CaselessDict()
 
-    def buildClassRegistry(self, game):
+    def build_class_registry(self, game):
         """
         Builds a class registry for all classes which can be @create'd in-game.
         We do this so that we can have friendly names and easily produce lists
@@ -24,10 +24,10 @@ class ClassRegistry(object):
         The MUDSling server doesn't register its base classes; however, some
         classes are registered by the MUDSlingCore default plugin.
 
-        Invokes hook_objectClasses and expects responding plugins to return a
+        Invokes hook object_classes and expects responding plugins to return a
         list of (name, class) tuples.
         """
-        classes = game.invokeHook('objectClasses')
+        classes = game.invoke_hook('objectClasses')
         for plugin, response in classes.iteritems():
             if not isinstance(response, list):
                 continue
@@ -43,7 +43,7 @@ class ClassRegistry(object):
                 err = "Invalid class registration from %s" % plugin.name
                 logging.error(err)
 
-    def getClass(self, name):
+    def get_class(self, name):
         """
         Searches the class registry for a class matching the given name.
         @param name: The class name to search for.
@@ -53,7 +53,7 @@ class ClassRegistry(object):
             return self.classes[name]
         return None
 
-    def getClassName(self, cls):
+    def get_class_name(self, cls):
         """
         Given a class, find the class registry name that corresponds to it.
         @param cls: The class whose pretty name to retrieve.
@@ -76,12 +76,12 @@ class PlayerRegistry(object):
         self.names = {}
         self.emails = {}
 
-    def findByName(self, name):
+    def find_by_name(self, name):
         if name in self.names:
             return self.names[name]
         return None
 
-    def findByEmail(self, email):
+    def find_by_email(self, email):
         """
         @rtype: C{list}
         """
@@ -89,7 +89,7 @@ class PlayerRegistry(object):
             return self.emails[email]
         return []
 
-    def registerPlayer(self, player):
+    def register_player(self, player):
         """
         Adds a player to the registry.
 
@@ -97,9 +97,9 @@ class PlayerRegistry(object):
         @type player: L{mudsling.objects.BasePlayer}
         """
         #: @type: mudsling.objects.BasePlayer
-        player = player._realObject()
+        player = player._real_object()
         if player in self.players:
-            self.unregisterPlayer(player)
+            self.unregister_player(player)
         self.players.append(player)
         for name in player.names:
             self.names[name] = player
@@ -107,17 +107,17 @@ class PlayerRegistry(object):
             self.emails[player.email] = []
         self.emails[player.email].append(player)
 
-    def registerPlayers(self, players):
+    def register_players(self, players):
         for player in players:
-            self.registerPlayer(player)
+            self.register_player(player)
 
-    def unregisterPlayer(self, player):
+    def unregister_player(self, player):
         """
         @type player: L{mudsling.objects.BasePlayer}
         """
         names_to_delete = []
         #: @type: mudsling.objects.BasePlayer
-        player = player._realObject()
+        player = player._real_object()
         if player in self.players:
             self.players.remove(player)
         for name, p in self.names.iteritems():
@@ -130,9 +130,9 @@ class PlayerRegistry(object):
             if p in players:
                 self.emails[email].remove(p)
 
-    def reregisterPlayer(self, player):
-        self.unregisterPlayer(player)
-        self.registerPlayer(player)
+    def reregister_player(self, player):
+        self.unregister_player(player)
+        self.register_player(player)
 
 
 # Canonical registry instances.

@@ -45,18 +45,19 @@ class PatternManager(object):
 
         # Build the list of pattern directories.
         dirs = []
-        for info in plugins.activePlugins("GamePlugin"):
-            dirs.extend(info.plugin_object.patternPaths())
+        for info in plugins.active_plugins("GamePlugin"):
+            dirs.extend(info.plugin_object.pattern_paths())
         logging.debug("Pattern paths: %r" % dirs)
 
         for dir in dirs:
             for root, dirnames, filenames in os.walk(dir):
                 for filename in fnmatch.filter(filenames, '*.json'):
-                    p = self.loadPatternFromFile(os.path.join(root, filename))
+                    p = self.load_pattern_from_file(os.path.join(root,
+                                                                 filename))
                     if isinstance(p, Pattern):
-                        self.registerPattern(p)
+                        self.register_pattern(p)
 
-    def registerPattern(self, pattern, id=None):
+    def register_pattern(self, pattern, id=None):
         """
         Register a pattern object to the PatternManager.
 
@@ -69,7 +70,7 @@ class PatternManager(object):
         """
         self.patterns[id or pattern.id] = pattern
 
-    def loadPatternFromFile(self, filepath):
+    def load_pattern_from_file(self, filepath):
         try:
             with open(filepath, '') as file:
                 data = json.load(file,
@@ -138,7 +139,7 @@ class Pattern(object):
         @param data: dict of pattern data.
         @type data: dict
         """
-        self.validateData(data)
+        self.validate_data(data)
         self.data = data
         self.id = data['id']
         self.name = data['name']
@@ -148,7 +149,7 @@ class Pattern(object):
         else:  # Must be a child of type.
             self.cls = data['class']
 
-    def validateData(self, data):
+    def validate_data(self, data):
         for req in self._required:
             if req not in data:
                 msg = "Invalid pattern. Missing required key: %s" % req

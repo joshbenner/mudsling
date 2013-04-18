@@ -55,6 +55,7 @@ class LockFunc(object):
         return False
 
 
+# Mimics class naming since it is essentially a dynamic class instantiation.
 def LockParser(funcMap):
     """
     Generate a lock parsing expression tree.
@@ -94,11 +95,11 @@ def LockParser(funcMap):
             else:
                 raise NameError("Invalid lock function: %s" % self.fname)
 
-    def unaryOp(tok):
+    def unary_op(tok):
         op, rhs = tok[0]
         return _lockFunc((op, [rhs]))
 
-    def binaryOp(tok):
+    def binary_op(tok):
         lhs, op, rhs = tok[0]
         return _lockFunc((op, [lhs, rhs]))
 
@@ -116,9 +117,9 @@ def LockParser(funcMap):
     expr = operatorPrecedence(
         func,
         [
-            (opNot, 1, opAssoc.RIGHT, unaryOp),
-            (opOr, 2, opAssoc.LEFT, binaryOp),
-            (opAnd, 2, opAssoc.LEFT, binaryOp),
+            (opNot, 1, opAssoc.RIGHT, unary_op),
+            (opOr, 2, opAssoc.LEFT, binary_op),
+            (opAnd, 2, opAssoc.LEFT, binary_op),
         ]
     )
     return expr

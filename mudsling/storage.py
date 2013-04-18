@@ -31,12 +31,12 @@ class ObjRef(namedtuple('ObjRef', 'id db')):
             try:
                 #noinspection PyCallByClass
                 object.__setattr__(self, 'obj',
-                                   weakref.ref(self.db._getObject(self.id)))
+                                   weakref.ref(self.db._get_object(self.id)))
             except TypeError:
                 pass
         return self.obj
 
-    def _realObject(self):
+    def _real_object(self):
         ref = self.__object()
         return ref() if ref is not None else None
 
@@ -81,12 +81,12 @@ class ObjRef(namedtuple('ObjRef', 'id db')):
         except TypeError:
             return False
 
-    def isValid(self, cls=None):
+    def is_valid(self, cls=None):
         """
-        Proxy version of Database.isValid().
+        Proxy version of Database.is_valid().
         """
         try:
-            return self.db.isValid(self.__object()(), cls)
+            return self.db.is_valid(self.__object()(), cls)
         except TypeError:
             return False
 
@@ -100,30 +100,30 @@ class Persistent(object):
     Any property whose name is prefixed with '_v_' will not be persisted. They
     will remain in place while the game is up, but any reload, restart, or
     shutdown will wipe them out. You can also specify transient attributes
-    explicitly with the _transientVars class variable.
+    explicitly with the _transient_vars class variable.
 
-    @cvar _transientVars: Instance vars which should not persist in DB.
-    @type _transientVars: list
+    @cvar _transient_vars: Instance vars which should not persist in DB.
+    @type _transient_vars: list
     """
 
-    _transientVars = ['_transientVars', 'temp', 'tmp']
+    _transient_vars = ['_transient_vars', 'temp', 'tmp']
 
     @classmethod
-    def _getTransientVars(cls):
+    def _get_transient_vars(cls):
         v = set()
         for parent in cls.__mro__:
-            if '_transientVars' in parent.__dict__:
+            if '_transient_vars' in parent.__dict__:
                 #noinspection PyBroadException
                 try:
                     # We read from the class
-                    v = v.union(parent._transientVars)
+                    v = v.union(parent._transient_vars)
                 except:
                     # TODO: Do something here?
                     pass
         return v
 
     def __getstate__(self):
-        transient = self._getTransientVars()
+        transient = self._get_transient_vars()
         state = dict(self.__dict__)
         for attr in self.__dict__:
             if attr.startswith('_v_') or attr in transient:
@@ -140,14 +140,14 @@ class StoredObject(Persistent):
 
     @cvar db: Reference to the containing database. Set upon DB load.
 
-    @ivar objId: The unique object ID for this object in the Database.
+    @ivar obj_id: The unique object ID for this object in the Database.
     """
 
     #: @type: mudsling.storage.Database
     db = None
 
     #: @type: int
-    objId = 0
+    obj_id = 0
 
     def __init__(self, **kwargs):
         """
@@ -173,17 +173,17 @@ class StoredObject(Persistent):
         super(StoredObject, self).__init__()
 
     def __str__(self):
-        return str(self.objId)
+        return str(self.obj_id)
 
-    def pythonClassName(self):
+    def python_class_name(self):
         return "%s.%s" % (self.__class__.__module__, self.__class__.__name__)
 
-    def className(self):
+    def class_name(self):
         """
         @rtype: C{str}
         """
-        name = registry.classes.getClassName(self.__class__)
-        return name if name is not None else self.pythonClassName()
+        name = registry.classes.get_class_name(self.__class__)
+        return name if name is not None else self.python_class_name()
 
     def isa(self, cls):
         """
@@ -192,14 +192,14 @@ class StoredObject(Persistent):
         """
         return isinstance(self, cls)
 
-    def isValid(self, cls=None):
+    def is_valid(self, cls=None):
         """
         API compatibility with ObjRef.
         @rtype: C{bool}
         """
-        return self.db.isValid(self, cls)
+        return self.db.is_valid(self, cls)
 
-    def _realObject(self):
+    def _real_object(self):
         """
         API compatibility with ObjRef.
         @rtype: StoredObject
@@ -212,7 +212,7 @@ class StoredObject(Persistent):
         sure to introduce proxies as much as possible. We want to avoid storing
         objects directly.
         """
-        return ObjRef(id=self.objId, db=self.db)
+        return ObjRef(id=self.obj_id, db=self.db)
 
     @property
     def game(self):
@@ -222,7 +222,7 @@ class StoredObject(Persistent):
         return self.db.game
 
     # TODO: Refactor this... it smells.
-    def expungeRole(self, role):
+    def expunge_role(self, role):
         """
         API method to remove all reference to given role from this object.
         """
@@ -240,24 +240,24 @@ class StoredObject(Persistent):
         if cls.db is None:
             raise Exception("Database not available to %s" % cls.__name__)
         obj = cls(**kwargs)
-        cls.db.registerObject(obj)
-        obj.objectCreated()
+        cls.db.register_object(obj)
+        obj.object_created()
         return obj.ref()
 
     def delete(self):
         """
         Canonical method for deleting an object.
         """
-        self.objectDeleted()
-        self.db.unregisterObject(self)
+        self.object_deleted()
+        self.db.unregister_object(self)
 
-    def objectCreated(self):
+    def object_created(self):
         """
         Called when the object is first created. Only called once in the life
         of the object.
         """
 
-    def objectDeleted(self):
+    def object_deleted(self):
         """
         Called during object deletion, but before the object itself has been
         removed from the database. Allows the object to perform any final
@@ -291,7 +291,7 @@ class Database(Persistent):
     @type game: mudsling.core.MUDSling
     """
 
-    _transientVars = ['type_registry', 'game']
+    _transient_vars = ['type_registry', 'game']
 
     initialized = False
     max_obj_id = 0
@@ -318,7 +318,7 @@ class Database(Persistent):
         self.type_registry = {}
         self.settings = {}
 
-    def onLoaded(self, game):
+    def on_loaded(self, game):
         """
         Called just after the database has been loaded from disk.
         """
@@ -330,32 +330,32 @@ class Database(Persistent):
 
         # Build the type registry.
         for obj in self.objects.values():
-            self._addToTypeRegistry(obj)
+            self._add_to_type_registry(obj)
 
-    def onServerStartup(self):
+    def on_server_startup(self):
         """
         Run once per server start after everything is loaded and ready.
         """
         for task in self.tasks.itervalues():
-            task.serverStartup()
+            task.server_startup()
 
-    def onServerShutdown(self):
+    def on_server_shutdown(self):
         """
         Run just prior to server shutdown.
         """
         for task in self.tasks.itervalues():
-            task.serverShutdown()
+            task.server_shutdown()
 
-    def _getObject(self, objid):
+    def _get_object(self, obj_id):
         try:
-            return self.objects[objid]
+            return self.objects[obj_id]
         except KeyError:
             return None
 
-    def getRef(self, objid):
-        return ObjRef(id=objid, db=self)
+    def get_ref(self, obj_id):
+        return ObjRef(id=obj_id, db=self)
 
-    def _allocateObjId(self):
+    def _allocate_obj_id(self):
         """
         Allocates a new object ID. Should only be called when a new object is
         being added to the game database.
@@ -363,31 +363,31 @@ class Database(Persistent):
         self.max_obj_id += 1
         return self.max_obj_id
 
-    def _addToTypeRegistry(self, obj):
+    def _add_to_type_registry(self, obj):
         cls = obj.__class__
         if cls not in self.type_registry:
             self.type_registry[cls] = []
         if obj not in self.type_registry[cls]:
             self.type_registry[cls].append(obj.ref())
 
-    def registerObject(self, obj):
-        obj.objId = self._allocateObjId()
-        self.objects[obj.objId] = obj
-        self._addToTypeRegistry(obj)
+    def register_object(self, obj):
+        obj.obj_id = self._allocate_obj_id()
+        self.objects[obj.obj_id] = obj
+        self._add_to_type_registry(obj)
 
-    def unregisterObject(self, obj):
+    def unregister_object(self, obj):
         """
         Deletes the passed object from the database.
 
         @param obj: The object to delete.
         @type obj: StoredObject or ObjRef
         """
-        if not obj.isValid():
+        if not obj.is_valid():
             raise errors.InvalidObject(obj)
 
-        obj = obj._realObject()
+        obj = obj._real_object()
         try:
-            del self.objects[obj.objId]
+            del self.objects[obj.obj_id]
         except KeyError:
             logging.error("%s missing from objects dictionary!" % obj)
         try:
@@ -395,7 +395,7 @@ class Database(Persistent):
         except (ValueError, KeyError):
             logging.error("%s missing from type registry!" % obj)
 
-    def isValid(self, obj, cls=None):
+    def is_valid(self, obj, cls=None):
         """
         Returns true if the passed object (or object ID) refers to a game-world
         object that the database knows about.
@@ -406,10 +406,10 @@ class Database(Persistent):
         if isinstance(obj, int):
             valid = obj in self.objects
         elif isinstance(obj, StoredObject):
-            valid = (obj.objId in self.objects
-                     and self.objects[obj.objId] == obj)
+            valid = (obj.obj_id in self.objects
+                     and self.objects[obj.obj_id] == obj)
         elif isinstance(obj, ObjRef):
-            return obj.isValid(cls)
+            return obj.is_valid(cls)
         else:
             return False
 
@@ -445,21 +445,21 @@ class Database(Persistent):
             return list(self.type_registry[parent])
         return []
 
-    def matchDescendants(self, search, cls, varname="names", exactOnly=False):
+    def match_descendants(self, search, cls, varname="names", exactOnly=False):
         """
         Convenience method for matching the descendants of a given class.
         """
         objlist = self.descendants(cls)
         return match_objlist(search, objlist, varname, exactOnly)
 
-    def matchChidlren(self, search, cls, varname="names", exactOnly=False):
+    def match_children(self, search, cls, varname="names", exactOnly=False):
         """
         Convenience method for matching the children of a given class.
         """
         objlist = self.children(cls)
         return match_objlist(search, objlist, varname, exactOnly)
 
-    def matchRole(self, search):
+    def match_role(self, search):
         """
         Find a role.
         @param search: The role name to search for.
@@ -473,17 +473,17 @@ class Database(Persistent):
         else:
             raise errors.FailedMatch(query=search)
 
-    def expungeRole(self, role):
+    def expunge_role(self, role):
         """
         Removes role from all objects and finally the database itself.
         """
         for o in self.objects.items():
             if isinstance(o, StoredObject):
-                o.expungeRole(role)
+                o.expunge_role(role)
         if role in self.roles:
             self.roles.remove(role)
 
-    def registerTask(self, task):
+    def register_task(self, task):
         """
         Adds a task to the database.
 
@@ -495,7 +495,7 @@ class Database(Persistent):
         task.alive = True
         self.tasks[task.id] = task
 
-    def getTask(self, taskId):
+    def get_task(self, taskId):
         """
         Retrieve a task from the Database.
 
@@ -510,11 +510,11 @@ class Database(Persistent):
             raise errors.InvalidTask("Invalid task or task ID: %r" % taskId)
         return task
 
-    def killTask(self, taskId):
-        self.getTask(taskId).kill()
+    def kill_task(self, taskId):
+        self.get_task(taskId).kill()
 
-    def removeTask(self, taskId):
-        task = self.getTask(taskId)
+    def remove_task(self, taskId):
+        task = self.get_task(taskId)
         if task.alive:
             return False
         else:
@@ -522,8 +522,8 @@ class Database(Persistent):
             return True
 
     # Satisfies the law of demeter, and lets us change implementation later.
-    def getSetting(self, name, default=None):
+    def get_setting(self, name, default=None):
         return self.settings.get(name, default)
 
-    def setSetting(self, name, value):
+    def set_setting(self, name, value):
         self.settings[name] = value

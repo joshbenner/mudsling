@@ -22,7 +22,7 @@ class AnsiCmd(Command):
 
     aliases = ('+ansi',)
     syntax = "[{ on | off }]"
-    lock = locks.AllPass
+    lock = locks.all_pass
 
     def run(self, this, actor, args):
         """
@@ -74,7 +74,7 @@ class HelpCmd(Command):
     """
     aliases = ('help', '@help', '+help')  # All the same help.
     syntax = "[<topic>]"
-    lock = locks.AllPass  # Everyone can have help.
+    lock = locks.all_pass  # Everyone can have help.
 
     def run(self, this, actor, args):
         search = args['topic'] or 'index'
@@ -83,14 +83,14 @@ class HelpCmd(Command):
             return e.lock.eval(e, actor)
 
         try:
-            topic = help.help_db.findTopic(search, entryFilter=entryFilter)
+            topic = help.help_db.find_topic(search, entryFilter=entryFilter)
         except errors.AmbiguousMatch as e:
             msg = "{yNo topic '%s' found." % search
             if e.matches is not None:
                 entries = []
                 for topic in e.matches:
                     entry = help.help_db.name_map[topic]
-                    entries.append(help.mxpLink(entry.title, entry.title))
+                    entries.append(help.mxp_link(entry.title, entry.title))
                 lst = utils.string.english_list(entries, andstr=' or ')
                 msg += " Were you looking for any of these? {n%s" % lst
             actor.msg(msg)
@@ -100,7 +100,7 @@ class HelpCmd(Command):
             return
 
         ui = ClassicUI()
-        out = ui.report("Help: %s" % topic.title, topic.mudText())
+        out = ui.report("Help: %s" % topic.title, topic.mud_text())
         actor.msg(out)
 
 
@@ -111,30 +111,30 @@ class WhoCmd(Command):
     Displays a list of connected players.
     """
     aliases = ('who', '+who')
-    lock = locks.AllPass
+    lock = locks.all_pass
 
     def format_attached(self, player):
-        if player.isPosessing:
-            return self.actor.nameFor(player.possessing)
+        if player.is_possessing:
+            return self.actor.name_for(player.possessing)
         else:
             return ''
 
     def format_location(self, player):
         try:
-            return self.actor.nameFor(player.possessing.location)
+            return self.actor.name_for(player.possessing.location)
         except AttributeError:
             return ''
 
     def run(self, this, actor, args):
         title = 'Who is Online'
-        admin = actor.hasPerm('manage players')
+        admin = actor.has_perm('manage players')
         ui = ClassicUI(width=100 if admin else 60)
         cols = [
             ui.Column('Player name', data_key='player', align='l', width='*',
-                      cell_formatter=actor.nameFor),
-            ui.Column('Connected', data_key='connectedSeconds', align='r',
+                      cell_formatter=actor.name_for),
+            ui.Column('Connected', data_key='connected_seconds', align='r',
                       cell_formatter=ui.format_dhms),
-            ui.Column('Idle time', data_key='idleSeconds', align='r',
+            ui.Column('Idle time', data_key='idle_seconds', align='r',
                       cell_formatter=ui.format_dhms),
         ]
         if admin:
@@ -148,6 +148,6 @@ class WhoCmd(Command):
         table = ui.Table(cols)
         sessions = [s for s in self.game.session_handler.sessions
                     if s.player is not None]
-        sessions.sort(key=lambda s: s.idleSeconds())
-        table.addRows(*sessions)
+        sessions.sort(key=lambda s: s.idle_seconds())
+        table.add_rows(*sessions)
         actor.msg(ui.report(title, table))

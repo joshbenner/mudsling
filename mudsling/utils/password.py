@@ -33,7 +33,7 @@ class Password(object):
                                       hashfunc=hashfunc,
                                       iterations=self.cost)
 
-    def matchesPassword(self, password):
+    def matches_password(self, password):
         """
         Tests if a password will generate the same hash, meaning the password
         is the same string used originally to generate the hash.

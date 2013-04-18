@@ -1,7 +1,7 @@
 import inspect
 
 
-def filterByClass(objects, cls):
+def filter_by_class(objects, cls):
     """
     Filter a list of objects to only descendants of a class or classes.
 
@@ -22,7 +22,7 @@ def filterByClass(objects, cls):
             valid = False
             for c in classes:
                 try:
-                    if o.isValid(c):
+                    if o.is_valid(c):
                         valid = True
                         break
                 except AttributeError:
@@ -34,7 +34,7 @@ def filterByClass(objects, cls):
         return list(objects)
 
 
-def ascendMro(cls):
+def ascend_mro(cls):
     """
     Return an iterable to ascend the MRO of the provided object, whether an
     instance or a class.
@@ -49,7 +49,7 @@ def ascendMro(cls):
     return mro
 
 
-def descendMro(cls):
-    mro = ascendMro(cls)
+def descend_mro(cls):
+    mro = ascend_mro(cls)
     mro.reverse()
     return mro

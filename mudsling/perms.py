@@ -11,17 +11,17 @@ class Role(object):
     def __str__(self):
         return self.name
 
-    def addPerm(self, perm):
+    def add_perm(self, perm):
         if perm not in self.perms:
             self.perms.add(perm)
             return True
         return False
 
-    def removePerm(self, perm):
+    def remove_perm(self, perm):
         if perm in self.perms:
             self.perms.remove(perm)
             return True
         return False
 
-    def hasPerm(self, perm):
+    def has_perm(self, perm):
         return perm in self.perms

@@ -9,12 +9,12 @@ from .ansi import *
 from .table import *
 
 
-def randomString(length, candidates=None):
+def random_string(length, candidates=None):
     candidates = candidates or string.ascii_letters + string.digits
     return ''.join(random.choice(candidates) for _ in xrange(length))
 
 
-def trimDocstring(docstring):
+def trim_docstring(docstring):
     """
     Trim a docstring and return it in a predictable format.
 
@@ -85,7 +85,7 @@ def columnize(items, numCols, width=79, align='l'):
     table = Table(columns, show_header=False, frame=False, width=width,
                   vrule=' ', lpad='', rpad='')
     for i in range(0, numRows):
-        table.addRow(items[i::numRows])
+        table.add_row(items[i::numRows])
     return str(table)
 
 
@@ -103,13 +103,13 @@ def tabletest(who):
         rpad=' ',
         header_formatter=lambda c: '{y' + c.format_cell(c.name)
     )
-    x.addRow(["Adelaide", 1295, 1158259, 600.5])
-    x.addRow(["Brisbane", 5905, 1857594, 1146.4])
-    x.addRow(["{gDarwin", 112, 120900, 1714.7])
-    x.addRow(["Hobart", 1357, 205556, 619.5])
-    x.addRow(["Sydney", 2058, 4336374, 1214.8])
-    x.addRow(["{rM{ge{bl{mb{yo{Curne", 1566, 3806092, 646.9])
-    x.addRow(["Perth", 5386, 1554769, 869.4])
+    x.add_row(["Adelaide", 1295, 1158259, 600.5])
+    x.add_row(["Brisbane", 5905, 1857594, 1146.4])
+    x.add_row(["{gDarwin", 112, 120900, 1714.7])
+    x.add_row(["Hobart", 1357, 205556, 619.5])
+    x.add_row(["Sydney", 2058, 4336374, 1214.8])
+    x.add_row(["{rM{ge{bl{mb{yo{Curne", 1566, 3806092, 646.9])
+    x.add_row(["Perth", 5386, 1554769, 869.4])
 
     who.msg(repr(x._row_values(x.rows[0])))
 

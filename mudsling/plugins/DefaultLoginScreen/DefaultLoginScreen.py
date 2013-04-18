@@ -55,31 +55,31 @@ class DefaultLoginScreen(LoginScreenPlugin):
         with open(file_path, 'rU') as f:
             self.screen = [line.rstrip('\n') for line in f.readlines()]
 
-    def sessionConnected(self, session):
+    def session_connected(self, session):
         self.doLook(session)
 
-    def processInput(self, session, input):
+    def process_input(self, session, input):
         for cmd in self.commands:
             m = re.match(cmd.pattern, input, re.IGNORECASE)
             if m:
                 getattr(self, cmd.func)(session, input, args=m.groups())
                 return
-        session.sendOutput("{rInvalid Command.")
+        session.send_output("{rInvalid Command.")
         self.doHelp(session)
 
     def doLook(self, session, input=None, args=None):
-        session.sendOutput(self.screen)
+        session.send_output(self.screen)
         self.doHelp(session, input, args)
 
     def doHelp(self, session, input=None, args=None):
         #: @type: mudsling.sessions.Session
         s = session
-        s.sendOutput("Available Commands:")
+        s.send_output("Available Commands:")
         width = max(*[len(cmd.syntax) for cmd in self.commands])
         format = "  {cmd.syntax:%d} : {cmd.desc}" % width
         for cmd in self.commands:
             #noinspection PyTypeChecker
-            s.sendOutput(format.format(cmd=cmd))
+            s.send_output(format.format(cmd=cmd))
 
     def doQuit(self, session, input=None, args=None):
         session.disconnect("quit")
@@ -90,14 +90,14 @@ class DefaultLoginScreen(LoginScreenPlugin):
 
         matches = match_objlist(username,
                                 self.game.db.descendants(BasePlayer),
-                                exactOnly=True)
+                                exact=True)
 
         if len(matches) > 1:
             # This hopefully won't happen...
-            session.sendOutput(errmsg)
+            session.send_output(errmsg)
             return
         elif len(matches) == 0:
-            session.sendOutput(errmsg)
+            session.send_output(errmsg)
             return
 
         #: @type: BasePlayer
@@ -107,16 +107,16 @@ class DefaultLoginScreen(LoginScreenPlugin):
         except TypeError:
             auth = False
         except Exception as e:
-            session.sendOutput(e.message)
+            session.send_output(e.message)
             return
         if auth:
-            session.attachToPlayer(player)
+            session.attach_to_player(player)
         else:
-            session.sendOutput(errmsg)
+            session.send_output(errmsg)
 
     def doRegister(self, session, input=None, args=None):
         if not self.options.getboolean('registration'):
-            session.sendOutput("Registration is currently disabled.")
+            session.send_output("Registration is currently disabled.")
             return
 
         username, password = args
@@ -128,7 +128,7 @@ class DefaultLoginScreen(LoginScreenPlugin):
                                         password=password,
                                         makeChar=True)
         except Exception as e:
-            session.sendOutput(e.message)
+            session.send_output(e.message)
         else:
-            session.sendOutput("Account '%s' has been created!" % player.name)
+            session.send_output("Account '%s' has been created!" % player.name)
             self.doConnect(session, args=(player.name, password))

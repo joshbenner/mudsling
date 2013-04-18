@@ -25,15 +25,16 @@ class ObjSetting(object):
         self.validator = validator
         self.default = default
 
+    # TODO: Refactor using mudsling.parsers?
     @staticmethod
-    def parseStringList(string):
+    def parse_string_list(string):
         return map(str.strip, string.split(','))
 
     @staticmethod
-    def parseStringListNoneEmpty(string):
-        return filter(lambda x: x, ObjSetting.parseStringList(string))
+    def parse_string_list_none_empty(string):
+        return filter(lambda x: x, ObjSetting.parse_string_list(string))
 
-    def setValue(self, obj, value):
+    def set_value(self, obj, value):
         """
         Store the given value for this object setting. No validation or
         converstion.
@@ -63,7 +64,7 @@ class ObjSetting(object):
             else:
                 return False
 
-    def setValueFromInput(self, obj, input):
+    def set_value_from_input(self, obj, input):
         """
         Sets the value for the setting this instance describes on the provided
         object to the provided value.
@@ -96,14 +97,14 @@ class ObjSetting(object):
         # Type validation for StoredObject is a little different since we use
         # ObjRef in most cases instead of direct references.
         if issubclass(self.type, StoredObject):
-            if not issubclass(value, ObjRef) or not value.isValid(self.type):
+            if not issubclass(value, ObjRef) or not value.is_valid(self.type):
                 raise errors.InvalidSettingValue(obj, self.name, value)
         else:
             if not isinstance(value, self.type):
                 raise errors.InvalidSettingValue(obj, self.name, value)
 
         # If we get this far, then value is valid.
-        return self.setValue(obj, value)
+        return self.set_value(obj, value)
 
     def getValue(self, obj):
         attr = self.attr
@@ -123,7 +124,7 @@ class ConfigurableObject(Persistent):
 
     @cvar object_settings: Settings exposed by this class.
     @cvar _objSettings_cache: A cache of the class's settings after resolving
-        all available settings through the MRO. See L{objSettings}.
+        all available settings through the MRO. See L{obj_settings}.
 
     @ivar unbound_settings: A place to stash setting values that have no
         configured attribute for storage.
@@ -133,15 +134,15 @@ class ConfigurableObject(Persistent):
         # Examples.
         # ObjSetting('name', str, 'name'),
         # ObjSetting('aliases', list, 'aliases',
-        #            ObjSetting.parseStringListNoneEmpty)
+        #            ObjSetting.parse_string_list_none_empty)
     ]
-    _objSettings_cache = None
+    _objsettings_cache = None
 
     #: @type: dict
     unbound_settings = None
 
     @classmethod
-    def objSettings(cls):
+    def obj_settings(cls):
         """
         Returns a dict of L{ObjSetting} instances that apply to this class. The
         ObjSettings come from this class and all ancestor classes that specify
@@ -150,8 +151,8 @@ class ConfigurableObject(Persistent):
         @return: Dict of ObjSetting instances describing the settings for obj.
         @rtype: C{dict} of C{str}:L{ObjSetting}
         """
-        if cls._objSettings_cache is not None:
-            return cls._objSettings_cache
+        if cls._objsettings_cache is not None:
+            return cls._objsettings_cache
         mro = list(cls.__mro__)
         mro.reverse()
         settings = {}
@@ -160,22 +161,22 @@ class ConfigurableObject(Persistent):
                     and 'object_settings' in c.__dict__):
                 for spec in c.object_settings:
                     settings[spec.name] = spec
-        cls._objSettings_cache = settings
+        cls._objsettings_cache = settings
         return settings
 
-    def setObjSetting(self, name, input):
+    def set_obj_setting(self, name, input):
         """
         Set the value of an object setting.
         @param name: The object setting to manipulate.
         @param input: The raw user input representing the value to store.
         """
-        settings = self.objSettings()
+        settings = self.obj_settings()
         if name not in settings:
             raise errors.SettingNotFound(self, name)
-        return settings[name].setValue(self, input)
+        return settings[name].set_value(self, input)
 
-    def getObjSetting(self, name):
-        settings = self.objSettings()
+    def get_obj_setting(self, name):
+        settings = self.obj_settings()
         if name not in settings:
             raise errors.SettingNotFound(self, name)
         return settings[name].getValue(self)

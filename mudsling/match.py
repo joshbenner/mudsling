@@ -13,8 +13,8 @@ ordinal_words = ('first', 'second', 'third', 'fourth', 'fifth', 'sixth',
 ordinal_regex = "^(" + '|'.join(ordinal_words) + ")(.*)$"
 
 
-def match_stringlists(search, stringlists, exactOnly=False, err=False,
-                      caseSensitive=False):
+def match_stringlists(search, stringlists, exact=False, err=False,
+                      case_sensitive=False):
     """
     Match a search query against a dictionary of string lists. The result list
     will include keys from the dictionary which match the search.
@@ -29,8 +29,8 @@ def match_stringlists(search, stringlists, exactOnly=False, err=False,
     @type search: str
     @param stringlists: Dict of lists of strings.
     @type stringlists: dict
-    @param exactOnly: Only look for exct matches.
-    @type exactOnly: bool
+    @param exact: Only look for exct matches.
+    @type exact: bool
     @param err: If true, may raise AmbiguousMatch or FailedMatch.
     @type err: bool
 
@@ -38,26 +38,26 @@ def match_stringlists(search, stringlists, exactOnly=False, err=False,
     @rtype: list
     """
     # Lower-case search for case insensitivity.
-    srch = ansi.strip_ansi(search if caseSensitive else search.lower())
-    exact = []
+    srch = ansi.strip_ansi(search if case_sensitive else search.lower())
+    exact_matches = []
     partial = []
 
     for key, names in stringlists.iteritems():
         if len(names) == 0:
             continue
         # Lowercase everything if this is case-insensitive
-        if not caseSensitive:
+        if not case_sensitive:
             names = [s.lower() for s in names]
         names = [ansi.strip_ansi(s) for s in names]
 
         # Check for exact or else partial match.
         if srch in names:
-            exact.append(key)
-        elif not exactOnly and not exact:
+            exact_matches.append(key)
+        elif not exact and not exact_matches:
             if len([s for s in names if s.startswith(srch)]) > 0:
                 partial.append(key)
 
-    result = exact or partial
+    result = exact_matches or partial
 
     if err and len(result) != 1:
         if len(result) > 1:
@@ -68,8 +68,7 @@ def match_stringlists(search, stringlists, exactOnly=False, err=False,
         return result
 
 
-def match_objlist(search, objlist, varname="names", exactOnly=False,
-                  err=False):
+def match_objlist(search, objlist, varname="names", exact=False, err=False):
     """
     Match a search query against a list of objects using string values from the
     provided instance variable.
@@ -77,14 +76,14 @@ def match_objlist(search, objlist, varname="names", exactOnly=False,
     @param search: The search string.
     @param objlist: An iterable containing objects to match.
     @param varname: The instance variable on the objects to match against.
-    @param exactOnly: Only look for exact matches.
+    @param exact: Only look for exact matches.
     @param err: If true, may raise AmbiguousMatch or FailedMatch.
 
     @rtype: list
     """
     strings = dict(zip(objlist, map(lambda v: v() if callable(v) else v,
                                     [getattr(o, varname) for o in objlist])))
-    return match_stringlists(search, strings, exactOnly=exactOnly, err=err)
+    return match_stringlists(search, strings, exact=exact, err=err)
 
 
 def match_nth(nth, search, objlist, varname="names"):
@@ -137,7 +136,7 @@ def match(search, objlist, varname="names"):
     return []
 
 
-def match_failed(matches, search=None, searchFor=None, show=False):
+def match_failed(matches, search=None, search_for=None, show=False):
     """
     Utility method to handled failed matches. Will return a message if a
     search for a single match has failed and return False if the search
@@ -149,9 +148,9 @@ def match_failed(matches, search=None, searchFor=None, show=False):
     @param search: The string used to search.
     @type search: str
 
-    @param searchFor: A string describing what type of thing was being
+    @param search_for: A string describing what type of thing was being
         searched for. This should be the singular form of the word.
-    @type searchFor: str
+    @type search_for: str
 
     @param show: If true, will show the list of possible matches in the
         case of an ambiguous match.
@@ -166,14 +165,14 @@ def match_failed(matches, search=None, searchFor=None, show=False):
         return False
     elif len(matches) > 1:
         if search is not None:
-            if searchFor is not None:
+            if search_for is not None:
                 msg = ("Multiple %s match '%s'"
-                       % (p.plural(searchFor), search))
+                       % (p.plural(search_for), search))
             else:
                 msg = "Multiple matches for '%s'" % search
         else:
-            if searchFor is not None:
-                msg = "Multiple %s found" % p.plural(searchFor)
+            if search_for is not None:
+                msg = "Multiple %s found" % p.plural(search_for)
             else:
                 msg = "Multiple matches"
         if show:
@@ -182,13 +181,13 @@ def match_failed(matches, search=None, searchFor=None, show=False):
             msg += '.'
     else:
         if search is not None:
-            if searchFor is not None:
-                msg = "No %s called '%s' was found." % (searchFor, search)
+            if search_for is not None:
+                msg = "No %s called '%s' was found." % (search_for, search)
             else:
                 msg = "No '%s' was found." % search
         else:
-            if searchFor is not None:
-                msg = "No matching %s found." % p.plural(searchFor)
+            if search_for is not None:
+                msg = "No matching %s found." % p.plural(search_for)
             else:
                 msg = "No match found."
     return msg
