@@ -10,7 +10,7 @@ from mudsling import registry
 from mudsling.match import match_objlist, match_stringlists
 from mudsling.sessions import IInputProcessor
 from mudsling.messages import IHasMessages, Messages
-from mudsling.commands import IHasCommands
+from mudsling.commands import IHasCommands, CommandSet
 
 from mudsling import utils
 import mudsling.utils.password
@@ -387,7 +387,7 @@ class BaseObject(PossessableObject):
     # Implement IHasCommands.
     private_commands = []
     public_commands = []
-    _commandCache = {}
+    _command_cache = {}
 
     # Default BaseObject locks. Will be used if object nor any intermediate
     # child class defines the lock type being searched for.
@@ -504,18 +504,18 @@ class BaseObject(PossessableObject):
         candidates = self.match_command(cmdstr)
         if not candidates:
             return None
-        cmdMatches = []
+        cmd_matches = []
         nameOnly = []
         for obj, cmdcls in candidates:
             cmd = cmdcls(raw, cmdstr, argstr, self.game, obj.ref(), self.ref())
             if cmd.match_syntax(argstr):
-                cmdMatches.append(cmd)
+                cmd_matches.append(cmd)
             else:
                 nameOnly.append(cmd)
-        if len(cmdMatches) > 1:
+        if len(cmd_matches) > 1:
             raise errors.AmbiguousMatch(msg="Ambiguous Command", query=raw,
-                                        matches=cmdMatches)
-        elif not cmdMatches:
+                                        matches=cmd_matches)
+        elif not cmd_matches:
             if nameOnly:  # Command(s) that match name but not syntax.
                 # Give each command class an opportunity to explain why. Having
                 # a lot of similarly-named commands is a bad idea, so this
@@ -528,23 +528,22 @@ class BaseObject(PossessableObject):
             else:
                 return self.handle_unmatched_input(raw) or None
         else:  # Single good match.
-            return cmdMatches[0]
+            return cmd_matches[0]
 
-    def match_command(self, cmdName):
+    def match_command(self, cmd_name):
         """
         Match a command based on name (and access).
 
-        @param cmdName: The name of the command being search for.
-        @type cmdName: C{str}
+        @param cmd_name: The name of the command being search for.
+        @type cmd_name: C{str}
 
         @return: A list of tuples of (object, command class).
         @rtype: C{list}
         """
         commands = []
         for obj in self.context:
-            for cmdcls in obj.commands_for(self):
-                if cmdcls.matches(cmdName) and cmdcls.check_access(obj, self):
-                    commands.append((obj, cmdcls))
+            matches = obj.commands_for(self).match(cmd_name, obj, self)
+            commands.extend(zip([obj] * len(matches), matches))
         return commands
 
     def commands_for(self, actor):
@@ -556,7 +555,7 @@ class BaseObject(PossessableObject):
         ascending the MRO and adding commands from any L{IHasCommands} class.
 
         @param actor: The object that wishes to use a command.
-        @rtype: list
+        @rtype: L{CommandSet}
         """
         if self.ref() == actor.ref():
             attr = 'private_commands'
@@ -564,17 +563,17 @@ class BaseObject(PossessableObject):
             attr = 'public_commands'
 
         cls = self.__class__
-        if '_commandCache' not in cls.__dict__:
-            cls._commandCache = {}
-        if attr in cls._commandCache:
-            return cls._commandCache[attr]
+        if '_command_cache' not in cls.__dict__:
+            cls._command_cache = {}
+        if attr in cls._command_cache:
+            return cls._command_cache[attr]
 
-        commands = []
-        for objClass in utils.object.ascend_mro(cls):
-            if IHasCommands.implementedBy(objClass):
-                commands.extend(getattr(objClass, attr))
+        commands = CommandSet()
+        for obj_class in utils.object.descend_mro(cls):
+            if IHasCommands.implementedBy(obj_class):
+                commands.add_commands(getattr(obj_class, attr))
 
-        cls._commandCache[attr] = commands
+        cls._command_cache[attr] = commands
         return commands
 
     def preemptive_command_match(self, raw):

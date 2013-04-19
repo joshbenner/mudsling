@@ -13,24 +13,64 @@ from mudsling import parsers
 from mudsling.errors import CommandInvalid
 from mudsling import locks
 
+from mudsling import utils
+import mudsling.utils.object
 
-prepositions = (
-    ('with', 'using'),
-    ('at', 'to'),
-    ('in front of',),
-    ('in', 'inside', 'into'),
-    ('on top of', 'on', 'onto', 'upon'),
-    ('out of', 'from inside', 'from'),
-    ('over',),
-    ('through',),
-    ('under', 'underneath', 'beneath'),
-    ('behind',),
-    ('beside',),
-    ('for', 'about'),
-    ('is',),
-    ('as',),
-    ('off', 'off of'),
-)
+
+class CommandSet(object):
+    """
+    A compiled set of commands used for matching of a command.
+
+    This class is used rather than a simple list so that child classes can
+    includes commands whose key matches that of another command included by an
+    ancestor class, thereby hiding the ancestor's command and replacing it with
+    the descendant's command.
+
+    @ivar commands: A map of key:command pairs.
+    """
+    commands = {}
+
+    def __init__(self, commands=None, container=None):
+        """
+        Create a new command set.
+
+        @param commands: Iterable of command classes to initialize with.
+        @type commands: C{dict} or C{list} or C{set} or C{tuple}
+
+        @param container: An object whose members include command classes that
+            are to be added to this CommandSet's commands. Can be a module.
+        @type container: C{object}
+        """
+        self.commands = {}
+        if commands is not None:
+            self.add_commands(commands)
+        if container is not None:
+            self.add_commands(all_commands(container))
+
+    def add_command(self, cmd):
+        """
+        Adds a command to the set.
+
+        If a command with the same key is already in the set, it is replaced.
+
+        @param cmd: The command CLASS to add.
+        @type cmd: L{Command}
+        """
+        try:
+            self.commands[cmd.key] = cmd
+        except Exception as e:
+            logging.error("Failed loading command %r: %s" % (cmd, e.message))
+
+    def add_commands(self, commands):
+        for cmd in commands:
+            self.add_command(cmd)
+
+    def match(self, cmd_name, host, actor):
+        matches = []
+        for cmdcls in self.commands.itervalues():
+            if cmdcls.matches(cmd_name) and cmdcls.check_access(host, actor):
+                matches.append(cmdcls)
+        return matches
 
 
 class Command(object):
@@ -41,7 +81,7 @@ class Command(object):
     against input. Commands are only instantiated when they are run, so the
     command may feel free to use the command instance as it wishes.
 
-    @cvar runLock: Object must satisfy lock to execute command.
+    @cvar lock: Object must satisfy lock to execute command.
     @cvar aliases: Regular expressions that can match to trigger the command.
     @cvar syntax: String representation of the command's syntax that is parse-
         able by mudsling.utils.syntax.Syntax.
@@ -64,7 +104,6 @@ class Command(object):
     @ivar actor: The object responsible for the input leading to execution.
     @ivar game: Handy reference to the game object.
     """
-
     aliases = ()
     syntax = ""
     #: @type: list
@@ -98,6 +137,18 @@ class Command(object):
 
     #: @type: mudsling.core.MUDSling
     game = None
+
+    @utils.object.ClassProperty
+    @classmethod
+    def key(cls):
+        """
+        By default, the key of a command is its first alias. This can be
+        overridden by specifically setting key on the child class.
+        """
+        try:
+            return cls.aliases[0]
+        except IndexError:
+            raise Exception("Invalid command key.")
 
     @classmethod
     def name(cls):

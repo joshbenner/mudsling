@@ -103,18 +103,18 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
     def enableLocal(self, option):
         if option == mxp.TELNET_OPT:
             self.mxp = True
-            self.callRemote(proxy.SessionOption, optName="mxp", optVal=1)
+            self.call_remote(proxy.SessionOption, optName="mxp", optVal=1)
             return True
         return False
 
     def disableLocal(self, option):
         if option == mxp.TELNET_OPT:
             self.mxp = False
-            self.callRemote(proxy.SessionOption, optName="mxp", optVal=0)
+            self.call_remote(proxy.SessionOption, optName="mxp", optVal=0)
             return True
         return False
 
-    def callRemote(self, *args, **kwargs):
+    def call_remote(self, *args, **kwargs):
         kwargs['sessId'] = self.session_id
         self.amp.callRemote(*args, **kwargs).addErrback(self.amp._on_error)
 
@@ -127,7 +127,7 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
 
         def saveHost(hostname):
             self.hostname = hostname
-            self.callRemote(proxy.SetHostname, hostname=hostname)
+            self.call_remote(proxy.SetHostname, hostname=hostname)
 
         def noHost(err):
             msg = "Unable to resolve hostname for %r: %s"
@@ -136,9 +136,9 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
         utils.internet.reverse_dns(self.ip).addCallbacks(saveHost, noHost)
 
         if self.session_id in sessions:
-            self.callRemote(proxy.NewSession, ip=self.ip, delim=self.delimiter)
+            self.call_remote(proxy.NewSession, ip=self.ip, delim=self.delimiter)
 
-    def negotiateMXP(self):
+    def negotiate_mxp(self):
         def enable_mxp(opt):
             self.requestNegotiation(mxp.TELNET_OPT, '')
 
@@ -148,7 +148,7 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
         return self.will(mxp.TELNET_OPT).addCallbacks(enable_mxp, no_mxp)
 
     def connectionLost(self, reason):
-        self.callRemote(proxy.EndSession)
+        self.call_remote(proxy.EndSession)
         basic.LineReceiver.connectionLost(self, reason)
         Telnet.connectionLost(self, reason)
         del sessions[self.session_id]
@@ -162,11 +162,11 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
         self.last_activity = time.time()
         parts = proxy.message_chunks(line)
         for part in parts:
-            self.callRemote(proxy.ProxyToServer,
-                            nchunks=len(parts),
-                            chunk=part)
+            self.call_remote(proxy.ProxyToServer,
+                             nchunks=len(parts),
+                             chunk=part)
 
-    def receiveMultipartOutput(self, nchunks, chunk):
+    def receive_multipart_output(self, nchunks, chunk):
         if nchunks > 1:
             self.output_buffer.append(chunk)
             if len(self.output_buffer) < nchunks:
@@ -186,15 +186,15 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
             pass
         self.transport.loseConnection()
 
-    def reSync(self):
-        self.callRemote(proxy.ReSyncSession,
-                        ip=self.ip,
-                        hostname=self.hostname,
-                        delim=self.delimiter,
-                        playerId=self.playerId,
-                        time_connected=self.time_connected,
-                        last_activity=self.last_activity,
-                        mxp=self.mxp)
+    def resync(self):
+        self.call_remote(proxy.ReSyncSession,
+                         ip=self.ip,
+                         hostname=self.hostname,
+                         delim=self.delimiter,
+                         playerId=self.playerId,
+                         time_connected=self.time_connected,
+                         last_activity=self.last_activity,
+                         mxp=self.mxp)
 
 
 class AmpClientProtocol(amp.AMP):
@@ -207,34 +207,34 @@ class AmpClientProtocol(amp.AMP):
         self.factory.resetDelay()
         # noinspection PyTypeChecker
         d = self.callRemote(proxy.SetUptime, start_time=start_time)
-        d.addErrback(self._onError)
+        d.addErrback(self._on_error)
         # If we already have telnet sessions up connect, it's because the
         # server restarted, and we need to re-establish sessions via AMP.
         for session in sessions.itervalues():
-            session.reSync()
+            session.resync()
 
-    def _onError(self, error):
+    def _on_error(self, error):
         error.trap(Exception)
         print 'AmpClientProtocol', error.__dict__
 
     @proxy.ServerToProxy.responder
-    def serverToProxy(self, sessId, nchunks, chunk):
+    def server_to_proxy(self, sessId, nchunks, chunk):
         try:
             session = sessions[sessId]
         except KeyError:
             raise proxy.InvalidSession(str(sessId))
         #session.transport.write(chunk)
-        session.receiveMultipartOutput(nchunks, chunk)
+        session.receive_multipart_output(nchunks, chunk)
         return {}
 
     @proxy.Shutdown.responder
-    def shutdownProxy(self):
+    def shutdown_proxy(self):
         print "Proxy received Shutdown signal from server"
         reactor.stop()
         return {}
 
     @proxy.EndSession.responder
-    def endSession(self, sessId):
+    def end_session(self, sessId):
         try:
             session = sessions[sessId]
         except KeyError:
@@ -243,13 +243,13 @@ class AmpClientProtocol(amp.AMP):
         return {}
 
     @proxy.AttachPlayer.responder
-    def attachPlayer(self, sessId, playerId):
+    def attach_player(self, sessId, playerId):
         try:
             session = sessions[sessId]
         except KeyError:
             raise proxy.InvalidSession(str(sessId))
         session.playerId = playerId
-        session.negotiateMXP()
+        session.negotiate_mxp()
         return {}
 
 
@@ -257,4 +257,4 @@ class AmpClientProtocol(amp.AMP):
 # The name of this variable is irrelevant, as long as there is *some*
 # name bound to a provider of IPlugin and IServiceMaker.
 
-serviceMaker = MUDSlingProxyServiceMaker()
+service_maker = MUDSlingProxyServiceMaker()

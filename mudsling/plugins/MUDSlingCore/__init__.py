@@ -2,8 +2,7 @@
 The primary plugin module for the MUDSlingCore plugin.
 
 This plugin is an example of the GamePlugin type of plugin, which can expose
-new capabilities to the game world. All hooks and plugin API functions expected
-by MUDSling will be documented here.
+new capabilities to the game world.
 """
 
 from mudsling.extensibility import GamePlugin

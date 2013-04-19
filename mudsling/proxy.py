@@ -260,5 +260,5 @@ def AMP_server(game, port):
     factory.protocol = AMPServerProtocol
     factory.game = game
     service = internet.TCPServer(port, factory)
-    service.set_name("AMPServer")
+    service.setName("AMPServer")
     return service

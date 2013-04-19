@@ -1,6 +1,12 @@
 import inspect
 
 
+# noinspection PyUnresolvedReferences,PyMethodOverriding
+class ClassProperty(property):
+    def __get__(self, cls, owner):
+        return self.fget.__get__(None, owner)()
+
+
 def filter_by_class(objects, cls):
     """
     Filter a list of objects to only descendants of a class or classes.
