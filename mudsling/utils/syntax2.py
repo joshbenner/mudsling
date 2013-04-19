@@ -39,7 +39,7 @@ class SyntaxLiteral(SyntaxToken):
         return 'Literal("%s")' % self.text
 
     def _expr(self, nextToken):
-        return Literal(self.text)
+        return Keyword(self.text)
 
 
 class SyntaxChoice(SyntaxToken):
@@ -208,7 +208,7 @@ if __name__ == '__main__':
         ('<something> [to <somewhere>]', [
             'me',
             'me to there',
-            'to',
+            'to',  # Should error
         ]),
         ('<foo> [to <bar>] as <baz>', [
             'foo to bar as baz',
@@ -229,7 +229,11 @@ if __name__ == '__main__':
             'foo bar to baz',
             'foo to baz',
             'foo baz',
-        ])
+        ]),
+        ('for <duration>', [
+            'for 1h',
+            'forever',
+        ]),
     ]
 
     for spec, tests in test:
