@@ -8,6 +8,9 @@ from mudsling import errors
 from mudsling import match
 from mudsling.storage import StoredObject
 
+from mudsling import utils
+import mudsling.utils.time
+
 
 class StaticParser(object):
     @classmethod
@@ -33,19 +36,6 @@ class StaticParser(object):
         """
         return str(val)
 
-#    @classmethod
-#    def canParse(cls, input):
-#        """
-#        Determine if the raw input can be parsed into the value of this class.
-#        Some implementations may call this before parsing, so descendants
-#        should implement it even though parsing can raise exceptions.
-#
-#        @param input: The raw input to evaluate for parsability.
-#        @returns: True if the input is parsable.
-#        @rtype: C{bool}
-#        """
-#        return isinstance(input, basestring)
-
 
 class IntStaticParser(StaticParser):
     @classmethod
@@ -69,7 +59,7 @@ class StringListStaticParser(StaticParser):
     def parse(cls, input):
         if isinstance(input, str) or isinstance(input, unicode):
             return map(str.strip, input.split(cls.delimiter))
-        raise ValueError("Cannot parse list of strings from non-string.")
+        raise errors.ParseError("Cannot parse strings from non-string.")
 
     @classmethod
     def unparse(cls, val, obj=None):
@@ -86,7 +76,7 @@ class ObjClassStaticParser(StaticParser):
     def parse(cls, input):
         objClass = registry.classes.get_class(input)
         if objClass is None or not issubclass(objClass, StoredObject):
-            raise ValueError("Invalid object class name: %r" % input)
+            raise errors.ParseError("Invalid object class name: %r" % input)
         return objClass
 
     @classmethod
@@ -110,7 +100,7 @@ class BoolStaticParser(StaticParser):
         elif m in cls.false_vals:
             return False
         else:
-            raise ValueError(cls.err % input)
+            raise errors.ParseError(cls.err % input)
 
     @classmethod
     def unparse(cls, val, obj=None):
@@ -132,6 +122,22 @@ class OnOffStaticParser(BoolStaticParser):
     true_vals = ('on',)
     false_vals = ('off',)
     err = "Invalid on/off value: %r"
+
+
+class DhmsStaticParser(StaticParser):
+    """
+    @see L{mudsling.utils.time.dhms_to_seconds}
+    """
+    @classmethod
+    def parse(cls, input):
+        try:
+            return utils.time.dhms_to_seconds(input)
+        except ValueError:
+            raise errors.ParseError("Invalid DHMS value. Example: 1d5h30m")
+
+    @classmethod
+    def unparse(cls, val, obj=None):
+        return utils.time.format_dhms(val)
 
 
 class Parser(object):

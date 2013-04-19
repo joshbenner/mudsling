@@ -24,6 +24,7 @@ mudslingcore
 * manage players -- Change other players' passwords.
 * boot players -- Disconnect other players.
 * shout -- Can shout.
+* ban -- Can ban players and IP addresses.
 
 ## Object Lock types
 * control

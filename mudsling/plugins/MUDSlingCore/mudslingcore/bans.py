@@ -2,16 +2,6 @@ import time
 import re
 
 
-def check_bans(session, bans):
-    """
-    Check an iterable of bans for any that actively apply to the session.
-
-    @return: A list of applicable bans.
-    @rtype: C{list}
-    """
-    return [b for b in bans if b.applies_to(session) and b.is_active()]
-
-
 class Ban(object):
     """
     The base class for a ban record.
@@ -88,3 +78,44 @@ class IPBan(Ban):
             return True if self.ip_regex.match(session.ip) else False
         except AttributeError:
             return False
+
+
+def check_bans(session, bans):
+    """
+    Check an iterable of bans for any that actively apply to the session.
+
+    @return: A list of applicable bans.
+    @rtype: C{list}
+    """
+    return [b for b in bans if b.applies_to(session) and b.is_active()]
+
+
+def get_bans(db):
+    return list(db.get_setting('bans', default=[]))
+
+
+def add_ban(db, ban):
+    bans = get_bans(db)
+    bans.append(ban)
+    db.set_setting('bans', bans)
+
+
+def del_ban(db, ban):
+    bans = get_bans(db)
+    bans.remove(ban)
+    db.set_setting('bans', bans)
+
+
+def find_bans(bans, type=Ban, **filters):
+    """
+    Find bans of a specific type with matching attribute values.
+    @param bans: The bans to search.
+    @param type: A class that matching bans must descend from.
+    @param filters: Key/val pairs of attribute/value.
+    """
+    def __match_filters(ban):
+        for attr, val in filters.iteritems():
+            if getattr(ban, attr, None) != val:
+                return False
+        return True
+    return [b for b in bans if isinstance(b, type) and __match_filters(b)]

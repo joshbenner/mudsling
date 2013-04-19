@@ -93,6 +93,13 @@ class CommandInvalid(CommandError):
         self.message = msg or "Command Invalid."
 
 
+class ParseError(Error):
+    """
+    Something couldn't be parsed. Probably user input!
+    """
+    pass
+
+
 class ObjSettingError(Error):
     obj = None
     setting = None

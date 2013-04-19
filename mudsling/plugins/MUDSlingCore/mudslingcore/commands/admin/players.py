@@ -1,6 +1,8 @@
 """
 Administrative commands for managing players.
 """
+import time
+
 from mudsling import parsers
 from mudsling import errors
 from mudsling.commands import Command
@@ -10,6 +12,7 @@ from mudsling import utils
 import mudsling.utils.string
 
 from . import ui
+from mudslingcore import bans
 
 
 class MakePlayerCmd(Command):
@@ -149,5 +152,45 @@ class WhoFromCmd(Command):
 
 class BanCmd(Command):
     """
-    @ban <player> [for <duration>]
+    @ban <player> [for <duration>] [because <reason>]
+
+    Ban a player from logging in for an optional duration. If no duration is
+    given, the ban does not expire. A reason may also be provided.
     """
+    aliases = ('@ban', '@ban-player')
+    syntax = ("<player> {for ever|forever} [{due to|because} <reason>]",
+              "<player> [for <duration>] [{due to|because} <reason>]",)
+    lock = "perm(ban)"
+    arg_parsers = {
+        'player': parsers.MatchDescendants(cls=BasePlayer,
+                                           search_for='player',
+                                           show=True),
+        'duration': parsers.DhmsStaticParser,
+    }
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.objects.Player}
+        @type actor: L{mudslingcore.objects.Player}
+        @type args: C{dict}
+        """
+        player = args['player']
+        existing = bans.find_bans(bans.get_bans(self.game.db),
+                                  type=bans.PlayerBan,
+                                  player=player)
+        if existing:
+            actor.tell(player, " is already banned until")
+            actor.prompt_yes_no()
+
+    def _really_do_ban(self):
+        args = self.args
+        if 'duration' not in args:
+            # Forever syntax used, or no duration provided.
+            expires = None
+        else:
+            expires = time.time() + args['duration']
+        ban = bans.PlayerBan(player=args['player'],
+                             expires=expires,
+                             createdBy=actor,
+                             reason=args.get('reason', 'No reason given.'))
+        bans.add_ban(self.game.db, ban)

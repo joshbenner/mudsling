@@ -1299,7 +1299,7 @@ class BasePlayer(BaseObject):
                 self.possessing.process_input(raw)
         except errors.CommandInvalid as e:
             self.msg("{r" + e.message)
-        except errors.MatchError as e:
+        except (errors.MatchError, errors.ParseError) as e:
             self.msg("{y%s" % e.message)
         except NotImplementedError as e:
             m = "{y%s is not yet implemented." % (e.message or "This feature")
