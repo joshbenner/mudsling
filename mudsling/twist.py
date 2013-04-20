@@ -22,7 +22,14 @@ else:
 
 
 class AppRunner(_SomeApplicationRunner):
-    # todo: Implement __init__ to inject logfile name into config.
+    def __init__(self, config):
+        appname = argv[1].rsplit('-', 1)[1]
+        config['logfile'] = '%s.log' % appname
+        config['pidfile'] = '%s.pid' % appname
+        if '--debugger' in argv:
+            config['nodaemon'] = True
+        super(AppRunner, self).__init__(config)
+
     def startReactor(self, reactor, oldstdout, oldstderr):
         super(AppRunner, self).startReactor(reactor, oldstdout, oldstderr)
 
