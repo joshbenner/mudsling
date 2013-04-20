@@ -22,6 +22,7 @@ else:
 
 
 class AppRunner(_SomeApplicationRunner):
+    # todo: Implement __init__ to inject logfile name into config.
     def startReactor(self, reactor, oldstdout, oldstderr):
         super(AppRunner, self).startReactor(reactor, oldstdout, oldstderr)
 
