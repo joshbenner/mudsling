@@ -9,12 +9,6 @@ import cPickle as pickle
 import logging
 import time
 
-# Prefer libs we ship with.
-basepath = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-libpath = os.path.join(basepath, "lib")
-sys.path.insert(1, libpath)
-del basepath, libpath
-
 from twisted.internet import reactor
 from twisted.application.service import Service, MultiService
 
