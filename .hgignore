@@ -7,3 +7,5 @@ game
 *.iml
 .idea
 out
+*.log
+*.pid
