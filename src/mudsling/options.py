@@ -6,12 +6,8 @@ parse the same arguments.
 import os
 import sys
 
-# Prefer libs we ship with.
-basepath = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-libpath = os.path.join(basepath, "lib")
-sys.path.insert(1, libpath)
-del basepath, libpath
+# Prefer libs we ship with. Put here because every process includes this early.
+sys.path.insert(1, os.path.join(os.path.dirname(os.getcwd()), "lib"))
 
 from twisted.python import usage
 
@@ -19,7 +15,8 @@ from twisted.python import usage
 class Options(usage.Options):
     optFlags = [["debugger", "d", "Run in debugger-compatibility mode."]]
     optParameters = [
-        ["gamedir", "g", "game", "The path to the game directory."]
+        ["gamedir", "g", os.path.join('..', "game"),
+         "The path to the game directory."]
     ]
 
     def configPaths(self):

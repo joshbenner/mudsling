@@ -1,13 +1,5 @@
-import os
-import imp
-import ConfigParser
 import logging
 import time
-
-modulepath = os.path.dirname(os.path.realpath(__file__))
-options_module = imp.load_source('options',
-                                 os.path.join(modulepath, 'options.py'))
-Options = options_module.Options
 
 from zope.interface import implements
 
@@ -19,6 +11,8 @@ from twisted.internet.protocol import ServerFactory, ReconnectingClientFactory
 from twisted.application import internet
 from twisted.protocols import amp, basic
 from twisted.internet import reactor
+
+from mudsling.options import Options
 
 from mudsling import proxy
 from mudsling.config import config

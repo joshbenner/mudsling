@@ -1,16 +1,11 @@
-import os
-import imp
-
-modulepath = os.path.dirname(os.path.realpath(__file__))
-options_module = imp.load_source('options',
-                                 os.path.join(modulepath, 'options.py'))
-Options = options_module.Options
-
 from zope.interface import implements
 
 from twisted.plugin import IPlugin
 from twisted.application.service import IServiceMaker
 
+from mudsling.options import Options
+
+# These are in path because src is the current dir when the plugin runs.
 from mudsling.core import MUDSling
 from mudsling.config import config
 
