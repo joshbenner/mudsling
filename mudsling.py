@@ -12,15 +12,19 @@ src = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'src')
 
 
 def process_ended(process, exit_code):
-    global shutting_down
     if exit_code != 10:
         # 10 is the only code to indicate a restart. Otherwise, shutdown!
+        global shutting_down
         shutting_down = True
-        for name, proc in processes.iteritems():
-            proc.kill()
+        kill_all_processes()
         reactor.stop()
     else:
         process.respawn()
+
+
+def kill_all_processes():
+    for name, proc in processes.iteritems():
+        proc.kill()
 
 
 class MUDSlingProcess(protocol.ProcessProtocol):
@@ -43,7 +47,11 @@ class MUDSlingProcess(protocol.ProcessProtocol):
     def kill(self):
         if self.alive:
             logging.info("Terminating %s process..." % self.name)
-            self.transport.signalProcess('KILL')
+            try:
+                self.transport.signalProcess('TERM')
+                self.alive = False  # Or it will be soon?
+            except Exception as e:
+                logging.warning("Cannot kill %s: %s" % (self.name, e.message))
 
     def respawn(self):
         processes[self.name] = MUDSlingProcess(self.name, self.args)
@@ -102,6 +110,8 @@ if __name__ == '__main__':
 
         for process in processes.itervalues():
             process.spawn()
+
+        reactor.addSystemEventTrigger('before', 'shutdown', kill_all_processes)
 
         reactor.run()
         os.remove(pidfile)

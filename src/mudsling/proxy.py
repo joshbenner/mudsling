@@ -2,6 +2,7 @@ from twisted.internet.protocol import ServerFactory
 from twisted.application import internet
 from twisted.protocols import amp
 from twisted.internet import reactor
+from twisted.internet import defer
 
 from mudsling.sessions import Session
 
@@ -36,14 +37,15 @@ class ProxySession(Session):
 
     def call_remote(self, *args, **kwargs):
         kwargs['sessId'] = self.proxy_session_id
-        self.amp.callRemote(*args, **kwargs).addErrback(self.amp._on_error)
+        d = self.amp.callRemote(*args, **kwargs).addErrback(self.amp._on_error)
+        return d
 
     def raw_send_output(self, text):
         chunks = message_chunks(text)
-        for chunk in chunks:
-            self.call_remote(ServerToProxy,
-                             nchunks=len(chunks),
-                             chunk=chunk)
+        nchunks = len(chunks)
+        calls = [self.call_remote(ServerToProxy, nchunks=nchunks, chunk=chunk)
+                 for chunk in chunks]
+        return defer.DeferredList(calls)
 
     def receive_multipart_input(self, nchunks, chunk):
         if nchunks > 1:
@@ -174,10 +176,12 @@ class AMPServerProtocol(amp.AMP):
     def _on_shutdown(self):
         if self.factory.game.exit_code != 10:
             self.callRemote(Shutdown).addErrback(self._on_error)
+        self.transport.loseConnection()
 
     def _on_error(self, error):
         error.trap(Exception)
-        print 'AMPServerProtocol', error.__dict__
+        # print 'AMPServerProtocol', dir(error)
+        error.printDetailedTraceback()
 
     @SetUptime.responder
     def set_uptime(self, start_time):

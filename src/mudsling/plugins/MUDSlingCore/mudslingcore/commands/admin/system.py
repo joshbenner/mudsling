@@ -32,10 +32,13 @@ class ReloadCmd(Command):
     aliases = ('@reload',)
     lock = "perm(reload server)"
 
+    def _do_reload(self, result):
+        self.game.shutdown(reload=True)
+
     def run(self, this, actor, args):
         msg = "Reloading server, please stand by..."
-        self.game.session_handler.output_to_all_sessions(msg)
-        self.game.shutdown(reload=True)
+        d = self.game.session_handler.output_to_all_sessions(msg)
+        d.addCallback(self._do_reload)
 
 
 class EvalCmd(Command):

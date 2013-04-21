@@ -1,6 +1,7 @@
 from twisted.conch.telnet import StatefulTelnetProtocol
 from twisted.internet.protocol import ServerFactory
 from twisted.application import internet
+from twisted.internet.defer import Deferred
 
 from mudsling.extensibility import TwistedServicePlugin
 from mudsling.sessions import Session
@@ -53,6 +54,7 @@ class SimpleTelnetSession(StatefulTelnetProtocol, Session):
         protocol.
         """
         self.transport.write(text)
+        return Deferred()
 
     def disconnect(self, reason):
         self.send_output(reason)

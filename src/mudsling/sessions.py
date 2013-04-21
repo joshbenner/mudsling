@@ -2,7 +2,9 @@ import time
 import logging
 import traceback
 import re
+
 import zope.interface
+from twisted.internet import defer
 
 from mudsling.config import config
 from mudsling.utils import string
@@ -111,6 +113,8 @@ class Session(object):
         @param text: Text to send. Can be a list.
         @param flags: A dictionary of flags to modify how the text is output.
         @type text: str
+
+        @rtype: L{twisted.internet.defer.Deferred}
         """
         if flags is None:
             flags = {}
@@ -143,11 +147,13 @@ class Session(object):
         elif not raw:
             text = string.parse_ansi(text, strip_ansi=True)
 
-        self.raw_send_output(text)
+        return self.raw_send_output(text)
 
     def raw_send_output(self, text):
         """
         Children should override!
+
+        @rtype: L{twisted.internet.defer.Deferred}
         """
 
     def disconnect(self, reason):
@@ -229,8 +235,11 @@ class SessionHandler(object):
             session.disconnect(reason)
 
     def output_to_all_sessions(self, text, flags=None):
-        for session in self.sessions:
-            session.send_output(text, flags=flags)
+        """
+        @rtype: L{twisted.internet.defer.DeferredList}
+        """
+        calls = [s.send_output(text, flags=flags) for s in self.sessions]
+        return defer.DeferredList(calls)
 
 
 class IInputProcessor(zope.interface.Interface):

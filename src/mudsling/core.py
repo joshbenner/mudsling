@@ -48,6 +48,7 @@ class MUDSling(MultiService):
     session_handler = None
     start_time = 0
     restart_time = 0
+    exit_code = 0
 
     #: @type: L{mudsling.plugins.LoginScreenPlugin}
     login_screen = None
@@ -226,8 +227,11 @@ class MUDSling(MultiService):
         if code != 10:
             self.session_handler.disconnect_all_sessions("Shutting Down")
         self.save_database()
-        #noinspection PyUnresolvedReferences
-        reactor.stop()
+
+        def __stop_reactor(result):
+            #noinspection PyUnresolvedReferences
+            reactor.stop()
+        self.stopService().addBoth(__stop_reactor)
 
     def uptime(self, sinceRestart=False):
         if sinceRestart:
