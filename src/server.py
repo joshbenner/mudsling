@@ -1,25 +1,30 @@
-import sys
+import os
+import logging
 
-from twisted.python.usage import UsageError
 from twisted.internet import reactor
 
-from mudsling.options import Options
+from mudsling.options import get_options
 from mudsling.core import MUDSling
 from mudsling.config import config
+from mudsling.logs import open_log
+from mudsling.pid import check_pid
 
-if __name__ == '__main__':
-    options = Options()
-    try:
-        options.parseOptions(sys.argv[1:])
-    except UsageError as e:
-        sys.stderr.write(e.message + '\n' + str(options))
-        exit(1)
 
+def run_server(args=None):
+    options = get_options(args)
+    log_level = logging.DEBUG if options['debugger'] else logging.INFO
+    open_log(filepath=os.path.join(options['gamedir'], 'server.log'),
+             level=log_level,
+             stdout=bool(options['debugger']))
+    pidfile = os.path.join(options['gamedir'], 'server.pid')
+    check_pid(pidfile, kill=True)
     game = MUDSling(options['gamedir'], options.configPaths())
-    game.setName('main')  # Used by AppRunner to find exit code
     if options['debugger']:
         config.set('Plugins', 'SimpleTelnetServer', 'Enabled')
         config.set('Proxy', 'enabled', 'No')
-
     game.startService()
     reactor.run()
+    os.remove(pidfile)
+
+if __name__ == '__main__':
+    run_server()

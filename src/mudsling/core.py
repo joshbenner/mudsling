@@ -32,8 +32,6 @@ from mudsling import utils
 import mudsling.utils.modules
 import mudsling.utils.sequence
 
-logging.basicConfig(level=logging.DEBUG)
-
 
 class MUDSling(MultiService):
     #: @type: C{str}
