@@ -10,6 +10,7 @@ from mudsling.objects import BasePlayer
 
 from mudsling import utils
 import mudsling.utils.string
+import mudsling.utils.time
 
 from . import ui
 from mudslingcore import bans
@@ -179,7 +180,10 @@ class BanCmd(Command):
                                   type=bans.PlayerBan,
                                   player=player)
         if existing:
-            actor.tell(player, " is already banned until")
+            format = "%I:%M %p on %a %b"
+            # Ergh. Python formatting not satisfying. Want PHP's formatting.
+            actor.tell(player, " is already banned until ",
+                       utils.time.format_timestamp(existing.expires))
             actor.prompt_yes_no()
 
     def _really_do_ban(self):

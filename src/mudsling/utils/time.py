@@ -1,7 +1,15 @@
 from __future__ import absolute_import
 import time
+import datetime
+import calendar
 import re
+import logging
 from collections import namedtuple
+from ConfigParser import NoSectionError, NoOptionError
+
+import pytz
+
+from mudsling.config import config
 
 
 dhms_regex = re.compile(
@@ -86,6 +94,79 @@ realTime = TimeSchema(
     TimeUnit(1, 'second', 'seconds', 'sec', 'secs'),
 )
 realTime.default_interval_format = "%yeary %monthm %dayd"
+
+__default_tz = None
+def default_tz():
+    global __default_tz
+    if __default_tz is None:
+        try:
+            __default_tz = config.get('Time', 'timezone')
+        except (NoSectionError, NoOptionError):
+            __default_tz = pytz.UTC
+            logging.warning("No timezone set in configuration!")
+    return __default_tz
+
+
+def get_tz(tz):
+    """
+    Given a timezone name or tzinfo instance, return a tzinfo instance.
+
+    @param tz: Timezone name or tzinfo instance.
+    @type tz: C{str} or C{datetime.tzinfo}
+
+    @raise TypeError: When provided tz is not a string or tzinfo instance.
+
+    @rtype: C{datetime.tzinfo}
+    """
+    if isinstance(tz, basestring):
+        return pytz.timezone(tz)
+    elif isinstance(tz, datetime.tzinfo):
+        return tz
+    else:
+        raise TypeError("get_tz requires a string or tzinfo instance.")
+
+
+def get_datetime(timestamp, tz=None):
+    """
+    Given a datetime or UNIX timestamp, return a tz-aware datetime object.
+
+    @param timestamp: Datetime instance or UNIX timestamp.
+    @type timestamp: C{int} or C{long} or C{float} or C{datetime.datetime}
+
+    @param tz: Optional timezone for UNIX timestamp or unaware datetime
+        instance. Ignored if aware datetime instance is passed in.
+    @type tz: C{str} or C{datetime.tzinfo}
+
+    @rtype: C{datetime.datetime}
+    """
+    tz = get_tz(tz or default_tz())
+    if isinstance(timestamp, datetime.datetime):
+        dt = timestamp if timestamp.tzinfo else tz.localize(timestamp)
+    else:
+        # noinspection PyTypeChecker
+        dt = datetime.datetime.fromtimestamp(timestamp, tz=tz)
+    return dt
+
+
+def format_timestamp(timestamp, format=None, in_tz=None, out_tz=None):
+    """
+    Format a given timestamp into a string representation.
+
+    @param timestamp: An integer UNIX timestamp or a datetime instance.
+    @param format: The strftime format to use.
+    @param in_tz: An optional timezone name or tzinfo instance indicating what
+        timezone the input timestamp (if a UNIX timestamp or an unaware
+        datetime). Ignored if timestamp is aware datetime instance.
+    @param out_tz: An optional timezone name or tzinfo instance indicating what
+        timezone to use when formatting the output.
+    @rtype: C{str}
+    """
+    format = format or '%Y-%m-%d %H:%M:%S %z'
+    dt = get_datetime(timestamp, in_tz)
+    out_tz = get_tz(out_tz or default_tz())
+    if in_tz != out_tz:
+        dt = dt.astimezone(out_tz)
+    return dt.strftime(format)
 
 
 def parse_dhms(input):
