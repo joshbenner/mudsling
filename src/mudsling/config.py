@@ -7,7 +7,6 @@ import inspect
 
 from mudsling import utils
 import mudsling.utils.modules
-import mudsling.utils.time
 
 
 class Config(ConfigParser.SafeConfigParser):
@@ -59,6 +58,7 @@ class Config(ConfigParser.SafeConfigParser):
 
         @rtype: C{int}
         """
+        import mudsling.utils.time  # Avoid circular import at module-level.
         return utils.time.dhms_to_seconds(self.get(section, option))
 
     def section(self, section):
