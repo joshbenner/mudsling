@@ -180,11 +180,16 @@ class BanCmd(Command):
                                   type=bans.PlayerBan,
                                   player=player)
         if existing:
-            format = "%I:%M %p on %a %b"
-            # Ergh. Python formatting not satisfying. Want PHP's formatting.
-            actor.tell(player, " is already banned until ",
-                       utils.time.format_timestamp(existing.expires))
-            actor.prompt_yes_no()
+            format = "%g:%i%a on %l, %F %j%S %Y"
+            actor.tell('{m', player, "{y is already banned until {c",
+                       utils.time.format_interval(format, existing.expires))
+            prompt = "{yAre you sure you want to impose an additional ban?"
+            actor.prompt_yes_no(prompt, self._prompt_for_ban)
+        else:
+            self._prompt_for_ban()
+
+    def _prompt_for_ban(self):
+        expires = time.time()
 
     def _really_do_ban(self):
         args = self.args
