@@ -24,8 +24,9 @@ from dates import WEEKDAYS_ABBR
 
 __all__ = ('TimeFormat', 'DateFormat', 'datetime_format', 'time_format')
 
-re_formatchars = re.compile(
-    r'(?<!\\)([aAbBcdDeEfFgGhHiIjlLmMnNoOPrsStTUuwWyYzZ])')
+formatchars = 'aAbBcdDeEfFgGhHiIjlLmMnNoOPrsStTUuwWyYzZ'
+re_formatchars = re.compile(r'(?<!\\)([' + formatchars + '])')
+re_alt = re.compile(r'%([' + formatchars + '])')
 re_escaped = re.compile(r'\\(.)')
 
 
@@ -37,6 +38,20 @@ class Formatter(object):
                 pieces.append(str(getattr(self, piece)()))
             elif piece:
                 pieces.append(re_escaped.sub(r'\1', piece))
+        return ''.join(pieces)
+
+    def alt_format(self, formatstr):
+        """
+        Similar to .format(), except each replacement code must be preceeded by
+        a percent (%) sign. Useful for when you want to sprinkle normal text
+        within the format string. It is also a little faster.
+        """
+        pieces = []
+        for i, piece in enumerate(re_alt.split(str(formatstr))):
+            if i % 2:
+                pieces.append(str(getattr(self, piece)()))
+            elif piece:
+                pieces.append(piece)
         return ''.join(pieces)
 
 
@@ -315,13 +330,13 @@ class DateFormat(TimeFormat):
         return offset.days * 86400 + offset.seconds
 
 
-def datetime_format(format_string, value=None):
+def datetime_format(format_string, value=None, alt=False):
     """Convenience function"""
     df = DateFormat(value or nowlocal())
-    return df.format(format_string)
+    return df.alt_format(format_string) if alt else df.format(format_string)
 
 
-def time_format(format_string, value=None):
+def time_format(format_string, value=None, alt=False):
     """Convenience function"""
     tf = TimeFormat(value or nowlocal())
-    return tf.format(format_string)
+    return tf.alt_format(format_string) if alt else tf.format(format_string)
