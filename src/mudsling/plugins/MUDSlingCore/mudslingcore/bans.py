@@ -1,15 +1,17 @@
-import time
 import re
+
+from mudsling import utils
+import mudsling.utils.time
 
 
 class Ban(object):
     """
     The base class for a ban record.
 
-    @ivar created: The UNIX timestamp of when the ban was created.
+    @ivar created: The UTC UNIX timestamp of when the ban was created.
     @ivar createdBy: A ref or string indicating who created the ban.
     @ivar reason: A string describing the reason for the ban.
-    @ivar expires: The UNIX timestamp of when the ban ends. None = never.
+    @ivar expires: The UTC UNIX timestamp of when the ban ends. None = never.
     """
     created = 0
     createdBy = None
@@ -19,7 +21,7 @@ class Ban(object):
     _settings = ('created', 'createdBy', 'reason', 'expires')
 
     def __init__(self, *args, **kwargs):
-        self.created = time.time()
+        self.created = utils.time.utctime()
         for k, v in kwargs.iteritems():
             if k in self._settings:
                 setattr(self, k, v)
@@ -30,7 +32,7 @@ class Ban(object):
         """
         if self.expires is None:
             return True
-        return time.time() <= self.expires
+        return utils.time.utctime() <= self.expires
 
     def applies_to(self, session):
         """

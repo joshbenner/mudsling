@@ -9,3 +9,7 @@ Hooks:
         * For instance: tasks have server_startup(), which is a system-level
           hook that most child classes should not override. This hook in turn
           calls the user-overridable hook: on_server_startup().
+
+Time handling:
+    * Any stored UNIX timestamp should be UTC. Use mudsling.utils.time.utcnow().
+    * Any stored datetime should be aware.

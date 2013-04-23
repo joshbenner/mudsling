@@ -3,6 +3,7 @@ Timezone handling.
 
 Some code copyright (c) Django Software Foundation and individual contributors.
 """
+import time
 import datetime
 import logging
 from ConfigParser import NoSectionError, NoOptionError
@@ -12,7 +13,8 @@ import pytz
 from mudsling.config import config
 
 __all__ = ('default_tz', 'get_tz', 'localtime', 'is_aware', 'is_naive',
-           'make_aware', 'make_naive', 'nowlocal', 'nowutc')
+           'make_aware', 'make_naive', 'nowlocal', 'nowutc', 'utctime',
+           'env_time_offset')
 
 # Cache for default_tz()
 __default_tz = None
@@ -32,15 +34,36 @@ def default_tz():
     return __default_tz
 
 
+def env_time_offset():
+    """
+    Returns the seconds the system environment's time is offset from UTC.
+    @rtype: C{int}
+    """
+    return time.altzone if time.daylight else time.timezone
+
+
+def utctime():
+    """
+    Returns the current UTC UNIX timestamp.
+    @rtype: C{float}
+    """
+    return time.time() - env_time_offset()
+
+
 def nowutc():
     """
     Returns an aware datetime.datetime.
+    @rtype: C{datetime.datetime}
     """
     # timeit shows that datetime.now(tz=utc) is 24% slower
     return datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
 
 
 def nowlocal():
+    """
+    Returns an aware datetime using the default timezone.
+    @rtype: C{datetime.datetime}
+    """
     return nowutc().astimezone(default_tz())
 
 
@@ -67,8 +90,8 @@ def localtime(value, timezone=None):
     """
     Converts an aware datetime.datetime to local time.
 
-    Local time is defined by the current time zone, unless another time zone
-    is specified.
+    Local time is defined as the default/configured timezone, unless another is
+    specified in the `timezone` parameter.
     """
     if timezone is None:
         timezone = default_tz()
