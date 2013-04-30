@@ -61,6 +61,8 @@ class EvalCmd(Command):
 
         import mudslingcore
         import sys
+        import datetime
+        import calendar
         from mudsling import registry
         from mudsling.config import config
 
@@ -78,6 +80,9 @@ class EvalCmd(Command):
         available_vars = {
             'eval_cmd': self,
             'sys': sys,
+            'time': time,
+            'datetime': datetime,
+            'calendar': calendar,
             'game': self.game,
             'ref': self.game.db.get_ref,
             'registry': registry,

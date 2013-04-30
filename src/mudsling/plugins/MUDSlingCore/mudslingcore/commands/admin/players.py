@@ -168,6 +168,7 @@ class BanCmd(Command):
                                            show=True),
         'duration': parsers.DhmsStaticParser,
     }
+    format = "%g:%i%a on %l, %F %j%S %Y"
 
     def run(self, this, actor, args):
         """
@@ -176,30 +177,55 @@ class BanCmd(Command):
         @type args: C{dict}
         """
         player = args['player']
-        existing = bans.find_bans(bans.get_bans(self.game.db),
-                                  type=bans.PlayerBan,
-                                  player=player)
+        existing = bans.find_bans(type=bans.PlayerBan, player=player)
         if existing:
-            format = "%g:%i%a on %l, %F %j%S %Y"
-            actor.tell('{m', player, "{y is already banned until {c",
-                       utils.time.format_interval(format, existing.expires))
+            if len(existing) > 1:
+                actor.tell('{m', player, "{y already has multiple bans!")
+            else:
+                expires = existing[0].expires
+                if expires is None:
+                    actor.tell('{m', player,
+                               "{y is already banned indefinitely.")
+                    return
+                actor.tell('{m', player, "{y is already banned until {c",
+                           utils.time.format_timestamp(expires, self.format))
             prompt = "{yAre you sure you want to impose an additional ban?"
-            actor.prompt_yes_no(prompt, self._prompt_for_ban)
+            actor.prompt_yes_no(prompt,
+                                yes_callback=self._prompt_for_ban,
+                                no_callback=self._ban_abort)
         else:
             self._prompt_for_ban()
 
+    def _ban_abort(self):
+        self.actor.msg('{gBanning aborted.')
+
     def _prompt_for_ban(self):
-        expires = time.time()
+        args = self.parsed_args
+        player = args['player']
+        actor = self.actor
+        if 'duration' in args:
+            expires = utils.time.utctime() + args['duration']
+            prompt = ["{yYou want to ban {m", player, "{y until {c",
+                      utils.time.format_timestamp(expires, self.format), "{y?"]
+        else:
+            expires = None
+            prompt = ["{yYou want to ban {m", player, "{c indefinitely{y?"]
+        self.expires = expires
+        actor.tell(*prompt)
+        actor.prompt_yes_no(yes_callback=self._really_do_ban,
+                            no_callback=self._ban_abort)
 
     def _really_do_ban(self):
-        args = self.args
-        if 'duration' not in args:
-            # Forever syntax used, or no duration provided.
-            expires = None
+        player = self.parsed_args['player']
+        reason = self.parsed_args.get('reason', 'No reason given.')
+        bans.add_ban(bans.PlayerBan(player=player,
+                                    expires=self.expires,
+                                    createdBy=self.actor,
+                                    reason=reason))
+        msg = ["{yYou have banned {m", player]
+        if self.expires is None:
+            msg.append("{c indefinitely{y.")
         else:
-            expires = time.time() + args['duration']
-        ban = bans.PlayerBan(player=args['player'],
-                             expires=expires,
-                             createdBy=actor,
-                             reason=args.get('reason', 'No reason given.'))
-        bans.add_ban(self.game.db, ban)
+            end = utils.time.format_timestamp(self.expires, self.format)
+            msg.extend(["{y until {c", end, "{y."])
+        self.actor.tell(*msg)

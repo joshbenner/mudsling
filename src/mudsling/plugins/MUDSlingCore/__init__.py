@@ -11,6 +11,7 @@ from mudsling.perms import Role
 from .mudslingcore.objects import Thing, Character, Player
 from .mudslingcore.topography import Room, Exit
 from .mudslingcore.help import help_db
+from .mudslingcore import bans
 
 
 class MUDSlingCorePlugin(GamePlugin):
@@ -21,6 +22,8 @@ class MUDSlingCorePlugin(GamePlugin):
     """
 
     def server_startup(self):
+        # Init the ban system.
+        bans.game = self.game
         # Load help files to form an in-memory database of the entries.
         for paths in self.game.invoke_hook('help_paths').itervalues():
             for path in paths:

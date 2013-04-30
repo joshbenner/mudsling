@@ -467,6 +467,12 @@ class BaseObject(PossessableObject):
         cls = cls or BaseObject
         return match_objlist(search, self.game.db.descendants(cls))
 
+    def gained_input_capture(self, session):
+        pass  # Here to implement IInputProcessor
+
+    def lost_input_capture(self, session):
+        pass  # Here to implement IInputProcessor
+
     def process_input(self, raw, err=True):
         """
         Parses raw input as a command from this object and executes the first

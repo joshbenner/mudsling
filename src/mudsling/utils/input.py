@@ -1,4 +1,5 @@
 # todo: Refactor out of utils? io.py?
+import logging
 import zope.interface
 from mudsling.sessions import IInputProcessor
 
@@ -44,6 +45,9 @@ class LineReader(object):
     def gained_input_capture(self, session):
         self.session = session
 
+    def lost_input_capture(self, session):
+        pass  # Implements IInputProcessor
+
     def process_input(self, raw):
         if raw in self.end_tokens:
             self.end_capture()
@@ -58,12 +62,19 @@ class LineReader(object):
         Stop capturing input and pass the input to the callback. If callback
         returns boolean False, then capture will be reset and maintained.
         """
-        result = self.callback(self.lines, *self.args)
-        if result is not False:
+        try:
+            result = self.callback(self.lines, *self.args)
+        except:
+            logging.exception("LineReader callback error")
             if self.session is not None:
                 self.session.reset_input_capture()
+                self.session.send_output("{yAn error has occurred.")
         else:
-            self.reset()
+            if result is not False:
+                if self.session is not None:
+                    self.session.reset_input_capture()
+            else:
+                self.reset()
 
     def reset(self):
         self.lines = []

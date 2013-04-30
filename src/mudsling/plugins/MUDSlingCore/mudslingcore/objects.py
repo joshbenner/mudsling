@@ -8,7 +8,7 @@ from mudsling import utils
 import mudsling.utils.string
 
 from objsettings import ObjSetting, ConfigurableObject
-from bans import check_bans
+from mudslingcore import bans
 
 from mudslingcore import commands
 import commands.admin.system
@@ -130,8 +130,7 @@ class Player(BasePlayer, ConfigurableObject):
     )
 
     def authenticate(self, password, session=None):
-        bans = self.db.get_setting('bans', default=[])
-        applicable = check_bans(session, bans)
+        applicable = bans.check_bans(session)
         if applicable:
             raise Exception("Connection banned: %s" % applicable[0].reason)
         return super(Player, self).authenticate(password, session)

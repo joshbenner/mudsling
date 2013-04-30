@@ -39,7 +39,7 @@ def env_time_offset():
     Returns the seconds the system environment's time is offset from UTC.
     @rtype: C{int}
     """
-    return time.altzone if time.daylight else time.timezone
+    return time.altzone if time.localtime().tm_isdst else time.timezone
 
 
 def utctime():
@@ -47,7 +47,7 @@ def utctime():
     Returns the current UTC UNIX timestamp.
     @rtype: C{float}
     """
-    return time.time() - env_time_offset()
+    return time.time() + env_time_offset()
 
 
 def nowutc():
