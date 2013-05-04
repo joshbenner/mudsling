@@ -235,7 +235,7 @@ class DateFormat(TimeFormat):
 
     def r(self):
         """RFC 2822 formatted date; e.g. 'Thu, 21 Dec 2000 16:01:07 +0200'"""
-        return self.format('D, j M Y H:i:s O')
+        return self.alt_format('%D, %j %M %Y %H:%i:%s %O')
 
     def S(self):
         """English ordinal suffix for the day of the month,
@@ -301,7 +301,7 @@ class DateFormat(TimeFormat):
 
     def y(self):
         """Year, 2 digits; e.g. '99'"""
-        return self.data.year[2:]
+        return str(self.data.year)[2:]
 
     def Y(self):
         """Year, 4 digits; e.g. '1999'"""

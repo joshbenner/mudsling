@@ -89,11 +89,15 @@ class ConfigSection(object):
     def __getitem__(self, item):
         return self.get(item)
 
+    def __iter__(self):
+        for item in self.items():
+            yield item
+
     # Yes, there are ways to do this that would be more succinct. However, this
     # is explicit, readable, obvious, and very compatible with IDE completion.
 
-    def get(self, option):
-        return self.config.get(self.section, option)
+    def get(self, option, raw=False, vars=None):
+        return self.config.get(self.section, option, raw, vars)
 
     def getint(self, option):
         return self.config.getint(self.section, option)
@@ -113,8 +117,8 @@ class ConfigSection(object):
     def getinterval(self, option):
         return self.config.getinterval(self.section, option)
 
-    def items(self):
-        return self.config.items(self.section)
+    def items(self, raw=False, vars=None):
+        return self.config.items(self.section, raw, vars)
 
     def set(self, option, value):
         return self.config.set(self.section, option, value)

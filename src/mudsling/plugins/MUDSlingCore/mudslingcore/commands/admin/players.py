@@ -168,7 +168,6 @@ class BanCmd(Command):
                                            show=True),
         'duration': parsers.DhmsStaticParser,
     }
-    format = "%g:%i%a on %l, %F %j%S %Y"
 
     def run(self, this, actor, args):
         """
@@ -177,7 +176,8 @@ class BanCmd(Command):
         @type args: C{dict}
         """
         player = args['player']
-        existing = bans.find_bans(type=bans.PlayerBan, player=player)
+        existing = bans.find_bans(ban_type=bans.PlayerBan, player=player,
+                                  is_active=True)
         if existing:
             if len(existing) > 1:
                 actor.tell('{m', player, "{y already has multiple bans!")
@@ -188,7 +188,7 @@ class BanCmd(Command):
                                "{y is already banned indefinitely.")
                     return
                 actor.tell('{m', player, "{y is already banned until {c",
-                           utils.time.format_timestamp(expires, self.format))
+                           utils.time.format_timestamp(expires, 'long'))
             prompt = "{yAre you sure you want to impose an additional ban?"
             actor.prompt_yes_no(prompt,
                                 yes_callback=self._prompt_for_ban,
@@ -206,7 +206,7 @@ class BanCmd(Command):
         if 'duration' in args:
             expires = time.time() + args['duration']
             prompt = ["{yYou want to ban {m", player, "{y until {c",
-                      utils.time.format_timestamp(expires, self.format), "{y?"]
+                      utils.time.format_timestamp(expires, 'long'), "{y?"]
         else:
             expires = None
             prompt = ["{yYou want to ban {m", player, "{c indefinitely{y?"]
@@ -226,6 +226,6 @@ class BanCmd(Command):
         if self.expires is None:
             msg.append("{c indefinitely{y.")
         else:
-            end = utils.time.format_timestamp(self.expires, self.format)
+            end = utils.time.format_timestamp(self.expires, 'long')
             msg.extend(["{y until {c", end, "{y."])
         self.actor.tell(*msg)

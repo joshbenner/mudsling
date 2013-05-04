@@ -1,5 +1,6 @@
 import os
 import re
+import logging
 from collections import namedtuple
 
 from mudsling.extensibility import LoginScreenPlugin
@@ -106,6 +107,7 @@ class DefaultLoginScreen(LoginScreenPlugin):
             auth = player.authenticate(password, session)
         except TypeError:
             auth = False
+            logging.exception("Auth failed.")
         except Exception as e:
             session.send_output(e.message)
             return

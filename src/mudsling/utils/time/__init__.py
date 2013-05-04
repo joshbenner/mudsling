@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-import time
 import datetime
 import re
 
@@ -21,6 +20,8 @@ realTime = TimeSchema(
     TimeUnit(1, 'second', 'seconds', 'sec', 'secs'),
 )
 realTime.default_interval_format = "%yeary %monthm %dayd"
+
+formats = {'default': '%Y-%m-%d %H:%i:%s %O'}
 
 
 def get_datetime(timestamp=None, tz=None):
@@ -46,27 +47,6 @@ def get_datetime(timestamp=None, tz=None):
         # noinspection PyTypeChecker
         dt = datetime.datetime.fromtimestamp(timestamp, tz=tz)
     return dt
-
-
-def format_timestamp(timestamp, format=None, in_tz=None, out_tz=None):
-    """
-    Format a given timestamp into a string representation.
-
-    @param timestamp: An integer UNIX timestamp or a datetime instance.
-    @param format: The strftime format to use.
-    @param in_tz: An optional timezone name or tzinfo instance indicating what
-        timezone the input timestamp (if a UNIX timestamp or an unaware
-        datetime). Ignored if timestamp is aware datetime instance.
-    @param out_tz: An optional timezone name or tzinfo instance indicating what
-        timezone to use when formatting the output.
-    @rtype: C{str}
-    """
-    format = format or '%Y-%m-%d %H:%M:%S %z'
-    dt = get_datetime(timestamp, in_tz)
-    out_tz = get_tz(out_tz or local_tz())
-    if in_tz != out_tz:
-        dt = dt.astimezone(out_tz)
-    return dt.strftime(format)
 
 
 def parse_dhms(input):
@@ -111,7 +91,7 @@ def format_dhms(seconds):
     return out if out else '0s'  # 0 or sub-1 seconds.
 
 
-def format_timestamp(timestamp=None, format="%Y-%m-%d %H:%i:%s %O", tz=None):
+def format_timestamp(timestamp=None, format='default', tz=None):
     """
     Format a UNIX timestamp (using the given or default/local timezone) or a
     datetime instance using the provided format string. Format string is the
@@ -125,6 +105,7 @@ def format_timestamp(timestamp=None, format="%Y-%m-%d %H:%i:%s %O", tz=None):
 
     @rtype: C{str}
     """
+    format = formats.get(format, format)
     d = get_datetime(timestamp, tz=tz) if timestamp is not None else nowlocal()
     return datetime_format(format, d, alt=True)
 

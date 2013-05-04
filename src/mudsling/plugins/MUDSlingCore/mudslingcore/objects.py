@@ -130,7 +130,7 @@ class Player(BasePlayer, ConfigurableObject):
     )
 
     def authenticate(self, password, session=None):
-        applicable = bans.check_bans(session)
+        applicable = bans.check_bans(session, self)
         if applicable:
             raise Exception("Connection banned: %s" % applicable[0].reason)
         return super(Player, self).authenticate(password, session)

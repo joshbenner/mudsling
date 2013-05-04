@@ -36,7 +36,7 @@ class Ban(object):
             return True
         return time.time() <= self.expires
 
-    def applies_to(self, session):
+    def applies_to(self, session, player):
         """
         Returns True if the ban applies to the provided session.
 
@@ -55,9 +55,9 @@ class PlayerBan(Ban):
         super(PlayerBan, self).__init__(*args, **kwargs)
         self.player = player
 
-    def applies_to(self, session):
+    def applies_to(self, session, player):
         try:
-            return session.player.ref() == self.player.ref()
+            return player.ref() == self.player.ref()
         except AttributeError:
             return False
 
@@ -77,14 +77,14 @@ class IPBan(Ban):
         regex = regex.replace('*', '\d{1,3}')
         self.ip_regex = re.compile("^%s$" % regex)
 
-    def applies_to(self, session):
+    def applies_to(self, session, player):
         try:
             return True if self.ip_regex.match(session.ip) else False
         except AttributeError:
             return False
 
 
-def check_bans(session, bans=None):
+def check_bans(session, player, bans=None):
     """
     Check an iterable of bans for any that actively apply to the session.
 
@@ -93,7 +93,7 @@ def check_bans(session, bans=None):
     """
     if bans is None:
         bans = get_bans()
-    return [b for b in bans if b.applies_to(session) and b.is_active()]
+    return [b for b in bans if b.applies_to(session, player) and b.is_active()]
 
 
 def get_bans():
@@ -112,18 +112,21 @@ def del_ban(ban):
     game.db.set_setting('bans', bans)
 
 
-def find_bans(type=Ban, bans=None, **filters):
+def find_bans(ban_type=Ban, bans=None, **filters):
     """
     Find bans of a specific type with matching attribute values.
-    @param type: A class that matching bans must descend from.
+    @param ban_type: A class that matching bans must descend from.
     @param bans: The bans to search. If None, search all bans in game DB.
     @param filters: Key/val pairs of attribute/value.
     """
     def __match_filters(ban):
         for attr, val in filters.iteritems():
-            if getattr(ban, attr, None) != val:
+            attrval = getattr(ban, attr, None)
+            if callable(attrval):
+                attrval = attrval()
+            if attrval != val:
                 return False
         return True
     if bans is None:
         bans = get_bans()
-    return [b for b in bans if isinstance(b, type) and __match_filters(b)]
+    return [b for b in bans if isinstance(b, ban_type) and __match_filters(b)]

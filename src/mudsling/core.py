@@ -31,6 +31,7 @@ from mudsling import lockfuncs
 from mudsling import utils
 import mudsling.utils.modules
 import mudsling.utils.sequence
+import mudsling.utils.time
 
 
 class MUDSling(MultiService):
@@ -69,6 +70,10 @@ class MUDSling(MultiService):
 
         # Load configuration.
         config.read(configPaths)
+
+        # Apply any global date/time configurations.
+        for fmt_name, fmt in config['Time Formats'].items(raw=True):
+            utils.time.formats[fmt_name] = fmt
 
     def init_game(self):
         logging.info("Initializing game...")
