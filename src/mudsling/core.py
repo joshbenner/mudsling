@@ -65,8 +65,7 @@ class MUDSling(MultiService):
         """
         MultiService.__init__(self)
 
-        self.game_dir = gameDir
-        self.init_game_dir()
+        self.game_dir = gameDir  # Should already be init'd by mudsling.py.
 
         # Load configuration.
         config.read(configPaths)
@@ -122,20 +121,6 @@ class MUDSling(MultiService):
         self.invoke_hook('server_startup')
 
         MultiService.startService(self)
-
-    def init_game_dir(self):
-        """
-        If game dir doesn't exist, try to create it.
-        """
-        if not os.path.exists(self.game_dir):
-            logging.info("Creating game directory %s"
-                         % os.path.realpath(self.game_dir))
-            os.makedirs(self.game_dir)
-            if os.path.exists(self.game_dir):
-                f = open(os.path.join(self.game_dir, 'settings.cfg'), 'w')
-                f.close()
-        elif not os.path.isdir(self.game_dir):
-            raise Exception("Game dir is a file!")
 
     def load_class_configs(self):
         """

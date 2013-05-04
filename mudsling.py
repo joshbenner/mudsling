@@ -78,12 +78,32 @@ class MUDSlingProcess(protocol.ProcessProtocol):
             process_ended(self, code)
 
 
+def init_game_dir(path):
+    """
+    If game dir doesn't exist, try to create it.
+    """
+    if not os.path.exists(path):
+        logging.info("Creating game directory %s" % os.path.realpath(path))
+        os.makedirs(path)
+        if os.path.exists(path):
+            f = open(os.path.join(path, 'settings.cfg'), 'w')
+            f.close()
+        else:
+            raise Exception(
+                "Cannot create game dir at %s" % os.path.realpath(path))
+    elif not os.path.isdir(path):
+        raise Exception("Game dir is a file!")
+
+
 if __name__ == '__main__':
     # Add our src path to the beginning of the PYTHONPATH.
     sys.path.insert(0, src)
+    from mudsling.options import get_options
 
     # We are not interested in the script name part of the argv list.
     argv = sys.argv[1:]
+    options = get_options(argv)
+    init_game_dir(options['gamedir'])
 
     # Debugger means we want to keep everything in a single process.
     if '--debugger' in sys.argv:
@@ -93,12 +113,10 @@ if __name__ == '__main__':
     else:
         # Imports shouldn't resolve to this file since we added src to the
         # front of the search path above.
-        from mudsling.options import get_options
         from mudsling.config import config
         from mudsling.logs import open_log
         from mudsling.pid import check_pid
 
-        options = get_options(argv)
         open_log(stdout=True, level=logging.DEBUG)
         pidfile = os.path.join(options['gamedir'], 'mudsling.pid')
         check_pid(pidfile)
