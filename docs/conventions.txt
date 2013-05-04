@@ -11,5 +11,5 @@ Hooks:
           calls the user-overridable hook: on_server_startup().
 
 Time handling:
-    * Any stored UNIX timestamp should be UTC. Use mudsling.utils.time.utcnow().
+    * Any stored UNIX time should be a proper UTC timestamp. Use time.time().
     * Any stored datetime should be aware.

@@ -204,7 +204,7 @@ class BanCmd(Command):
         player = args['player']
         actor = self.actor
         if 'duration' in args:
-            expires = utils.time.utctime() + args['duration']
+            expires = time.time() + args['duration']
             prompt = ["{yYou want to ban {m", player, "{y until {c",
                       utils.time.format_timestamp(expires, self.format), "{y?"]
         else:

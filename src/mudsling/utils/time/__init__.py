@@ -23,9 +23,10 @@ realTime = TimeSchema(
 realTime.default_interval_format = "%yeary %monthm %dayd"
 
 
-def get_datetime(timestamp, tz=None):
+def get_datetime(timestamp=None, tz=None):
     """
-    Given a datetime or UNIX timestamp, return a tz-aware datetime object.
+    Given a datetime or UNIX timestamp, return a tz-aware datetime object. If
+    no timestamp is given, use current time.
 
     @param timestamp: Datetime instance or UNIX timestamp.
     @type timestamp: C{int} or C{long} or C{float} or C{datetime.datetime}
@@ -36,8 +37,10 @@ def get_datetime(timestamp, tz=None):
 
     @rtype: C{datetime.datetime}
     """
-    tz = get_tz(tz or default_tz())
-    if isinstance(timestamp, datetime.datetime):
+    tz = get_tz(tz or local_tz())
+    if timestamp is None:
+        dt = nowlocal(tz)
+    elif isinstance(timestamp, datetime.datetime):
         dt = timestamp if timestamp.tzinfo else tz.localize(timestamp)
     else:
         # noinspection PyTypeChecker
@@ -60,7 +63,7 @@ def format_timestamp(timestamp, format=None, in_tz=None, out_tz=None):
     """
     format = format or '%Y-%m-%d %H:%M:%S %z'
     dt = get_datetime(timestamp, in_tz)
-    out_tz = get_tz(out_tz or default_tz())
+    out_tz = get_tz(out_tz or local_tz())
     if in_tz != out_tz:
         dt = dt.astimezone(out_tz)
     return dt.strftime(format)

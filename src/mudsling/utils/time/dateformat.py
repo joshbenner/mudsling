@@ -18,7 +18,7 @@ import time
 import calendar
 import datetime
 
-from timezone import is_aware, is_naive, default_tz, nowlocal
+from timezone import is_aware, is_naive, local_tz, nowlocal
 from dates import MONTHS, MONTHS_3, MONTHS_ALT, MONTHS_AP, WEEKDAYS
 from dates import WEEKDAYS_ABBR
 
@@ -142,7 +142,7 @@ class DateFormat(TimeFormat):
         self.timezone = None
         if isinstance(dt, datetime.datetime):
             if is_naive(dt):
-                self.timezone = default_tz()
+                self.timezone = local_tz()
             else:
                 self.timezone = dt.tzinfo
 

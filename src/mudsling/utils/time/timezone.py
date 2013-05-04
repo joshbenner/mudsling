@@ -12,42 +12,25 @@ import pytz
 
 from mudsling.config import config
 
-__all__ = ('default_tz', 'get_tz', 'localtime', 'is_aware', 'is_naive',
-           'make_aware', 'make_naive', 'nowlocal', 'nowutc', 'utctime',
-           'env_time_offset')
+__all__ = ('local_tz', 'get_tz', 'is_aware', 'is_naive', 'make_aware',
+           'make_naive', 'nowlocal', 'nowutc')
 
-# Cache for default_tz()
-__default_tz = None
+# Cache for local_tz()
+__local_tz = None
 
 
-def default_tz():
-    global __default_tz
-    if __default_tz is None:
+def local_tz():
+    global __local_tz
+    if __local_tz is None:
         try:
-            __default_tz = pytz.timezone(config.get('Time', 'timezone'))
+            __local_tz = pytz.timezone(config.get('Time', 'timezone'))
         except pytz.UnknownTimeZoneError as e:
-            __default_tz = pytz.UTC
+            __local_tz = pytz.UTC
             logging.error("Invalid timezone in configuration: %s" % e.message)
         except (NoSectionError, NoOptionError):
-            __default_tz = pytz.UTC
+            __local_tz = pytz.UTC
             logging.warning("No timezone set in configuration!")
-    return __default_tz
-
-
-def env_time_offset():
-    """
-    Returns the seconds the system environment's time is offset from UTC.
-    @rtype: C{int}
-    """
-    return time.altzone if time.localtime().tm_isdst else time.timezone
-
-
-def utctime():
-    """
-    Returns the current UTC UNIX timestamp.
-    @rtype: C{float}
-    """
-    return time.time() + env_time_offset()
+    return __local_tz
 
 
 def nowutc():
@@ -59,12 +42,12 @@ def nowutc():
     return datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
 
 
-def nowlocal():
+def nowlocal(tz=None):
     """
-    Returns an aware datetime using the default timezone.
+    Returns an aware datetime using the specified (or local) timezone.
     @rtype: C{datetime.datetime}
     """
-    return nowutc().astimezone(default_tz())
+    return nowutc().astimezone(tz or local_tz())
 
 
 def get_tz(tz):
@@ -84,22 +67,6 @@ def get_tz(tz):
         return tz
     else:
         raise TypeError("get_tz requires a string or tzinfo instance.")
-
-
-def localtime(value, timezone=None):
-    """
-    Converts an aware datetime.datetime to local time.
-
-    Local time is defined as the default/configured timezone, unless another is
-    specified in the `timezone` parameter.
-    """
-    if timezone is None:
-        timezone = default_tz()
-    value = value.astimezone(timezone)
-    if hasattr(timezone, 'normalize'):
-        # available for pytz time zones
-        value = timezone.normalize(value)
-    return value
 
 
 def is_aware(value):
