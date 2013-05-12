@@ -48,7 +48,10 @@ class Ban(object):
         return False
 
     def __str__(self):
-        expiration = utils.time.format_timestamp(self.expires)
+        if self.expires is not None:
+            expiration = utils.time.format_timestamp(self.expires)
+        else:
+            expiration = "the end of time"
         return "banned until %s: %s" % (expiration, self.reason)
 
 
@@ -60,7 +63,7 @@ class PlayerBan(Ban):
 
     def __init__(self, player, *args, **kwargs):
         super(PlayerBan, self).__init__(*args, **kwargs)
-        self.player = player
+        self.player = player.ref()
 
     def applies_to(self, session, player):
         try:

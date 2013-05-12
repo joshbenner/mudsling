@@ -159,7 +159,7 @@ class BanCmd(Command):
     Ban a player from logging in for an optional duration. If no duration is
     given, the ban does not expire. A reason may also be provided.
     """
-    aliases = ('@ban', '@ban-player')
+    aliases = ('@ban',)
     syntax = ("<what> {for ever|forever} [{due to|because} <reason>]",
               "<what> [for <duration>] [{due to|because} <reason>]",)
     lock = "perm(ban)"
@@ -182,7 +182,7 @@ class BanCmd(Command):
         arg parser for 'what' is swapped out.
         """
         switches = super(BanCmd, self).parse_switches(switchstr)
-        if switches['ip']:
+        if 'ip' in switches and switches['ip']:
             def parse_ip(ipstr):
                 if re.match(r'[.*0-9]+', ipstr):
                     return ipstr
@@ -263,3 +263,72 @@ class BanCmd(Command):
             end = utils.time.format_timestamp(self.expires, 'long')
             msg.extend(["{y until {c", end, "{y."])
         self.actor.tell(*msg)
+
+
+class UnBanCmd(Command):
+    """
+    @unban[/ip] <player or IP>
+
+    Unbans the specified player or IP address.
+    """
+    aliases = ('@unban',)
+    syntax = "<what>"
+    lock = "perm(ban)"
+    arg_parsers = {
+        'what': parsers.MatchDescendants(cls=BasePlayer,
+                                         search_for='player',
+                                         show=True),
+    }
+    switch_parsers = {
+        'ip': parsers.BoolStaticParser,
+    }
+    switch_defaults = {
+        'ip': False,
+    }
+
+    def parse_switches(self, switchstr):
+        """
+        Overrides switch parsing so that if the 'ip' switch is used, then the
+        arg parser for 'what' is swapped out.
+        """
+        switches = super(UnBanCmd, self).parse_switches(switchstr)
+        if 'ip' in switches and switches['ip']:
+            def parse_ip(ipstr):
+                if re.match(r'[.*0-9]+', ipstr):
+                    return ipstr
+                else:
+                    raise errors.ParseError('Invalid IP pattern: %s' % ipstr)
+                # Copy from class to instance.
+            self.arg_parsers = dict(self.arg_parsers)
+            self.arg_parsers['what'] = parse_ip
+        return switches
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.objects.Player}
+        @type actor: L{mudslingcore.objects.Player}
+        @type args: C{dict}
+        """
+        what = args['what']
+        type = 'IP' if self.switches['ip'] else 'player'
+
+        prompt = "{yExpire all bans on %s {m%s{y?" % (type, what)
+        actor.prompt_yes_no(prompt,
+                            yes_callback=self._do_unban,
+                            no_callback=self._abort_unban)
+
+    def _do_unban(self):
+        what = self.parsed_args['what']
+        ban_type = bans.IPBan if self.switches['ip'] else bans.PlayerBan
+        attr = 'ip_pattern' if self.switches['ip'] else 'player'
+        kwargs = {'ban_type': ban_type, attr: what, 'is_active': True}
+        bans_to_expire = bans.find_bans(**kwargs)
+        now = time.time()
+        for ban in bans_to_expire:
+            ban.expires = now
+        self.actor.tell("{c", len(bans_to_expire), "{g ",
+                        'IP' if self.switches['ip'] else 'player',
+                        " bans for {m", what, "{g have been manually expired.")
+
+    def _abort_unban(self):
+        self.actor.tell("{yUN-ban aborted.")
