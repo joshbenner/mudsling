@@ -109,7 +109,8 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
         self.call_remote(proxy.EndSession)
         basic.LineReceiver.connectionLost(self, reason)
         Telnet.connectionLost(self, reason)
-        del sessions[self.session_id]
+        if self.session_id in sessions:
+            del sessions[self.session_id]
 
     def applicationDataReceived(self, bytes):
         basic.LineReceiver.dataReceived(self, bytes)
@@ -137,11 +138,6 @@ class ProxyTelnetSession(Telnet, basic.LineReceiver):
         self.transport.write(text)
 
     def disconnect(self):
-        print "Closing proxy telnet session %d" % self.session_id
-        try:
-            del sessions[self.session_id]
-        except KeyError:
-            pass
         self.transport.loseConnection()
 
     def resync(self):
