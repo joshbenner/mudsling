@@ -1,6 +1,9 @@
 import re
 import time
 
+from mudsling import utils
+import mudsling.utils.time
+
 # MUDSlingCore plugin will inject the game dependency here at startup. Bans
 # will be stored in the database associated with this game object.
 game = None
@@ -44,6 +47,10 @@ class Ban(object):
         """
         return False
 
+    def __str__(self):
+        expiration = utils.time.format_timestamp(self.expires)
+        return "banned until %s: %s" % (expiration, self.reason)
+
 
 class PlayerBan(Ban):
     """
@@ -60,6 +67,10 @@ class PlayerBan(Ban):
             return player.ref() == self.player.ref()
         except AttributeError:
             return False
+
+    def __str__(self):
+        what = 'Player ' + self.player.name
+        return what + ' ' + super(PlayerBan, self).__str__()
 
 
 class IPBan(Ban):
@@ -82,6 +93,9 @@ class IPBan(Ban):
             return True if self.ip_regex.match(session.ip) else False
         except AttributeError:
             return False
+
+    def __str__(self):
+        return 'IP ' + self.ip_pattern + ' ' + super(IPBan, self).__str__()
 
 
 def check_bans(session, player, bans=None):

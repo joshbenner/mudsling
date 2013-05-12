@@ -1,6 +1,7 @@
 """
 Administrative commands for managing players.
 """
+import re
 import time
 
 from mudsling import parsers
@@ -153,21 +154,44 @@ class WhoFromCmd(Command):
 
 class BanCmd(Command):
     """
-    @ban <player> [for <duration>] [because <reason>]
+    @ban[/ip] <player or IP> [for <duration>] [because <reason>]
 
     Ban a player from logging in for an optional duration. If no duration is
     given, the ban does not expire. A reason may also be provided.
     """
     aliases = ('@ban', '@ban-player')
-    syntax = ("<player> {for ever|forever} [{due to|because} <reason>]",
-              "<player> [for <duration>] [{due to|because} <reason>]",)
+    syntax = ("<what> {for ever|forever} [{due to|because} <reason>]",
+              "<what> [for <duration>] [{due to|because} <reason>]",)
     lock = "perm(ban)"
     arg_parsers = {
-        'player': parsers.MatchDescendants(cls=BasePlayer,
-                                           search_for='player',
-                                           show=True),
+        'what': parsers.MatchDescendants(cls=BasePlayer,
+                                         search_for='player',
+                                         show=True),
         'duration': parsers.DhmsStaticParser,
     }
+    switch_parsers = {
+        'ip': parsers.BoolStaticParser,
+    }
+    switch_defaults = {
+        'ip': False,
+    }
+
+    def parse_switches(self, switchstr):
+        """
+        Overrides switch parsing so that if the 'ip' switch is used, then the
+        arg parser for 'what' is swapped out.
+        """
+        switches = super(BanCmd, self).parse_switches(switchstr)
+        if switches['ip']:
+            def parse_ip(ipstr):
+                if re.match(r'[.*0-9]+', ipstr):
+                    return ipstr
+                else:
+                    raise errors.ParseError('Invalid IP pattern: %s' % ipstr)
+            # Copy from class to instance.
+            self.arg_parsers = dict(self.arg_parsers)
+            self.arg_parsers['what'] = parse_ip
+        return switches
 
     def run(self, this, actor, args):
         """
@@ -175,19 +199,23 @@ class BanCmd(Command):
         @type actor: L{mudslingcore.objects.Player}
         @type args: C{dict}
         """
-        player = args['player']
-        existing = bans.find_bans(ban_type=bans.PlayerBan, player=player,
-                                  is_active=True)
+        what = args['what']
+
+        if self.switches['ip']:
+            existing = bans.find_bans(ban_type=bans.IPBan, ip_pattern=what,
+                                      is_active=True)
+        else:
+            existing = bans.find_bans(ban_type=bans.PlayerBan, player=what,
+                                      is_active=True)
         if existing:
             if len(existing) > 1:
-                actor.tell('{m', player, "{y already has multiple bans!")
+                actor.tell('{m', what, "{y already has multiple bans!")
             else:
                 expires = existing[0].expires
                 if expires is None:
-                    actor.tell('{m', player,
-                               "{y is already banned indefinitely.")
+                    actor.tell('{m', what, "{y is already banned forever.")
                     return
-                actor.tell('{m', player, "{y is already banned until {c",
+                actor.tell('{m', what, "{y is already banned until {c",
                            utils.time.format_timestamp(expires, 'long'))
             prompt = "{yAre you sure you want to impose an additional ban?"
             actor.prompt_yes_no(prompt,
@@ -201,28 +229,34 @@ class BanCmd(Command):
 
     def _prompt_for_ban(self):
         args = self.parsed_args
-        player = args['player']
+        what = args['what']
         actor = self.actor
         if 'duration' in args:
             expires = time.time() + args['duration']
-            prompt = ["{yYou want to ban {m", player, "{y until {c",
+            prompt = ["{yYou want to ban {m", what, "{y until {c",
                       utils.time.format_timestamp(expires, 'long'), "{y?"]
         else:
             expires = None
-            prompt = ["{yYou want to ban {m", player, "{c indefinitely{y?"]
+            prompt = ["{yYou want to ban {m", what, "{c indefinitely{y?"]
         self.expires = expires
         actor.tell(*prompt)
         actor.prompt_yes_no(yes_callback=self._really_do_ban,
                             no_callback=self._ban_abort)
 
     def _really_do_ban(self):
-        player = self.parsed_args['player']
+        what = self.parsed_args['what']
         reason = self.parsed_args.get('reason', 'No reason given.')
-        bans.add_ban(bans.PlayerBan(player=player,
-                                    expires=self.expires,
-                                    createdBy=self.actor,
-                                    reason=reason))
-        msg = ["{yYou have banned {m", player]
+        kwargs = {'expires': self.expires,
+                  'createdBy': self.actor,
+                  'reason': reason}
+        if self.switches['ip']:
+            kwargs['ip_pattern'] = what
+            ban_type = bans.IPBan
+        else:
+            kwargs['player'] = what
+            ban_type = bans.PlayerBan
+        bans.add_ban(ban_type(**kwargs))
+        msg = ["{yYou have banned {m", what]
         if self.expires is None:
             msg.append("{c indefinitely{y.")
         else:

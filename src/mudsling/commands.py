@@ -307,7 +307,7 @@ class Command(object):
                 raise CommandInvalid(msg="Unknown switch: %s" % key)
             if val == '':  # Set switch to true if it is present without val.
                 if key in sp and issubclass(sp[key], parsers.BoolStaticParser):
-                    val = sp[key].trueVals[0]
+                    val = sp[key].true_vals[0]
                 else:
                     val = True
             switches[key] = val
@@ -365,10 +365,7 @@ class Command(object):
                 else:
                     callback = valid
                     cb_args = ()
-                try:
-                    parsed[argName] = callback(args[argName], *cb_args)
-                except Exception as e:
-                    parsed[argName] = e
+                parsed[argName] = callback(args[argName], *cb_args)
         return parsed
 
     def prepare(self):
