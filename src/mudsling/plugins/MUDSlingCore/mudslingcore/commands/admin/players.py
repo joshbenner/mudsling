@@ -332,3 +332,41 @@ class UnBanCmd(Command):
 
     def _abort_unban(self):
         self.actor.tell("{yUN-ban aborted.")
+
+
+class BansCmd(Command):
+    """
+    @bans
+
+    List all active bans.
+    """
+    aliases = ('@bans',)
+    lock = 'perm(manage players) or perm(ban)'
+
+    def run(self, this, actor, args):
+        active_bans = bans.find_bans(is_active=True)
+        if len(active_bans):
+            table = ui.Table([
+                ui.Column('Type', data_key='type', align='l'),
+                ui.Column('Target', align='l',
+                          cell_formatter=self.format_target),
+                ui.Column('Expiration', data_key='expires', align='l',
+                          cell_formatter=self.format_expiration),
+                ui.Column('Reason', data_key='reason', align='l')
+            ])
+            table.add_rows(*active_bans)
+            actor.msg(ui.report('Active Bans', table))
+        else:
+            actor.tell("{yThere are currently no active bans.")
+
+    def format_expiration(self, expires):
+        if expires is None:
+            return 'never'
+        else:
+            return ui.format_timestamp(expires, format='short')
+
+    def format_target(self, ban):
+        if isinstance(ban, bans.PlayerBan):
+            return self.actor.name_for(ban.player)
+        else:
+            return ban.what()

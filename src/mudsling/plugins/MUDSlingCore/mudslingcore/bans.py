@@ -22,6 +22,7 @@ class Ban(object):
     createdBy = None
     reason = 'No reason given.'
     expires = None
+    type = "?"
 
     _settings = ('created', 'createdBy', 'reason', 'expires')
 
@@ -47,6 +48,12 @@ class Ban(object):
         """
         return False
 
+    def what(self):
+        """
+        Returns the object or description of what the ban applies to.
+        """
+        return None
+
     def __str__(self):
         if self.expires is not None:
             expiration = utils.time.format_timestamp(self.expires)
@@ -60,6 +67,7 @@ class PlayerBan(Ban):
     A ban that has been applied to a specific player.
     """
     player = None
+    type = "player"
 
     def __init__(self, player, *args, **kwargs):
         super(PlayerBan, self).__init__(*args, **kwargs)
@@ -70,6 +78,9 @@ class PlayerBan(Ban):
             return player.ref() == self.player.ref()
         except AttributeError:
             return False
+
+    def what(self):
+        return self.player
 
     def __str__(self):
         what = 'Player ' + self.player.name
@@ -82,6 +93,7 @@ class IPBan(Ban):
     """
     ip_pattern = ''
     ip_regex = None
+    type = "IP"
 
     def __init__(self, ip_pattern, *args, **kwargs):
         super(IPBan, self).__init__(*args, **kwargs)
@@ -96,6 +108,9 @@ class IPBan(Ban):
             return True if self.ip_regex.match(session.ip) else False
         except AttributeError:
             return False
+
+    def what(self):
+        return self.ip_pattern
 
     def __str__(self):
         return 'IP ' + self.ip_pattern + ' ' + super(IPBan, self).__str__()

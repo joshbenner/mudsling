@@ -63,7 +63,7 @@ class BaseUI(object):
                           self.body(body),
                           self.footer(footer)])
 
-    def format_timestamp(self, timestamp, format="%Y-%m-%d %H:%M:%S"):
+    def format_timestamp(self, timestamp, format='long'):
         if timestamp is None:
             return ''
         try:

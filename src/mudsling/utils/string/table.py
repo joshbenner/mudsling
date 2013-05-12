@@ -100,8 +100,9 @@ class Table(object):
             w = col.width
             if w is None or w == 'auto':
                 w = ansi.length(col.name)
-                w = max(w, *[ansi.length(row[index])
-                             for row in rows if isinstance(row, list)])
+                if len(rows):
+                    w = max(w, *[ansi.length(row[index])
+                                 for row in rows if isinstance(row, list)])
             if isinstance(w, basestring):
                 if w in ('*', 'expand', 'fill'):
                     expand = index

@@ -30,7 +30,6 @@ def default_funcs():
         'none': false,
         'perm': perm,
         'has_perm': perm,
-        'has_perm': perm,
         'player': lambda o, w: w.is_valid(BasePlayer),
         'self': lambda o, w: o.ref() == w.ref(),
         'owner': lambda o, w: (o.owner == w.ref()

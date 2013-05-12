@@ -68,9 +68,9 @@ def LockParser(funcMap):
     @rtype: L{LockFunc}
     """
     funcs = {
-        'not': lambda x: not x,
-        'or': lambda l, r: l or r,
-        'and': lambda l, r: l and r
+        'not': lambda _, __, x: not x,
+        'or': lambda _, __, l, r: l or r,
+        'and': lambda _, __, l, r: l and r
     }
     funcs.update(funcMap)
 
