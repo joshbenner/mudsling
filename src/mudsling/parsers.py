@@ -193,6 +193,14 @@ class MatchObject(Parser):
                 return err
 
 
+class MatchOwnContents(MatchObject):
+    """
+    Parser to match an object inside the object doing the matching.
+    """
+    def _match(self, obj, input):
+        return obj.match_contents(input, cls=self.objClass, err=False)
+
+
 class MatchChildren(MatchObject):
     """
     Parser to match an object among the children of a given type.

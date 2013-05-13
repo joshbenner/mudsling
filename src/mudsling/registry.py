@@ -27,7 +27,7 @@ class ClassRegistry(object):
         Invokes hook object_classes and expects responding plugins to return a
         list of (name, class) tuples.
         """
-        classes = game.invoke_hook('objectClasses')
+        classes = game.invoke_hook('object_classes')
         for plugin, response in classes.iteritems():
             if not isinstance(response, list):
                 continue

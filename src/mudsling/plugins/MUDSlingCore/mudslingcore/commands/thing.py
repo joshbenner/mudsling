@@ -4,6 +4,9 @@ be held, handled, etc.
 """
 from mudsling import locks, errors
 from mudsling.commands import Command
+from mudsling.parsers import MatchObject
+
+from mudslingcore.objects import Character
 
 
 class TakeThingCmd(Command):
@@ -78,3 +81,38 @@ class DropThingCmd(Command):
 
     def failed_command_match_help(self):
         return "You don't see a '%s' to drop." % self.argstr
+
+
+class GiveThingCmd(Command):
+    """
+    give <thing> to <character>
+
+    Gives something you are holding to another character in the same location
+    as you.
+    """
+    aliases = ('give', 'hand')
+    syntax = "<thing> to <char>"
+    arg_parsers = {
+        'thing': 'this',
+        'char': MatchObject(cls=Character, search_for='person', show=True),
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.objects.Thing}
+        @type actor: L{mudslingcore.objects.Object}
+        @type args: C{dict}
+        """
+        recipient = args['char']
+
+        if this.location != actor:
+            actor.tell("You don't have that!")
+        elif recipient.location != actor.location:
+            actor.tell("You see no '", self.args['char'], "' here.")
+        elif recipient == actor:
+            actor.tell("Give it to yourself?")
+        else:
+            this.move_to(recipient)
+            this.emit_message('give', actor=actor, recipient=recipient,
+                              location=actor.location)

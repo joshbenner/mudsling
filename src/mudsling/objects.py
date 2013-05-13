@@ -714,6 +714,18 @@ class Object(BaseObject):
 
         return matches
 
+    def match_contents(self, search, cls=None, err=False):
+        candidate = None
+        if search[0] == '#' and re.match(r"#\d+", search):
+            candidate = self.game.db.get_ref(int(search[1:]))
+
+        if (candidate is not None and candidate in self.contents
+                and utils.object.filter_by_class([candidate], cls)):
+            return [candidate]
+
+        candidates = utils.object.filter_by_class(list(self.contents), cls)
+        return self._match(search, candidates, err=err)
+
     @property
     def has_location(self):
         """
@@ -874,6 +886,7 @@ class Object(BaseObject):
         @rtype: C{list}
         """
         keywords['this'] = self.ref()
+        location = location or self.location
         msg = self.get_message(key, **keywords)
         return self.emit(msg, exclude=exclude, location=location)
 

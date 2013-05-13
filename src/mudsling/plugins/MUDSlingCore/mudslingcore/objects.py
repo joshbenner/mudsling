@@ -82,40 +82,6 @@ class DescribableObject(Object):
         return utils.string.columnize(names, 2) if names else " Nothing"
 
 
-class Thing(DescribableObject):
-    """
-    The basic object in the MUDSling core game world.
-
-    Can be picked up, dropped, and given.
-    """
-    import commands.thing
-
-    public_commands = all_commands(
-        commands.thing
-    )
-
-    create_lock = locks.Lock('perm(create things)')
-
-    messages = Messages({
-        'drop': {
-            'actor': "You drop $this.",
-            '*': "$actor drops $this."
-        },
-        'drop_fail': {
-            'actor': "You can't seem to drop $this.",
-            '*': "$actor tries to drop $this, but fails."
-        },
-        'take': {
-            'actor': "You take $this.",
-            '*': "$actor takes $this."
-        },
-        'take_fail': {
-            'actor': "You try to pick up $this, but fail.",
-            '*': "$actor tires to pick up $this, but fails."
-        }
-    })
-
-
 class Player(BasePlayer, ConfigurableObject):
     """
     Core player class.
@@ -207,3 +173,42 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
         """
         player = super(Character, self).player
         return player if player.is_valid(Player) else None
+
+
+class Thing(DescribableObject):
+    """
+    The basic object in the MUDSling core game world.
+
+    Can be picked up, dropped, and given.
+    """
+    import commands.thing
+
+    public_commands = all_commands(
+        commands.thing
+    )
+
+    create_lock = locks.Lock('perm(create things)')
+
+    messages = Messages({
+        'drop': {
+            'actor': "You drop $this.",
+            '*': "$actor drops $this."
+        },
+        'drop_fail': {
+            'actor': "You can't seem to drop $this.",
+            '*': "$actor tries to drop $this, but fails."
+        },
+        'take': {
+            'actor': "You take $this.",
+            '*': "$actor takes $this."
+        },
+        'take_fail': {
+            'actor': "You try to pick up $this, but fail.",
+            '*': "$actor tires to pick up $this, but fails."
+        },
+        'give': {
+            'actor': "You hand $this to $recipient.",
+            'recipient': "$actor hands you $this.",
+            '*': "$actor hands $this to $recipient."
+        }
+    })
