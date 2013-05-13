@@ -15,6 +15,8 @@ class LineReader(object):
     """
     zope.interface.implements(IInputProcessor)
 
+    has_input_capture = False
+
     def __init__(self, callback, max_lines=None, end_tokens=('.',), args=()):
         """
         @param callback: The callback which will receive the lines of input.
@@ -44,9 +46,10 @@ class LineReader(object):
 
     def gained_input_capture(self, session):
         self.session = session
+        self.has_input_capture = True
 
     def lost_input_capture(self, session):
-        pass  # Implements IInputProcessor
+        self.has_input_capture = False
 
     def process_input(self, raw):
         if raw in self.end_tokens:
@@ -71,7 +74,10 @@ class LineReader(object):
                 self.session.send_output("{yAn error has occurred.")
         else:
             if result is not False:
-                if self.session is not None:
+                # The callback may result in redirection of input, so we
+                # do not reset the input for the session here if we do not
+                # still have the input.
+                if self.session is not None and self.has_input_capture:
                     self.session.reset_input_capture()
             else:
                 self.reset()
