@@ -166,7 +166,7 @@ class MUDSling(MultiService):
         # Build the player registry.
         registry.players.register_players(self.db.descendants(BasePlayer))
 
-    # TODO: Refactor this into hooks?
+    # TODO: Refactor this into hooks, especially room handling.
     def init_database(self):
         self.db.initialized = True
 

@@ -248,7 +248,7 @@ class IInputProcessor(zope.interface.Interface):
     dispatching resulting commands.
     """
 
-    def process_input(raw, session=None):
+    def process_input(raw):
         """
         Handle the raw input. Return value not used.
         """

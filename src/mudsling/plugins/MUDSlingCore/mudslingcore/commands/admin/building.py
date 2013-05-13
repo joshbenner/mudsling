@@ -3,12 +3,13 @@ Building commands.
 """
 from mudsling.commands import Command
 from mudsling import parsers
+from mudsling import locks
 from mudsling import errors
 
 from mudsling import utils
 import mudsling.utils.string
 
-from mudslingcore.topography import Room, Exit
+from mudslingcore.topography import Room, Exit, MatchExit
 
 
 def parse_exit_spec(raw):
@@ -214,3 +215,33 @@ class UndigCmd(Command):
             for o in others:
                 dest.remove_exit(o)
             actor.tell("{gExits {rdeleted{g from {m", dest, "{g: ", names)
+
+
+class RenameExitCmd(Command):
+    """
+    @rename-exit <exit> to <name>[,<alias>[,...]]
+
+    Rename an exit in the current room.
+    """
+    aliases = ('@rename-exit', '@rn-exit', '@ren-exit')
+    syntax = "<exit> to <newNames>"
+    arg_parsers = {
+        'exit': MatchExit(search_for='exit', show=True),
+        'newNames': parsers.StringListStaticParser,
+    }
+    lock = locks.all_pass  # Perm check in run().
+
+    def run(self, this, actor, args):
+        room = actor.location
+        if not self.game.db.is_valid(room, Room):
+            raise errors.CommandError("You must be in a room.")
+        #: @type: Exit
+        exit = args['exit']
+        if not exit.allows(actor, 'rename'):
+            actor.tell('{yYou are not allowed to rename {c', exit, '{y.')
+            return
+        names = args['newNames']
+        oldName = actor.name_for(exit)
+        exit.set_names(names)
+        actor.tell('{gExit {y', oldName, '{g renamed to {m', exit,
+                   " {g(with aliases: {m", ', '.join(names[1:]), '{g).')

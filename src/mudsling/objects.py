@@ -217,13 +217,44 @@ class NamedObject(LockableObject):
         return (self.names_for(obj) or ["UNKNOWN"])[0]
 
 
-class PossessableObject(NamedObject):
+class MessagedObject(NamedObject):
+    """
+    Class that provides IHasMessages.
+    """
+    zope.interface.implements(IHasMessages)
+
+    # Implements IHasMessages.
+    messages = Messages()
+
+    def get_message(self, key, **keywords):
+        """
+        Return a formatted Message template. Look on self's instance first,
+        then ascend the MRO looking for a class providing the requested
+        message template.
+
+        Implemented as part of L{IHasMessages}.
+        """
+        msg = self.messages.get_message(key, **keywords)
+        if msg is not None:
+            return msg
+
+        for cls in utils.object.ascend_mro(self):
+            if IHasMessages.implementedBy(cls):
+                msg = cls.messages.get_message(key, **keywords)
+                return msg
+
+        return None
+
+
+class PossessableObject(MessagedObject):
     """
     An object which can be possessed by a player.
 
     @ivar possessed_by: The L{BasePlayer} who is currently possessing this obj.
     @ivar possessable_by: List of players who can possess this object.
     """
+
+    _transient_vars = ['possessed_by']
 
     #: @type: BasePlayer
     possessed_by = None
@@ -281,6 +312,7 @@ class PossessableObject(NamedObject):
         @param player: BasePlayer which has possessed the object.
         @type player: BasePlayer
         """
+        pass
 
     def on_dispossessed(self, player):
         """
@@ -288,6 +320,7 @@ class PossessableObject(NamedObject):
         @param player: The player that previously possessed this object.
         @type player: BasePlayer
         """
+        pass
 
     def has_perm(self, perm):
         """
@@ -376,10 +409,10 @@ class BaseObject(PossessableObject):
 
     @ivar owner: ObjRef() of the owner of the object (if any).
     """
-    zope.interface.implements(IInputProcessor, IHasMessages, IHasCommands)
+    zope.interface.implements(IInputProcessor, IHasCommands)
 
     # commands should never be set on instance, but... just in case.
-    _transient_vars = ['possessed_by', 'commands', 'object_settings']
+    _transient_vars = ['commands', 'object_settings']
 
     #: @type: StoredObject or ObjRef
     owner = None
@@ -393,31 +426,9 @@ class BaseObject(PossessableObject):
     # child class defines the lock type being searched for.
     locks = locks.LockSet('control:owner()')
 
-    # Implements IHasMessages.
-    messages = Messages()
-
     def __init__(self, **kwargs):
         super(BaseObject, self).__init__(**kwargs)
         self.owner = kwargs.get('owner', None)
-
-    def get_message(self, key, **keywords):
-        """
-        Return a formatted Message template. Look on self's instance first,
-        then ascend the MRO looking for a class providing the requested
-        message template.
-
-        Implemented as part of L{IHasMessages}.
-        """
-        msg = self.messages.get_message(key, **keywords)
-        if msg is not None:
-            return msg
-
-        for cls in utils.object.ascend_mro(self):
-            if IHasMessages.implementedBy(cls):
-                msg = cls.messages.get_message(key, **keywords)
-                return msg
-
-        return None
 
     def _match(self, search, objlist, exactOnly=False, err=False):
         """
@@ -509,7 +520,7 @@ class BaseObject(PossessableObject):
         cmdstr, sep, argstr = raw.partition(' ')
         candidates = self.match_command(cmdstr)
         if not candidates:
-            return None
+            return self.handle_unmatched_input(raw) or None
         cmd_matches = []
         nameOnly = []
         for obj, cmdcls in candidates:
@@ -531,8 +542,6 @@ class BaseObject(PossessableObject):
                     msg = cmd.failed_command_match_help()
                     if msg:
                         raise errors.CommandError(msg=msg)
-            else:
-                return self.handle_unmatched_input(raw) or None
         else:  # Single good match.
             return cmd_matches[0]
 

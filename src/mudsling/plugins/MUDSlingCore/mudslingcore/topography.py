@@ -3,10 +3,12 @@ Rooms and exits.
 """
 import zope.interface
 
-from mudsling.objects import NamedObject, BaseObject
+from mudsling.objects import MessagedObject, BaseObject
+from mudsling.objects import Object as LocatedObject
 from mudsling.messages import IHasMessages, Messages
 from mudsling.commands import Command
 from mudsling import errors
+from mudsling import parsers
 
 from mudsling import utils
 import mudsling.utils.string
@@ -154,7 +156,7 @@ class Room(DescribableObject):
 
 
 # noinspection PyShadowingBuiltins
-class Exit(NamedObject):
+class Exit(MessagedObject):
     """
     Core exit class.
 
@@ -163,7 +165,6 @@ class Exit(NamedObject):
     @ivar source: The room where this exit exists.
     @ivar dest: The room to which this exit leads.
     """
-    zope.interface.implements(IHasMessages)
 
     #: @type: L{Room}
     source = None
@@ -181,8 +182,6 @@ class Exit(NamedObject):
             '*': "$actor has arrived."
         },
     })
-    # Borrow BaseObject's get_message() implementation.
-    get_message = BaseObject.get_message
 
     def invoke(self, obj):
         """
@@ -279,3 +278,26 @@ class ExitCmd(Command):
         @param args: Unused.
         """
         exit.invoke(actor)
+
+
+class MatchExit(parsers.MatchObject):
+    """
+    Parser to match exits in the actor's current room.
+    """
+    def __init__(self, cls=Exit, err=True, search_for=None, show=False):
+        super(MatchExit, self).__init__(cls, err, search_for, show)
+
+    def _match(self, obj, input):
+        """
+        @param obj: The object from whose perspective the match is attempted.
+        @type obj: L{mudsling.objects.Object}
+        @param input: The user input being matched against exits.
+        @type input: C{str}
+        """
+        if not obj.isa(LocatedObject):
+            raise TypeError("Cannot match exit as non-locatable object.")
+        elif not obj.has_location or not obj.location.isa(Room):
+            raise ValueError("Cannot match exit when not located in a room.")
+        #: @type: Room
+        room = obj.location
+        return room.match_exits(input)
