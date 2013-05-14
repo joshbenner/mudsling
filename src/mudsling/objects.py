@@ -865,7 +865,7 @@ class Object(BaseObject):
         dest_valid = self.game.db.is_valid(dest, Object)
 
         # Check for recursive moves.
-        if dest_valid and this in dest.locations():
+        if dest_valid and (this == dest or this in dest.locations()):
             raise errors.RecursiveMove(this, source, dest)
 
         # Notify objects about the move about to happen, allowing them to raise

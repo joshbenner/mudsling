@@ -40,7 +40,7 @@ class PutCmd(Command):
                 thing.move_to(this)
             except errors.MoveError as e:
                 if e.message:
-                    actor.tell('{y', e.message)
+                    actor.tell('{r', e.message)
                 this.emit_message('add_fail', actor=actor, thing=thing)
             else:
                 this.emit_message('add', actor=actor, thing=thing)
@@ -89,7 +89,7 @@ class TakeCmd(Command):
                                    ', and it tumbles to the ground.')
             except errors.MoveError as e:
                 if e.message:
-                    actor.tell('{y', e.message)
+                    actor.tell('{r', e.message)
                 this.emit_message('remove_fail', actor=actor, thing=thing)
             else:
                 this.emit_message('remove', actor=actor, thing=thing)
