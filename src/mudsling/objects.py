@@ -241,7 +241,8 @@ class MessagedObject(NamedObject):
         for cls in utils.object.ascend_mro(self):
             if IHasMessages.implementedBy(cls):
                 msg = cls.messages.get_message(key, **keywords)
-                return msg
+                if msg is not None:
+                    return msg
 
         return None
 
@@ -767,6 +768,26 @@ class Object(BaseObject):
         """
         return None
 
+    def before_content_removed(self, what, destination):
+        """
+        Called before an object is removed from the contents of this object.
+        Objects that wish to prevent the move can raise a MoveError here.
+
+        @param what: The object that will be moved.
+        @param destination: Where the object will be moved.
+        """
+        pass
+
+    def before_content_added(self, what, previous_location):
+        """
+        Called before and object is added to the contents of this object.
+        Objects that wish to prevent th emove can raise a MoveError here.
+
+        @param what: The object that will be moved.
+        @param previous_location: Where the object was previously.
+        """
+        pass
+
     def content_removed(self, what, destination):
         """
         Called if an object was removed from this object.
@@ -777,6 +798,7 @@ class Object(BaseObject):
         @param destination: Where the object went.
         @type destination: Object
         """
+        pass
 
     def content_added(self, what, previous_location):
         """
@@ -788,6 +810,17 @@ class Object(BaseObject):
         @param previous_location: Where the moved object used to be.
         @type previous_location: Object
         """
+        pass
+
+    def before_object_moved(self, moving_from, moving_to):
+        """
+        Called before this object is moved from one location to another.
+        Objects can prevent movement by raising a MoveError here.
+
+        @param moving_from: The previous (likely current) location.
+        @param moving_to: The destination (likely next) location.
+        """
+        pass
 
     def object_moved(self, moved_from, moved_to):
         """
@@ -799,6 +832,7 @@ class Object(BaseObject):
         @param moved_to: Where this is now.
         @type moved_to: Object
         """
+        pass
 
     def move_to(self, dest):
         """
@@ -810,36 +844,55 @@ class Object(BaseObject):
 
         Throws InvalidObject if this object is invalid or if the destination is
         neither None nor a valid Object instance.
+
+        May throw a MoveError, in which case the move did not occurr and the
+        error should contain information explaining why.
         """
-        me = self.ref()
+        this = self.ref()
+        #: @type: Object
         dest = dest.ref() if dest is not None else None
 
-        if not me.is_valid():
-            raise errors.InvalidObject(me)
+        if not this.is_valid():
+            raise errors.InvalidObject(this)
 
         # We allow moving to None
         if dest is not None:
             if not dest.is_valid(Object):
                 raise errors.InvalidObject(dest, "Destination invalid")
 
-        previous_location = self.location
-        if self.game.db.is_valid(self.location, Object):
-            if me in self.location._contents:
-                self.location._contents.remove(me)
+        source = self.location
+        source_valid = self.game.db.is_valid(source, Object)
+        dest_valid = self.game.db.is_valid(dest, Object)
+
+        # Check for recursive moves.
+        if dest_valid and this in dest.locations():
+            raise errors.RecursiveMove(this, source, dest)
+
+        # Notify objects about the move about to happen, allowing them to raise
+        # exceptions if they need to halt the move.
+        self.before_object_moved(source, dest)
+        if source_valid:
+            source.before_content_removed(this, dest)
+        if dest_valid:
+            dest.before_content_added(this, source)
+
+        if source_valid:
+            if this in self.location._contents:
+                self.location._contents.remove(this)
 
         self._location = dest
 
-        if self.game.db.is_valid(dest, Object):
-            if me not in dest._contents:
-                dest._contents.append(me)
+        if dest_valid:
+            if this not in dest._contents:
+                dest._contents.append(this)
 
         # Now fire event hooks on the two locations and the moved object.
-        if self.game.db.is_valid(previous_location, Object):
-            previous_location.content_removed(me, dest)
-        if self.game.db.is_valid(dest, Object):
-            dest.content_added(me, previous_location)
+        if source_valid:
+            source.content_removed(this, dest)
+        if dest_valid:
+            dest.content_added(this, source)
 
-        self.object_moved(previous_location, dest)
+        self.object_moved(source, dest)
 
     def locations(self, exclude_invalid=True):
         """

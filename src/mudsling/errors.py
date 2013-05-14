@@ -130,3 +130,23 @@ class InvalidSettingValue(ObjSettingError):
         msg = "Invalid value for '%s' setting on %s: %r"
         msg = msg % (setting, obj.nn, value)
         super(InvalidSettingValue, self).__init__(obj, setting, msg)
+
+
+class MoveError(Error):
+    def __init__(self, obj, source, dest, msg=''):
+        self.obj = obj
+        self.source = source
+        self.dest = dest
+        super(MoveError, self).__init__(msg=msg)
+
+
+class RecursiveMove(MoveError):
+    def __init__(self, obj, source, dest, msg=None):
+        msg = msg or "Cannot move object into itself."
+        super(RecursiveMove, self).__init__(obj, source, dest, msg=msg)
+
+
+class MoveDenied(MoveError):
+    def __init__(self, obj, source, dest, denied_by, msg='Move denied'):
+        self.denied_by = denied_by
+        super(MoveDenied, self).__init__(obj, source, dest, msg=msg)

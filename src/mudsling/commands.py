@@ -343,7 +343,7 @@ class Command(object):
             if argName not in args or valid == 'this' or args[argName] is None:
                 continue
             elif isinstance(valid, parsers.Parser):
-                parsed[argName] = valid.parse(args[argName], obj=self.actor)
+                parsed[argName] = valid.parse(args[argName], actor=self.actor)
             elif (inspect.isclass(valid)
                   and issubclass(valid, parsers.StaticParser)):
                 parsed[argName] = valid.parse(args[argName])

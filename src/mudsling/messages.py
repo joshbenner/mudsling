@@ -187,9 +187,12 @@ class Messages(object):
         @type keywords: C{dict}
 
         @return: The message dictionary.
-        @rtype: C{dict}
+        @rtype: C{dict} or None
         """
         msg = key if isinstance(key, dict) else self._get_message(key)
+
+        if msg is None:
+            return None
 
         for who, tpl in msg.iteritems():
             msg[who] = MessageParser._parse(tpl, keywords)

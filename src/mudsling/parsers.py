@@ -144,12 +144,12 @@ class Parser(object):
     """
     A parser class that has configuration and therefore is instanced.
     """
-    def parse(self, input, obj=None):
+    def parse(self, input, actor=None):
         """
         Parse the input and return the value. Can raise errors.
 
         @param input: The user input to parse.
-        @param obj: If parsing from an object's perspective, the object.
+        @param actor: If parsing from an object's perspective, the object.
         """
 
 
@@ -173,10 +173,10 @@ class MatchObject(Parser):
     def _match(self, obj, input):
         return obj.match_object(input, cls=self.objClass, err=False)
 
-    def parse(self, input, obj=None):
-        if obj is None:
+    def parse(self, input, actor=None):
+        if actor is None:
             return False
-        m = self._match(obj, input)
+        m = self._match(actor, input)
         if len(m) == 1:
             return m[0]
         else:
@@ -199,6 +199,20 @@ class MatchOwnContents(MatchObject):
     """
     def _match(self, obj, input):
         return obj.match_contents(input, cls=self.objClass, err=False)
+
+
+class MatchOtherContents(MatchObject):
+    """
+    Parser to match the contents of a specific object.
+    """
+    def __init__(self, container, cls=StoredObject, err=True, search_for=None,
+                 show=False):
+        self.container = container
+        super(MatchOtherContents, self).__init__(cls, err, search_for, show)
+
+    def _match(self, obj, input):
+        return self.container.match_contents(input, cls=self.objClass,
+                                             err=False)
 
 
 class MatchChildren(MatchObject):

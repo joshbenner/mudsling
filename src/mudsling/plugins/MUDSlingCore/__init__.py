@@ -8,7 +8,7 @@ new capabilities to the game world.
 from mudsling.extensibility import GamePlugin
 from mudsling.perms import Role
 
-from .mudslingcore.objects import Thing, Character, Player
+from .mudslingcore.objects import Thing, Character, Player, Container
 from .mudslingcore.topography import Room, Exit
 from .mudslingcore.help import help_db
 from .mudslingcore import bans
@@ -33,6 +33,7 @@ class MUDSlingCorePlugin(GamePlugin):
     def object_classes(self):
         return [
             ('Thing', Thing),
+            ('Container', Container),
             ('Player', Player),
             ('Character', Character),
             ('Room', Room),

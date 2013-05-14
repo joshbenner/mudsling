@@ -212,3 +212,38 @@ class Thing(DescribableObject):
             '*': "$actor hands $this to $recipient."
         }
     })
+
+
+class Container(Thing):
+    """
+    The basic container-like thing.
+
+    Can be opened or closed, and provides commands for putting things in it.
+    """
+    import commands.container
+    public_commands = all_commands(commands.container)
+    messages = Messages({
+        'close': {
+            'actor': 'You close $this.',
+            '*': '$actor closes $this.'
+        },
+        'open': {
+            'actor': 'You open $this.',
+            '*': '$actor opens $this.'
+        },
+        'add': {
+            'actor': 'You put $thing in $this.',
+            '*': '$actor puts $thing in $this.'
+        },
+        'add_fail': {
+            'actor': 'You cannot put $thing in $this.'
+        },
+        'remove': {
+            'actor': 'You remove $thing from $this.',
+            '*': '$actor removes $thing from $this.'
+        },
+        'remove_fail': {
+            'actor': 'You cannot remove $thing from $this.'
+        }
+    })
+    opened = False
