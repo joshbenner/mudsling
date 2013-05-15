@@ -93,3 +93,57 @@ class TakeCmd(Command):
                 this.emit_message('remove_fail', actor=actor, thing=thing)
             else:
                 this.emit_message('remove', actor=actor, thing=thing)
+
+
+class OpenCmd(Command):
+    """
+    open <container>
+
+    Opens a container.
+    """
+    aliases = ('open',)
+    syntax = '<container>'
+    arg_parsers = {
+        'container': 'this',
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.objects.Container}
+        @type actor: L{mudslingcore.objects.Object}
+        @type args: C{dict}
+        """
+        if this.location not in (actor, actor.location):
+            actor.tell('You are too far away.')
+        elif this.opened:
+            actor.tell(this, ' is already opened.')
+        else:
+            this.open(opened_by=actor)
+
+
+class CloseCmd(Command):
+    """
+    close <container>
+
+    Closes a container.
+    """
+    aliases = ('close', 'shut')
+    syntax = '<container>'
+    arg_parsers = {
+        'container': 'this',
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.objects.Container}
+        @type actor: L{mudslingcore.objects.Object}
+        @type args: C{dict}
+        """
+        if this.location not in (actor, actor.location):
+            actor.tell('You are too far away.')
+        elif not this.opened:
+            actor.tell(this, ' is already opened.')
+        else:
+            this.close(closed_by=actor)

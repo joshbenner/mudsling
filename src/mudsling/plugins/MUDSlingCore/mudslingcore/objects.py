@@ -246,4 +246,63 @@ class Container(Thing):
             'actor': 'You cannot remove $thing from $this.'
         }
     })
-    opened = False
+    _opened = False
+
+    @property
+    def opened(self):
+        return self._opened
+
+    @property
+    def closed(self):
+        return not self._opened
+
+    def open(self, opened_by=None):
+        """
+        Opens the container.
+
+        Will emit the 'open' message with opened_by as the actor if specified.
+
+        @param opened_by: The object responsible for opening the container.
+        @type opened_by: L{mudsling.objects.Object}
+        """
+        if not self._opened:
+            self._opened = True
+            if opened_by is not None and opened_by.location == self.location:
+                self.emit_message('open', actor=opened_by)
+            else:
+                self.emit([self.ref(), ' opens.'])
+
+    def close(self, closed_by=None):
+        """
+        Closes the container. Emits message if `closed_by` is specified.
+
+        @param closed_by: The object responsible for closing the container.
+        @type closed_by: L{mudsling.objects.Object}
+        """
+        if self._opened:
+            self._opened = False
+            if closed_by is not None and closed_by.location == self.location:
+                self.emit_message('close', actor=closed_by)
+            else:
+                self.emit([self.ref(), ' closes.'])
+
+    def desc_title(self, obj):
+        name = super(Container, self).desc_title(obj)
+        if self._opened:
+            name += ' {g(open)'
+        else:
+            name += ' {y(closed)'
+        return name
+
+    def contents_visible_to(self, obj):
+        if self._opened or obj in self.contents:
+            return super(Container, self).contents_visible_to(obj)
+        else:
+            return []
+
+    def describe_to(self, obj):
+        desc = [super(Container, self).describe_to(obj)]
+        if self._opened:
+            desc.append('Contents:')
+            desc.append(self.contents_as_seen_by(obj))
+        return '\n'.join(desc)
