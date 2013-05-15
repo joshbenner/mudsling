@@ -10,8 +10,8 @@ Keep the Database Picklable
 One of the quickest ways to break your game is to try to stash values that are
 not picklable. Here is a brief list of things to avoid storing:
 
-    * lambdas
-    * handles (sockets, files, database connections, etc)
+* lambdas
+* handles (sockets, files, database connections, etc)
 
 If you really need to pickle something that's not readily picklable, you might
 consider wrapping it in a class that stores enough data to reconstruct it in
