@@ -89,3 +89,24 @@ class SayCmd(Command):
         @type args: C{dict}
         """
         this.emit_message('say', actor=actor, speech=args['speech'])
+
+
+class EmoteCmd(Command):
+    """
+    emote [:]<pose>
+
+    Emits to the character's location that the character is doing something.
+    """
+    aliases = ('emote', 'pose')
+    syntax = '[:]<pose>'
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.objects.Character}
+        @type actor: L{mudslingcore.objects.Character}
+        @type args: C{dict}
+        """
+        prefix = '' if self.argstr.startswith(':') else ' '
+        msg = [actor, prefix, args['pose']]
+        this.emit(msg)

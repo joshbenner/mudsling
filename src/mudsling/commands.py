@@ -1,5 +1,4 @@
 import logging
-import shlex
 import inspect
 
 import zope.interface

@@ -182,6 +182,9 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
         if raw.startswith('"'):
             return commands.character.SayCmd(raw, '"', raw[1:], self.game,
                                              self.ref(), self.ref(), True)
+        elif raw.startswith(':'):
+            return commands.character.EmoteCmd(raw, ':', raw[1:], self.game,
+                                               self.ref(), self.ref(), True)
         return None
 
 
