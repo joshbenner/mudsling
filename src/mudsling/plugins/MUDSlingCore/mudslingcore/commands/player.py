@@ -31,7 +31,7 @@ class AnsiCmd(Command):
         @type args: dict
         """
 
-        if args['optset1'] is None:
+        if 'optset1' not in args:
             if actor.ansi:
                 self.demo()
             else:
