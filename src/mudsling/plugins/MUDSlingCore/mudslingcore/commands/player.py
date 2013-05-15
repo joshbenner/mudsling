@@ -5,6 +5,8 @@ OOC Commands.
 from mudsling.commands import Command
 from mudsling import errors
 from mudsling import locks
+from mudsling.parsers import MatchDescendants
+from mudsling.objects import BasePlayer
 
 from mudsling import utils
 import mudsling.utils.string
@@ -67,7 +69,7 @@ class AnsiCmd(Command):
 
 class HelpCmd(Command):
     """
-    help [<topic>]
+    +help [<topic>]
 
     Retrieves help on the specified topic. If no topic is given, it will look
     for the "index" help topic.
@@ -106,11 +108,11 @@ class HelpCmd(Command):
 
 class WhoCmd(Command):
     """
-    who
+    +who
 
     Displays a list of connected players.
     """
-    aliases = ('who', '+who')
+    aliases = ('+who', 'who')
     lock = locks.all_pass
 
     def format_attached(self, player):
@@ -151,3 +153,41 @@ class WhoCmd(Command):
         sessions.sort(key=lambda s: s.idle_seconds())
         table.add_rows(*sessions)
         actor.msg(ui.report(title, table))
+
+
+class PageCmd(Command):
+    """
+    +page <player>=<message>
+    """
+    aliases = ('+page', 'page', '@page', '+p', 'p', '@p')
+    # Using {=} instead of just = allows the equals to work with no spaces.
+    syntax = '<player> {=} <message>'
+    arg_parsers = {
+        'player': MatchDescendants(cls=BasePlayer, search_for='player',
+                                   show=True)
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: mudslingcore.objects.Player
+        @type actor: mudslingcore.objects.Player
+        @type args: dict
+        """
+        msg = args['message']
+        recipient = args['player']
+        if msg.startswith(':'):
+            msg = msg[1:]
+            if msg.startswith(':'):
+                msg = msg[1:]
+                send = [actor, msg]
+            else:
+                send = [actor, ' ', msg]
+            echo = ['{YTo ', recipient, ': ']
+            echo.extend(send)
+            send.insert(0, '{yFrom afar, ')
+        else:
+            send = ['{y', actor, ' pages, "', msg, '".']
+            echo = ['{YYou page ', recipient, ' with, "', msg, '".']
+        actor.tell(*echo)
+        recipient.tell(*send)

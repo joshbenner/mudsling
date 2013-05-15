@@ -16,7 +16,6 @@ import commands.admin.perms
 import commands.admin.tasks
 import commands.admin.objects
 import commands.admin.players
-import commands.player
 import commands.character
 
 
@@ -86,6 +85,7 @@ class Player(BasePlayer, ConfigurableObject):
     """
     Core player class.
     """
+    import commands.player
     private_commands = all_commands(
         commands.admin.system,
         commands.admin.perms,
