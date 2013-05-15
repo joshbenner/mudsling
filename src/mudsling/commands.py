@@ -213,7 +213,8 @@ class Command(object):
             syntax.append(line)
         return '\n'.join(syntax)
 
-    def __init__(self, raw, cmdstr, argstr, game=None, obj=None, actor=None):
+    def __init__(self, raw, cmdstr, argstr, game=None, obj=None, actor=None,
+                 parse=False):
         """
         @param raw: The raw input.
         @type raw: str
@@ -232,15 +233,23 @@ class Command(object):
 
         @param actor: The object executing this command.
         @type actor: mudsling.objects.BaseObject or mudsling.storage.ObjRef
+
+        @param parse: Whether or not to parse the syntax immediately.
+        @type parse: C{bool}
         """
         self.raw = raw
         self.cmdstr, sep, self.switchstr = cmdstr.partition('/')
         self.cmdstr = cmdstr
         self.argstr = argstr
-        self.argwords = shlex.split(argstr)
+        try:
+            self.argwords = utils.string.split_quoted_words(argstr)
+        except ValueError:
+            self.argwords = argstr.split(' ')
         self.game = game
         self.obj = obj
         self.actor = actor
+        if parse:
+            self.match_syntax(argstr)
 
     def match_syntax(self, argstr):
         """

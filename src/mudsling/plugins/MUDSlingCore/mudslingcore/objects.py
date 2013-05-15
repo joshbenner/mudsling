@@ -149,6 +149,10 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
     }
 
     messages = Messages({
+        'say': {
+            'actor': 'You say, "{g$speech{n".',
+            '*': '{c$actor{n says, "{c$speech{n".'
+        },
         'teleport_out': {
             'actor': "{bYou dematerialize.",
             '*': "{c$actor {bvanishes."
@@ -173,6 +177,12 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
         """
         player = super(Character, self).player
         return player if player.is_valid(Player) else None
+
+    def preemptive_command_match(self, raw):
+        if raw.startswith('"'):
+            return commands.character.SayCmd(raw, '"', raw[1:], self.game,
+                                             self.ref(), self.ref(), True)
+        return None
 
 
 class Thing(DescribableObject):

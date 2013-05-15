@@ -4,6 +4,7 @@ Various string utilities.
 import sys
 import random
 import string
+import shlex
 
 from .ansi import *
 from .table import *
@@ -114,3 +115,11 @@ def tabletest(who):
     who.msg(repr(x._row_values(x.rows[0])))
 
     who.msg(str(x))
+
+
+def split_quoted_words(text):
+    lex = shlex.shlex(text, posix=True)
+    lex.quotes = '"'
+    lex.whitespace_split = True
+    lex.commenters = ''
+    return list(lex)

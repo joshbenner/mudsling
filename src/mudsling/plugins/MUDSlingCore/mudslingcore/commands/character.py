@@ -70,3 +70,22 @@ class InventoryCmd(Command):
         @type args: C{dict}
         """
         actor.msg("You are carrying:\n" + this.contents_as_seen_by(this))
+
+
+class SayCmd(Command):
+    """
+    say <speech>
+
+    Emits speech into the character's location.
+    """
+    aliases = ('say',)
+    syntax = '<speech>'
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.objects.Character}
+        @type actor: L{mudslingcore.objects.Character}
+        @type args: C{dict}
+        """
+        this.emit_message('say', actor=actor, speech=args['speech'])
