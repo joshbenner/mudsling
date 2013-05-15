@@ -1,15 +1,15 @@
 Code formatting, naming, etc:
-    Use PEP8 in general. Biggest exception is class member naming, for which we
-    generally use camelCase, though underscore_names are fine too.
+    Use PEP8 in general. Exceptions are allowed, but keep them minimal and 
+    sensible.
 
 Hooks:
     * Module hooks: hook_name()
-    * General event hooks: onEventName()
-    * System-only hooks: eventName()
+    * General event hooks: on_event_name()
+    * System-only hooks: event_name()
         * For instance: tasks have server_startup(), which is a system-level
           hook that most child classes should not override. This hook in turn
           calls the user-overridable hook: on_server_startup().
 
 Time handling:
     * Any stored UNIX time should be a proper UTC timestamp. Use time.time().
-    * Any stored datetime should be aware.
+    * Any stored datetime should be aware. Use mudsling.utils.time.make_aware().
