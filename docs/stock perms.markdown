@@ -25,6 +25,7 @@ mudslingcore
 * boot players -- Disconnect other players.
 * shout -- Can shout.
 * ban -- Can ban players and IP addresses.
+* create channels -- Can create new channel objects via +chancreate.
 
 ## Object Lock types
 * control

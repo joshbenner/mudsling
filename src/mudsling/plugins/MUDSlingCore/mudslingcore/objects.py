@@ -9,6 +9,7 @@ import mudsling.utils.string
 
 from objsettings import ObjSetting, ConfigurableObject
 from mudslingcore import bans
+from mudslingcore.channels import ChannelUser
 
 from mudslingcore import commands
 import commands.admin.system
@@ -81,7 +82,7 @@ class DescribableObject(Object):
         return utils.string.columnize(names, 2) if names else " Nothing"
 
 
-class Player(BasePlayer, ConfigurableObject):
+class Player(BasePlayer, ConfigurableObject, ChannelUser):
     """
     Core player class.
     """
@@ -94,6 +95,11 @@ class Player(BasePlayer, ConfigurableObject):
         commands.admin.players,
         commands.player
     )
+    channels = {}
+
+    def __init__(self, **kwargs):
+        super(Player, self).__init__(**kwargs)
+        self.channels = {}
 
     def authenticate(self, password, session=None):
         applicable = bans.check_bans(session, self)

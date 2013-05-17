@@ -12,6 +12,13 @@ class Error(Exception):
         return repr(self.message)
 
 
+class AccessDenied(Error):
+    """
+    Generic access denied error.
+    """
+    pass
+
+
 class PlayerNotConnected(Error):
     pass
 
