@@ -4,17 +4,38 @@ MUDSlingCore channel system.
 import logging
 import re
 
-import zope.interface
-
-from mudsling.objects import NamedObject
+from mudsling.objects import NamedObject, BaseObject
 from mudsling import locks
-from mudsling.commands import Command, IHasCommands
+from mudsling.commands import Command, CommandSet
 from mudsling.parsers import BoolStaticParser, MatchDescendants
 from mudsling import errors
+
+from mudsling import utils
+import mudsling.utils.string
 
 from mudslingcore.ui import ClassicUI
 
 ui = ClassicUI()
+
+
+class ChannelWhoCmd(Command):
+    """
+    <alias> /who
+
+    Displays list of participants on the channel.
+    """
+    aliases = ('who',)
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.channels.Channel}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        names = map(lambda p: actor.name_for(p), this.participants)
+        msg = "Participants: %s" % utils.string.english_list(names)
+        this.tell(actor, msg)
 
 
 class Channel(NamedObject):
@@ -28,12 +49,20 @@ class Channel(NamedObject):
     @ivar voice: If None, all can speak. Otherwise, set of participants that
         can speak on the channel.
     @type voice: C{None} or C{set}
+    @ivar private: Whether or not channel is private (hidden).
+    @ivar topic: The topic/subject matter of the channel.
     """
     operators = set()
     _participants = set()
     invitees = set()
     voice = None
     locks = locks.LockSet('join:all')
+    private = False
+    topic = ''
+
+    commands = CommandSet([
+        ChannelWhoCmd,
+    ])
 
     def __init__(self, **kwargs):
         super(Channel, self).__init__(**kwargs)
@@ -43,7 +72,7 @@ class Channel(NamedObject):
 
     @property
     def prefix(self):
-        return ''.join(['[', self.name, ']'])
+        return ''.join(['[', self.name, '] '])
 
     @property
     def participants(self):
@@ -59,7 +88,7 @@ class Channel(NamedObject):
         out = []
         for line in msg:
             out.append(prefix + line)
-        return out
+        return '\n'.join(out)
 
     def broadcast(self, msg, who=None):
         msg = self._prepare_message(msg)
@@ -68,6 +97,10 @@ class Channel(NamedObject):
                 p.msg(msg)
             except Exception:
                 logging.warning("Bad object on chan %s: %r" % (self.name, p))
+
+    def tell(self, who, msg):
+        msg = self._prepare_message(msg)
+        who.msg(msg)
 
     def add_operator(self, who):
         self.operators.add(who)
@@ -89,6 +122,42 @@ class Channel(NamedObject):
 
     def left_by(self, who):
         self.broadcast(who.channel_name + ' has left ' + self.name + '.')
+
+    def process_input(self, input, who):
+        if input.startswith('/'):
+            self.process_command(input, who)
+        elif self.voice is None or who in self.voice:
+            msg = who.name
+            if input.startswith(':'):
+                input = input[1:]
+                if input.startswith(':'):
+                    input = input[1:]
+                    msg += input
+                else:
+                    msg += ' ' + input
+            else:
+                msg += ': ' + input
+            self.broadcast(msg, who)
+        else:
+            raise errors.AccessDenied('You cannot speak on %s.' % self.name)
+
+    def process_command(self, input, actor):
+        cmdstr, sep, argstr = input[1:].partition(' ')
+        matches = self.commands.match(cmdstr, self.ref(), actor)
+        if len(matches) == 1:
+            cls = matches[0]
+        elif len(matches) > 1:
+            raise errors.AmbiguousMatch("Ambiguous channel command.",
+                                        query=cmdstr, matches=matches)
+        else:
+            raise errors.FailedMatch("Invalid command.", query=cmdstr)
+        #: @type: mudsling.commands.Command
+        cmd = cls(input, cmdstr, argstr, game=self.game, obj=self.ref(),
+                  actor=actor)
+        if not cmd.match_syntax(argstr):
+            self.tell(actor, cmd.syntax_help().split('\n'))
+        else:
+            cmd.execute()
 
 
 class ChannelsCmd(Command):
@@ -119,7 +188,10 @@ class ChannelsCmd(Command):
             channels = actor.channels.items()
             for channel in self.game.db.descendants(Channel):
                 if channel not in my_channels:
-                    channels.append((None, channel))
+                    if (not channel.private
+                            or actor in channel.operators
+                            or actor in channel.invitees):
+                        channels.append((None, channel))
         else:
             channels = actor.channels.items()
 
@@ -133,14 +205,16 @@ class ChannelsCmd(Command):
                 alias or '',
                 channel.name,
                 str(len(channel.participants)),
-                '{gYes' if actor in channel._participants else '{rNo'
+                '{gON' if actor in channel._participants else '{roff',
+                channel.topic
             ])
 
         table = ui.Table([
             ui.Column('Alias'),
             ui.Column('Channel', align='l'),
             ui.Column('#', align='r'),
-            ui.Column('Joined')
+            ui.Column('Status'),
+            ui.Column('Topic'),
         ])
         table.add_rows(*rows)
         actor.msg(ui.report('Channels', table))
@@ -148,13 +222,19 @@ class ChannelsCmd(Command):
 
 class ChanCreateCmd(Command):
     """
-    +chancreate <channel>
+    +chancreate[/private] <channel>
 
     Create a new channel.
     """
     aliases = ('+chancreate', '+createchan', '+mkchan')
     syntax = '<channel>'
     lock = 'perm(create channels)'
+    switch_parsers = {
+        'private': BoolStaticParser,
+    }
+    switch_defaults = {
+        'private': False,
+    }
 
     def run(self, this, actor, args):
         """
@@ -169,6 +249,8 @@ class ChanCreateCmd(Command):
         else:
             #: @type: Channel
             channel = Channel.create(names=(args['channel'],))
+            if self.switches['private']:
+                channel.private = True
             channel.add_operator(actor)
             actor.msg('{gChannel created: {c%s' % channel.name)
 
@@ -210,9 +292,25 @@ class ChanRemoveCmd(Command):
     lock = locks.all_pass
 
 
-class ChannelUser(NamedObject):
-    zope.interface.implements(IHasCommands)
+class UseChannelCmd(Command):
+    """
+    Command that is instantiated whenever a user's unmatched input matches a
+    channel alias they have registered, and passes the command on to the
+    channel itself.
+    """
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.channels.Channel}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        try:
+            this.process_input(self.argstr, actor)
+        except (errors.MatchError, errors.AccessDenied) as e:
+            this.tell(actor, '{r%s' % e.message)
 
+
+class ChannelUser(BaseObject):
     private_commands = [
         ChannelsCmd,
         ChanCreateCmd,
@@ -228,9 +326,15 @@ class ChannelUser(NamedObject):
     def channel_name(self):
         return self.name
 
-    def msg(self, text):
-        # Placeholder.
-        pass
+    def handle_unmatched_input(self, raw):
+        cmd = super(ChannelUser, self).handle_unmatched_input(raw)
+        if not cmd:
+            alias, sep, msg = raw.partition(' ')
+            if alias in self.channels:
+                cmd = UseChannelCmd(raw, alias, msg.strip(), game=self.game,
+                                    obj=self.channels[alias], actor=self.ref())
+                return cmd
+        return None
 
     def channel_alias(self, channel):
         for a, c in self.channels.iteritems():
@@ -256,6 +360,8 @@ class ChannelUser(NamedObject):
         elif not channel.joinable_by(self):
             raise errors.AccessDenied('Cannot join channel %s.' % channel.name)
         else:
+            if 'channels' not in self.__dict__:
+                self.channels = {}
             self.channels[alias] = channel
             if autojoin:
                 channel.joined_by(self.ref())

@@ -513,7 +513,7 @@ class BaseObject(PossessableObject):
 
         @param raw: The raw command input.
         @return: An instantiated, ready-to-run command.
-        @rtype: mudsling.commands.Command or None
+        @rtype: L{mudsling.commands.Command} or None
         """
         cmd = self.preemptive_command_match(raw)
         if cmd is not None:
@@ -616,8 +616,8 @@ class BaseObject(PossessableObject):
         @param raw: The raw input to handle
         @type raw: str
 
-        @return: A command class or None.
-        @rtype: type
+        @return: A command *instance* or None.
+        @rtype: L{mudsling.commands.Command}
         """
         return None
 
@@ -765,6 +765,8 @@ class Object(BaseObject):
     def handle_unmatched_input_for(self, actor, raw):
         """
         Object may ask its container for last-try command matching.
+        @returns: Command *instance*.
+        @rtype: L{mudsling.commands.Command}
         """
         return None
 
