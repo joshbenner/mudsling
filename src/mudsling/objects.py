@@ -81,6 +81,19 @@ class LockableObject(StoredObject):
                 return cls.locks.get_lock(lockType)
         return locks.none_pass
 
+    def set_lock(self, lock_type, lock_expr):
+        """
+        Set a lock for the given type on the object to the given expression.
+
+        @param lock_type: The lock type to set.
+        @param lock_expr: The lock expression to set.
+        @type lock_expr: C{basestring} or L{mudsling.locks.Lock}
+        """
+        if ('locks' not in self.__dict__
+                or not isinstance(self.locks, locks.LockSet)):
+            self.locks = locks.LockSet()
+        self.locks.set_lock(lock_type, lock_expr)
+
 
 class NamedObject(LockableObject):
     """

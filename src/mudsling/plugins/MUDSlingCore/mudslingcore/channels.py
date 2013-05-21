@@ -27,15 +27,138 @@ class ChannelWhoCmd(Command):
     aliases = ('who',)
     lock = locks.all_pass
 
-    def run(self, this, actor, args):
+    def run(self, chan, actor, args):
         """
-        @type this: L{mudslingcore.channels.Channel}
+        @type chan: L{mudslingcore.channels.Channel}
         @type actor: L{mudslingcore.channels.ChannelUser}
         @type args: C{dict}
         """
-        names = map(lambda p: actor.name_for(p), this.participants)
+        names = map(lambda p: actor.name_for(p), chan.participants)
         msg = "Participants: %s" % utils.string.english_list(names)
-        this.tell(actor, msg)
+        chan.tell(actor, msg)
+
+
+class ChannelAllowCmd(Command):
+    """
+    <alias> /allow <lock expression>
+
+    Restrict who may join a channel.
+    """
+    aliases = ('allow', 'lock')
+    syntax = "<lock>"
+    lock = 'operator()'
+
+    def run(self, chan, actor, args):
+        """
+        @type chan: L{mudslingcore.channels.Channel}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        lock_expr = args['lock']
+        if lock_expr in ('invited', 'invitees', 'invite'):
+            lock_expr = 'invited()'
+        elif lock_expr in ('all', 'everyone', 'everybody'):
+            lock_expr = 'all()'
+        lock = locks.Lock(lock_expr)
+        try:
+            # Test evaluation to make sure it works.
+            lock.eval(chan, actor)
+        except:
+            logging.exception("Eval lock: %s" % lock_expr)
+            chan.tell(actor, "{rInvalid lock expression.")
+        else:
+            chan.set_lock('join', lock_expr)
+            chan.tell(actor, "{yJoin lock set to: {c", chan.get_lock('join'))
+
+
+class ChannelOnCmd(Command):
+    """
+    <alias> /on
+
+    Begin listening to the channel.
+    """
+    aliases = ('on', 'unmute', 'join')
+    lock = locks.all_pass
+
+    def run(self, chan, actor, args):
+        """
+        @type chan: L{mudslingcore.channels.Channel}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        if actor in chan.participants:
+            chan.tell(actor, "{yYou are already on this channel.")
+        elif not chan.joinable_by(actor):
+            chan.tell(actor, "{rYou are not allowed to join this channel.")
+        else:
+            chan.joined_by(actor)
+
+
+class ChannelOffCmd(Command):
+    """
+    <alias> /off
+
+    Stop listening to the channel.
+    """
+    aliases = ('off', 'mute', 'leave')
+    lock = locks.all_pass
+
+    def run(self, chan, actor, args):
+        """
+        @type chan: L{mudslingcore.channels.Channel}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        if actor not in chan.participants:
+            chan.tell(actor, "{yYou are not on this channel.")
+        else:
+            chan.left_by(actor)
+
+
+class ChannelOpCmd(Command):
+    """
+    <alias> /op <player> [on|off]
+
+    Flag the player as a channel operator.
+    """
+    aliases = ('op', 'operator', 'operators', 'admin')
+    syntax = "<player> [{on|off}]"
+    lock = 'operator()'
+
+    def __init__(self, *args, **kwargs):
+        # Avoid circular reference issues.
+        self.arg_parsers = {
+            'player': MatchDescendants(cls=ChannelUser, search_for='player',
+                                       show=True),
+        }
+        super(ChannelOpCmd, self).__init__(*args, **kwargs)
+
+    def run(self, chan, actor, args):
+        """
+        @type chan: L{mudslingcore.channels.Channel}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        toggle = args.get('optset1', None)
+        player = args['player']
+        if toggle is None:
+            status = ("an {goperator{n" if player in chan.operators
+                      else "{rnot {nan operator")
+            chan.tell(actor, player, ' is ', status, '.')
+        elif toggle == 'on':
+            if player in chan.operators:
+                chan.tell(actor, '{c', player, " {yis already an operator.")
+            else:
+                chan.operators.add(player)
+                chan.tell(actor, '{c', player, " {gis now an operator.")
+                chan.tell(player, "{gYou are now an operator.")
+        else:
+            if player not in chan.operators:
+                chan.tell(actor, '{c', player, " {yis not an operator.")
+            else:
+                chan.operators.remove(player)
+                chan.tell(actor, '{c', player, " {yis no longer an operator.")
+                chan.tell(player, "{yYou are no longer an operator.")
 
 
 class Channel(NamedObject):
@@ -56,12 +179,16 @@ class Channel(NamedObject):
     _participants = set()
     invitees = set()
     voice = None
-    locks = locks.LockSet('join:all')
+    locks = locks.LockSet('join:all()')
     private = False
     topic = ''
 
     commands = CommandSet([
         ChannelWhoCmd,
+        ChannelAllowCmd,
+        ChannelOnCmd,
+        ChannelOffCmd,
+        ChannelOpCmd,
     ])
 
     def __init__(self, **kwargs):
@@ -98,8 +225,8 @@ class Channel(NamedObject):
             except Exception:
                 logging.warning("Bad object on chan %s: %r" % (self.name, p))
 
-    def tell(self, who, msg):
-        msg = self._prepare_message(msg)
+    def tell(self, who, *msg):
+        msg = self._prepare_message(who._format_msg(msg))
         who.msg(msg)
 
     def add_operator(self, who):
@@ -122,11 +249,14 @@ class Channel(NamedObject):
 
     def left_by(self, who):
         self.broadcast(who.channel_name + ' has left ' + self.name + '.')
+        self._participants.remove(who.ref())
 
     def process_input(self, input, who):
         if input.startswith('/'):
             self.process_command(input, who)
         elif self.voice is None or who in self.voice:
+            if not who in self._participants:
+                raise errors.AccessDenied("You must join the channel first.")
             msg = who.name
             if input.startswith(':'):
                 input = input[1:]
@@ -155,7 +285,7 @@ class Channel(NamedObject):
         cmd = cls(input, cmdstr, argstr, game=self.game, obj=self.ref(),
                   actor=actor)
         if not cmd.match_syntax(argstr):
-            self.tell(actor, cmd.syntax_help().split('\n'))
+            self.tell(actor, *cmd.syntax_help().split('\n'))
         else:
             cmd.execute()
 
@@ -365,3 +495,16 @@ class ChannelUser(BaseObject):
             self.channels[alias] = channel
             if autojoin:
                 channel.joined_by(self.ref())
+
+
+def lock_invited(channel, who):
+    """
+    Lock function invited().
+    @type channel: L{mudslingcore.channels.Channel}
+    @type who: L{mudslingcore.channels.ChannelUser}
+    """
+    return channel.isa(Channel) and who in channel.invitees
+
+
+def lock_operator(channel, who):
+    return channel.isa(Channel) and who in channel.operators

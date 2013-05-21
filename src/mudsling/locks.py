@@ -60,6 +60,12 @@ class Lock(storage.Persistent):
     def __init__(self, lockStr):
         self.raw = lockStr
 
+    def __str__(self):
+        return self.raw
+
+    def __repr__(self):
+        return "Lock('%s')" % self.raw
+
     def parse(self, parser=None):
         """
         Parses .raw to populate .parsed. Assumes Parser is already generated.
@@ -100,6 +106,12 @@ class LockSet(storage.Persistent):
 
     def __init__(self, lockSetStr=''):
         self.raw = lockSetStr
+
+    def __str__(self):
+        return self.raw
+
+    def __repr__(self):
+        return "Lock('%s')" % self.raw
 
     def parse(self):
         locks = {}
