@@ -260,6 +260,64 @@ class ChannelVoiceCmd(Command):
         return msg
 
 
+class ChannelTopicCmd(Command):
+    """
+    <alias> /topic <text>
+
+    Set the topic of the channel.
+    """
+    aliases = ('topic', 'subject')
+    syntax = "<text>"
+    lock = 'operator()'
+
+    def run(self, chan, actor, args):
+        """
+        @type chan: L{mudslingcore.channels.Channel}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        chan.topic = args['text']
+        chan.broadcast("{gTopic set: {n%s" % chan.topic, actor)
+
+
+class ChannelPrivateCmd(Command):
+    """
+    <alias> /private [yes|no]
+
+    Sets the channel private (or not).
+    """
+    aliases = ('private', 'hidden', 'hide')
+    syntax = "[{yes|no|on|off}]"
+    arg_parsers = {
+        'optset1': BoolStaticParser,
+    }
+    lock = 'operator()'
+
+    def run(self, chan, actor, args):
+        """
+        @type chan: L{mudslingcore.channels.Channel}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        mode = args.get('optset1', None)
+        status = lambda c: "{rPRIVATE" if c.private else "{gPUBLIC"
+        if mode is None:
+            # Display privacy status.
+            chan.tell(actor, "{yChannel currently: ", status(chan))
+        elif mode:  # Works because of BoolStaticParser
+            if chan.private:
+                chan.tell(actor, "{yChannel is already ", status(chan))
+            else:
+                chan.private = True
+                chan.tell(actor, "{yChannel is now ", status(chan))
+        else:
+            if chan.private:
+                chan.private = False
+                chan.tell(actor, "{yChannel is now ", status(chan))
+            else:
+                chan.tell(actor, "{yChannel is already ", status(chan))
+
+
 class Channel(NamedObject):
     """
     Channel object stores the state/config for a channel in the game, the list
@@ -289,6 +347,8 @@ class Channel(NamedObject):
         ChannelOffCmd,
         ChannelOpCmd,
         ChannelVoiceCmd,
+        ChannelTopicCmd,
+        ChannelPrivateCmd,
     ])
 
     def __init__(self, **kwargs):
@@ -444,7 +504,7 @@ class ChannelsCmd(Command):
             ui.Column('Channel', align='l'),
             ui.Column('#', align='r'),
             ui.Column('Status'),
-            ui.Column('Topic'),
+            ui.Column('Topic', align='l'),
         ])
         table.add_rows(*rows)
         actor.msg(ui.report('Channels', table))
