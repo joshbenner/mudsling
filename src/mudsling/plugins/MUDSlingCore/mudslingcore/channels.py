@@ -161,6 +161,105 @@ class ChannelOpCmd(Command):
                 chan.tell(player, "{yYou are no longer an operator.")
 
 
+class ChannelVoiceCmd(Command):
+    """
+    <alias> /voice [all|<player> [on|off]]
+
+    Give/take voice, or display who currently has voice.
+    """
+    aliases = ('voice',)
+    syntax = (
+        "all {on|off}",
+        "[<player> [{on|off}]]"
+    )
+    lock = 'operator()'
+
+    def __init__(self, *args, **kwargs):
+        # Avoid circular reference issues.
+        self.arg_parsers = {
+            'player': MatchDescendants(cls=ChannelUser, search_for='player',
+                                       show=True),
+        }
+        super(ChannelVoiceCmd, self).__init__(*args, **kwargs)
+
+    def run(self, chan, actor, args):
+        """
+        @type chan: L{mudslingcore.channels.Channel}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        if 'optset1' in args:
+            mode = args['optset1']
+            if 'player' in args:
+                player = args['player']
+                msg = self._set_player_voice(chan, actor, player, mode)
+            else:
+                # No player, but optset1... that means we are acting on ALL.
+                msg = self._set_all_voice(chan, actor, mode)
+        else:  # No on/off.
+            if 'player' in args and args['player'] is not None:
+                msg = self._show_player_voice(chan, actor, args['player'])
+            else:
+                # No on/off, no player... show all voice info!
+                msg = self._show_all_voice(chan, actor)
+        chan.tell(actor, '{mVOICE: {n', msg)
+
+    def _set_player_voice(self, chan, actor, player, mode):
+        if chan.voice is None:
+            msg = "{yCannot grant voice when channel allows all to speak."
+        else:
+            if mode == 'on':
+                if player in chan.voice:
+                    msg = "{c%s {yalready has voice."
+                else:
+                    chan.voice.add(player)
+                    msg = "{c%s {nis now {gallowed {nto speak."
+            else:
+                if player in chan.voice:
+                    chan.voice.remove(player)
+                    msg = "{c%s {nis now {rNOT allowed {nto speak."
+                else:
+                    msg = "{c%s {nis already {rNOT allowed {nto speak."
+            msg = msg % actor.name_for(player)
+        return msg
+
+    def _show_player_voice(self, chan, actor, player):
+        if chan.voice is None:
+            # Everyone can speak, so use same messaging.
+            msg = self._show_all_voice(chan, actor)
+        else:
+            if player in chan.voice:
+                msg = "{c%s {gis allowed {nto speak on this channel."
+            else:
+                msg = "{c%s {ris NOT allowed {nto speak on this channel."
+            msg = msg % actor.name_for(player)
+        return msg
+
+    def _set_all_voice(self, chan, actor, mode):
+        if mode == 'on':
+            if chan.voice is None:
+                msg = "{yEveryone can already speak on this channel."
+            else:
+                chan.voice = None
+                msg = "{gEveryone may now speak on this channel."
+        else:
+            if chan.voice == set():
+                msg = "{yEveryone is already silent on this channel."
+            else:
+                chan.voice = set()
+                msg = "{rEveryone has been silenced."
+        return msg
+
+    def _show_all_voice(self, chan, actor):
+        if chan.voice is None:
+            msg = "{gAnyone may speak on this channel."
+        else:
+            voices = map(actor.name_for, chan.voice)
+            voices = utils.string.english_list(voices, nothingstr="Nobody")
+            msg = "Voices: %s" % voices
+        return msg
+
+
 class Channel(NamedObject):
     """
     Channel object stores the state/config for a channel in the game, the list
@@ -189,6 +288,7 @@ class Channel(NamedObject):
         ChannelOnCmd,
         ChannelOffCmd,
         ChannelOpCmd,
+        ChannelVoiceCmd,
     ])
 
     def __init__(self, **kwargs):
