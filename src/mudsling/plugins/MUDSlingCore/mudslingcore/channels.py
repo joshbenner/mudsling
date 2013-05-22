@@ -318,6 +318,79 @@ class ChannelPrivateCmd(Command):
                 chan.tell(actor, "{yChannel is already ", status(chan))
 
 
+class ChannelBootCmd(Command):
+    """
+    <alias> /boot <player> [for <reason>]
+
+    Boots a player from the channel.
+    """
+    aliases = ('boot', 'kick')
+    syntax = "<player> [{for |because } <reason>]"
+    lock = 'operator()'
+
+    def __init__(self, *args, **kwargs):
+        # Avoid circular reference issues.
+        self.arg_parsers = {
+            'player': MatchDescendants(cls=ChannelUser, search_for='player',
+                                       show=True),
+        }
+        super(ChannelBootCmd, self).__init__(*args, **kwargs)
+
+    def run(self, chan, actor, args):
+        """
+        @type chan: L{mudslingcore.channels.Channel}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        player = args['player']
+        if player in chan._participants:  # Can boot even if offline.
+            reason = args.get('reason', None) or None
+            if reason is not None:
+                chan.tell(player, "{c", actor,
+                          "{n has {rbooted {nyou because: {y", reason)
+            else:
+                chan.tell(player, "{c", actor, "{n has {rbooted {nyou.")
+            chan.left_by(player)
+            chan.tell(actor, "{yYou have booted {c", player)
+        else:
+            chan.tell(actor, "{c", player, "{y is not on this channel.")
+
+
+class ChannelInfoCmd(Command):
+    """
+    <alias> /info
+
+    Display some information about the channel.
+    """
+    aliases = ('info',)
+    lock = locks.all_pass
+
+    def run(self, chan, actor, args):
+        """
+        @type chan: L{mudslingcore.channels.Channel}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        if chan.voice is None:
+            voice = 'Everyone'
+        else:
+            voices = map(actor.name_for, chan.voice)
+            voice = utils.string.english_list(voices, nothingstr="Nobody")
+        ops = map(actor.name_for, chan.operators)
+        ops = utils.string.english_list(ops, nothingstr="Nobody")
+        # noinspection PyListCreation
+        msg = [
+            'Channel info:',
+            '    Topic: %s' % chan.topic or "Not set",
+            '    Voice: %s' % voice,
+            '  Private: %s' % ('{gYes' if chan.private else '{rNo'),
+            'Join Lock: %s' % chan.get_lock('join'),
+            'Operators: %s' % ops,
+        ]
+        for line in msg:
+            chan.tell(actor, line)
+
+
 class Channel(NamedObject):
     """
     Channel object stores the state/config for a channel in the game, the list
@@ -349,6 +422,8 @@ class Channel(NamedObject):
         ChannelVoiceCmd,
         ChannelTopicCmd,
         ChannelPrivateCmd,
+        ChannelBootCmd,
+        ChannelInfoCmd,
     ])
 
     def __init__(self, **kwargs):
@@ -405,10 +480,10 @@ class Channel(NamedObject):
 
     def joined_by(self, who):
         self._participants.add(who.ref())
-        self.broadcast(who.channel_name + ' has joined ' + self.name + '.')
+        self.broadcast(who.channel_name + ' has joined this channel.')
 
     def left_by(self, who):
-        self.broadcast(who.channel_name + ' has left ' + self.name + '.')
+        self.broadcast(who.channel_name + ' has left this channel.')
         self._participants.remove(who.ref())
 
     def process_input(self, input, who):
@@ -429,7 +504,7 @@ class Channel(NamedObject):
                 msg += ': ' + input
             self.broadcast(msg, who)
         else:
-            raise errors.AccessDenied('You cannot speak on %s.' % self.name)
+            raise errors.AccessDenied('You cannot speak on this channel.')
 
     def process_command(self, input, actor):
         cmdstr, sep, argstr = input[1:].partition(' ')
