@@ -229,6 +229,13 @@ class NamedObject(LockableObject):
         """
         return (self.names_for(obj) or ["UNKNOWN"])[0]
 
+    def list_of_names(self, objs):
+        """
+        Return a list of names generated with self.name_for. Convenience.
+        @rtype: C{list}
+        """
+        return map(self.name_for, objs)
+
 
 class MessagedObject(NamedObject):
     """

@@ -383,12 +383,84 @@ class ChannelInfoCmd(Command):
             'Channel info:',
             '    Topic: %s' % chan.topic or "Not set",
             '    Voice: %s' % voice,
-            '  Private: %s' % ('{gYes' if chan.private else '{rNo'),
+            '  Private: %s' % ('{rYes' if chan.private else '{gNo'),
             'Join Lock: %s' % chan.get_lock('join'),
             'Operators: %s' % ops,
         ]
         for line in msg:
             chan.tell(actor, line)
+
+
+class ChannelInviteCmd(Command):
+    """
+    <alias> /invite [<player>]
+
+    Invite a player to the channel, or display the list of invited players.
+    """
+    aliases = ('invite',)
+    syntax = '[<player>]'
+    lock = 'operator()'
+
+    def __init__(self, *args, **kwargs):
+        # Avoid circular reference issues.
+        self.arg_parsers = {
+            'player': MatchDescendants(cls=ChannelUser, search_for='player',
+                                       show=True),
+        }
+        super(ChannelInviteCmd, self).__init__(*args, **kwargs)
+
+    def run(self, chan, actor, args):
+        """
+        @type chan: L{mudslingcore.channels.Channel}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        player = args.get('player', None)
+        if player is None:
+            # Display list of invitees.
+            invitees = utils.string.english_list(
+                actor.list_of_names(chan.invitees), nothingstr="Nobody")
+            chan.tell(actor, '{mInvitees: {n', invitees)
+        else:
+            if player in chan.invitees:
+                chan.tell(actor, '{c', player, "{y is already invited.")
+            else:
+                chan.invitees.add(player)
+                chan.tell(player, '{c', actor,
+                          "{g has invited you to this channel.")
+                chan.tell(actor, '{c', player, "{g has been invited.")
+
+
+class ChannelUninviteCmd(Command):
+    """
+    <alias> /uninvite <player>
+
+    Cancel an invitation to a player to join the channel.
+    """
+    aliases = ('uninvite',)
+    syntax = '<player>'
+    lock = 'operator()'
+
+    def __init__(self, *args, **kwargs):
+        # Avoid circular reference issues.
+        self.arg_parsers = {
+            'player': MatchDescendants(cls=ChannelUser, search_for='player',
+                                       show=True),
+        }
+        super(ChannelUninviteCmd, self).__init__(*args, **kwargs)
+
+    def run(self, chan, actor, args):
+        """
+        @type chan: L{mudslingcore.channels.Channel}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        player = args['player']
+        if player in chan.invitees:
+            chan.invitees.remove(player)
+            chan.tell(actor, '{c', player, '{y has been UNinvited.')
+        else:
+            chan.tell(actor, '{c', player, '{r is not invited.')
 
 
 class Channel(NamedObject):
@@ -424,6 +496,8 @@ class Channel(NamedObject):
         ChannelPrivateCmd,
         ChannelBootCmd,
         ChannelInfoCmd,
+        ChannelInviteCmd,
+        ChannelUninviteCmd,
     ])
 
     def __init__(self, **kwargs):
@@ -440,6 +514,16 @@ class Channel(NamedObject):
     def participants(self):
         return [p for p in self._participants
                 if self.db.is_valid(p, cls=ChannelUser) and p.connected]
+
+    def object_deleted(self):
+        self.broadcast("{rChannel being deleted...")
+        self.locks = locks.LockSet('join:none()')
+        self.private = True
+        for p in set(self._participants):  # Copy becase we are deleting...
+            try:
+                p.remove_channel(p.channel_alias(self))
+            except:
+                logging.exception('Error removing channel from %r' % p)
 
     def _prepare_message(self, msg):
         if isinstance(msg, tuple):
@@ -465,12 +549,14 @@ class Channel(NamedObject):
         who.msg(msg)
 
     def add_operator(self, who):
-        self.operators.add(who)
+        self.operators.add(who.ref())
 
     def joinable_by(self, who):
+        who = who.ref()
         return self.allows(who, 'join') or who in self.operators
 
     def speakable_by(self, who):
+        who = who.ref()
         if who in self.participants:
             if self.voice is None or who in self.voice:
                 return True
@@ -620,6 +706,31 @@ class ChanCreateCmd(Command):
             actor.msg('{gChannel created: {c%s' % channel.name)
 
 
+class ChanDelCmd(Command):
+    """
+    +chandel <channel>
+
+    Deletes a channel.
+    """
+    aliases = ('+chandel', '+delchan')
+    syntax = '<channel>'
+    arg_parsers = {
+        'channel': MatchDescendants(cls=Channel, search_for='channel',
+                                    show=True)
+    }
+    lock = 'perm(delete channels)'
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.channels.ChannelUser}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        name = actor.name_for(args['channel'])
+        args['channel'].delete()
+        actor.tell('{c', name, '{r deleted.')
+
+
 class ChanAddCmd(Command):
     """
     +chanadd <channel>=<alias>
@@ -656,6 +767,19 @@ class ChanRemoveCmd(Command):
     syntax = '<alias>'
     lock = locks.all_pass
 
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.channels.ChannelUser}
+        @type actor: L{mudslingcore.channels.ChannelUser}
+        @type args: C{dict}
+        """
+        alias = args['alias'].strip()
+        if alias not in this.channels:
+            raise errors.FailedMatch(msg="No channel alias '%s'." % alias)
+        channel = actor.channels[alias]
+        actor.remove_channel(alias)
+        actor.tell("{yChannel {c", channel, "{y removed.")
+
 
 class UseChannelCmd(Command):
     """
@@ -679,6 +803,7 @@ class ChannelUser(BaseObject):
     private_commands = [
         ChannelsCmd,
         ChanCreateCmd,
+        ChanDelCmd,
         ChanAddCmd,
         ChanRemoveCmd,
     ]
@@ -702,6 +827,7 @@ class ChannelUser(BaseObject):
         return None
 
     def channel_alias(self, channel):
+        channel = channel.ref()
         for a, c in self.channels.iteritems():
             if c == channel:
                 return a
@@ -730,6 +856,13 @@ class ChannelUser(BaseObject):
             self.channels[alias] = channel
             if autojoin:
                 channel.joined_by(self.ref())
+
+    def remove_channel(self, alias):
+        me = self.ref()
+        channel = self.channels[alias]
+        if me in channel._participants:
+            channel.left_by(me)
+        del me.channels[alias]
 
 
 def lock_invited(channel, who):

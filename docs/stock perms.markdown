@@ -26,6 +26,7 @@ mudslingcore
 * shout -- Can shout.
 * ban -- Can ban players and IP addresses.
 * create channels -- Can create new channel objects via +chancreate.
+* delete channels -- Can delete channels via +chandel.
 
 ## Object Lock types
 * control
