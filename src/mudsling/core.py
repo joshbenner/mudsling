@@ -83,7 +83,7 @@ class MUDSling(MultiService):
         self.session_handler = SessionHandler(self)
 
         # Load plugin manager. Locates, filters, and loads plugins.
-        self.plugins = PluginManager(self, self.game_dir)
+        self.plugins = PluginManager(self)
 
         self.init_locks()
         self.load_class_configs()
@@ -99,18 +99,18 @@ class MUDSling(MultiService):
 
         # Setup the plugin handling the login screen.
         name = config.get('Main', 'login screen')
-        plugin = self.plugins.get_plugins_by_machine_name(name, "LoginScreen")
+        plugin = self.plugins.get_plugin_by_machine_name(name, "LoginScreen")
         if plugin is not None:
             logging.debug("Using %s as LoginScreen" % name)
-            self.login_screen = plugin.plugin_object
+            self.login_screen = plugin
 
     # Non-PEP8 naming by Twisted.
     def startService(self):
         self.init_game()
         logging.info("Starting services...")
         # Gather Twisted services and register them to our application.
-        for info in self.plugins.active_plugins("TwistedService"):
-            service = info.plugin_object.get_service()
+        for plugin in self.plugins.active_plugins("TwistedService"):
+            service = plugin.get_service()
             if isinstance(service, Service):
                 #service.setServiceParent(self.parent)
                 self.addService(service)

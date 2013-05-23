@@ -1,48 +1,55 @@
 import os
 import sys
+import logging
+import inspect
 
-from yapsy.IPlugin import IPlugin
-from yapsy.PluginInfo import PluginInfo
-import yapsy.PluginManager
+from mudsling.config import Config, ConfigSection, config
 
-from mudsling.config import config
-
-
-class MUDSlingPluginInfo(PluginInfo):
-    """
-    Class used with yapsy to describe plugins.
-    """
-
-    #: @cvar: The extension used by MUDSling plugin info files.
-    PLUGIN_INFO_EXTENSION = "plugin-info"
-
-    #: @ivar: Machine-readable name of the plugin.
-    #: @type: str
-    machine_name = None
-
-    def __init__(self, plugin_name, plugin_path, filename=""):
-        super(MUDSlingPluginInfo, self).__init__(plugin_name, plugin_path)
-        ext_len = len(self.PLUGIN_INFO_EXTENSION) + 1
-        self.machine_name = os.path.basename(filename)[:-ext_len]
+from mudsling import utils
+import mudsling.utils.modules
 
 
-class MUDSlingPlugin(IPlugin):
+class PluginError(Exception):
+    pass
+
+
+class PluginInfo(Config):
+    path = ''
+    filesystem_name = ''
+    machine_name = ''
+
+
+class Plugin(object):
     """
     Base plugin class.
 
-    @ivar options: Key/val pairs of options loaded from config for this plugin.
+    @ivar path: The path to the plugin's directory.
+    @ivar info: A ConfigParser containing the module information.
+    @ivar options: Plugin's config section from the game-specific config.
     @ivar game: Reference to the game object.
-    @ivar info: Reference back to the plugin info object.
     """
-
+    path = ''
+    #: @type: PluginInfo
+    info = None
     #: @type: mudsling.config.ConfigSection
     options = None
-    info = None
     #: @type: mudsling.core.MUDSling
     game = None
 
+    def __init__(self, game, info):
+        """
+        Initialize a new instance of a plugin using the info file data.
 
-class TwistedServicePlugin(MUDSlingPlugin):
+        @type game: L{mudsling.core.MUDSling}
+        @type info: L{PluginInfo}
+        """
+        self.game = game
+        self.info = info
+        if config.has_section(info.filesystem_name):
+            self.options = config[info.filesystem_name]
+
+
+class TwistedServicePlugin(Plugin):
     """
     A plugin which provides a twisted service object which will be parented to
     the main application.
@@ -56,7 +63,7 @@ class TwistedServicePlugin(MUDSlingPlugin):
         return None
 
 
-class LoginScreenPlugin(MUDSlingPlugin):
+class LoginScreenPlugin(Plugin):
     """
     A plugin that provides the interface upon first connection and the method
     of connecting a 'bare' session with an object.
@@ -81,21 +88,11 @@ class LoginScreenPlugin(MUDSlingPlugin):
         """
 
 
-class GamePlugin(MUDSlingPlugin):
+class GamePlugin(Plugin):
     """
     Game plugins can provide new object classes, hook game events, etc. They're
     the plugins which are meant to interact with the game world in general.
     """
-
-    pluginpath = None
-
-    def activate(self):
-        super(GamePlugin, self).activate()
-
-        # Add plugin's path to the PYTHONPATH so that it may be used as a
-        # module by other code, have its classes used in config, etc.
-        self.pluginpath = os.path.dirname(self.info.path)
-        sys.path.append(self.pluginpath)
 
     def server_startup(self):
         """
@@ -128,7 +125,7 @@ class GamePlugin(MUDSlingPlugin):
 
         @rtype: list
         """
-        path = os.path.join(self.pluginpath, 'patterns')
+        path = os.path.join(self.info.path, 'patterns')
         if os.path.exists(path) and os.path.isdir(path):
             return [path]
         return []
@@ -159,13 +156,13 @@ class GamePlugin(MUDSlingPlugin):
 
         @rtype: list
         """
-        path = os.path.join(self.pluginpath, 'help')
+        path = os.path.join(self.info.path, 'help')
         if os.path.exists(path) and os.path.isdir(path):
             return [path]
         return []
 
 
-class PluginManager(yapsy.PluginManager.PluginManager):
+class PluginManager(object):
 
     #: @cvar: Config section identifying enabled plugins.
     PLUGIN_ENABLE_SECTION = "Plugins"
@@ -180,78 +177,113 @@ class PluginManager(yapsy.PluginManager.PluginManager):
         "GamePlugin": GamePlugin
     }
 
-    def __init__(self, game, game_dir):
+    INFO_EXT = '.plugin-info'
+
+    #: @type: L{mudsling.core.MUDSling}
+    game = None
+
+    def __init__(self, game):
         """
         Initialize plugin manager based on game directory and loaded config.
 
+        Walk plugin paths looking for info files matching enabled plugins.
+
         @param game: The MUDSling game object.
-        @type game: mudsling.core.MUDSling
-
-        @param game_dir: Path to active game directory (which can have plugins)
+        @type game: L{mudsling.core.MUDSling}
         """
-        super(PluginManager, self).__init__(
-            plugin_info_ext=MUDSlingPluginInfo.PLUGIN_INFO_EXTENSION,
-            directories_list=self.plugin_paths(game_dir),
-            categories_filter=self.PLUGIN_CATEGORIES
-        )
-        self.setPluginInfoClass(MUDSlingPluginInfo)
+        self.game = game
+        plugin_infos = self.find_plugins(self.plugin_paths(game.game_dir))
+        self.plugins = self.load_plugins(plugin_infos)
+        self.categories = self.categorize_plugins(self.plugins)
 
-        # Locate all candidate plugins. Parses info files.
-        self.locatePlugins()
-
-        # Determine which plugins to load based on configuration.
+    def enabled_plugins(self):
         enabled_in_config = []
-        sec = self.PLUGIN_ENABLE_SECTION
-        enabled = self.PLUGIN_ENABLE_VALUES
-        if config.has_section(sec):
-            for opt_name in config.options(sec):
-                if config.get(sec, opt_name).lower() in enabled:
+        plugin_section = self.PLUGIN_ENABLE_SECTION
+        enable_vals = self.PLUGIN_ENABLE_VALUES
+        if config.has_section(plugin_section):
+            for opt_name in config.options(plugin_section):
+                if config.get(plugin_section, opt_name).lower() in enable_vals:
                     enabled_in_config.append(opt_name)
+        return enabled_in_config
 
-        # Filter candidates to only those enabled in config.
-        new_candidates = []
-        for infofile, path, info in self._candidates:
-            if isinstance(info, MUDSlingPluginInfo):
-                if info.machine_name.lower() in enabled_in_config:
-                    new_candidates.append((infofile, path, info))
-        self._candidates = new_candidates
+    def find_plugins(self, paths):
+        enabled_in_config = self.enabled_plugins()
+        plugin_infos = {}
+        for plugin_dir in paths:
+            for dirname, dirnames, files in os.walk(plugin_dir):
+                for file in [f for f in files if f.endswith(self.INFO_EXT)]:
+                    filesystem_name = file[0:-len(self.INFO_EXT)]
+                    machine_name = filesystem_name.lower()
+                    if machine_name in enabled_in_config:
+                        infopath = os.path.join(dirname, file)
+                        info = PluginInfo()
+                        info.filesystem_name = filesystem_name
+                        info.path = os.path.dirname(infopath)
+                        info.machine_name = machine_name
+                        try:
+                            info.read([infopath])
+                        except:
+                            logging.fatal("Bad plugin: %s" % machine_name)
+                            raise
+                        # May replace an already-loaded info by design, so that
+                        # more-specific module inclusions can override.
+                        plugin_infos[machine_name] = info
+        return plugin_infos
 
-        # Load the plugins configured to be enabled.
-        self.loadPlugins()
+    def load_plugins(self, plugin_infos):
+        plugins = {}
+        for machine_name, info in plugin_infos.iteritems():
+            if os.path.isfile(os.path.join(info.path, '__init__.py')):
+                # Import the entire plugin as a module.
+                plugin_mod = utils.modules.mod_import(info.path)
+                sys.modules[machine_name] = plugin_mod
 
-        # Activate all loaded plugins.
-        for info in self.getAllPlugins():
-            # Load config-based options if Plugin supports them.
-            if isinstance(info.plugin_object, MUDSlingPlugin):
-                info.plugin_object.game = game
-                info.plugin_object.info = info
-                if config.has_section(info.machine_name):
-                    info.plugin_object.options = config[info.machine_name]
-            self.activatePluginByName(info.name, info.category)
+            module_filepath = os.path.join(info.path, 'plugin.py')
+            if info.has_option('', 'module'):
+                config_mod = info.get('', 'module').strip()
+                module_filepath = os.path.join(info.path, config_mod)
+            module = utils.modules.mod_import(module_filepath)
+            for val in [getattr(module, varname) for varname in dir(module)]:
+                if (inspect.isclass(val) and issubclass(val, Plugin)
+                        and val.__module__ == module.__name__):
+                    plugins[machine_name] = val(self.game, info)
+                    break
+            if machine_name not in plugins:
+                raise PluginError("No plugin found in %s" % module_filepath)
+        return plugins
+
+    def categorize_plugins(self, plugins):
+        categories = {}
+        for category in self.PLUGIN_CATEGORIES.keys():
+            categories[category] = []
+        for plugin in plugins.itervalues():
+            for name, cls in self.PLUGIN_CATEGORIES.iteritems():
+                if isinstance(plugin, cls):
+                    categories[name].append(plugin)
+        return categories
 
     def plugin_paths(self, game_dir):
         return ['mudsling/plugins', "%s/plugins" % game_dir]
 
     def active_plugins(self, category=None):
         if category is None:
-            all = self.getAllPlugins()
+            return self.plugins.values()
         else:
-            all = self.getPluginsOfCategory(category)
+            return self.categories.get(category, [])
 
-        return [info for info in all if info.is_activated]
-
-    def get_plugins_by_machine_name(self, name, category=None):
+    def get_plugin_by_machine_name(self, name, category=None):
         """
         Retrieve an active plugin using its machine name.
 
         @param name: The machine name of the plugin to retrieve.
         @param category: Limit which plugins are searched by category.
 
-        @return: MUDSlingPlugin
+        @rtype: L{Plugin}
         """
-        for info in self.active_plugins(category):
-            if info.machine_name == name:
-                return info
+        name = name.lower()
+        for plugin in self.active_plugins(category):
+            if plugin.info.machine_name == name:
+                return plugin
         return None
 
     def invoke_hook(self, category, hook, *args, **kwargs):
@@ -266,41 +298,11 @@ class PluginManager(yapsy.PluginManager.PluginManager):
         @rtype: dict
         """
         result = {}
-        for info in self.active_plugins(category):
-            plugin = info.plugin_object
+        for plugin in self.active_plugins(category):
             try:
                 func = getattr(plugin, hook)
             except AttributeError:
                 continue
             if callable(func):
-                result[info] = func(*args, **kwargs)
+                result[plugin.info.machine_name] = func(*args, **kwargs)
         return result
-
-    # Override normal behavior so that we can generate machine name.
-    def _gatherCorePluginInfo(self, directory, filename):
-        """
-        Gather the core information (name, and module to be loaded)
-        about a plugin described by it's info file (found at
-        'directory/filename').
-
-        Return an instance of ``self.plugin_info_cls`` and the
-        config_parser used to gather the core data *in a tuple*, if the
-        required info could be localised, else return ``(None,None)``.
-
-        .. note:: This is supposed to be used internally by subclasses
-            and decorators.
-
-        """
-        # now we can consider the file as a serious candidate
-        candidate_infofile = os.path.join(directory, filename)
-        # parse the information file to get info about the plugin
-        name, moduleName, config_parser =\
-            self._getPluginNameAndModuleFromStream(open(candidate_infofile),
-                                                   candidate_infofile)
-        if (name, moduleName, config_parser) == (None, None, None):
-            return None, None
-            # start collecting essential info
-        info = self._plugin_info_cls(name,
-                                     os.path.join(directory, moduleName),
-                                     filename)
-        return info, config_parser

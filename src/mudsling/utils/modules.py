@@ -116,7 +116,8 @@ def mod_import(module):
                     % (modname, path))
                 mod = None
                 # we have to close the file handle manually
-            result[0].close()
+            if result[0] is not None:
+                result[0].close()
     return mod
 
 

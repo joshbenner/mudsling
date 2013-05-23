@@ -1,8 +1,5 @@
-[Core]
-Name = Default Login Screen
-Module = .
-
-[Documentation]
-Author = Josh Benner
-Version = 0.1
-Description = Basic login screen plugin.
+name = Default Login Screen
+description = Basic login screen plugin.
+author = Josh Benner
+version = 0.1
+module = DefaultLoginScreen.py

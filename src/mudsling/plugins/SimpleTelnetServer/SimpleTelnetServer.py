@@ -8,19 +8,11 @@ from mudsling.sessions import Session
 
 
 class SimpleTelnetServer(TwistedServicePlugin):
-
-    port = 0
-
-    def activate(self):
-        super(SimpleTelnetServer, self).activate()
-        if self.options.has_option('port'):
-            self.port = self.options.getint('port')
-
     def get_service(self):
         factory = ServerFactory()
         factory.protocol = SimpleTelnetSession
         factory.game = self.game
-        service = internet.TCPServer(self.port, factory)
+        service = internet.TCPServer(self.options.getint('port'), factory)
         service.setName("SimpleTelnetServer")
         return service
 

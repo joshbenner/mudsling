@@ -5,7 +5,6 @@ from collections import namedtuple
 
 from mudsling.extensibility import LoginScreenPlugin
 from mudsling.match import match_objlist
-from mudsling.utils.password import Password
 from mudsling.objects import BasePlayer
 
 
@@ -49,10 +48,9 @@ class DefaultLoginScreen(LoginScreenPlugin):
         )
     )
 
-    def activate(self):
-        super(DefaultLoginScreen, self).activate()
-        plugin_path = os.path.dirname(os.path.realpath(__file__))
-        file_path = os.path.join(plugin_path, 'login_screen.txt')
+    def __init__(self, *args, **kwargs):
+        super(DefaultLoginScreen, self).__init__(*args, **kwargs)
+        file_path = os.path.join(self.info.path, 'login_screen.txt')
         with open(file_path, 'rU') as f:
             self.screen = [line.rstrip('\n') for line in f.readlines()]
 
@@ -108,8 +106,9 @@ class DefaultLoginScreen(LoginScreenPlugin):
         except TypeError:
             auth = False
             logging.exception("Auth failed.")
-        except Exception as e:
-            session.send_output(e.message)
+        except Exception:
+            logging.exception("Login failed")
+            session.send_output("Error logging in!")
             return
         if auth:
             session.attach_to_player(player)

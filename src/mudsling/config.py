@@ -21,6 +21,12 @@ class Config(ConfigParser.SafeConfigParser):
         ConfigParser.SafeConfigParser.__init__(self, *args, **kwargs)
         self._configSections = {}
 
+    def getdefault(self, section, option, raw=False, vars=None, default=None):
+        if self.has_option(section, option):
+            return self.get(section, option, raw=raw, vars=vars)
+        else:
+            return default
+
     # Follow naming of other get*() functions.
     def getobject(self, section, option):
         """
@@ -71,6 +77,145 @@ class Config(ConfigParser.SafeConfigParser):
 
     def __getitem__(self, item):
         return self.section(item)
+
+    # Modified to support blank section.
+    def _read(self, fp, fpname):
+        self._sections[''] = self._dict()
+        cursect = self._sections['']          # None, or a dictionary
+        optname = None
+        lineno = 0
+        e = None                              # None, or an exception
+        while True:
+            line = fp.readline()
+            if not line:
+                break
+            lineno += 1
+            # comment or blank line?
+            if line.strip() == '' or line[0] in '#;':
+                continue
+            if line.split(None, 1)[0].lower() == 'rem' and line[0] in "rR":
+                # no leading whitespace
+                continue
+                # continuation line?
+            if line[0].isspace() and cursect is not None and optname:
+                value = line.strip()
+                if value:
+                    cursect[optname].append(value)
+            # a section header or option header?
+            else:
+                # is it a section header?
+                mo = self.SECTCRE.match(line)
+                if mo:
+                    sectname = mo.group('header')
+                    if sectname in self._sections:
+                        cursect = self._sections[sectname]
+                    elif sectname == ConfigParser.DEFAULTSECT:
+                        cursect = self._defaults
+                    else:
+                        cursect = self._dict()
+                        cursect['__name__'] = sectname
+                        self._sections[sectname] = cursect
+                        # So sections can't start with a continuation line
+                    optname = None
+                # no section header in the file?
+                elif cursect is None:
+                    raise ConfigParser.MissingSectionHeaderError(fpname,
+                                                                 lineno, line)
+                # an option line?
+                else:
+                    mo = self._optcre.match(line)
+                    if mo:
+                        optname, vi, optval = mo.group('option', 'vi', 'value')
+                        optname = self.optionxform(optname.rstrip())
+                        # This check is fine because the OPTCRE cannot
+                        # match if it would set optval to None
+                        if optval is not None:
+                            if vi in ('=', ':') and ';' in optval:
+                                # ';' is a comment delimiter only if it follows
+                                # a spacing character
+                                pos = optval.find(';')
+                                if pos != -1 and optval[pos - 1].isspace():
+                                    optval = optval[:pos]
+                            optval = optval.strip()
+                            # allow empty values
+                            if optval == '""':
+                                optval = ''
+                            cursect[optname] = [optval]
+                        else:
+                            # valueless option handling
+                            cursect[optname] = optval
+                    else:
+                        # a non-fatal parsing error occurred.  set up the
+                        # exception but keep going. the exception will be
+                        # raised at the end of the file and will contain a
+                        # list of all bogus lines
+                        if not e:
+                            e = ConfigParser.ParsingError(fpname)
+                        e.append(lineno, repr(line))
+            # if any parsing errors occurred, raise an exception
+        if e:
+            raise e
+
+        # join the multi-line values collected while reading
+        all_sections = [self._defaults]
+        all_sections.extend(self._sections.values())
+        for options in all_sections:
+            for name, val in options.items():
+                if isinstance(val, list):
+                    options[name] = '\n'.join(val)
+
+    # Modified to support blank section.
+    def has_option(self, section, option):
+        """Check for the existence of a given option in a given section."""
+        if section == ConfigParser.DEFAULTSECT:
+            option = self.optionxform(option)
+            return option in self._defaults
+        elif section not in self._sections:
+            return False
+        else:
+            option = self.optionxform(option)
+            return (option in self._sections[section]
+                    or option in self._defaults)
+
+    # Modified to support blank section.
+    def set(self, section, option, value=None):
+        """Set an option.  Extend ConfigParser.set: check for string values."""
+        if self._optcre is self.OPTCRE or value:
+            if not isinstance(value, basestring):
+                raise TypeError("option values must be strings")
+        if value is not None:
+            # check for bad percent signs:
+            # first, replace all "good" interpolations
+            tmp_value = value.replace('%%', '')
+            tmp_value = self._interpvar_re.sub('', tmp_value)
+            # then, check if there's a lone percent sign left
+            if '%' in tmp_value:
+                raise ValueError("invalid interpolation syntax in %r at "
+                                 "position %d" % (value, tmp_value.find('%')))
+        if section == ConfigParser.DEFAULTSECT:
+            sectdict = self._defaults
+        else:
+            try:
+                sectdict = self._sections[section]
+            except KeyError:
+                raise ConfigParser.NoSectionError(section)
+        sectdict[self.optionxform(option)] = value
+
+    # Modified to support blank section.
+    def remove_option(self, section, option):
+        """Remove an option."""
+        if section == ConfigParser.DEFAULTSECT:
+            sectdict = self._defaults
+        else:
+            try:
+                sectdict = self._sections[section]
+            except KeyError:
+                raise ConfigParser.NoSectionError(section)
+        option = self.optionxform(option)
+        existed = option in sectdict
+        if existed:
+            del sectdict[option]
+        return existed
 
 
 class ConfigSection(object):
