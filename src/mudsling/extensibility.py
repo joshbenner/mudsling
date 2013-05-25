@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import inspect
+from collections import OrderedDict
 
 from mudsling.config import Config, ConfigSection, config
 
@@ -232,8 +233,11 @@ class PluginManager(object):
         return plugin_infos
 
     def load_plugins(self, plugin_infos):
-        plugins = {}
-        for machine_name, info in plugin_infos.iteritems():
+        plugins = OrderedDict()
+        enabled_in_config = self.enabled_plugins()
+        sorter = lambda e: enabled_in_config.index(e)
+        for machine_name in sorted(plugin_infos.keys(), key=sorter):
+            info = plugin_infos[machine_name]
             if os.path.isfile(os.path.join(info.path, '__init__.py')):
                 # Import the entire plugin as a module.
                 plugin_mod = utils.modules.mod_import(info.path)
