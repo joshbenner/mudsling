@@ -194,6 +194,7 @@ class PluginManager(object):
         self.game = game
         plugin_infos = self.find_plugins(self.plugin_paths(game.game_dir))
         self.plugins = self.load_plugins(plugin_infos)
+        self.check_dependencies()
         self.categories = self.categorize_plugins(self.plugins)
 
     def enabled_plugins(self):
@@ -251,6 +252,15 @@ class PluginManager(object):
             if machine_name not in plugins:
                 raise PluginError("No plugin found in %s" % module_filepath)
         return plugins
+
+    def check_dependencies(self):
+        for plugin in self.plugins.itervalues():
+            info = plugin.info
+            if info.has_option('', 'dependencies'):
+                for dep in [d for d in info.getlist('dependencies') if d]:
+                    if not dep.lower() in self.plugins:
+                        me = info.filesystem_name
+                        raise PluginError("%s requires %s" % (me, dep))
 
     def categorize_plugins(self, plugins):
         categories = {}

@@ -67,6 +67,15 @@ class Config(ConfigParser.SafeConfigParser):
         import mudsling.utils.time  # Avoid circular import at module-level.
         return utils.time.dhms_to_seconds(self.get(section, option))
 
+    def getlist(self, section, option, sep=','):
+        """
+        Convenience method which splits an option based on a separator into a
+        list. Each element is stripped as well.
+        @rtype: C{list}
+        """
+        liststr = self.get(section, option)
+        return map(str.strip, liststr.strip().split(sep))
+
     def section(self, section):
         if section not in self._configSections:
             if self.has_section(section):
@@ -261,6 +270,9 @@ class ConfigSection(object):
 
     def getinterval(self, option):
         return self.config.getinterval(self.section, option)
+
+    def getlist(self, option, sep=','):
+        return self.config.getlist(self.section, option, sep=sep)
 
     def items(self, raw=False, vars=None):
         return self.config.items(self.section, raw, vars)
