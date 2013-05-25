@@ -1,3 +1,7 @@
+import logging
+
+import zope.interface
+
 from mudsling.objects import BasePlayer, BaseCharacter, Object
 from mudsling.commands import all_commands
 from mudsling.messages import Messages
@@ -20,14 +24,40 @@ import commands.admin.players
 import commands.character
 
 
+class IDescModifier(zope.interface.Interface):
+    def modify_desc(described_obj, described_to, desc):
+        """
+        Returns a modified description.
+        """
+
+
 class DescribableObject(Object):
     """
     An object that has a description and can be seen.
 
     @ivar desc: The description of the object.
-    @type desc: str
+    @type desc: C{str}
+
+    @ivar desc_mods: List of objects that may modify the object's description.
+        Modifiers must implement L{IDescModifier}.
+    @type desc_mods: C{list}
     """
     desc = ""
+    desc_mods = []
+
+    def __init__(self, **kwargs):
+        self.desc_mods = []
+        super(DescribableObject, self).__init__(**kwargs)
+
+    def register_desc_mod(self, obj):
+        obj = obj.ref()
+        if obj not in self.desc_mods and IDescModifier.providedBy(obj):
+            self.desc_mods.append(obj)
+
+    def unregister_desc_mod(self, obj):
+        obj = obj.ref()
+        if obj in self.desc_mods:
+            self.desc_mods.remove(obj)
 
     def seen_by(self, obj):
         """
@@ -66,7 +96,13 @@ class DescribableObject(Object):
         """
         Return the string describing this object to the passed object.
         """
-        return self.desc if self.desc else "You see nothing special."
+        desc = self.desc if self.desc else "You see nothing special."
+        for modifier in self.desc_mods:
+            try:
+                desc = modifier.modify_desc(self.ref(), obj, desc)
+            except:
+                logging.exception('Error with desc modifier')
+        return desc
 
     def contents_visible_to(self, obj):
         """
