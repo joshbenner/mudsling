@@ -11,6 +11,7 @@ from mudsling.match import match_objlist, match_stringlists
 from mudsling.sessions import IInputProcessor
 from mudsling.messages import IHasMessages, Messages
 from mudsling.commands import IHasCommands, CommandSet
+from mudsling.features import FeaturedObject
 
 from mudsling import utils
 import mudsling.utils.password
@@ -417,7 +418,7 @@ class PossessableObject(MessagedObject):
             return name
 
 
-class BaseObject(PossessableObject):
+class BaseObject(PossessableObject, FeaturedObject):
     """
     An contextual, ownable object that provides message templates, can process
     input into command execution, and provides contextual object matching.
