@@ -81,6 +81,10 @@ class Feature(Decorator):
             val = types.MethodType(val.im_func, bind_to)
         return val
 
+    def __init__(self, *a, **kw):
+        # Stop super propagation of init here. Features should be last parents.
+        pass
+
 
 class Featurized(object):
     """

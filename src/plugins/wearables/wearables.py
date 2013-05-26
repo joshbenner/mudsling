@@ -41,6 +41,7 @@ class WearingFeature(Feature):
 
     def __init__(self, *a, **kw):
         self._init_wearing()
+        super(WearingFeature, self).__init__(*a, **kw)
 
     def _init_wearing(self):
         self.wearing = []
@@ -182,6 +183,10 @@ class Wearable(Thing):
     def before_object_moved(self, moving_from, moving_to, by=None):
         self._check_wear_status()
         if self.is_worn:
+            if by == self.worn_by:
+                msg = "You must unwear %s before discarding it."
+                msg = msg % by.name_for(self)
+            else:
+                msg = "%s is currently worn." % self.name
             raise errors.MoveDenied(self.ref(), moving_from, moving_to,
-                                    self.ref(),
-                                    msg="%s is currently worn." % self.name)
+                                    self.ref(), msg=msg)
