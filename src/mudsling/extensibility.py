@@ -277,7 +277,7 @@ class PluginManager(object):
         return categories
 
     def plugin_paths(self, game_dir):
-        return ['mudsling/plugins', "%s/plugins" % game_dir]
+        return ['plugins', "%s/plugins" % game_dir]
 
     def active_plugins(self, category=None):
         if category is None:
