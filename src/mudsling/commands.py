@@ -34,7 +34,7 @@ class CommandSet(object):
         Create a new command set.
 
         @param commands: Iterable of command classes to initialize with.
-        @type commands: C{dict} or C{list} or C{set} or C{tuple}
+        @type commands: C{dict} or C{list} or C{tuple} or L{CommandSet}
 
         @param container: An object whose members include command classes that
             are to be added to this CommandSet's commands. Can be a module.
@@ -61,8 +61,11 @@ class CommandSet(object):
             logging.error("Failed loading command %r: %s" % (cmd, e.message))
 
     def add_commands(self, commands):
-        for cmd in commands:
-            self.add_command(cmd)
+        if isinstance(commands, CommandSet):
+            self.commands.update(commands.commands)
+        else:
+            for cmd in commands:
+                self.add_command(cmd)
 
     def match(self, cmd_name, host, actor):
         matches = []

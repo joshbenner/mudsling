@@ -264,6 +264,16 @@ class StoredObject(Persistent):
         cleanup.
         """
 
+    def server_started(self):
+        """
+        Called after the server has started.
+        """
+
+    def server_shutdown(self):
+        """
+        Called just before the server shuts down.
+        """
+
 
 class Database(Persistent):
     """
@@ -338,11 +348,15 @@ class Database(Persistent):
         """
         for task in self.tasks.itervalues():
             task.server_startup()
+        for obj in self.objects.itervalues():
+            obj.server_started()
 
     def on_server_shutdown(self):
         """
         Run just prior to server shutdown.
         """
+        for obj in self.objects.itervalues():
+            obj.server_shutdown()
         for task in self.tasks.itervalues():
             task.server_shutdown()
 

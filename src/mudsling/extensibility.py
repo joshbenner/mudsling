@@ -18,6 +18,7 @@ class PluginInfo(Config):
     path = ''
     filesystem_name = ''
     machine_name = ''
+    module = None
 
 
 class Plugin(object):
@@ -248,6 +249,7 @@ class PluginManager(object):
                 config_mod = info.get('', 'module').strip()
                 module_filepath = os.path.join(info.path, config_mod)
             module = utils.modules.mod_import(module_filepath)
+            info.module = module
             for val in [getattr(module, varname) for varname in dir(module)]:
                 if (inspect.isclass(val) and issubclass(val, Plugin)
                         and val.__module__ == module.__name__):
@@ -261,7 +263,7 @@ class PluginManager(object):
         for plugin in self.plugins.itervalues():
             info = plugin.info
             if info.has_option('', 'dependencies'):
-                for dep in [d for d in info.getlist('dependencies') if d]:
+                for dep in [d for d in info.getlist('', 'dependencies') if d]:
                     if not dep.lower() in self.plugins:
                         me = info.filesystem_name
                         raise PluginError("%s requires %s" % (me, dep))
@@ -320,3 +322,13 @@ class PluginManager(object):
             if callable(func):
                 result[plugin.info.machine_name] = func(*args, **kwargs)
         return result
+
+    def __getitem__(self, item):
+        return self.get_plugin_by_machine_name(item)
+
+    def __iter__(self):
+        for plugin in self.plugins.itervalues():
+            yield plugin
+
+    def __contains__(self, item):
+        return item in self.plugins

@@ -24,13 +24,6 @@ import commands.admin.players
 import commands.character
 
 
-class IDescModifier(zope.interface.Interface):
-    def modify_desc(described_obj, described_to, desc):
-        """
-        Returns a modified description.
-        """
-
-
 class DescribableObject(Object):
     """
     An object that has a description and can be seen.
@@ -48,16 +41,6 @@ class DescribableObject(Object):
     def __init__(self, **kwargs):
         self.desc_mods = []
         super(DescribableObject, self).__init__(**kwargs)
-
-    def register_desc_mod(self, obj):
-        obj = obj.ref()
-        if obj not in self.desc_mods and IDescModifier.providedBy(obj):
-            self.desc_mods.append(obj)
-
-    def unregister_desc_mod(self, obj):
-        obj = obj.ref()
-        if obj in self.desc_mods:
-            self.desc_mods.remove(obj)
 
     def seen_by(self, obj):
         """
@@ -97,9 +80,9 @@ class DescribableObject(Object):
         Return the string describing this object to the passed object.
         """
         desc = self.desc if self.desc else "You see nothing special."
-        for modifier in self.desc_mods:
+        for impl in self.hook_implementations('desc_mod').itervalues():
             try:
-                desc = modifier.modify_desc(self.ref(), obj, desc)
+                desc = impl(desc, viewer=obj)
             except:
                 logging.exception('Error with desc modifier')
         return desc

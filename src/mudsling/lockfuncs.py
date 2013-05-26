@@ -1,4 +1,4 @@
-from mudsling.objects import BasePlayer
+from mudsling.objects import BasePlayer, Object
 from mudsling import registry
 
 
@@ -7,6 +7,10 @@ def _isa(accessed_obj, accessing_obj, cls_name):
     if cls is not None:
         return accessing_obj.isa(cls)
     return False
+
+
+def can_touch(obj, who):
+    return who.isa(Object) and who.can_touch(obj)
 
 
 def default_funcs():
@@ -35,5 +39,6 @@ def default_funcs():
         'owner': lambda o, w: (o.owner == w.ref()
                                if o.owner is not None else False),
         'class': _isa,
-        'isa': _isa
+        'isa': _isa,
+        'can_touch': can_touch,
     }

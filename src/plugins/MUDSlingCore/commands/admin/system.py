@@ -58,8 +58,6 @@ class EvalCmd(Command):
 
         @type actor: mudslingcore.objects.Player
         """
-
-        import mudslingcore
         import sys
         import datetime
         import calendar
@@ -92,9 +90,11 @@ class EvalCmd(Command):
             'here': (char.location if self.game.db.is_valid(char, Object)
                      else None),
             'mudsling': mudsling,
-            'mudslingcore': mudslingcore,
             'utils': mudsling.utils,
         }
+        for plugin in self.game.plugins:
+            if plugin.info.module is not None:
+                available_vars[plugin.info.machine_name] = plugin.info.module
 
         inMsg = string.parse_ansi('{y>>> ') + code + string.parse_ansi("{n")
         actor.msg(inMsg, {'raw': True})
@@ -117,7 +117,7 @@ class EvalCmd(Command):
             duration = time.clock() - begin
 
             if mode == 'eval':
-                out = "<<< %s" % string.escape_ansi_tokens(repr(ret))
+                out = "<<< %s" % repr(ret)
                 if isinstance(ret, ObjRef):
                     if ret.is_valid():
                         name = "%s (%s)" % (ret.class_name(),

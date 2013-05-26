@@ -3,4 +3,4 @@ description = Enhances MUDSlingCore with wearable objects like clothing and jewe
 dependencies = MUDSlingCore
 author = Josh Benner
 version = 0.1
-
+module = wearables.py

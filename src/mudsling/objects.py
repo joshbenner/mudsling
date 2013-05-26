@@ -11,7 +11,7 @@ from mudsling.match import match_objlist, match_stringlists
 from mudsling.sessions import IInputProcessor
 from mudsling.messages import IHasMessages, Messages
 from mudsling.commands import IHasCommands, CommandSet
-from mudsling.features import FeaturedObject
+from mudsling.composition import Composed
 
 from mudsling import utils
 import mudsling.utils.password
@@ -418,7 +418,7 @@ class PossessableObject(MessagedObject):
             return name
 
 
-class BaseObject(PossessableObject, FeaturedObject):
+class BaseObject(PossessableObject, Composed):
     """
     An contextual, ownable object that provides message templates, can process
     input into command execution, and provides contextual object matching.
@@ -603,14 +603,23 @@ class BaseObject(PossessableObject, FeaturedObject):
         if '_command_cache' not in cls.__dict__:
             cls._command_cache = {}
         if attr in cls._command_cache:
-            return cls._command_cache[attr]
+            # Copy -- see below.
+            commands = CommandSet(cls._command_cache[attr])
+        else:
+            commands = CommandSet()
+            for obj_class in utils.object.descend_mro(cls):
+                if IHasCommands.implementedBy(obj_class):
+                    commands.add_commands(getattr(obj_class, attr))
+            # Copy -- see below.
+            cls._command_cache[attr] = CommandSet(commands)
 
-        commands = CommandSet()
-        for obj_class in utils.object.descend_mro(cls):
-            if IHasCommands.implementedBy(obj_class):
-                commands.add_commands(getattr(obj_class, attr))
+        # Offer Features and Components the chance to add commands. This is why
+        # we make copies of the CommandSet above -- these extra commands can
+        # change, so we don't want them to participate in the command cache.
+        # Expects lists of command classes from each extension.
+        extra = self.invoke_hook('extra_commands_for', actor.ref())
+        commands.add_commands(utils.sequence.flatten_list(extra.values()))
 
-        cls._command_cache[attr] = commands
         return commands
 
     def preemptive_command_match(self, raw):
@@ -659,6 +668,10 @@ class BaseObject(PossessableObject, FeaturedObject):
         """
         return [self.ref()]
 
+    def server_started(self):
+        super(BaseObject, self).server_started()
+        self.invoke_hook('server_started')
+
 
 class Object(BaseObject):
     """
@@ -692,6 +705,12 @@ class Object(BaseObject):
         # Read only, enforce copy. If performance is critical, make the effort
         # to reference _contents directly (and CAREFULLY).
         return list(self._contents)
+
+    def can_touch(self, obj):
+        obj = obj.ref()
+        if self.has_location and obj in self.location.contents:
+            return True
+        return obj in self.contents
 
     def iterContents(self):
         for o in self._contents:

@@ -122,8 +122,8 @@ class MUDSling(MultiService):
             self.addService(service)
 
         # Fire server startup hooks.
-        self.db.on_server_startup()
         self.invoke_hook('server_startup')
+        self.db.on_server_startup()
 
         MultiService.startService(self)
 
