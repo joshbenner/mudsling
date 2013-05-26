@@ -241,30 +241,30 @@ class StoredObject(Persistent):
             raise Exception("Database not available to %s" % cls.__name__)
         obj = cls(**kwargs)
         cls.db.register_object(obj)
-        obj.object_created()
+        obj.on_object_created()
         return obj.ref()
 
     def delete(self):
         """
         Canonical method for deleting an object.
         """
-        self.object_deleted()
+        self.on_object_deleted()
         self.db.unregister_object(self)
 
-    def object_created(self):
+    def on_object_created(self):
         """
         Called when the object is first created. Only called once in the life
         of the object.
         """
 
-    def object_deleted(self):
+    def on_object_deleted(self):
         """
         Called during object deletion, but before the object itself has been
         removed from the database. Allows the object to perform any final
         cleanup.
         """
 
-    def server_started(self):
+    def on_server_startup(self):
         """
         Called after the server has started.
         """
@@ -349,7 +349,7 @@ class Database(Persistent):
         for task in self.tasks.itervalues():
             task.server_startup()
         for obj in self.objects.itervalues():
-            obj.server_started()
+            obj.on_server_startup()
 
     def on_server_shutdown(self):
         """

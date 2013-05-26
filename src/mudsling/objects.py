@@ -394,10 +394,10 @@ class PossessableObject(MessagedObject):
                 parts[i] = self.name_for(part)
         return ''.join(map(str, parts))
 
-    def object_deleted(self):
+    def on_object_deleted(self):
         if self.possessed_by is not None:
             self.possessed_by.dispossess_object(self.ref())
-        super(PossessableObject, self).object_deleted()
+        super(PossessableObject, self).on_object_deleted()
 
     def name_for(self, obj):
         """
@@ -668,8 +668,8 @@ class BaseObject(PossessableObject, Composed):
         """
         return [self.ref()]
 
-    def server_started(self):
-        super(BaseObject, self).server_started()
+    def on_server_startup(self):
+        super(BaseObject, self).on_server_startup()
         self.invoke_hook('server_started')
 
 
@@ -716,11 +716,11 @@ class Object(BaseObject):
         for o in self._contents:
             yield o
 
-    def object_deleted(self):
+    def on_object_deleted(self):
         """
         Move self out of location and move contents out of self.
         """
-        super(Object, self).object_deleted()
+        super(Object, self).on_object_deleted()
         self.move_to(None)
         this = self.ref()
         for o in list(self.contents):
@@ -810,27 +810,33 @@ class Object(BaseObject):
         """
         return None
 
-    def before_content_removed(self, what, destination):
+    def before_content_removed(self, what, destination, by=None):
         """
         Called before an object is removed from the contents of this object.
         Objects that wish to prevent the move can raise a MoveError here.
 
         @param what: The object that will be moved.
         @param destination: Where the object will be moved.
+
+        @param by: The object responsible for the movement. Often a character.
+        @type by: L{BaseObject}
         """
         pass
 
-    def before_content_added(self, what, previous_location):
+    def before_content_added(self, what, previous_location, by=None):
         """
         Called before and object is added to the contents of this object.
         Objects that wish to prevent th emove can raise a MoveError here.
 
         @param what: The object that will be moved.
         @param previous_location: Where the object was previously.
+
+        @param by: The object responsible for the movement. Often a character.
+        @type by: L{BaseObject}
         """
         pass
 
-    def content_removed(self, what, destination):
+    def after_content_removed(self, what, destination, by=None):
         """
         Called if an object was removed from this object.
 
@@ -839,10 +845,13 @@ class Object(BaseObject):
 
         @param destination: Where the object went.
         @type destination: Object
+
+        @param by: The object responsible for the movement. Often a character.
+        @type by: L{BaseObject}
         """
         pass
 
-    def content_added(self, what, previous_location):
+    def after_content_added(self, what, previous_location, by=None):
         """
         Called when an object is added to this object's contents.
 
@@ -851,20 +860,26 @@ class Object(BaseObject):
 
         @param previous_location: Where the moved object used to be.
         @type previous_location: Object
+
+        @param by: The object responsible for the movement. Often a character.
+        @type by: L{BaseObject}
         """
         pass
 
-    def before_object_moved(self, moving_from, moving_to):
+    def before_object_moved(self, moving_from, moving_to, by=None):
         """
         Called before this object is moved from one location to another.
         Objects can prevent movement by raising a MoveError here.
 
         @param moving_from: The previous (likely current) location.
         @param moving_to: The destination (likely next) location.
+
+        @param by: The object responsible for the movement. Often a character.
+        @type by: L{BaseObject}
         """
         pass
 
-    def object_moved(self, moved_from, moved_to):
+    def after_object_moved(self, moved_from, moved_to, by=None):
         """
         Called when this object was moved.
 
@@ -873,16 +888,22 @@ class Object(BaseObject):
 
         @param moved_to: Where this is now.
         @type moved_to: Object
+
+        @param by: The object responsible for the movement. Often a character.
+        @type by: L{BaseObject}
         """
         pass
 
-    def move_to(self, dest):
+    def move_to(self, dest, by=None):
         """
         Move the object to a new location. Updates contents on source and
         destination, and fires corresponding hooks on all involved.
 
         @param dest: Where to move the object. Can be None or Object.
-        @type dest: Object or None
+        @type dest: L{Object} or C{None}
+
+        @param by: The object responsible for the movement. Often a character.
+        @type by: L{BaseObject}
 
         Throws InvalidObject if this object is invalid or if the destination is
         neither None nor a valid Object instance.
@@ -912,11 +933,11 @@ class Object(BaseObject):
 
         # Notify objects about the move about to happen, allowing them to raise
         # exceptions if they need to halt the move.
-        self.before_object_moved(source, dest)
+        self.before_object_moved(source, dest, by)
         if source_valid:
-            source.before_content_removed(this, dest)
+            source.before_content_removed(this, dest, by)
         if dest_valid:
-            dest.before_content_added(this, source)
+            dest.before_content_added(this, source, by)
 
         if source_valid:
             if this in self.location._contents:
@@ -930,11 +951,11 @@ class Object(BaseObject):
 
         # Now fire event hooks on the two locations and the moved object.
         if source_valid:
-            source.content_removed(this, dest)
+            source.after_content_removed(this, dest, by)
         if dest_valid:
-            dest.content_added(this, source)
+            dest.after_content_added(this, source, by)
 
-        self.object_moved(source, dest)
+        self.after_object_moved(source, dest, by)
 
     def locations(self, exclude_invalid=True):
         """
@@ -1143,9 +1164,9 @@ class BasePlayer(BaseObject):
 
         return player
 
-    def object_deleted(self):
+    def on_object_deleted(self):
         registry.players.unregister_player(self)
-        super(BasePlayer, self).object_deleted()
+        super(BasePlayer, self).on_object_deleted()
 
     def _set_names(self, name=None, aliases=None, names=None):
         """
@@ -1422,7 +1443,7 @@ class BasePlayer(BaseObject):
                 self.possessing.process_input(raw)
         except errors.CommandInvalid as e:
             self.msg("{r" + e.message)
-        except (errors.MatchError, errors.ParseError) as e:
+        except (errors.MatchError, errors.ParseError, errors.MoveError) as e:
             self.msg("{y%s" % e.message)
         except NotImplementedError as e:
             m = "{y%s is not yet implemented." % (e.message or "This feature")

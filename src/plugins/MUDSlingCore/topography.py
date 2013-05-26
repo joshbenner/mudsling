@@ -84,8 +84,8 @@ class Room(DescribableObject):
         """
         return self.allow_leave(what, exit=exit)
 
-    def content_added(self, what, previous_location):
-        super(Room, self).content_added(what, previous_location)
+    def after_content_added(self, what, previous_location):
+        super(Room, self).after_content_added(what, previous_location)
         what.msg(self.seen_by(what))
 
     def add_exit(self, exit):

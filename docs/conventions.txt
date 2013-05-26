@@ -1,11 +1,13 @@
 Code formatting, naming, etc:
-    Use PEP8 in general. Exceptions are allowed, but keep them minimal and 
+    Use PEP8 in general. Exceptions are allowed, but keep them minimal and
     sensible.
 
 Hooks:
-    * Module hooks: hook_name()
-    * General event hooks: on_event_name()
-    * System-only hooks: event_name()
+    * Plugin hooks: <hook name>()
+        * ie: plugin.object_classes()
+    * Event hooks: on_<event name>()
+        * ie: on_object_created, etc
+    * System-only hooks: <event name>()
         * For instance: tasks have server_startup(), which is a system-level
           hook that most child classes should not override. This hook in turn
           calls the user-overridable hook: on_server_startup().

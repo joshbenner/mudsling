@@ -515,7 +515,7 @@ class Channel(NamedObject):
         return [p for p in self._participants
                 if self.db.is_valid(p, cls=ChannelUser) and p.connected]
 
-    def object_deleted(self):
+    def on_object_deleted(self):
         self.broadcast("{rChannel being deleted...")
         self.locks = locks.LockSet('join:none()')
         self.private = True
