@@ -1,12 +1,18 @@
 """
-Transparent composition of classes and instances.
+Modular composition of classes and instances.
 
-Features act a lot like multiple parent classes, but they cannot interact with
-eachother via super(), and they can be easily added to or removed from classes
-AND instances at run time.
+Features can be easily added to and removed from classes and instances. They
+are useful when objects possessing them offer features opportunities to extend
+their functionality, such as invoking hooks on features or collecting feature
+data (ie: feature-provided commands).
+
+Features can also transparently provide new attributes and methods to classes
+and instances they decorate. They are essentially interfaces that come along
+with an implementation.
 """
 import inspect
 import types
+from collections import OrderedDict
 
 
 class Feature(object):
@@ -22,7 +28,17 @@ class Feature(object):
     * Feature methods may not use super(). If features use inheritance, you
         must use composed parent calls instead: parentClass.same_method(*args)
     """
-    pass
+    @classmethod
+    def implements_hook(cls, hook):
+        return callable(getattr(cls, hook, None))
+
+    @classmethod
+    def _feature_attr(cls, name, owner):
+        val = getattr(cls, name)
+        if inspect.ismethod(val):
+            bind_to = val.im_self or owner
+            val = types.MethodType(val.im_func, bind_to)
+        return val
 
 
 class FeaturedObject(object):
@@ -36,7 +52,7 @@ class FeaturedObject(object):
 
     def __init__(self, *args, **kwargs):
         self._features = []
-        for feature in self.features:
+        for feature in self._features:
             if '__init__' in feature.__dict__:
                 feature.__init__.im_func(self, *args, **kwargs)
         super(FeaturedObject, self).__init__(*args, **kwargs)
@@ -57,6 +73,10 @@ class FeaturedObject(object):
         if feature in cls._features:
             cls._features.remove(feature)
 
+    @property
+    def features(self):
+        return self.get_features()
+
     def add_feature(self, feature):
         if feature in self._features:
             return
@@ -67,28 +87,37 @@ class FeaturedObject(object):
             self._features.remove(feature)
 
     def __getattr__(self, name):
-        for feature in self._features:
-            try:
-                val = getattr(feature, name)
-            except AttributeError:
-                continue
-            else:
-                if inspect.ismethod(val):
-                    bind_to = val.im_self or self
-                    val = types.MethodType(val.im_func, bind_to)
-                return val
+        for feature in (f for f in self._features if hasattr(f, name)):
+            return feature._feature_attr(name, self)
         clsname = self.__class__.__name__
         msg = "'%s' object has no attribute '%s'" % (clsname, name)
         raise AttributeError(msg)
 
-    @property
-    def features(self):
+    @classmethod
+    def get_class_features(cls, parent=Feature):
         features = []
-        if '_features' in self.__dict__:
-            features.extend(self._features)
-        for cls in self.__class__.__mro__:
-            if issubclass(cls, FeaturedObject) and '_features' in cls.__dict__:
-                for feature in cls._features:
-                    if feature not in features:
-                        features.append(feature)
+        for c in cls.__mro__:
+            if issubclass(c, FeaturedObject) and '_features' in c.__dict__:
+                features.extend(f for f in c._features if issubclass(f, parent)
+                                and not f in features)
         return features
+
+    def get_features(self, parent=Feature):
+        """
+        Get a list of features associated with this instance.
+
+        @param parent: An optional parent class by which to filter features.
+
+        @rtype: C{list}
+        """
+        features = filter(lambda f: issubclass(f, parent),
+                          getattr(self, '_features', []))
+        features.extend(self.__class__.get_class_features(parent=parent))
+        return features
+
+    def invoke_hook(self, hook, *a, **kw):
+        results = OrderedDict()
+        for feature in self.get_features(parent=kw.get('parent', Feature)):
+            if feature.implements_hook(hook):
+                results[feature] = feature._feature_attr(hook, self)(*a, **kw)
+        return results
