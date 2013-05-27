@@ -1,11 +1,9 @@
 """
 Rooms and exits.
 """
-import zope.interface
-
-from mudsling.objects import MessagedObject, BaseObject
+from mudsling.objects import MessagedObject
 from mudsling.objects import Object as LocatedObject
-from mudsling.messages import IHasMessages, Messages
+from mudsling.messages import Messages
 from mudsling.commands import Command
 from mudsling import errors
 from mudsling import parsers
@@ -84,7 +82,7 @@ class Room(DescribableObject):
         """
         return self.allow_leave(what, exit=exit)
 
-    def after_content_added(self, what, previous_location):
+    def after_content_added(self, what, previous_location, by=None):
         super(Room, self).after_content_added(what, previous_location)
         what.msg(self.seen_by(what))
 

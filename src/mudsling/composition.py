@@ -144,7 +144,7 @@ class Featurized(object):
         return feature in self.features
 
     def __getattr__(self, name):
-        for feature in (f for f in self._features if hasattr(f, name)):
+        for feature in (f for f in self.features if hasattr(f, name)):
             return feature._feature_attr(name, self)
         clsname = self.__class__.__name__
         msg = "'%s' object has no attribute '%s'" % (clsname, name)
