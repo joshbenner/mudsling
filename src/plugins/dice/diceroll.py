@@ -84,7 +84,7 @@ class Sequence(EvalNode):
     __rsub__ = lambda self, x: self._op('__rsub__', x)
     __rmul__ = lambda self, x: self._op('__rmul__', x)
     __rdiv__ = lambda self, x: self._op('__rdiv__', x)
-    __rpow__ = lambda self, x, z=None: self._op('__rpow', x, z)
+    __rpow__ = lambda self, x, z=None: self._op('__rpow__', x, z)
 
     __neg__ = lambda self: -sum(*self.data)
     __pos__ = lambda self: sum(*self.data)
@@ -118,7 +118,7 @@ class DieRoll(EvalNode):
 def _grammar():
     import operator
     from pyparsing import alphas, alphanums, nums
-    from pyparsing import oneOf, Suppress, OneOrMore, ZeroOrMore, Optional
+    from pyparsing import oneOf, Suppress, Optional
     from pyparsing import Forward, operatorPrecedence, opAssoc, Word
     from pyparsing import delimitedList, Combine, Literal
 
