@@ -94,7 +94,9 @@ class EvalCmd(Command):
         }
         for plugin in self.game.plugins:
             if plugin.info.module is not None:
-                available_vars[plugin.info.machine_name] = plugin.info.module
+                mn = plugin.info.machine_name
+                if mn in sys.modules:
+                    available_vars[mn] = sys.modules[mn]
 
         inMsg = string.parse_ansi('{y>>> ') + code + string.parse_ansi("{n")
         actor.msg(inMsg, {'raw': True})

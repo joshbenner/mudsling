@@ -58,3 +58,31 @@ reference to game objects.
 
 This also means that you can have stored ObjRefs that refer to invalid objects.
 This is why you have ObjRef.is_valid() -- be sure to use it!
+
+
+Writing Plugins
+---------------
+
+You need:
+* A .plugin-info file.
+* A subclass of mudsling.extensibility.Plugin.
+
+=== Exposing plugin as a module ===
+
+If there is a __init__.py inside the plugin's directory, then the entire
+directory will be imported as a Python package with the name being the lower-
+case version of the plugin's directory name. For instance, MUDSlingCore's
+__init__.py is loaded as module 'mudslingcore'.
+
+MUDSling imports the file identified as the plugin module in the .plugin-info
+file. This file is imported as a module with a name matching its filename. By
+default, this name is 'plugin'. This means that multiple plugins loading using
+the default filename may overwrite eachother in sys.modules.
+
+Furthermore, if you have a __init__.py and your plugin's module file name
+matches that of your plugin directory, then you may overwrite some elements of
+your plugin's directory-level module with the plugin module (since their names
+collide).
+
+Best practice is to use different names for the plugin directory and the file
+containing the plugin class, if you want to use __init__.py.
