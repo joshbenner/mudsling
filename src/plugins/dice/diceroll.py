@@ -8,12 +8,13 @@ Extended BNF (same as Python specification):
          digit ::= "0"..."9"
   alphanumeric ::= letter | digit
     identifier ::= (letter | "_") alphanumeric+
-       integer ::= digit+
-    fractional ::= digit* "." digit+
+       integer ::= ["+" | "-"] digit+
+    fractional ::= integer "." digit+
         number ::= integer | fractional
         seqnum ::= ["-"] (number | identifier)
       sequence ::= "{" seqnum ( ("," seqnum)* | (".." seqnum) ) "}"
-          roll ::= [integer] "d" (integer | sequence)
+       rollmod ::= ("d" | "k" | "r" | "e" | "o") integer
+          roll ::= [integer] "d" (integer | sequence) [rollmod]
        literal ::= roll | number
          group ::= "(" expression ")"
          unary ::= ("+" | "-") expression
@@ -25,8 +26,9 @@ Extended BNF (same as Python specification):
        arglist ::= expression ("," expression)*
       function ::= identifier "(" [arglist] ")"
        seqexpr ::= (roll | sequence | function) "." function
-          atom ::= function | seqexpr | identifier | literal | group
-    expression ::= atom | unary | exponent | multiply | divide | add | subtract
+          atom ::= seqexpr | roll | literal | sequence | function | identifier
+     operation ::= unary | exponent | multiply | divide | add | subtract
+    expression ::= group | atom | operation
 
 Examples:
     2d10 -- Yields a sequence containing two rolls of a 10-sided die.
@@ -66,6 +68,72 @@ import operator
 import pyparsing
 
 pyparsing.ParserElement.enablePackrat()
+
+
+def _grammar():
+    from pyparsing import alphas, alphanums, nums
+    from pyparsing import oneOf, Suppress, Optional, Group
+    from pyparsing import Forward, operatorPrecedence, opAssoc, Word
+    from pyparsing import delimitedList, Combine, Literal
+
+    def unary_op(tok):
+        op, rhs = tok[0]
+        if isinstance(rhs, LiteralNode):
+            rhs.value = -rhs.value
+            return rhs
+        else:
+            return UnaryOpNode(tok)
+
+    expression = Forward()
+
+    LPAR, RPAR, DOT, LBRAC, RBRAC = map(Suppress, "().{}")
+
+    identifier = Word(alphas + "_", alphanums + "_")
+
+    integer = Word('+' + '-' + nums, nums)
+    fractional = Combine(integer + '.' + Word(nums))
+    literal = fractional | integer
+    literal.setParseAction(LiteralNode)
+
+    arglist = delimitedList(expression)
+
+    seqrange = expression + Suppress('..') + expression
+    seqrange.setParseAction(lambda t: range(t[0], t[1] + 1))
+    sequence = LBRAC + (seqrange | arglist) + RBRAC
+    sequence.setParseAction(lambda t: Sequence(t))
+
+    roll = Optional(integer, default=1) + Suppress("d") + (integer | sequence)
+    roll.setParseAction(lambda t: DieRoll(*t))
+
+    call = LPAR + Group(Optional(arglist)) + RPAR
+    function = identifier + call
+    function.setParseAction(FunctionNode)
+
+    seqexpr = (roll | sequence | function) + DOT + identifier + call
+    seqexpr.setParseAction(SeqMethodNode)
+
+    variable = identifier.copy()
+    variable.setParseAction(VariableNode)
+
+    atom = seqexpr | roll | literal | sequence | function | variable
+
+    expoop = Literal('^')
+    signop = oneOf("+ -")
+    multop = oneOf("* /")
+    plusop = oneOf("+ -")
+
+    # noinspection PyUnresolvedReferences
+    expression << operatorPrecedence(
+        atom,
+        [
+            (expoop, 2, opAssoc.LEFT, BinaryOpNode),
+            (signop, 1, opAssoc.RIGHT, unary_op),
+            (multop, 2, opAssoc.LEFT, BinaryOpNode),
+            (plusop, 2, opAssoc.LEFT, BinaryOpNode),
+        ]
+    )
+
+    return expression
 
 
 class EvalNode(object):
@@ -276,72 +344,6 @@ class SeqMethodNode(FunctionNode):
         name = 'seq.' + name
         args.insert(0, sequence)
         super(SeqMethodNode, self).__init__([name, args])
-
-
-def _grammar():
-    from pyparsing import alphas, alphanums, nums
-    from pyparsing import oneOf, Suppress, Optional, Group
-    from pyparsing import Forward, operatorPrecedence, opAssoc, Word
-    from pyparsing import delimitedList, Combine, Literal
-
-    def unary_op(tok):
-        op, rhs = tok[0]
-        if isinstance(rhs, LiteralNode):
-            rhs.value = -rhs.value
-            return rhs
-        else:
-            return UnaryOpNode(tok)
-
-    expression = Forward()
-
-    LPAR, RPAR, DOT, LBRAC, RBRAC = map(Suppress, "().{}")
-
-    identifier = Word(alphas + "_", alphanums + "_")
-
-    integer = Word('+' + '-' + nums, nums)
-    fractional = Combine(integer + '.' + Word(nums))
-    literal = fractional | integer
-    literal.setParseAction(LiteralNode)
-
-    arglist = delimitedList(expression)
-
-    seqrange = expression + Suppress('..') + expression
-    seqrange.setParseAction(lambda t: range(t[0], t[1] + 1))
-    sequence = LBRAC + (seqrange | arglist) + RBRAC
-    sequence.setParseAction(lambda t: Sequence(t))
-
-    roll = Optional(integer, default=1) + Suppress("d") + (integer | sequence)
-    roll.setParseAction(lambda t: DieRoll(*t))
-
-    call = LPAR + Group(Optional(arglist)) + RPAR
-    function = identifier + call
-    function.setParseAction(FunctionNode)
-
-    seqexpr = (roll | sequence | function) + DOT + identifier + call
-    seqexpr.setParseAction(SeqMethodNode)
-
-    variable = identifier.copy()
-    variable.setParseAction(VariableNode)
-
-    atom = seqexpr | roll | literal | sequence | function | variable
-
-    expoop = Literal('^')
-    signop = oneOf("+ -")
-    multop = oneOf("* /")
-    plusop = oneOf("+ -")
-
-    # noinspection PyUnresolvedReferences
-    expression << operatorPrecedence(
-        atom,
-        [
-            (expoop, 2, opAssoc.LEFT, BinaryOpNode),
-            (signop, 1, opAssoc.RIGHT, unary_op),
-            (multop, 2, opAssoc.LEFT, BinaryOpNode),
-            (plusop, 2, opAssoc.LEFT, BinaryOpNode),
-        ]
-    )
-
-    return expression
 
 grammar = _grammar()
 
