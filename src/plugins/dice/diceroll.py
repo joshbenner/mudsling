@@ -72,6 +72,9 @@ class EvalNode(object):
     def eval(self, vars=None, flags=None):
         raise NotImplementedError()
 
+    def coerce_numeric(self, vars=None, flags=None):
+        return self.eval(vars, flags)
+
 
 class Sequence(EvalNode):
     data = []
@@ -85,9 +88,11 @@ class Sequence(EvalNode):
     def __len__(self):
         return len(self.data)
 
-    def sum(self, vars=None):
-        # TODO: Need to get vars passed to child nodes. BinaryOp needs update.
-        return sum(self.data)
+    def sum(self, vars=None, flags=None):
+        return sum([n.coerce_numeric(vars, flags) for n in self.data])
+
+    def coerce_numeric(self, vars=None, flags=None):
+        return self.sum(vars, flags)
 
     def _op(self, op, other, *args):
         if isinstance(other, Sequence):
@@ -117,6 +122,9 @@ class Sequence(EvalNode):
         return "Sequence(%r)" % self.data
 
     def eval(self, vars=None, flags=None):
+        if flags is not None:
+            if flags.get('minroll', False) or flags.get('maxroll', False):
+                return self.coerce_numeric(vars, flags)
         return self
 
 
@@ -151,16 +159,9 @@ class DieRoll(EvalNode):
                 return Sequence(random.randint(1, self.sides + 1)
                                 for _ in range(1, self.num_dice + 1))
 
-
-class GroupNode(EvalNode):
-    def __init__(self, tok):
-        self.expression = tok[0][0]
-
-    def __repr__(self):
-        return "(%s)" % repr(self.expression)
-
-    def eval(self, vars=None, flags=None):
-        return self.expression.eval(vars, flags)
+    def coerce_numeric(self, vars=None, flags=None):
+        sequence = self.eval(vars, flags)
+        return sequence.sum(vars, flags)
 
 
 class LiteralNode(EvalNode):
@@ -235,8 +236,8 @@ class BinaryOpNode(EvalNode):
         return "(%s %s %s)" % (self.lhs, self.op, self.rhs)
 
     def eval(self, vars=None, flags=None):
-        lhs = self.lhs.eval(vars, flags)
-        rhs = self.rhs.eval(vars, flags)
+        lhs = self.lhs.coerce_numeric(vars, flags)
+        rhs = self.rhs.coerce_numeric(vars, flags)
         return self.ops[self.op](lhs, rhs)
 
 
@@ -253,7 +254,7 @@ class UnaryOpNode(EvalNode):
         return "%s%s" % (self.op, self.rhs)
 
     def eval(self, vars=None, flags=None):
-        return self.ops[self.op](self.rhs.eval(vars, flags))
+        return self.ops[self.op](self.rhs.coerce_numeric(vars, flags))
 
 
 class FunctionNode(VariableNode):
@@ -374,6 +375,11 @@ class Roll(object):
         self.raw = expr
         self.parsed = parser.parseString(expr, True)[0]
         self.vars = {}
+
+    def __eq__(self, other):
+        if isinstance(other, Roll):
+            return repr(self.parsed) == repr(other.parsed)
+        return False
 
     def eval(self, **vars):
         return self._eval(vars, {})
