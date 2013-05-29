@@ -86,6 +86,7 @@ class Sequence(EvalNode):
         return len(self.data)
 
     def sum(self, vars=None):
+        # TODO: Need to get vars passed to child nodes. BinaryOp needs update.
         return sum(self.data)
 
     def _op(self, op, other, *args):
