@@ -43,8 +43,6 @@ Sequence Methods:
     .highest(N) => Sequence containing greatest N elements.
     .lowest(N) => Sequence containing lowest N elements.
     .drop(value1[, value2...]) => Sequence lacking any specified value.
-    .dropLowest(N) => Sequence without its N lowest elements.
-    .dropHighest(N) => Sequence without its N highest elements.
 
 Functions:
     trunc(f)
@@ -85,7 +83,7 @@ def _grammar():
     from pyparsing import alphas, alphanums, nums
     from pyparsing import oneOf, Suppress, Optional, Group, ZeroOrMore
     from pyparsing import Forward, operatorPrecedence, opAssoc, Word
-    from pyparsing import delimitedList, Combine, Literal
+    from pyparsing import delimitedList, Combine, Literal, OneOrMore
 
     expression = Forward()
 
@@ -101,7 +99,7 @@ def _grammar():
 
     arglist = delimitedList(expression)
 
-    seqrange = LBRAC + expression + Suppress('..') + expression + LBRAC
+    seqrange = LBRAC + expression + Suppress('..') + expression + RBRAC
     seqrange.setParseAction(lambda t: SequenceNode(start=t[0], stop=t[1]))
     seqexplicit = LBRAC + Optional(arglist) + RBRAC
     seqexplicit.setParseAction(lambda t: SequenceNode(lst=t))
@@ -116,7 +114,8 @@ def _grammar():
     function = identifier + call
     function.setParseAction(FunctionNode)
 
-    seqexpr = (roll | sequence | function) + DOT + identifier + call
+    seqexpr = ((roll | sequence | function)
+               + Group(OneOrMore(DOT + identifier + call)))
     seqexpr.setParseAction(SeqMethodNode)
 
     variable = identifier.copy()
@@ -152,7 +151,7 @@ def sort_dict(d, cmp=None, key=None, reverse=False, keep=None, drop=None):
             s = s[:keep]
     if drop is not None:
         if drop < 0:
-            s = s[abs(drop):]
+            s = s[:drop]
         else:
             s = s[drop:]
     d.clear()
@@ -168,14 +167,15 @@ def keep_highest(sequence, n=1):
 
 
 class Sequence(list):
-    pass
+    def __str__(self):
+        return '{%s}' % ', '.join(map(str, self))
 
 
 class EvalNode(object):
-    def eval(self, vars=None, state=None):
+    def eval(self, vars, state):
         raise NotImplementedError()
 
-    def coerce_numeric(self, vars=None, state=None):
+    def coerce_numeric(self, vars, state):
         return self.eval(vars, state)
 
 
@@ -197,18 +197,26 @@ class SequenceNode(EvalNode):
     def is_range(self):
         return self.start is not None and self.stop is not None
 
-    def eval(self, vars=None, state=None):
-        if state is not None:
-            if state.get('minroll', False) or state.get('maxroll', False):
-                return self.coerce_numeric(vars, state)
+    def eval(self, vars, state):
         if self.is_range():
-            return Sequence(range(self.start.coerce_numeric(vars, state),
-                                  self.stop.coerce_numeric(vars, state) + 1))
+            start, startdesc = self.start.coerce_numeric(vars, state)
+            stop, stopdesc = self.stop.coerce_numeric(vars, state)
+            seq = Sequence(range(start, stop + 1))
         else:
-            return Sequence(self.data)
+            seq = Sequence(self.data)
+            startdesc = stopdesc = ''
+        if state.get('desc', False):
+            if self.is_range():
+                desc = "{%s..%s}" % (startdesc, stopdesc)
+            else:
+                desc = "{%s}" % ', '.join(map(str, seq))
+        else:
+            desc = ''
+        return seq, desc
 
-    def coerce_numeric(self, vars=None, state=None):
-        return sum(self.eval(vars, state))
+    def coerce_numeric(self, vars, state):
+        result, desc = self.eval(vars, state)
+        return sum(result), desc
 
     def __repr__(self):
         if self.is_range():
@@ -246,50 +254,56 @@ class DieRollNode(EvalNode):
                                             self.mods)
 
     def __str__(self):
-        s = "%sd%s" % (self.num_dice, self.sides)
+        return "%sd%s%s" % (self.num_dice, self.sides, self.mod_desc())
+
+    def mod_desc(self):
+        s = ''
         for mod in self.mods:
             s += mod[0]
             if len(mod) > 1:
                 s += str(mod[1])
         return s
 
-    def roll_die(self, vars=None, state=None):
-        roll = random.choice(self.all_sides(vars, state))
-        if state is not None:
-            if 'log' not in state:
-                state['log'] = OrderedDict()
-            id = uuid.uuid1()
-            state['log'][id] = str(roll)
-        return roll
+    def die_type(self):
+        return "d%s" % self.sides
 
-    def all_sides(self, vars=None, state=None):
-        vars = vars or {}
+    def roll_die(self, vars, state):
+        result = random.choice(self.all_sides(vars, state))
+        type = self.die_type()
+        key = "%s count" % type
+        if key not in state:
+            state[key] = 1
+        else:
+            state[key] += 1
+        return result, "%s#%d" % (type, state[key])
+
+    def all_sides(self, vars, state):
         # Check the cache.
-        name = "all sides of %sd%s" % (self.num_dice, self.sides)
+        name = "all sides of %s%s" % (self.num_dice, self.die_type())
         if name in vars:
             return vars[name]
-        sides = self.sides.eval(vars, state)
+        sides = self.sides.eval(vars, state)[0]
         if isinstance(sides, int):
             sides = range(1, sides + 1)
         vars[name] = sides
         return sides
 
-    def min_face(self, vars=None, state=None):
+    def min_face(self, vars, state):
         return min(self.all_sides(vars, state))
 
-    def max_face(self, vars=None, state=None):
+    def max_face(self, vars, state):
         return max(self.all_sides(vars, state))
 
-    def faces_below(self, face, vars=None, state=None):
+    def faces_below(self, face, vars, state):
         return [f for f in self.all_sides(vars, state) if f < face]
 
-    def faces_above(self, face, vars=None, state=None):
+    def faces_above(self, face, vars, state):
         return [f for f in self.all_sides(vars, state) if f > face]
 
-    def drop_lowest(self, rolls, vars=None, state=None, drop=1):
+    def drop_lowest(self, rolls, vars, state, drop=1):
         return sort_dict(rolls, key=lambda r: r[1], keep=-drop)
 
-    def reroll_low(self, rolls, vars=None, state=None, low=None):
+    def reroll_low(self, rolls, vars, state, low=None):
         """
         Re-roll any rolls <= `low`. Expects all members to be integers.
         """
@@ -301,15 +315,14 @@ class DieRollNode(EvalNode):
             if result <= low:
                 rolls[id] = random.choice(high_faces)
 
-    def explode(self, rolls, vars=None, state=None, high=None):
+    def explode(self, rolls, vars, state, high=None):
         high = high or self.max_face(vars, state)
         for id, result in rolls.iteritems():
             while result >= high:
                 result = self.roll_die(vars, state)
                 rolls[uuid.uuid1()] = result
 
-    def eval(self, vars=None, state=None):
-        state = state or {}
+    def eval(self, vars, state):
         # Sanity-check the mods, convert nodes to values.
         for mod in self.mods:
             if mod[0] == 'e':
@@ -318,35 +331,52 @@ class DieRollNode(EvalNode):
                 if explode_min <= self.min_face(vars, state):
                     raise pyparsing.ParseException("All rolls explode!")
         rolls = self._eval(vars, state)
+        name = str(self)
+        key = "%s count" % name
+        count = vars.get(key, 0) + 1
+        vars[key] = count
+        state["%s#%d" % (name, count)] = rolls
         if not state.get('maxroll', False) and not state.get('minroll', False):
             for mod in self.mods:
                 args = [a.eval(vars, state) if isinstance(a, EvalNode) else a
                         for a in mod[1:]]
                 self.mod_funcs[mod[0]](self, rolls, vars, state, *args)
-        return Sequence(rolls)
+            result = Sequence(rolls.itervalues())
+        else:
+            result = Sequence(rolls)
+        if state.get('desc', False):
+            rollsdesc = ','.join(map(str, result))
+            # Show runtime sides value.
+            sides = (self.sides.eval(vars, state)[1]
+                     if isinstance(self.sides, EvalNode) else str(self.sides))
+            die = "%sd%s%s" % (self.num_dice, sides, self.mod_desc())
+            desc = "%s(%s)" % (die, rollsdesc)
+        else:
+            desc = ''
+        return result, desc
 
-    def _eval(self, vars=None, state=None):
+    def _eval(self, vars, state):
         if state is not None:
             if state.get('maxroll', False):
                 return [self.max_face(vars, state)] * self.num_dice
             elif state.get('minroll', False):
                 return [self.min_face(vars, state)] * self.num_dice
-        #return [self.roll_die(vars, state) for _ in range(0, self.num_dice)]
         rolls = OrderedDict()
         for _ in range(0, self.num_dice):
-            roll = self.roll_die(vars, state)
-            rolls[uuid.uuid1()] = roll
+            roll, id = self.roll_die(vars, state)
+            rolls[id] = roll
         return rolls
 
-    def coerce_numeric(self, vars=None, state=None):
-        return sum(self.eval(vars, state))
+    def coerce_numeric(self, vars, state):
+        result, desc = self.eval(vars, state)
+        return sum(result), desc
 
 
 class LiteralNode(EvalNode):
     value = None
 
-    def eval(self, vars=None, state=None):
-        return self.value
+    def eval(self, vars, state):
+        return self.value, str(self.value) if state.get('desc', False) else ''
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__.replace('Node', ''),
@@ -364,6 +394,7 @@ class LiteralNode(EvalNode):
     __mul__ = lambda self, x: self._op('__mul__', x)
     __div__ = lambda self, x: self._op('__div__', x)
     __pow__ = lambda self, x, z=None: self._op('__pow__', x, z)
+    __cmp__ = lambda self, x: self._op('__cmp__', x)
 
     __radd__ = lambda self, x: self._op('__add__', x)
     __rsub__ = lambda self, x: self._op('__rsub__', x)
@@ -396,9 +427,13 @@ class VariableNode(EvalNode):
     def __init__(self, tok):
         self.name = tok[0]
 
-    def eval(self, vars=None, state=None):
+    def eval(self, vars, state):
         if vars is not None and self.name in vars:
-            return vars[self.name]
+            if state.get('desc', False):
+                desc = "%s(%s)" % (self.name, vars[self.name])
+            else:
+                desc = ''
+            return vars[self.name], desc
         raise NameError("Variable '%s' not found" % self.name)
 
     def __repr__(self):
@@ -408,22 +443,34 @@ class VariableNode(EvalNode):
         return self.name
 
 
-class BinaryOpNode(EvalNode):
+class OpNode(EvalNode):
+    op = ''
+    ops = {}
+
+    def __init__(self, op):
+        self.op = op
+        self.opfunc, self.assoc = self.ops[op]
+
+    def add_parens(self, expr):
+        return isinstance(expr, OpNode) and expr.assoc < self.assoc
+
+
+class BinaryOpNode(OpNode):
     ops = {
-        '^': operator.pow,
-        '*': operator.mul,
-        '/': operator.div,
-        '+': operator.add,
-        '-': operator.sub,
+        '^': (operator.pow, 4),
+        '*': (operator.mul, 2),
+        '/': (operator.div, 2),
+        '+': (operator.add, 1),
+        '-': (operator.sub, 1),
     }
 
     def __init__(self, tok):
-        self.lhs, self.op, self.rhs = tok[0][:3]
+        self.lhs, op, self.rhs = tok[0][:3]
+        super(BinaryOpNode, self).__init__(op)
         # Sequential binary operations in the same family are sent all at once,
         # so we iterate over them and push the left side deeper as we go.
         for op, rhs in zip(tok[0][3::2], tok[0][4::2]):
             self.lhs = BinaryOpNode([[self.lhs, self.op, self.rhs]])
-            self.op = op
             self.rhs = rhs
 
     def __repr__(self):
@@ -432,20 +479,27 @@ class BinaryOpNode(EvalNode):
     def __str__(self):
         return "%s %s %s" % (self.lhs, self.op, self.rhs)
 
-    def eval(self, vars=None, state=None):
-        lhs = self.lhs.coerce_numeric(vars, state)
-        rhs = self.rhs.coerce_numeric(vars, state)
-        return self.ops[self.op](lhs, rhs)
+    def eval(self, vars, state):
+        lhs, l = self.lhs.coerce_numeric(vars, state)
+        rhs, r = self.rhs.coerce_numeric(vars, state)
+        if state.get('desc', False):
+            l = '(%s)' % l if self.add_parens(self.lhs) else l
+            r = '(%s)' % r if self.add_parens(self.rhs) else r
+            desc = "%s %s %s" % (l, self.op, r)
+        else:
+            desc = ''
+        return self.opfunc(lhs, rhs), desc
 
 
-class UnaryOpNode(EvalNode):
+class UnaryOpNode(OpNode):
     ops = {
-        '-': operator.neg,
-        '+': operator.pos,
+        '-': (operator.neg, 3),
+        '+': (operator.pos, 3),
     }
 
     def __init__(self, tok):
-        self.op, self.rhs = tok[0]
+        op, self.rhs = tok[0]
+        super(UnaryOpNode, self).__init__(op)
 
     def __repr__(self):
         return "UnaryOp(%s%s)" % (self.op, self.rhs)
@@ -453,8 +507,13 @@ class UnaryOpNode(EvalNode):
     def __str__(self):
         return "%s%s" % (self.op, self.rhs)
 
-    def eval(self, vars=None, state=None):
-        return self.ops[self.op](self.rhs.coerce_numeric(vars, state))
+    def eval(self, vars, state):
+        rhs, rd = self.rhs.coerce_numeric(vars, state)
+        if state.get('desc', False):
+            desc = "%s%s" % (self.op, rd)
+        else:
+            desc = ''
+        return self.opfunc(rhs), desc
 
 
 class FunctionNode(VariableNode):
@@ -468,14 +527,31 @@ class FunctionNode(VariableNode):
     def __str__(self):
         return "%s(%s)" % (self.name, ', '.join(map(str, self.args)))
 
-    def eval(self, vars=None, state=None):
-        func = super(FunctionNode, self).eval(vars, state)
-        return func(*[a.eval(vars, state) for a in self.args])
+    def eval(self, vars, state):
+        func = super(FunctionNode, self).eval(vars, state)[0]
+        args = []
+        adescs = []
+        for a in self.args:
+            aval, adesc = a.eval(vars, state)
+            args.append(aval)
+            adescs.append(adesc)
+        result = func(*args)
+        if state.get('desc', False):
+            desc = "%s(%s)=>%s" % (self.name, ', '.join(adescs), result)
+        else:
+            desc = ''
+        return result, desc
 
 
 class SeqMethodNode(FunctionNode):
     def __init__(self, tok):
-        seqnode, name, args = tok
+        seqnode, funcs = tok
+        last = len(funcs) - 2
+        for i in xrange(0, len(funcs), 2):
+            name, args = funcs[i:i + 2]
+            if i < last:
+                seqnode = SeqMethodNode([seqnode, [name, args]])
+        name, args = funcs[-2:]
         name = 'seq.' + name
         args.insert(0, seqnode)
         super(SeqMethodNode, self).__init__([name, args])
@@ -485,14 +561,34 @@ class SeqMethodNode(FunctionNode):
         name = self.name[4:]
         return "%s.%s(%s)" % (self.args[0], name, args)
 
+    def eval(self, vars, state):
+        result = super(SeqMethodNode, self).eval(vars, state)[0]
+        if state.get('desc', False):
+            fname = self.name[4:]
+            seq = self.args[0].eval(vars, state)[1]
+            args = ', '.join(map(str, self.args[1:]))
+            desc = '%s.%s(%s)=>%s' % (seq, fname, args, result)
+        else:
+            desc = ''
+        return result, desc
+
 grammar = _grammar()
 
 
 class RollResult(object):
-    def __init__(self, roll, **vars):
+    def __init__(self, roll, desc=False, **vars):
+        if isinstance(roll, basestring):
+            roll = Roll(roll)
         self.roll = roll
-        self.state = {'_result': self}
-        self.result = roll._eval(vars, self.state)
+        self.state = {'desc': desc}
+        result, self.desc = roll._eval(vars, self.state)
+        self.result = sum(result) if isinstance(result, list) else result
+
+    def __repr__(self):
+        return "RollResult(%r)" % str(self.roll)
+
+    def __str__(self):
+        return "%s = %s" % (self.desc or self.roll, self.result)
 
 
 class Roll(object):
@@ -511,11 +607,9 @@ class Roll(object):
         'seq.sum': sum,
         'seq.max': max,
         'seq.min': min,
-        'seq.highest': lambda s, n: Sequence(sorted(s, reverse=True)[:n]),
-        'seq.lowest': lambda s, n: Sequence(sorted(s)[:n]),
+        'seq.highest': lambda s, n=1: keep_highest(s, n),
+        'seq.lowest': lambda s, n=1: Sequence(sorted(s)[:n]),
         'seq.drop': lambda s, *v: Sequence(r for r in s if r not in v),
-        'seq.dropLowest': lambda s, n: Sequence(sorted(s)[n:]),
-        'seq.dropHighest': lambda s, n: Sequence(sorted(s, reverse=True)[n:]),
         'seq.average': lambda s: sum(s) / float(len(s))
     }
 
@@ -530,8 +624,11 @@ class Roll(object):
             return repr(self.parsed) == repr(other.parsed)
         return False
 
-    def eval(self, **vars):
-        return self._eval(vars, {})
+    def eval(self, desc=False, **vars):
+        result, d = self._eval(vars, {'desc': desc})
+        if isinstance(result, list):
+            result = sum(result)
+        return (result, d) if desc else result
 
     def _eval(self, vars, state):
         _vars = dict(self.default_vars)
@@ -540,8 +637,8 @@ class Roll(object):
         return self.parsed.eval(_vars, state)
 
     def limits(self, **vars):
-        minroll = self._eval(vars, {'minroll': True})
-        maxroll = self._eval(vars, {'maxroll': True})
+        minroll = self._eval(vars, {'minroll': True})[0]
+        maxroll = self._eval(vars, {'maxroll': True})[0]
         return minroll, maxroll
 
     def __repr__(self):
