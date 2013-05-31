@@ -34,11 +34,11 @@ class ClassRegistry(object):
             try:
                 for name, cls in response:
                     if name in self.classes:
-                        logging.error("Duplicate class name: %s" % name)
-                        alt = cls.__module__ + '.' + cls.__name__
-                        self.classes[alt] = cls
-                    else:
-                        self.classes[name] = cls
+                        logging.info("Duplicate class name: %s" % name)
+                        replaced = self.classes[name]
+                        alt = replaced.__module__ + '.' + replaced.__name__
+                        self.classes[alt] = replaced
+                    self.classes[name] = cls
             except TypeError:
                 err = "Invalid class registration from %s" % plugin.name
                 logging.error(err)
