@@ -139,8 +139,8 @@ class DeleteCmd(Command):
         p = ("{yYou are about to {rDELETE {c%s{y.\n"
              "{yAre you sure you want to {rDELETE {ythis object?")
         actor.player.prompt_yes_no(p % obj.nn,
-                                 yes_callback=_do_delete,
-                                 no_callback=_abort_delete)
+                                   yes_callback=_do_delete,
+                                   no_callback=_abort_delete)
 
 
 class ClassesCmd(Command):
@@ -156,7 +156,8 @@ class ClassesCmd(Command):
         out = []
         for name, cls in registry.classes.classes.iteritems():
             desc = self._class_desc(cls)
-            out.append("{c%s{n\n%s" % (name, desc))
+            pyname = '%s.%s' % (cls.__module__, cls.__name__)
+            out.append("{c%s {n[{m%s{n]\n%s" % (name, pyname, desc))
         actor.msg('\n\n'.join(out))
 
     def _class_desc(self, cls):
