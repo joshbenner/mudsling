@@ -49,9 +49,9 @@ Functions:
     floor(f)
     ceil(f)
     round(f[, digits])
-    min(s) or min(n, n1, ..., nN)
-    max(s) or max(n, n1, ..., nN)
-    sum(s[, start])
+    min(n, n1, ..., nN)
+    max(n, n1, ..., nN)
+    sum(n, n1, ..., nN))
     pow(n, e)
     abs(n)
 
@@ -73,7 +73,6 @@ import math
 import random
 import operator
 import pyparsing
-import uuid
 from collections import OrderedDict
 
 pyparsing.ParserElement.enablePackrat()
@@ -145,25 +144,17 @@ def _grammar():
 def sort_dict(d, cmp=None, key=None, reverse=False, keep=None, drop=None):
     s = sorted(d.items(), cmp=cmp, key=key, reverse=reverse)
     if keep is not None:
-        if keep < 0:
+        if keep < 0:  # Keep last N.
             s = s[keep:]
-        else:
+        else:         # Keep first N.
             s = s[:keep]
     if drop is not None:
-        if drop < 0:
-            s = s[:drop]
-        else:
+        if drop < 0:  # Drop last N.
+            s = s[:-drop]
+        else:         # Drop first N.
             s = s[drop:]
     d.clear()
     d.update(s)
-
-
-def drop_lowest(sequence, n=1):
-    return Sequence(sorted(sequence)[n:])
-
-
-def keep_highest(sequence, n=1):
-    return Sequence(sorted(sequence, reverse=True)[:n])
 
 
 class Sequence(list):
@@ -198,21 +189,24 @@ class SequenceNode(EvalNode):
         return self.start is not None and self.stop is not None
 
     def eval(self, vars, state):
+        desc = descs = startdesc = stopdesc = ''
         if self.is_range():
             start, startdesc = self.start.coerce_numeric(vars, state)
             stop, stopdesc = self.stop.coerce_numeric(vars, state)
-            seq = Sequence(range(start, stop + 1))
+            values = range(start, stop + 1)
         else:
-            seq = Sequence(self.data)
-            startdesc = stopdesc = ''
+            values = []
+            descs = []
+            for datum in self.data:
+                v, d = datum.coerce_numeric(vars, state)
+                values.append(v)
+                descs.append(d)
         if state.get('desc', False):
             if self.is_range():
                 desc = "{%s..%s}" % (startdesc, stopdesc)
             else:
-                desc = "{%s}" % ', '.join(map(str, seq))
-        else:
-            desc = ''
-        return seq, desc
+                desc = "{%s}" % ', '.join(descs)
+        return Sequence(values), desc
 
     def coerce_numeric(self, vars, state):
         result, desc = self.eval(vars, state)
@@ -234,10 +228,10 @@ class SequenceNode(EvalNode):
 
 class DieRollNode(EvalNode):
     mod_funcs = {
-        'd': lambda s, r, v, f, drop=1: drop_lowest(r, drop),
-        'k': lambda s, r, v, f, keep=1: keep_highest(r, keep),
-        'r': lambda s, r, v, f, low=None: s.reroll_low(r, v, f, low),
-        'e': lambda s, r, v, f, high=None: s.explode(r, v, f, high),
+        'd': lambda self, r, v, s, drop=1: self.drop_lowest(r, s, drop),
+        'k': lambda self, r, v, s, keep=1: self.keep_highest(r, s, keep),
+        'r': lambda self, r, v, s, low=None: self.reroll_low(r, v, s, low),
+        'e': lambda self, r, v, s, high=None: self.explode(r, v, s, high),
     }
 
     def __init__(self, tok):
@@ -267,16 +261,6 @@ class DieRollNode(EvalNode):
     def die_type(self):
         return "d%s" % self.sides
 
-    def roll_die(self, vars, state):
-        result = random.choice(self.all_sides(vars, state))
-        type = self.die_type()
-        key = "%s count" % type
-        if key not in state:
-            state[key] = 1
-        else:
-            state[key] += 1
-        return result, "%s#%d" % (type, state[key])
-
     def all_sides(self, vars, state):
         # Check the cache.
         name = "all sides of %s%s" % (self.num_dice, self.die_type())
@@ -300,8 +284,29 @@ class DieRollNode(EvalNode):
     def faces_above(self, face, vars, state):
         return [f for f in self.all_sides(vars, state) if f > face]
 
-    def drop_lowest(self, rolls, vars, state, drop=1):
-        return sort_dict(rolls, key=lambda r: r[1], keep=-drop)
+    def drop_lowest(self, rolls, state, drop=1):
+        if state.get('desc', False):
+            descs = state['rolldescs'][state['current roll']]
+            copy = OrderedDict(rolls)
+            sort_dict(copy, key=lambda r: r[1], drop=drop)
+            for id, result in rolls.iteritems():
+                if id not in copy:
+                    rolls[id] = 0
+                    descs[id] = "%d=>0" % result
+        else:
+            sort_dict(rolls, key=lambda r: r[1], drop=drop)
+
+    def keep_highest(self, rolls, state, keep=1):
+        if state.get('desc', False):
+            descs = state['rolldescs'][state['current roll']]
+            copy = OrderedDict(rolls)
+            sort_dict(copy, key=lambda r: r[1], keep=keep)
+            for id, result in rolls.iteritems():
+                if id not in copy:
+                    rolls[id] = 0
+                    descs[id] = "%d=>0" % result
+        else:
+            sort_dict(rolls, key=lambda r: r[1], keep=-keep)
 
     def reroll_low(self, rolls, vars, state, low=None):
         """
@@ -311,16 +316,25 @@ class DieRollNode(EvalNode):
         high_faces = self.faces_above(low, vars, state)
         if not high_faces:
             return
+        desc = state.get('desc', False)
         for id, result in rolls.iteritems():
             if result <= low:
                 rolls[id] = random.choice(high_faces)
+                if desc:
+                    newdesc = "%d=>%d" % (result, rolls[id])
+                    state['rolldescs'][state['current roll']][id] = newdesc
 
     def explode(self, rolls, vars, state, high=None):
         high = high or self.max_face(vars, state)
+        desc = state.get('desc', False)
         for id, result in rolls.iteritems():
             while result >= high:
-                result = self.roll_die(vars, state)
-                rolls[uuid.uuid1()] = result
+                result, newid = self.roll_die(vars, state)
+                rolls[id] += result
+                if desc:
+                    olddesc = state['rolldescs'][state['current roll']][id]
+                    newdesc = '%s!%s' % (olddesc, result)
+                    state['rolldescs'][state['current roll']][id] = newdesc
 
     def eval(self, vars, state):
         # Sanity-check the mods, convert nodes to values.
@@ -330,22 +344,31 @@ class DieRollNode(EvalNode):
                                else self.max_face(vars, state))
                 if explode_min <= self.min_face(vars, state):
                     raise pyparsing.ParseException("All rolls explode!")
-        rolls = self._eval(vars, state)
         name = str(self)
         key = "%s count" % name
         count = vars.get(key, 0) + 1
         vars[key] = count
-        state["%s#%d" % (name, count)] = rolls
+        id = "%s#%d" % (name, count)
+        state['current roll'] = id
+        rolls = self._eval(vars, state)
+        if 'rolls' not in state:
+            state['rolls'] = {}
+        state['rolls'][id] = rolls
+        if state.get('desc', False):
+            if 'rolldescs' not in state:
+                state['rolldescs'] = {}
+            state['rolldescs'][id] = OrderedDict((i, str(r))
+                                                 for i, r in rolls.iteritems())
         if not state.get('maxroll', False) and not state.get('minroll', False):
             for mod in self.mods:
-                args = [a.eval(vars, state) if isinstance(a, EvalNode) else a
-                        for a in mod[1:]]
+                args = [a.eval(vars, state)[0] if isinstance(a, EvalNode)
+                        else a for a in mod[1:]]
                 self.mod_funcs[mod[0]](self, rolls, vars, state, *args)
             result = Sequence(rolls.itervalues())
         else:
             result = Sequence(rolls)
         if state.get('desc', False):
-            rollsdesc = ','.join(map(str, result))
+            rollsdesc = ','.join(state['rolldescs'][id].values())
             # Show runtime sides value.
             sides = (self.sides.eval(vars, state)[1]
                      if isinstance(self.sides, EvalNode) else str(self.sides))
@@ -366,6 +389,16 @@ class DieRollNode(EvalNode):
             roll, id = self.roll_die(vars, state)
             rolls[id] = roll
         return rolls
+
+    def roll_die(self, vars, state):
+        result = random.choice(self.all_sides(vars, state))
+        type = self.die_type()
+        key = "%s count" % type
+        if key not in state:
+            state[key] = 1
+        else:
+            state[key] += 1
+        return result, "%s#%d" % (type, state[key])
 
     def coerce_numeric(self, vars, state):
         result, desc = self.eval(vars, state)
@@ -529,18 +562,29 @@ class FunctionNode(VariableNode):
 
     def eval(self, vars, state):
         func = super(FunctionNode, self).eval(vars, state)[0]
-        args = []
-        adescs = []
-        for a in self.args:
-            aval, adesc = a.eval(vars, state)
-            args.append(aval)
-            adescs.append(adesc)
+        args, adescs = self._prep_args(self.args, vars, state)
         result = func(*args)
         if state.get('desc', False):
             desc = "%s(%s)=>%s" % (self.name, ', '.join(adescs), result)
         else:
             desc = ''
         return result, desc
+
+    def _prep_args(self, args, vars, state):
+        newargs = []
+        descs = []
+        seqfunc = self.name.startswith('seq.')
+        for a in args:
+            if not seqfunc and (isinstance(a, SequenceNode)
+                                or isinstance(a, DieRollNode)):
+                value, desc = a.coerce_numeric(vars, state)
+                if desc:
+                    desc += "=>%s" % value
+            else:
+                value, desc = a.eval(vars, state)
+            newargs.append(value)
+            descs.append(desc)
+        return newargs, descs
 
 
 class SeqMethodNode(FunctionNode):
@@ -562,12 +606,13 @@ class SeqMethodNode(FunctionNode):
         return "%s.%s(%s)" % (self.args[0], name, args)
 
     def eval(self, vars, state):
-        result = super(SeqMethodNode, self).eval(vars, state)[0]
+        args, adescs = self._prep_args(self.args, vars, state)
+        func = VariableNode.eval(self, vars, state)[0]
+        result = func(*args)
         if state.get('desc', False):
             fname = self.name[4:]
-            seq = self.args[0].eval(vars, state)[1]
-            args = ', '.join(map(str, self.args[1:]))
-            desc = '%s.%s(%s)=>%s' % (seq, fname, args, result)
+            argdescs = ', '.join(adescs[1:])
+            desc = '%s.%s(%s)=>%s' % (adescs[0], fname, argdescs, result)
         else:
             desc = ''
         return result, desc
@@ -597,17 +642,17 @@ class Roll(object):
         'floor': math.floor,
         'ceil': math.ceil,
         'round': round,
-        'min': min,
-        'max': max,
-        'sum': sum,
+        'min': lambda *a: min(a),
+        'max': lambda *a: max(a),
+        'sum': lambda *a: sum(a),
         'abs': abs,
         'log': math.log,
         'sqrt': math.sqrt,
         'pow': math.pow,
         'seq.sum': sum,
-        'seq.max': max,
-        'seq.min': min,
-        'seq.highest': lambda s, n=1: keep_highest(s, n),
+        'seq.max': lambda s: max(s),  # Use lambda to avoid multi-args.
+        'seq.min': lambda s: min(s),
+        'seq.highest': lambda s, n=1: Sequence(sorted(s)[-n:]),
         'seq.lowest': lambda s, n=1: Sequence(sorted(s)[:n]),
         'seq.drop': lambda s, *v: Sequence(r for r in s if r not in v),
         'seq.average': lambda s: sum(s) / float(len(s))
