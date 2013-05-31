@@ -1,6 +1,14 @@
 """
 Generic dice-rolling library based on pyparsing.
 
+Example usage:
+>>> roll = RollResult('1d20 + 2 + STR', desc=True, STR=2)
+>>> print roll.desc + ' = ' + str(roll.result)
+
+Tips:
+* RollResult class is great for doing everything all at once.
+* Roll class is useful for storing a roll that will occur multiple times.
+
 Extended BNF (same as Python specification):
      lowercase ::= "a"..."z"
      uppercase ::= "A"..."Z"
@@ -157,11 +165,19 @@ def sort_dict(d, cmp=None, key=None, reverse=False, keep=None, drop=None):
 
 
 class Sequence(list):
+    """
+    Thin sub-class of list that does almost nothing other than defines a class
+    specific to lists of values in dice rolls.
+    """
     def __str__(self):
         return '{%s}' % ', '.join(map(str, self))
 
 
 class EvalNode(object):
+    """
+    Generic EvalNode. EvalNodes form the tree that is generated as a result of
+    parsing a roll expression.
+    """
     def eval(self, vars, state):
         raise NotImplementedError()
 
@@ -170,6 +186,9 @@ class EvalNode(object):
 
 
 class SequenceNode(EvalNode):
+    """
+    An EvalNode representing a sequence of values in a roll expression.
+    """
     data = []
     start = None
     stop = None
@@ -229,6 +248,9 @@ class SequenceNode(EvalNode):
 
 
 class DieRollNode(EvalNode):
+    """
+    An EvalNode representing a die roll within a roll expression.
+    """
     mod_funcs = {
         'd': lambda self, r, v, s, drop=1: self.drop_lowest(r, s, drop),
         'k': lambda self, r, v, s, keep=1: self.keep_highest(r, s, keep),
@@ -408,6 +430,10 @@ class DieRollNode(EvalNode):
 
 
 class LiteralNode(EvalNode):
+    """
+    A generic literal EvalNode that stores a literal numeric value as found in
+    the roll expression.
+    """
     value = None
 
     def eval(self, vars, state):
@@ -459,6 +485,9 @@ class FloatNode(LiteralNode):
 
 
 class VariableNode(EvalNode):
+    """
+    A variable EvalNode. Simply accesses the value passed in by the caller.
+    """
     def __init__(self, tok):
         self.name = tok[0]
 
@@ -479,6 +508,11 @@ class VariableNode(EvalNode):
 
 
 class OpNode(EvalNode):
+    """
+    Generic operator EvalNode. Establishes a storage framework for operator
+    nodes and also handles adding parens when needed in a string representation
+    of the operation.
+    """
     op = ''
     ops = {}
 
@@ -487,10 +521,17 @@ class OpNode(EvalNode):
         self.opfunc, self.assoc = self.ops[op]
 
     def add_parens(self, expr):
+        """
+        Add parens when the passed expression is of lower associativity than
+        this operator.
+        """
         return isinstance(expr, OpNode) and expr.assoc < self.assoc
 
 
 class BinaryOpNode(OpNode):
+    """
+    An EvalNode for an operations that takes two operands.
+    """
     ops = {
         '^': (operator.pow, 4),
         '*': (operator.mul, 2),
@@ -527,6 +568,9 @@ class BinaryOpNode(OpNode):
 
 
 class UnaryOpNode(OpNode):
+    """
+    An EvalNode for an operator that takes only a single operand.
+    """
     ops = {
         '-': (operator.neg, 3),
         '+': (operator.pos, 3),
@@ -552,6 +596,10 @@ class UnaryOpNode(OpNode):
 
 
 class FunctionNode(VariableNode):
+    """
+    An EvalNode for calling a function. Functions are Python functions passed
+    into the evaluation as variables.
+    """
     def __init__(self, tok):
         super(FunctionNode, self).__init__(tok)
         self.args = tok[1]
@@ -590,6 +638,10 @@ class FunctionNode(VariableNode):
 
 
 class SeqMethodNode(FunctionNode):
+    """
+    An EvalNode for sequence methods. These are much like functions with some
+    slightly different handling of arguments and description.
+    """
     def __init__(self, tok):
         seqnode, funcs = tok
         last = len(funcs) - 2
@@ -623,6 +675,9 @@ grammar = _grammar()
 
 
 class RollResult(object):
+    """
+    A RollResult represents a specific cast of a Roll.
+    """
     def __init__(self, roll, desc=False, **vars):
         if isinstance(roll, basestring):
             roll = Roll(roll)
@@ -639,6 +694,13 @@ class RollResult(object):
 
 
 class Roll(object):
+    """
+    A Roll is the representation of a roll formula. To perform the roll it
+    represents, call .eval().
+
+    Roll class provides a series of default variables/functions for use in
+    roll expressions.
+    """
     default_vars = {
         'trunc': math.trunc,
         'floor': math.floor,
@@ -696,5 +758,10 @@ class Roll(object):
 
 
 def roll(expr, **vars):
+    """
+    Convenience function for executing a quick roll and returning the result.
+
+    If you need more, use L{Roll} or L{RollResult}.
+    """
     roll = Roll(expr)
-    return roll.eval(**vars)
+    return roll.eval(**vars)[0]
