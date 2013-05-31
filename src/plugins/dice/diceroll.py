@@ -68,7 +68,6 @@ Examples:
 Notes:
 * Adding a sequence to a number coerces the sequence to a sum of its elements.
 """
-#TODO: Produce a log of natural rolls and modifiers available on Roll instance.
 import math
 import random
 import operator
