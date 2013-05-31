@@ -30,6 +30,7 @@ class MUDSlingCorePlugin(GamePlugin):
         help_db.rebuild_name_map()
 
     def object_classes(self):
+        # List of tuples because we like to keep the order.
         return [
             ('Thing', Thing),
             ('Container', Container),
