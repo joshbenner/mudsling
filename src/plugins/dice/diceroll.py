@@ -188,6 +188,7 @@ class SequenceNode(EvalNode):
         return self.start is not None and self.stop is not None
 
     def eval(self, vars, state):
+        gen_desc = state.get('desc', False)
         desc = descs = startdesc = stopdesc = ''
         if self.is_range():
             start, startdesc = self.start.coerce_numeric(vars, state)
@@ -199,8 +200,10 @@ class SequenceNode(EvalNode):
             for datum in self.data:
                 v, d = datum.coerce_numeric(vars, state)
                 values.append(v)
+                if gen_desc and isinstance(datum, OpNode):
+                    d += ' = %s' % v
                 descs.append(d)
-        if state.get('desc', False):
+        if gen_desc:
             if self.is_range():
                 desc = "{%s..%s}" % (startdesc, stopdesc)
             else:
