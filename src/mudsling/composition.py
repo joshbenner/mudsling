@@ -1,15 +1,15 @@
 """
 Modular composition of classes and instances.
 
-Features are classes that extend the functionality of other classes or even
+Decorators are classes that extend the functionality of other classes or even
 instances.
 
-Features can be easily added to and removed from classes and instances. They
-are useful when objects possessing them offer features opportunities to extend
-their functionality, such as invoking hooks on features or collecting feature
-data (ie: feature-provided commands).
+Decorators can be easily added to and removed from classes and instances. They
+are useful when host objects offer decorators opportunities to extend
+their functionality, such as invoking hooks on decorators or collecting
+decorator data (ie: decorator-provided commands).
 
-Features can also transparently provide new attributes and methods to classes
+Decorators can also transparently provide new attributes and methods to classes
 and instances they decorate. They are essentially modular plugins for classes
 and instances.
 
@@ -36,41 +36,29 @@ def is_hook(func):
 
 class Decorator(object):
     """
-    Generic, hook-implementing decorator. Super class of Feature and Component.
-    """
-    @classmethod
-    def implements_hook(cls, hook):
-        func = getattr(cls, hook, None)
-        if func is not None and getattr(func, 'is_hook', False):
-            return True
-        return False
-
-
-class Feature(Decorator):
-    """
-    Features are classes that provide attributes and methods to be accessible
+    Decorators are classes that provide attributes and methods to be accessible
     by instances they are associated with (at class or instance level).
 
-    Features are not supposed to be instantiated, because their attributes are
+    Decorators are not supposed to be instanced, because their attributes are
     transparently proxied to be accessible by instances that have access to
     them.
 
-    Example: If you learn math, that becomes a feature of your person. You do
+    Example: If you learn math, that becomes a decorator of your person. You do
     not possess an instance of math, but rather math knowledge is now a part of
     your mind, its processes are available to you, and it stores information in
     you, such as which concepts you understand, a running tab when counting,
     and so on.
 
-    You may write a Feature largely like you would write a parent class, but
+    You may write a Decorator largely like you would write a parent class, but
     there are some notable differences:
-    * __init__ IS called during Featurized initialization.
+    * _init_decorator is called during Decorated initialization.
     * Special attribute methods like __getattr__ are never called.
-    * Features are not in the instance MRO, and are not searched by super().
-    * Feature methods may not use super(). If features use inheritance, you
+    * Decorators are not in the instance MRO, and are not searched by super().
+    * Decorator methods may not use super(). If decorators use inheritance, you
         must use composed parent calls instead: parentClass.same_method(*args)
     """
     @classmethod
-    def _feature_attr(cls, name, owner):
+    def _decorator_attr(cls, name, owner):
         if name.startswith('__'):  # Hide magic attributes.
             raise AttributeError
         val = getattr(cls, name)
@@ -81,104 +69,111 @@ class Feature(Decorator):
             val = types.MethodType(val.im_func, bind_to)
         return val
 
-    def __init__(self, *a, **kw):
-        # Stop super propagation of init here. Features should be last parents.
+    @classmethod
+    def implements_hook(cls, hook):
+        func = getattr(cls, hook, None)
+        if func is not None and getattr(func, 'is_hook', False):
+            return True
+        return False
+
+    def _init_decorator(self, *a, **kw):
+        # Stop init here. Decorators should be last parents.
         pass
 
 
-class Featurized(object):
+class Decorated(object):
     """
-    An object with features.
+    An object with decorators.
 
-    Features are collected from the instance, and all classes in the MRO of the
-    instance.
+    Decorators are collected from the instance, and all classes in the MRO of
+    the instance.
     """
-    _features = []
+    _decorators = []
 
     @classmethod
-    def _init_class_features(cls):
-        if '_features' not in cls.__dict__:
-            cls._features = []
+    def _init_class_decorators(cls):
+        if '_decorators' not in cls.__dict__:
+            cls._decorators = []
 
     @classmethod
-    def add_class_feature(cls, feature):
-        cls._init_class_features()
-        cls._features.append(feature)
+    def add_class_decorator(cls, decorator):
+        cls._init_class_decorators()
+        cls._decorators.append(decorator)
 
     @classmethod
-    def remove_class_feature(cls, feature):
-        cls._init_class_features()
-        if feature in cls._features:
-            cls._features.remove(feature)
+    def remove_class_decorator(cls, decorator):
+        cls._init_class_decorators()
+        if decorator in cls._decorators:
+            cls._decorators.remove(decorator)
 
     @classmethod
-    def get_class_features(cls, parent=Feature):
-        features = []
+    def get_class_decorators(cls, parent=Decorator):
+        decs = []
         for c in cls.__mro__:
-            if issubclass(c, Featurized) and '_features' in c.__dict__:
-                features.extend(f for f in c._features if issubclass(f, parent)
-                                and not f in features)
-        return features
+            if issubclass(c, Decorated) and '_decorators' in c.__dict__:
+                decs.extend(f for f in c._decorators if issubclass(f, parent)
+                            and not f in decs)
+        return decs
 
     def __init__(self, *args, **kwargs):
-        self._features = []
-        for feature in self._features:
-            if '__init__' in feature.__dict__:
-                feature.__init__.im_func(self, *args, **kwargs)
-        super(Featurized, self).__init__(*args, **kwargs)
+        self._decorators = []
+        for dec in self._decorators:
+            if '__init__' in dec.__dict__:
+                dec.__init__.im_func(self, *args, **kwargs)
+        super(Decorated, self).__init__(*args, **kwargs)
 
     @property
-    def features(self):
-        return self.get_features()
+    def decorators(self):
+        return self.get_decorators()
 
-    def add_feature(self, feature):
-        if feature in self._features:
+    def add_decorator(self, decorator):
+        if decorator in self._decorators:
             return
-        self._features.append(feature)
+        self._decorators.append(decorator)
 
-    def remove_feature(self, feature):
-        if feature in self._features:
-            self._features.remove(feature)
+    def remove_decorator(self, decorator):
+        if decorator in self._decorators:
+            self._decorators.remove(decorator)
 
-    def has_feature(self, feature):
-        return feature in self.features
+    def has_decorator(self, decorator):
+        return decorator in self.decorators
 
     def __getattr__(self, name):
-        for feature in (f for f in self.features if hasattr(f, name)):
-            return feature._feature_attr(name, self)
+        for decorator in (f for f in self.decorators if hasattr(f, name)):
+            return decorator._decorator_attr(name, self)
         clsname = self.__class__.__name__
         msg = "'%s' object has no attribute '%s'" % (clsname, name)
         raise AttributeError(msg)
 
-    def get_features(self, parent=Feature):
+    def get_decorators(self, parent=Decorator):
         """
-        Get a list of features associated with this instance.
+        Get a list of decorators associated with this instance.
 
-        @param parent: An optional parent class by which to filter features.
+        @param parent: An optional parent class by which to filter decorators.
 
         @rtype: C{list}
         """
-        features = filter(lambda f: issubclass(f, parent),
-                          getattr(self, '_features', []))
-        features.extend(self.__class__.get_class_features(parent=parent))
-        return features
+        decorators = filter(lambda f: issubclass(f, parent),
+                            getattr(self, '_decorators', []))
+        decorators.extend(self.__class__.get_class_decorators(parent=parent))
+        return decorators
 
-    def feature_hook_implementations(self, hook, parent=Feature):
+    def decorator_hook_implementations(self, hook, parent=Decorator):
         impl = OrderedDict()
-        for feature in self.get_features(parent=parent):
-            if feature.implements_hook(hook):
-                func = getattr(feature, hook)
+        for decorator in self.get_decorators(parent=parent):
+            if decorator.implements_hook(hook):
+                func = getattr(decorator, hook)
                 bind = func.im_self or self
-                impl[feature] = types.MethodType(func.im_func, bind)
+                impl[decorator] = types.MethodType(func.im_func, bind)
         return impl
 
-    def invoke_feature_hook(self, hook, *a, **kw):
-        parent = kw.get('parent', Feature)
-        impl = self.feature_hook_implementations(hook, parent=parent)
+    def invoke_decorator_hook(self, hook, *a, **kw):
+        parent = kw.get('parent', Decorator)
+        impl = self.decorator_hook_implementations(hook, parent=parent)
         return OrderedDict([(f, h(*a, **kw)) for f, h in impl.iteritems()])
 
 
-class Component(Decorator):
+class Component(object):
     """
     A modular piece of functionality which can be hosted by a parent instance.
 
@@ -190,7 +185,12 @@ class Component(Decorator):
     but you (the host) add it to yourself, and it changes your temperature,
     changes your appearance, adds weight, provides storage, etc.
     """
-    pass
+    @classmethod
+    def implements_hook(cls, hook):
+        func = getattr(cls, hook, None)
+        if func is not None and getattr(func, 'is_hook', False):
+            return True
+        return False
 
 
 class Componentized(object):
@@ -237,16 +237,16 @@ class Componentized(object):
         return OrderedDict([(c, h(*a, **kw)) for c, h in impl])
 
 
-class Composed(Featurized, Componentized):
+class Composed(Decorated, Componentized):
     """
-    A class unifying the Features and Components.
+    A class unifying the Decorators and Components.
     """
     def hook_implementations(self, hook):
-        impl = self.feature_hook_implementations(hook)
+        impl = self.decorator_hook_implementations(hook)
         impl.update(self.component_hook_implementations(hook))
         return impl
 
     def invoke_hook(self, hook, *a, **kw):
-        results = self.invoke_feature_hook(hook, *a, **kw)
+        results = self.invoke_decorator_hook(hook, *a, **kw)
         results.update(self.invoke_component_hook(hook, *a, **kw))
         return results

@@ -3,7 +3,7 @@ Wearables plugin.
 """
 
 from mudsling.extensibility import GamePlugin
-from mudsling.composition import hook, Feature, Featurized
+from mudsling.composition import hook, Decorator, Decorated
 from mudsling.commands import Command
 from mudsling.messages import Messages
 from mudsling.objects import Object
@@ -16,12 +16,12 @@ from mudslingcore.objects import Thing, Character
 
 
 def can_wear_wearables(who):
-    return who.isa(Featurized) and WearingFeature in who.features
+    return who.isa(Decorated) and WearingDecorator in who.decorators
 
 
 class WearablesPlugin(GamePlugin):
     def server_startup(self):
-        Character.add_class_feature(WearingFeature)
+        Character.add_class_decorator(WearingDecorator)
 
     def object_classes(self):
         return [('Wearable', Wearable)]
@@ -33,7 +33,7 @@ class WearablesPlugin(GamePlugin):
         }
 
 
-class WearingFeature(Feature):
+class WearingDecorator(Decorator):
     """
     Provides object with tracking of what is worn.
     """
@@ -41,7 +41,7 @@ class WearingFeature(Feature):
 
     def __init__(self, *a, **kw):
         self._init_wearing()
-        super(WearingFeature, self).__init__(*a, **kw)
+        super(WearingDecorator, self).__init__(*a, **kw)
 
     def _init_wearing(self):
         self.wearing = []
