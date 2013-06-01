@@ -30,6 +30,6 @@ class PathfinderObject(Persistent):
 
 class Thing(CoreThing, PathfinderObject):
     """
-    Basic game world object that can interact with Pathfinder features.
+    Basic game world object that can interact with Pathfinder decorators.
     """
 
