@@ -166,6 +166,24 @@ def sort_dict(d, cmp=None, key=None, reverse=False, keep=None, drop=None):
     d.update(s)
 
 
+class DynamicVariable(object):
+    """
+    A variable value which knows how to evaluate itself in an expression. Akin
+    to properties, which act like attributes, but actually execute to yield a
+    value.
+    """
+    def eval(self, vars, state):
+        """
+        Evaluate the dynamic variable.
+
+        @return: A tuple containing the resulting value and the description if
+            desc=True in the evaluation state.
+        @rtype: C{tuple}
+        """
+        raise NotImplementedError("'%s' has not implemented eval()"
+                                  % self.__class__.__name__)
+
+
 class Sequence(list):
     """
     Thin sub-class of list that does almost nothing other than defines a class
@@ -503,6 +521,8 @@ class VariableNode(EvalNode):
             elif isinstance(value, RollResult):
                 value = value.result
                 desc = value.desc
+            elif isinstance(value, DynamicVariable):
+                value, desc = value.eval(vars, state)
             elif state.get('desc', False):
                 desc = "%s(%s)" % (self.name, vars[self.name])
             else:
