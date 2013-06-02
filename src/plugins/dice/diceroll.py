@@ -87,13 +87,14 @@ pyparsing.ParserElement.enablePackrat()
 
 def _grammar():
     from pyparsing import alphas, alphanums, nums
-    from pyparsing import oneOf, Suppress, Optional, Group, ZeroOrMore
-    from pyparsing import Forward, operatorPrecedence, opAssoc, Word
+    from pyparsing import oneOf, Suppress, Optional, Group, ZeroOrMore, NotAny
+    from pyparsing import Forward, operatorPrecedence, opAssoc, Word, White
     from pyparsing import delimitedList, Combine, Literal, OneOrMore
 
     expression = Forward()
 
     LPAR, RPAR, DOT, LBRAC, RBRAC = map(Suppress, "().{}")
+    nw = NotAny(White())
 
     identifier = Word(alphas + "_", alphanums + "_")
 
@@ -111,8 +112,9 @@ def _grammar():
     seqexplicit.setParseAction(lambda t: SequenceNode(lst=t))
     sequence = seqrange | seqexplicit
 
-    rollmod = Group(oneOf("d k r e") + Optional(integer))
-    roll = Optional(integer, default=1) + Suppress("d") + (integer | sequence)
+    rollmod = nw + Group(oneOf("d k r e") + Optional(integer))
+    numdice = Optional(integer, default=1)
+    roll = numdice + nw + Suppress("d") + nw + (integer | sequence)
     roll += Group(ZeroOrMore(rollmod))
     roll.setParseAction(DieRollNode)
 
@@ -724,8 +726,14 @@ class Roll(object):
 
     def __init__(self, expr, parser=None, vars=None):
         parser = parser or grammar
-        self.raw = expr
-        self.parsed = parser.parseString(expr, True)[0]
+        if isinstance(expr, basestring):
+            self.raw = expr
+            self.parsed = parser.parseString(expr, True)[0]
+        elif isinstance(expr, EvalNode):
+            self.raw = str(expr)
+            self.parsed = expr
+        else:
+            raise TypeError("Roll takes string or EvalNode.")
         self.vars = vars or {}
 
     def __eq__(self, other):
