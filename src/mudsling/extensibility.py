@@ -25,12 +25,10 @@ class Plugin(object):
     """
     Base plugin class.
 
-    @ivar path: The path to the plugin's directory.
     @ivar info: A ConfigParser containing the module information.
     @ivar options: Plugin's config section from the game-specific config.
     @ivar game: Reference to the game object.
     """
-    path = ''
     #: @type: PluginInfo
     info = None
     #: @type: mudsling.config.ConfigSection

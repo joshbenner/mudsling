@@ -3,10 +3,12 @@ import weakref
 import copy_reg
 import types
 import logging
+import os
 
 from mudsling.match import match_objlist
 from mudsling import errors
 from mudsling import registry
+from mudsling import pickler
 
 
 # Support pickling methods.
@@ -301,7 +303,7 @@ class Database(Persistent):
     @type game: mudsling.core.MUDSling
     """
 
-    _transient_vars = ['type_registry', 'game']
+    _transient_vars = ['type_registry', 'game', 'filepath']
 
     initialized = False
     max_obj_id = 0
@@ -318,10 +320,24 @@ class Database(Persistent):
     #: @type: mudsling.server.MUDSling
     game = None
 
-    def __init__(self):
+    filepath = ''
+
+    @classmethod
+    def load(cls, filepath):
+        if os.path.exists(filepath):
+            logging.info("Loading database from %s" % filepath)
+            db = pickler.load(filepath)
+        else:
+            logging.info("Initializing new database at %s" % filepath)
+            db = cls(filepath)
+        db.filepath = filepath
+        return db
+
+    def __init__(self, filepath):
         """
         This will only run when a new game DB is initialized.
         """
+        self.filepath = filepath
         self.objects = {}
         self.roles = []
         self.tasks = {}
@@ -359,6 +375,11 @@ class Database(Persistent):
             obj.server_shutdown()
         for task in self.tasks.itervalues():
             task.server_shutdown()
+
+    def save(self, filepath=None):
+        filepath = filepath or self.filepath
+        self.filepath = filepath
+        pickler.dump(filepath, self)
 
     def _get_object(self, obj_id):
         try:

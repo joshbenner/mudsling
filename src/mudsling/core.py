@@ -5,7 +5,6 @@ services... everything.
 
 import sys
 import os
-import cPickle as pickle
 import logging
 import time
 
@@ -84,6 +83,7 @@ class MUDSling(MultiService):
 
         # Load plugin manager. Locates, filters, and loads plugins.
         self.plugins = PluginManager(self)
+        self.invoke_hook('plugins_loaded')
 
         self.init_locks()
         self.load_class_configs()
@@ -152,17 +152,8 @@ class MUDSling(MultiService):
     def load_database(self):
         dbfilename = config.get('Main', 'db file')
         self.db_file_path = os.path.join(self.game_dir, dbfilename)
-        if os.path.exists(self.db_file_path):
-            logging.info("Loading database from %s" % self.db_file_path)
-            dbfile = open(self.db_file_path, 'rb')
-            #: @type: Database
-            self.db = pickle.load(dbfile)
-            dbfile.close()
-        else:
-            logging.info("Initializing new database at %s" % self.db_file_path)
-            self.db = Database()
+        self.db = Database.load(self.db_file_path)
         self.db.on_loaded(self)
-
         # Build the player registry.
         registry.players.register_players(self.db.descendants(BasePlayer))
 
@@ -197,10 +188,8 @@ class MUDSling(MultiService):
         # Get the db on disk.
         self.save_database()
 
-    # TODO: Refactor this into the DB layer, so a DB knows how to save itself.
     def save_database(self):
-        with open(self.db_file_path, 'wb') as dbfile:
-            pickle.dump(self.db, dbfile, -1)
+        self.db.save()
 
     # noinspection PyShadowingBuiltins
     def shutdown(self, reload=False):

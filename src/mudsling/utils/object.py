@@ -7,6 +7,21 @@ class ClassProperty(property):
         return self.fget.__get__(None, owner)()
 
 
+## {{{ http://code.activestate.com/recipes/578433/ (r1)
+class SlotPickleMixin(object):
+    def __getstate__(self):
+        return dict(
+            (slot, getattr(self, slot))
+            for slot in self.__slots__
+            if hasattr(self, slot)
+        )
+
+    def __setstate__(self, state):
+        for slot, value in state.items():
+            setattr(self, slot, value)
+## end of http://code.activestate.com/recipes/578433/ }}}
+
+
 def filter_by_class(objects, cls):
     """
     Filter a list of objects to only descendants of a class or classes.
