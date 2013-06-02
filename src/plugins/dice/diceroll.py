@@ -495,11 +495,20 @@ class VariableNode(EvalNode):
 
     def eval(self, vars, state):
         if vars is not None and self.name in vars:
-            if state.get('desc', False):
+            value = vars[self.name]
+            if isinstance(value, EvalNode):
+                value, desc = value.eval(vars, state)
+            elif isinstance(value, Roll):
+                value, desc = value._eval(vars, state)
+            elif isinstance(value, RollResult):
+                value = value.result
+                desc = value.desc
+            elif state.get('desc', False):
                 desc = "%s(%s)" % (self.name, vars[self.name])
             else:
                 desc = ''
-            return vars[self.name], desc
+            vars[self.name] = value  # Store value in case we just calculated.
+            return value, desc
         raise NameError("Variable '%s' not found" % self.name)
 
     def __repr__(self):
@@ -680,11 +689,11 @@ class RollResult(object):
     """
     A RollResult represents a specific cast of a Roll.
     """
-    def __init__(self, roll, desc=False, **vars):
+    def __init__(self, roll, **vars):
         if isinstance(roll, basestring):
             roll = Roll(roll)
         self.roll = roll
-        self.state = {'desc': desc}
+        self.state = {'desc': True}
         result, self.desc = roll._eval(vars, self.state)
         self.result = sum(result) if isinstance(result, list) else result
 
