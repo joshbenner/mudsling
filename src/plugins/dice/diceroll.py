@@ -512,23 +512,25 @@ class VariableNode(EvalNode):
         self.name = tok[0]
 
     def eval(self, vars, state):
-        if vars is not None and self.name in vars:
-            value = vars[self.name]
-            if isinstance(value, EvalNode):
-                value, desc = value.eval(vars, state)
-            elif isinstance(value, Roll):
-                value, desc = value._eval(vars, state)
-            elif isinstance(value, RollResult):
-                value = value.result
-                desc = value.desc
-            elif isinstance(value, DynamicVariable):
-                value, desc = value.eval(vars, state)
-            elif state.get('desc', False):
-                desc = "%s(%s)" % (self.name, vars[self.name])
-            else:
-                desc = ''
-            vars[self.name] = value  # Store value in case we just calculated.
-            return value, desc
+        if vars is not None:
+            if self.name in vars:
+                value = vars[self.name]
+                if isinstance(value, EvalNode):
+                    value, desc = value.eval(vars, state)
+                elif isinstance(value, Roll):
+                    value, desc = value._eval(vars, state)
+                elif isinstance(value, RollResult):
+                    value = value.result
+                    desc = value.desc
+                elif isinstance(value, DynamicVariable):
+                    value, desc = value.eval(vars, state)
+                elif state.get('desc', False):
+                    desc = "%s(%s)" % (self.name, vars[self.name])
+                else:
+                    desc = ''
+                return value, desc
+            elif '__var' in vars:
+                return vars['__var'](vars, state)
         raise NameError("Variable '%s' not found" % self.name)
 
     def __repr__(self):
