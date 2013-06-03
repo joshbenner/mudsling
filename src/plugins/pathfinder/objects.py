@@ -5,6 +5,7 @@ import pathfinder
 
 from .stats import HasStats
 from .events import HasEvents
+from .sizes import SizeCategory
 
 
 class PathfinderObject(HasStats, HasEvents):
@@ -31,7 +32,7 @@ class PathfinderObject(HasStats, HasEvents):
 
     @size_category.setter
     def size_category(self, val):
-        if not isinstance(val, pathfinder.SizeCategory):
+        if not isinstance(val, SizeCategory):
             raise ValueError("Size categories must be of type SizeCategory.")
         default = pathfinder.size(max(self.dimensions))
         if val == default:
@@ -43,7 +44,6 @@ class PathfinderObject(HasStats, HasEvents):
         """
         @rtype: L{collections.OrderedDict}
         """
-
 
 
 class Thing(CoreThing, PathfinderObject):
