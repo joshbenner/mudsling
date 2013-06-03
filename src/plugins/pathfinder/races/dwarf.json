@@ -10,9 +10,9 @@
     "Abilities": [
       "Dwarves are both tough and wise, but also a bit gruff",
       [
-        "+2 to Constitution",
-        "+2 to Wisdom",
-        "-2 to Charisma"
+        "+2 Constitution",
+        "+2 Wisdom",
+        "-2 Charisma"
       ]
     ],
     "Darkvision": [
