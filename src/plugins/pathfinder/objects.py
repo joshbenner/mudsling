@@ -1,14 +1,24 @@
+from collections import OrderedDict
+
 from mudslingcore.objects import Thing as CoreThing
 from mudslingcore.objects import Character as CoreCharacter
 
 import pathfinder
 
 from .stats import HasStats
-from .events import HasEvents
+from .events import Event
+from .features import HasFeatures
 from .sizes import SizeCategory
 
 
-class PathfinderObject(HasStats, HasEvents):
+class StatModEvent(Event):
+    def __init__(self, *a, **kw):
+        super(StatModEvent, self).__init__(*a, **kw)
+        self.modifiers = OrderedDict()
+
+
+# HasFeatures is also HasEvents.
+class PathfinderObject(HasStats, HasFeatures):
     cost = 0
     weight = 0
     hardness = 0
@@ -40,10 +50,13 @@ class PathfinderObject(HasStats, HasEvents):
         else:
             self._size_category = val
 
-    def get_stat_modifiers(self, stat):
+    def get_stat_modifiers(self, stat, **kw):
         """
         @rtype: L{collections.OrderedDict}
         """
+        event = StatModEvent(stat, obj=self, **kw)
+        self.trigger_event(event)
+        return event.modifiers
 
 
 class Thing(CoreThing, PathfinderObject):

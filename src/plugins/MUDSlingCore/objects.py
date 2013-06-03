@@ -1,7 +1,5 @@
 import logging
 
-import zope.interface
-
 from mudsling.objects import BasePlayer, BaseCharacter, Object
 from mudsling.commands import all_commands
 from mudsling.messages import Messages

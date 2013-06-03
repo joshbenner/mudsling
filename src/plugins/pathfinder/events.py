@@ -1,18 +1,24 @@
 from collections import OrderedDict
 
 
+class Event(object):
+    def __init__(self, name, **kw):
+        self.name = name
+        self.__dict__.update(kw)
+
+
 class EventResponder(object):
     """
     Base class for objects that wish to be event responders.
     """
-    def respond_to_event(self, event, responses, *a, **kw):
+    def respond_to_event(self, event, responses):
         raise NotImplementedError("'%s' does not implement respond_to_event()"
                                   % self.__class__.__name__)
 
-    def delegate_event(self, event, responses, delegates, *a, **kw):
+    def delegate_event(self, event, responses, delegates):
         sub_responses = {}
         for d in (d for d in delegates if isinstance(d, EventResponder)):
-            sub_responses[d] = d.respond_to_event(event, responses, *a, **kw)
+            sub_responses[d] = d.respond_to_event(event, responses)
         responses.update(sub_responses)
 
 
@@ -20,11 +26,11 @@ class HasEvents(object):
     """
     An object that can notify other objects of arbitrary events.
     """
-    def trigger_event(self, event, *a, **kw):
+    def trigger_event(self, event):
         responses = OrderedDict()
         for r in self.event_responders(event):
             if isinstance(r, EventResponder):
-                responses[r] = r.respond_to_event(event, responses, *a, **kw)
+                responses[r] = r.respond_to_event(event, responses)
         return responses
 
     def event_responders(self, event):

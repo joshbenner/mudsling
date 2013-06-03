@@ -11,10 +11,15 @@ from .events import EventResponder, HasEvents
 
 class Feature(EventResponder):
     name = 'Unnamed Feature'
+    description = ''
     effects = []
 
-    def respond_to_event(self, event, responses, *a, **kw):
-        self.delegate_event(event, responses, self.effects, *a, **kw)
+    def __init__(self, name, desc=''):
+        self.name = name
+        self.description = desc
+
+    def respond_to_event(self, event, responses):
+        self.delegate_event(event, responses, self.effects)
 
 
 class HasFeatures(HasEvents):
@@ -22,6 +27,3 @@ class HasFeatures(HasEvents):
 
     def event_responders(self, event):
         return self.features
-
-
-

@@ -20,7 +20,7 @@ size_categories = OrderedDict((c.name.lower(), c) for c in [
 
 def size(meters):
     meters = min(0, meters)
-    for size in reversed(size_categories.itervalues()):
+    for size in reversed(size_categories.values()):
         if meters >= size.meters:
             return size
     return size_categories.itervalues().next()
