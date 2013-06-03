@@ -2,35 +2,36 @@
 Effects are modifiers that are applied to various stats on an object. Effects
 can be provided by just about anything, and can apply to any Pathfinder object.
 
-Effect syntax: <roll expr> [{bonus|penalty}] to <stat> [<expiration>]
-* roll expr: The value of the effect.
-* Bonus/penalty: no impact on value of effect, just flexiblity in effect text.
-* stat: The stat of the subject impacted by the effect.
-    * <skill>|<ability> [mod[ifier]]|
-* expiration: Turns, time, or event which expires the effect.
-    * for <expr> {round|turn|second|minute|hour|day}[s]
-    * until <event>
-
 BNF:
-  rollexpr ::= <diceroll grammar>
-    nature ::= <alphanums> (<printables> | " ")*
-      type :: = "bonus" | "penalty"
-      stat ::= <printables>+
-  timeunit ::= ("round" | "turn" | "second" | "minute" | "hour" | "day") ["s"]
-  duration ::= "for" rollexpr timeunit
-     event ::= <printables>+
-     until ::= "until" event
-expiration ::= duration | until
-    effect ::= rollexpr [nature] [type] "to" stat [expiration]
+        name ::= <printables> (<printables> | " ")*
+    rollexpr ::= <diceroll grammar>
+      nature ::= <alphanums> (<printables> | " ")*
+        type ::= "bonus" | "penalty"
+    statname ::= name
+      statvs ::= name
+        stat ::= statname [("against" | "vs") statvs]
+    timeunit ::= ("round" | "turn" | "second" | "minute" | "hour" | "day")["s"]
+    duration ::= "for" rollexpr timeunit
+       event ::= <printables>+
+       until ::= "until" event
+  expiration ::= duration | until
+       bonus ::= rollexpr [[nature] [type] ("to" | "on")] stat
+       grant ::= "grant"["s"] <alphanums>+ ["feat"]
+       speak ::= ["can"] "speak"["s"] <alphanums>+
+      effect ::= (bonus | grant | speak) [expiration]
 
 Examples:
 * +2 to STR for 2 turns
 * +1d4 + 1 enhancement bonus to Attack for 1 day
 * +1d4 Damage
 """
+import re
 from mudsling.storage import Persistent
 
 import dice
+
+_grant_re = re.compile("^Grants? +(.+?)(?: +feat)?$", re.I)
+_speak_re = re.compile("^(?:Can +)Speaks? +(.+?)$", re.I)
 
 
 def _grammar():
@@ -38,20 +39,32 @@ def _grammar():
     from pyparsing import SkipTo, WordStart, oneOf
 
     CK = CaselessKeyword
+    to = Suppress(CK("to") | CK("on"))
 
-    to = CK("to").suppress()
     type = (CK("bonus") | CK("penalty")).setResultsName("type")
     nature = WordStart() + SkipTo(type | to).setResultsName("nature")
     effecttype = Optional(nature, default=None) + Optional(type, default=None)
+
     timeunits = oneOf("round rounds turn turns second seconds minute minutes "
                       "hour hours day days", caseless=True)
     interval = dice.grammar + timeunits
     duration = (CK("for").suppress() + interval).setResultsName("duration")
     until = Suppress(CK("until")) + SkipTo(StringEnd()).setResultsName("until")
     expire = duration | until
-    stat = WordStart() + SkipTo(expire | StringEnd()).setResultsName("stat")
+
+    lastitem = SkipTo(expire | StringEnd())
+
+    stat = WordStart() + lastitem.setResultsName("stat")
     val = dice.grammar.setResultsName("effect_val")
-    effect = val + effecttype + to + stat + Optional(expire, default=None)
+    bonus = val + Optional(effecttype + to) + stat
+
+    grant = Suppress(CK("grant") | CK("grants"))
+    grant += WordStart() + lastitem.setResultsName("grant")
+
+    lang = Suppress(CK("speak") | CK("speaks"))
+    lang += WordStart() + lastitem.setResultsName("language")
+
+    effect = (bonus | grant | lang) + Optional(expire, default=None)
 
     return effect
 
@@ -79,9 +92,10 @@ class Effect(Persistent):
         parsed = parser.parseString(effect, True)
         self.roll = dice.Roll(parsed['effect_val'])
         if parsed['nature'] is not None:
-            self.nature = parsed['nature'].strip()
+            self.nature = parsed['nature'].strip() or None
         if parsed['type'] is not None:
-            self.type = parsed['type'].strip()
+            self.type = parsed['type'].strip() or None
+        # todo: Parse stat based on strings like "<skill> skill rolls" etc.
         self.stat = parsed['stat'].strip()
         if 'until' in parsed:
             self.expire_event = parsed['until']
