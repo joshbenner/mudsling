@@ -1,19 +1,8 @@
 from collections import OrderedDict
 
-from mudsling import pickler
-
 from .features import Feature
 from .sizes import size_categories
-
-races = {}
-
-
-def add(race):
-    races[race.id.lower()] = race
-
-
-def get(race_id):
-    return races[race_id.lower()]
+from .data import loaded_data
 
 
 class RacialTrait(Feature):
@@ -21,6 +10,8 @@ class RacialTrait(Feature):
 
 
 class Race(Feature):
+    __metaclass__ = loaded_data
+
     # name, description from Feature
     id = ''
     singular = ''
@@ -32,33 +23,19 @@ class Race(Feature):
     racial_traits = []
     initialized = False
 
-    @staticmethod
-    def pickle_id(race):
-        return race.singular
-
-    @staticmethod
-    def pickle_load(id):
-        return get(id)
-
-    def __new__(cls, *args, **kwargs):
-        if args:
-            return get(args[0])
-        else:
-            return super(Race, cls).__new__(cls, *args, **kwargs)
-
-    # noinspection PyUnusedLocal
-    def __init__(self, *a, **kw):
-        # Keep *a here so that calling __init__ on existing instance works.
-        if not self.initialized:
-            super(Race, self).__init__('Race %s' % id(self))
-            self.__dict__.update(kw)
-            if not self.id:
-                self.id = self.singular.lower()
-            self._process_racial_traits()
-            self.initialized = True
+    def __init__(self, **kw):
+        super(Race, self).__init__('Race %s' % id(self))
+        self.__dict__.update(kw)
+        if not self.id:
+            self.id = self.singular.lower()
+        if isinstance(self.size, basestring):
+            if self.size in size_categories:
+                self.size = size_categories[self.size]
+        self._process_racial_traits()
+        self.initialized = True
 
     def __repr__(self):
-        return "pathfinder.Race('%s')" % (self.id or self.singular)
+        return "pathfinder.race('%s')" % (self.id or self.singular)
 
     def __str__(self):
         return self.singular
@@ -71,8 +48,8 @@ class Race(Feature):
     def name(self, val):
         self.singular = val
 
-    def respond_to_event(self, event, responses, *a, **kw):
-        self.delegate_event(event, responses, self.racial_traits, *a, **kw)
+    def respond_to_event(self, event, responses):
+        self.delegate_event(event, responses, self.racial_traits)
 
     def _process_racial_traits(self):
         if self.initialized:
@@ -85,5 +62,3 @@ class Race(Feature):
             trait.effects = effects
             traits[name] = trait
         self.racial_traits = traits
-
-pickler.register_external_type(Race, Race.pickle_id, Race.pickle_load)

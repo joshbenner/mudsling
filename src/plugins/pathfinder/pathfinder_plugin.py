@@ -4,7 +4,8 @@ import inflect
 
 from pathfinder.extensibility import PathfinderPlugin
 from pathfinder.objects import Thing, Character
-from pathfinder import races
+from pathfinder.races import Race
+import pathfinder.data
 
 inflection = inflect.engine()
 
@@ -12,6 +13,12 @@ inflection = inflect.engine()
 class PathfinderCorePlugin(PathfinderPlugin):
     def plugins_loaded(self):
         self._load_data()
+
+    def pathfinder_data_path(self):
+        """
+        The path to Pathfinder data files.
+        """
+        return os.path.join(self.info.path, 'data')
 
     def object_classes(self):
         return [
@@ -39,4 +46,4 @@ class PathfinderCorePlugin(PathfinderPlugin):
                             getattr(self, fname)(data)
 
     def _load_race(self, data):
-        races.add(races.Race(**data))
+        pathfinder.data.add('race', Race(**data))
