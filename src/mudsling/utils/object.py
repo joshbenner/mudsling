@@ -9,10 +9,17 @@ class ClassProperty(property):
 
 ## {{{ http://code.activestate.com/recipes/578433/ (r1)
 class SlotPickleMixin(object):
+    def __all_slots(self):
+        slots = []
+        for cls in self.__class__.__mro__:
+            if '__slots__' in cls.__dict__:
+                slots.extend(list(cls.__slots__))
+        return slots
+
     def __getstate__(self):
         return dict(
             (slot, getattr(self, slot))
-            for slot in self.__slots__
+            for slot in self.__all_slots()
             if hasattr(self, slot)
         )
 

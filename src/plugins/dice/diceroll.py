@@ -85,6 +85,28 @@ from collections import OrderedDict
 pyparsing.ParserElement.enablePackrat()
 
 
+## {{{ http://code.activestate.com/recipes/578433/ (r1)
+class SlotPickleMixin(object):
+    def __all_slots(self):
+        slots = []
+        for cls in self.__class__.__mro__:
+            if '__slots__' in cls.__dict__:
+                slots.extend(list(cls.__slots__))
+        return slots
+
+    def __getstate__(self):
+        return dict(
+            (slot, getattr(self, slot))
+            for slot in self.__all_slots()
+            if hasattr(self, slot)
+        )
+
+    def __setstate__(self, state):
+        for slot, value in state.items():
+            setattr(self, slot, value)
+## end of http://code.activestate.com/recipes/578433/ }}}
+
+
 def _grammar():
     from pyparsing import alphas, alphanums, nums
     from pyparsing import oneOf, Suppress, Optional, Group, ZeroOrMore, NotAny
@@ -166,12 +188,14 @@ def sort_dict(d, cmp=None, key=None, reverse=False, keep=None, drop=None):
     d.update(s)
 
 
-class DynamicVariable(object):
+class DynamicVariable(SlotPickleMixin):
     """
     A variable value which knows how to evaluate itself in an expression. Akin
     to properties, which act like attributes, but actually execute to yield a
     value.
     """
+    __slots__ = ()
+
     def eval(self, vars, state):
         """
         Evaluate the dynamic variable.
@@ -189,15 +213,19 @@ class Sequence(list):
     Thin sub-class of list that does almost nothing other than defines a class
     specific to lists of values in dice rolls.
     """
+    __slots__ = ()
+
     def __str__(self):
         return '{%s}' % ', '.join(map(str, self))
 
 
-class EvalNode(object):
+class EvalNode(SlotPickleMixin):
     """
     Generic EvalNode. EvalNodes form the tree that is generated as a result of
     parsing a roll expression.
     """
+    __slots__ = ()
+
     def eval(self, vars, state):
         raise NotImplementedError()
 
@@ -209,11 +237,10 @@ class SequenceNode(EvalNode):
     """
     An EvalNode representing a sequence of values in a roll expression.
     """
-    data = []
-    start = None
-    stop = None
+    __slots__ = ('data', 'start', 'stop')
 
     def __init__(self, lst=None, start=None, stop=None):
+        self.start = self.stop = None
         if lst is not None:
             self.data = list(lst) if lst else []
         elif start is not None and stop is not None:
@@ -271,6 +298,7 @@ class DieRollNode(EvalNode):
     """
     An EvalNode representing a die roll within a roll expression.
     """
+    __slots__ = ('num_dice', 'sides', 'mods')
     mod_funcs = {
         'd': lambda self, r, v, s, drop=1: self.drop_lowest(r, s, drop),
         'k': lambda self, r, v, s, keep=1: self.keep_highest(r, s, keep),
@@ -454,7 +482,10 @@ class LiteralNode(EvalNode):
     A generic literal EvalNode that stores a literal numeric value as found in
     the roll expression.
     """
-    value = None
+    __slots__ = ('value',)
+
+    def __init__(self, value):
+        self.value = value
 
     def eval(self, vars, state):
         return self.value, str(self.value) if state.get('desc', False) else ''
@@ -496,18 +527,20 @@ class LiteralNode(EvalNode):
 
 class IntegerNode(LiteralNode):
     def __init__(self, tok):
-        self.value = int(tok[0])
+        super(IntegerNode, self).__init__(int(tok[0]))
 
 
 class FloatNode(LiteralNode):
     def __init__(self, tok):
-        self.value = float(tok[0])
+        super(FloatNode, self).__init__(float(tok[0]))
 
 
 class VariableNode(EvalNode):
     """
     A variable EvalNode. Simply accesses the value passed in by the caller.
     """
+    __slots__ = ('name',)
+
     def __init__(self, tok):
         self.name = tok[0]
 
@@ -549,7 +582,7 @@ class OpNode(EvalNode):
     nodes and also handles adding parens when needed in a string representation
     of the operation.
     """
-    op = ''
+    __slots__ = ('op', 'opfunc', 'assoc')
     ops = {}
 
     def __init__(self, op):
@@ -568,6 +601,7 @@ class BinaryOpNode(OpNode):
     """
     An EvalNode for an operations that takes two operands.
     """
+    __slots__ = ('lhs', 'rhs')
     ops = {
         '^': (operator.pow, 4),
         '*': (operator.mul, 2),
@@ -607,6 +641,7 @@ class UnaryOpNode(OpNode):
     """
     An EvalNode for an operator that takes only a single operand.
     """
+    __slots__ = ('rhs',)
     ops = {
         '-': (operator.neg, 3),
         '+': (operator.pos, 3),
@@ -636,6 +671,8 @@ class FunctionNode(VariableNode):
     An EvalNode for calling a function. Functions are Python functions passed
     into the evaluation as variables.
     """
+    __slots__ = ('args',)
+
     def __init__(self, tok):
         super(FunctionNode, self).__init__(tok)
         self.args = tok[1]
@@ -710,10 +747,12 @@ class SeqMethodNode(FunctionNode):
 grammar = _grammar()
 
 
-class RollResult(object):
+class RollResult(SlotPickleMixin):
     """
     A RollResult represents a specific cast of a Roll.
     """
+    __slots__ = ('roll', 'state', 'desc', 'result')
+
     def __init__(self, roll, **vars):
         if isinstance(roll, basestring):
             roll = Roll(roll)
@@ -729,7 +768,7 @@ class RollResult(object):
         return "%s = %s" % (self.desc or self.roll, self.result)
 
 
-class Roll(object):
+class Roll(SlotPickleMixin):
     """
     A Roll is the representation of a roll formula. To perform the roll it
     represents, call .eval().
@@ -757,6 +796,7 @@ class Roll(object):
         'seq.drop': lambda s, *v: Sequence(r for r in s if r not in v),
         'seq.average': lambda s: sum(s) / float(len(s))
     }
+    __slots__ = ('raw', 'parsed', 'vars')
 
     def __init__(self, expr, parser=None, vars=None):
         parser = parser or grammar
@@ -806,4 +846,4 @@ def roll(expr, **vars):
     If you need more, use L{Roll} or L{RollResult}.
     """
     roll = Roll(expr)
-    return roll.eval(**vars)[0]
+    return roll.eval(**vars)
