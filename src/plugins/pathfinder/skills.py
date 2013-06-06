@@ -1,17 +1,8 @@
 from .features import Feature
-
-
-skills = {}
-
-
-def add(skill):
-    pass
+from .data import loaded_data
 
 
 class Skill(Feature):
-    id = ''
-    name = ''
-    description = ''
-    ability = ''
-    trained_only = False
-    ac_penalty = False
+    __metaclass__ = loaded_data
+    __slots__ = ('id', 'name', 'description', 'ability', 'trained_only',
+                 'ac_penalty')

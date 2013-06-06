@@ -11,6 +11,8 @@ class EventResponder(object):
     """
     Base class for objects that wish to be event responders.
     """
+    __slots__ = ()
+
     def respond_to_event(self, event, responses):
         raise NotImplementedError("'%s' does not implement respond_to_event()"
                                   % self.__class__.__name__)
@@ -26,6 +28,8 @@ class HasEvents(object):
     """
     An object that can notify other objects of arbitrary events.
     """
+    __slots__ = ()
+
     def trigger_event(self, event):
         responses = OrderedDict()
         for r in self.event_responders(event):

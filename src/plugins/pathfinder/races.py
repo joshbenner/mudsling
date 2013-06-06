@@ -11,28 +11,18 @@ class RacialTrait(Feature):
 
 class Race(Feature):
     __metaclass__ = loaded_data
+    __slots__ = ('id', 'singular', 'plural', 'physical_description',
+                 'society', 'relations', 'size', 'racial_traits')
 
-    # name, description from Feature
-    id = ''
-    singular = ''
-    plural = ''
-    physical_description = ''
-    society = ''
-    relations = ''
-    size = size_categories['medium']
-    racial_traits = []
-    initialized = False
-
-    def __init__(self, **kw):
-        super(Race, self).__init__('Race %s' % id(self))
-        self.__dict__.update(kw)
+    # Init runs with data already loaded into members.
+    def __init__(self, *a, **kw):  # Metaclass processes keyword args.
+        super(Race, self).__init__(self.name)
         if not self.id:
-            self.id = self.singular.lower()
+            self.id = self.singular
         if isinstance(self.size, basestring):
             if self.size in size_categories:
                 self.size = size_categories[self.size]
         self._process_racial_traits()
-        self.initialized = True
 
     def __repr__(self):
         return "pathfinder.race('%s')" % (self.id or self.singular)
@@ -52,8 +42,6 @@ class Race(Feature):
         self.delegate_event(event, responses, self.racial_traits)
 
     def _process_racial_traits(self):
-        if self.initialized:
-            return
         raw = self.racial_traits
         traits = OrderedDict()
         for name, info in raw.iteritems():

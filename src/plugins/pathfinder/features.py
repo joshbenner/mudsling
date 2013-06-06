@@ -10,20 +10,24 @@ from .events import EventResponder, HasEvents
 
 
 class Feature(EventResponder):
-    name = 'Unnamed Feature'
-    description = ''
-    effects = []
+    __slots__ = ('name', 'description', 'effects')
 
     def __init__(self, name, desc=''):
         self.name = name
         self.description = desc
+        self.effects = []
 
     def respond_to_event(self, event, responses):
         self.delegate_event(event, responses, self.effects)
 
 
 class HasFeatures(HasEvents):
-    features = []
+    __slots__ = ('features',)
+
+    def __init__(self, *a, **kw):
+        # May not be last in MRO before object.
+        super(HasFeatures, self).__init__(*a, **kw)
+        self.features = []
 
     def event_responders(self, event):
         return self.features
