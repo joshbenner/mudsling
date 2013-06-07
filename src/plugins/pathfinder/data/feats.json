@@ -1,0 +1,102 @@
+{
+  "Acrobatic": {
+    "effects": [
+      "+2 bonus on Acrobatics checks",
+      "+2 bonus on Fly checks"
+    ]
+  },
+  "Agile Maneuvers": {
+    "type": "combat",
+    "effects": [
+      "CMB = BAB + max(STR, DEX) - Size Modifier"
+    ]
+  },
+  "Altertness": {
+    "effects": [
+      "+2 bonus on Perception checks",
+      "+2 bonus on Sense Motive checks"
+    ]
+  },
+  "Alignment Channel": {
+    "prerequisites": [
+      "Channel Energy"
+    ]
+  },
+  "Animal Affinity": {
+    "effects": [
+      "+2 bonus on Handle Animal checks",
+      "+2 bonus on Ride checks"
+    ]
+  },
+  "Arcane Armor Training": {
+    "type": "combat",
+    "prerequisites": [
+      "Armor Proficiency, Light",
+      "caster level 3rd"
+    ],
+    "effects": [
+      "-10% to arcane spell failure chance"
+    ]
+  },
+  "Arcane Armor Mastery": {
+    "type": "combat",
+    "prerequisites": [
+      "Arcane Armor Training",
+      "Armor Proficiency, Medium",
+      "caster level 7th"
+    ],
+    "effects": [
+      "-10% to arcane spell failure chance"
+    ]
+  },
+  "Arcane Strike": {
+    "prerequisits": [
+      "Cast arcane spells"
+    ]
+  },
+  "Armor Proficiency, Light": {},
+  "Armor Proficiency, Medium": {
+    "prerequisites": [
+      "Armor Proficiency, Light"
+    ]
+  },
+  "Armor Proficiency, Heavy": {
+    "prerequisites": [
+      "Armor Proficiency, Medium"
+    ]
+  },
+  "Athletic": {
+    "effects": [
+      "+2 bonus on Climb checks",
+      "+2 bonus on Swim checks"
+    ]
+  },
+  "Augment Summoning": {
+    "prerequisites": [
+      "Spell Focus (conjuration)"
+    ]
+  },
+  "Blind-Fight": {
+    "type": "combat",
+    "effects": [
+      "Concealment miss chance = 10%"
+    ]
+  },
+  "Catch Off-Guard": {
+    "type": "combat",
+    "effects": [
+      "Improvised weapon penalty = 0"
+    ]
+  },
+  "Channel Smite": {
+    "type": "combat",
+    "prerequisites": [
+      "Channel Energy"
+    ]
+  },
+  "Combat Casting": {
+    "effects": [
+      "+4 bonus to Concentration checks for defensive casting"
+    ]
+  }
+}

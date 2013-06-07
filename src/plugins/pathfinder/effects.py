@@ -24,6 +24,12 @@ Examples:
 * +2 to STR for 2 turns
 * +1d4 + 1 enhancement bonus to Attack for 1 day
 * +1d4 Damage
+
+TODO:
+* Implement vs checks (as separate class?)
+* <expr> bonus to <stat> for <tags> (maybe same thing as vs/against?)
+* Convert effects to slots.
+* Implement overwriting effects, ie: CMB = BAB + max(STR, DEX) - Size Mod
 """
 import re
 from mudsling.storage import Persistent
