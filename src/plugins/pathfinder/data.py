@@ -4,6 +4,7 @@ from mudsling import pickler
 from mudsling.utils.sequence import CaselessDict
 
 registry = CaselessDict()
+logger = logging.getLogger('pathfinder')
 
 
 def get(class_name, id):
@@ -46,7 +47,7 @@ def loaded_data(clsname, parents, members):
                 super(cls, self).__init__(*a, **kw)
             except TypeError:  # Don't die on __init__ param issues.
                 pass
-        logging.info("Loaded %s: %s" % (clsname, self.id))
+        logger.info("Loaded %s: %s" % (clsname, self.id))
 
     cls.__init__ = newinit
 

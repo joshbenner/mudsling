@@ -17,6 +17,12 @@ class Feature(EventResponder):
         self.description = desc
         self.effects = []
 
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return "pathfinder.features.Feature('%s')" % self.name
+
     def respond_to_event(self, event, responses):
         self.delegate_event(event, responses, self.effects)
 

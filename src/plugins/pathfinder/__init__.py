@@ -11,6 +11,10 @@ def race(name):
     return get('race', name)
 
 
+def skill(name):
+    return get('skill', name)
+
+
 class Ability(namedtuple("Ability", "name short")):
     pass
 
