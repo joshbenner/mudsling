@@ -8,11 +8,11 @@ class MissingParameter(ParseException):
 
 
 class SyntaxToken(object):
-    _exprCache = None
+    __slots__ = ('_exprCache',)
 
     def expr(self, nextToken=None):
         # Call with a nextToken first, and subsequent calls include it.
-        if not self._exprCache:
+        if not hasattr(self, '_exprCache'):
             self._exprCache = self._expr(nextToken)
         return self._exprCache.copy()
 
@@ -27,11 +27,15 @@ class SyntaxToken(object):
 
 
 class SyntaxEnd(SyntaxToken):
+    __slots__ = ()
+
     def _expr(self, nextToken):
         return StringEnd()
 
 
 class SyntaxLiteral(SyntaxToken):
+    __slots__ = ('text',)
+
     def __init__(self, tok):
         self.text = tok[0].strip()
 
@@ -43,6 +47,8 @@ class SyntaxLiteral(SyntaxToken):
 
 
 class SyntaxChoice(SyntaxToken):
+    __slots__ = ('choices',)
+
     def __init__(self, tok):
         self.choices = tok[1]
 
@@ -56,6 +62,8 @@ class SyntaxChoice(SyntaxToken):
 
 
 class SyntaxParam(SyntaxToken):
+    __slots__ = ('name',)
+
     def __init__(self, tok):
         self.name = tok[1]
 
@@ -76,6 +84,8 @@ class SyntaxParam(SyntaxToken):
 
 
 class SyntaxOptional(SyntaxToken):
+    __slots__ = ('inside',)
+
     def __init__(self, tok):
         self.inside = tok[1:-1]
 
@@ -158,15 +168,17 @@ class Syntax(object):
     """
     Container object to conform to original Syntax API.
     """
+    __slots__ = ('natural', 'empty', 'parser', 'err')
+
     syntaxGrammar = syntax_grammar()
-    empty = False
-    parser = None
 
     def __init__(self, syntax):
         self.natural = syntax.strip()
         if not self.natural:
             self.empty = True
+            self.parser = None
         else:
+            self.empty = False
             tokens = self.syntaxGrammar.parseString(syntax, parseAll=True)
             self.parser = command_parser(tokens)
 
@@ -181,7 +193,7 @@ class Syntax(object):
             self.err = e
             return False
 
-# Confirm to Syntax API.
+# Conform to Syntax API.
 SyntaxParseError = ParseException
 
 if __name__ == '__main__':
