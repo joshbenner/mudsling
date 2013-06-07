@@ -49,16 +49,18 @@ def parser(funcs=None, cache=True, reset=False):
     return p
 
 
-class Lock(storage.Persistent):
-    raw = ""
-
-    #: @type: L{mudsling.utils.locks.LockFunc}
-    parsed = None
+class Lock(storage.PersistentSlots):
+    __slots__ = ('raw', 'parsed')
 
     _transient_vars = ['parsed']
 
     def __init__(self, lockStr):
         self.raw = lockStr
+        self.parsed = None
+
+    def __setstate__(self, state):
+        super(Lock, self).__setstate__(state)
+        self.parsed = None
 
     def __str__(self):
         return self.raw
@@ -98,14 +100,18 @@ none_pass = Lock('False')  # Always False
 all_pass = Lock('True')    # Always True
 
 
-class LockSet(storage.Persistent):
-    raw = ""
-    locks = None
+class LockSet(storage.PersistentSlots):
+    __slots__ = ('raw', 'locks')
 
     _transient_vars = ['locks']
 
     def __init__(self, lockSetStr=''):
         self.raw = lockSetStr
+        self.locks = None
+
+    def __setstate__(self, state):
+        super(LockSet, self).__setstate__(state)
+        self.locks = None
 
     def __str__(self):
         return self.raw

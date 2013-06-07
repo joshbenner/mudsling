@@ -23,6 +23,7 @@ from pyparsing import Suppress, Literal, CaselessLiteral, Word, Group,\
 
 # Can be imported from this module by other modules, do not remove.
 from pyparsing import ParseException
+from mudsling.storage import PersistentSlots
 
 # Alias symbols to their built-in functions. Used in LockParser().
 opMap = {
@@ -32,13 +33,12 @@ opMap = {
 }
 
 
-class LockFunc(object):
+class LockFunc(PersistentSlots):
     """
     Generic form of a lock function. A child class using the specified function
     map will be dynamically created when a new L{LockParser} is created.
     """
-    fname = ""
-    args = []
+    __slots__ = ('fname', 'args')
 
     def eval(self, *args):
         """
@@ -65,7 +65,7 @@ def LockParser(funcMap):
     @rtype funcMap: C{dict}
 
     @return: An expression tree which can be evaluated.
-    @rtype: L{LockFunc}
+    @rtype: L{pyparsing.ParserElement}
     """
     funcs = {
         'not': lambda _, __, x: not x,
@@ -114,6 +114,7 @@ def LockParser(funcMap):
     func = fname + Suppress('(') + args + Suppress(')')
     func.setParseAction(_lockFunc)
 
+    # noinspection PyUnresolvedReferences
     expr = operatorPrecedence(
         func,
         [

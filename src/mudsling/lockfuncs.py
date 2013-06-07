@@ -23,7 +23,7 @@ def default_funcs():
     """
     true = lambda *a: True
     false = lambda *a: False
-    id = lambda o, w, id: w.id == id
+    id = lambda o, w, id: w.obj_id == int(id)
     perm = lambda o, w, p: w.has_perm(p)
     return {
         'id': id,

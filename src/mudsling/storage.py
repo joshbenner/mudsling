@@ -93,6 +93,39 @@ class ObjRef(namedtuple('ObjRef', 'id db')):
             return False
 
 
+class PersistentSlots(object):
+    """
+    Parent which supports pickling classes that make use of slots, and explicit
+    exclusion of some slots from pickling. Slot-based cousin of L{Persistent}.
+
+    To keep things simple,
+
+    @see U{http://code.activestate.com/recipes/578433}
+    """
+    __slots__ = ()
+
+    _transient_vars = []
+
+    @classmethod
+    def _all_slots(cls):
+        slots = []
+        for ancestor in cls.__mro__:
+            if '__slots__' in ancestor.__dict__:
+                slots.extend(list(ancestor.__slots__))
+        return slots
+
+    def __getstate__(self):
+        return dict(
+            (slot, getattr(self, slot))
+            for slot in self._all_slots()
+            if slot not in self._transient_vars and hasattr(self, slot)
+        )
+
+    def __setstate__(self, state):
+        for slot, value in state.items():
+            setattr(self, slot, value)
+
+
 class Persistent(object):
     """
     Base class for objects persisted to the game database. This is not just
