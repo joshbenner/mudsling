@@ -117,7 +117,7 @@ class HasStats(Persistent):
                 # Another child of Persistent later in the ancestry could
                 # define __getattr__, so give them an opportunity.
                 # noinspection PyUnresolvedReferences
-                return super(PathfinderObject, self).__getattr__(item)
+                return super(HasStats, self).__getattr__(item)
             except AttributeError:
                 raise AttributeError("'%s' object has no attribute '%s'"
                                      % (self.__class__.__name__, item))
