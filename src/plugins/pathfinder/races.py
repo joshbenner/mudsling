@@ -11,8 +11,7 @@ class RacialTrait(Feature):
 
 class Race(Feature):
     __metaclass__ = loaded_data
-    __slots__ = ('id', 'singular', 'plural', 'physical_description',
-                 'society', 'relations', 'size', 'racial_traits')
+    __slots__ = ('id', 'singular', 'plural', 'size', 'racial_traits')
 
     # Init runs with data already loaded into members.
     def __init__(self, *a, **kw):  # Metaclass processes keyword args.

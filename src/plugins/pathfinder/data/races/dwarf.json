@@ -1,10 +1,6 @@
 {
   "singular": "Dwarf",
   "plural": "Dwarves",
-  "description": "Dwarves are a stoic but stern race, ensconced in cities carved from the hearts of mountains and fiercely determined to repel the depredations of savage races like orcs and goblins. More than any other race, the dwarves have acquired a reputation as dour and humorless craftsmen of the earth. It could be said that dwarven history shapes the dark disposition of many dwarves, for they reside in high mountains and dangerous realms below the earth, constantly at war with giants, goblins, and other such horrors.",
-  "physical_description": "Dwarves are a short and stocky race, and stand about a foot shorter than most humans, with wide, compact bodies that account for their burly appearance. Male and female dwarves pride themselves on the length of their hair, and men often decorate their beards with a variety of clasps and intricate braids. A cleanshaven male dwarf is a sure sign of madness, or worse—no one familiar with their race trusts a beardless dwarf.",
-  "society": "The great distances between their mountain citadels account for many of the cultural differences that exist within dwarven society. Despite these schisms, dwarves throughout the world are characterized by their love of stonework, their passion for stone- and metal-based craftsmanship and architecture, and a fierce hatred of giants, orcs, and goblinoids.",
-  "relations": "Dwarves and orcs have long dwelt in proximity, theirs a history of violence as old as both their races. Dwarves generally distrust and shun halforcs. They f ind half lings, elves, and gnomes to be too frail, f lighty, or “pretty” to be worthy of proper respect. It is with humans that dwarves share the strongest link, for humans’ industrious nature and hearty appetites come closest to matching those of the dwarven ideal.",
   "size": "medium",
   "racial_traits": {
     "Abilities": [
