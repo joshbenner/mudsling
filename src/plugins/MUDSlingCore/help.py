@@ -96,8 +96,8 @@ class HelpEntry(object):
             self.title = str(self.meta['title'][0])
             self.names[0] = self.title.lower()
         if 'aliases' in self.meta:
-            parse = parsers.StringListStaticParser.parse
-            self.names[1:] = map(str.lower, parse(self.meta['aliases'][0]))
+            p = parsers.StringListStaticParser.parse
+            self.names[1:] = map(str.lower, p(str(self.meta['aliases'][0])))
         if 'lock' in self.meta:
             self.lock = locks.Lock(str(self.meta['lock'][0]))
         if 'priority' in self.meta:
