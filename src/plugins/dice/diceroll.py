@@ -75,6 +75,9 @@ Examples:
 
 Notes:
 * Adding a sequence to a number coerces the sequence to a sum of its elements.
+
+TODO:
+* Implement vs checks (as separate class?)
 """
 import math
 import random

@@ -96,7 +96,83 @@
   },
   "Combat Casting": {
     "effects": [
-      "+4 bonus to Concentration checks for defensive casting"
+      "+4 bonus to Concentration checks to cast defensively"
+    ]
+  },
+  "Combat Expertise": {
+    "type": "combat",
+    "prerequisites": [
+      "Intelligence 13"
+    ]
+  },
+  "Improved Disarm": {
+    "type": "combat",
+    "prerequisites": [
+      "Combat Expertise"
+    ],
+    "effects": [
+      "+2 bonus on disarm attempts"
+    ]
+  },
+  "Greater Disarm": {
+    "type": "combat",
+    "prerequisites": [
+      "Improved Disarm",
+      "BAB 6"
+    ]
+  },
+  "Improved Feint": {
+    "type": "combat",
+    "prerequisites": [
+      "Combat Expertise"
+    ]
+  },
+  "Greater Feint": {
+    "type": "combat",
+    "prerequisites": [
+      "Improved Feint",
+      "BAB 6"
+    ]
+  },
+  "Improved Trip": {
+    "type": "combat",
+    "prerequisites": [
+      "Combat Expertise"
+    ]
+  },
+  "Greater Trip": {
+    "type": "combat",
+    "prerequisites": [
+      "Improved Trip",
+      "BAB 6"
+    ]
+  },
+  "Whirlwind Attack": {
+    "type": "combat",
+    "prerequisites": [
+      "Dexterity 13",
+      "Combat Expertise",
+      "Sprint Attack",
+      "BAB 4"
+    ]
+  },
+  "Combat Reflexes": {
+    "type": "combat"
+  },
+  "Critical Focus": {
+    "type": "combat",
+    "prerequisites": [
+      "BAB 9"
+    ],
+    "effects": [
+      "+4 bonus to critical confirmation"
+    ]
+  },
+  "Bleeding Critical": {
+    "type": "critical",
+    "prerequisites": [
+      "Critical Focus",
+      "BAB 11"
     ]
   }
 }

@@ -26,18 +26,13 @@ Examples:
 * +1d4 Damage
 
 TODO:
-* Implement vs checks (as separate class?)
 * <expr> bonus to <stat> for <tags> (maybe same thing as vs/against?)
 * Convert effects to slots.
 * Implement overwriting effects, ie: CMB = BAB + max(STR, DEX) - Size Mod
 """
-import re
-from mudsling.storage import Persistent
+from mudsling.storage import PersistentSlots
 
 import dice
-
-_grant_re = re.compile("^Grants? +(.+?)(?: +feat)?$", re.I)
-_speak_re = re.compile("^(?:Can +)Speaks? +(.+?)$", re.I)
 
 
 def _grammar():
@@ -77,7 +72,7 @@ def _grammar():
 grammar = _grammar()
 
 
-class Effect(Persistent):
+class Effect(PersistentSlots):
     """
     Represents an effect that can be provided by equipment, conditions, class
     features, etc (just about anything).
@@ -85,13 +80,8 @@ class Effect(Persistent):
     This class is a *stored* effect, as opposed to an effect that is currently
     applied to an object/character.
     """
-    roll = None
-    nature = None
-    type = None
-    stat = ''
-    expire_event = None
-    duration_roll = None
-    duration_unit = None
+    __slots__ = ('roll', 'nature', 'type', 'stat', 'expire_event',
+                 'duration_roll', 'duration_unit')
 
     def __init__(self, effect, parser=None):
         parser = parser or grammar
@@ -99,13 +89,22 @@ class Effect(Persistent):
         self.roll = dice.Roll(parsed['effect_val'])
         if parsed['nature'] is not None:
             self.nature = parsed['nature'].strip() or None
+        else:
+            self.nature = None
         if parsed['type'] is not None:
             self.type = parsed['type'].strip() or None
+        else:
+            self.type = None
         # todo: Parse stat based on strings like "<skill> skill rolls" etc.
         self.stat = parsed['stat'].strip()
         if 'until' in parsed:
             self.expire_event = parsed['until']
+        else:
+            self.expire_event = None
         if 'duration' in parsed:
             val, unit = parsed['duration']
             self.duration_roll = dice.Roll(val)
             self.duration_unit = unit
+        else:
+            self.duration_roll = None
+            self.duration_unit = None
