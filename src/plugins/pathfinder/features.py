@@ -10,18 +10,14 @@ from .events import EventResponder, HasEvents
 
 
 class Feature(EventResponder):
-    __slots__ = ('name', 'description', 'effects')
+    __slots__ = ()
 
-    def __init__(self, name, desc=''):
-        self.name = name
-        self.description = desc
-        self.effects = []
+    name = ''
+    description = ''
+    effects = []
 
     def __str__(self):
         return self.name
-
-    def __repr__(self):
-        return "pathfinder.features.Feature('%s')" % self.name
 
     def respond_to_event(self, event, responses):
         self.delegate_event(event, responses, self.effects)

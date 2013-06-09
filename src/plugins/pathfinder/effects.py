@@ -30,9 +30,14 @@ TODO:
 * Convert effects to slots.
 * Implement overwriting effects, ie: CMB = BAB + max(STR, DEX) - Size Mod
 """
+import logging
+from pyparsing import ParseException
+
 from mudsling.storage import PersistentSlots
 
 import dice
+
+logger = logging.getLogger('pathfinder')
 
 
 def _grammar():
@@ -86,17 +91,19 @@ class Effect(PersistentSlots):
     def __init__(self, effect, parser=None):
         parser = parser or grammar
         parsed = parser.parseString(effect, True)
-        self.roll = dice.Roll(parsed['effect_val'])
-        if parsed['nature'] is not None:
+        self.roll = (dice.Roll(parsed['effect_val'])
+                     if 'effect_val' in parsed
+                     else None)
+        if parsed.get('nature', None) is not None:
             self.nature = parsed['nature'].strip() or None
         else:
             self.nature = None
-        if parsed['type'] is not None:
+        if parsed.get('type', None) is not None:
             self.type = parsed['type'].strip() or None
         else:
             self.type = None
         # todo: Parse stat based on strings like "<skill> skill rolls" etc.
-        self.stat = parsed['stat'].strip()
+        self.stat = parsed['stat'].strip() if 'stat' in parsed else None
         if 'until' in parsed:
             self.expire_event = parsed['until']
         else:
@@ -108,3 +115,15 @@ class Effect(PersistentSlots):
         else:
             self.duration_roll = None
             self.duration_unit = None
+
+
+def effects(*a):
+    effects = []
+    for effect_str in a:
+        try:
+            e = Effect(effect_str)
+        except ParseException:
+            logger.warning("Could not parse effect: %s" % effect_str)
+        else:
+            effects.append(e)
+    return effects

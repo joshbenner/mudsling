@@ -49,7 +49,7 @@ def _persistent_load(id):
     if cls in _external_types:
         return _external_types[cls][1](id)
     else:
-        raise pickle.UnpickleableError("No external factor for %s.%s#%s"
+        raise pickle.UnpickleableError("No external factory for %s.%s#%s"
                                        % (module_name, class_name, id))
 
 

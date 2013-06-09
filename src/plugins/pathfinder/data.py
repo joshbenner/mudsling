@@ -1,54 +1,38 @@
-import logging
+import inspect
 
-from mudsling import pickler
 from mudsling.utils.sequence import CaselessDict
 
 registry = CaselessDict()
-logger = logging.getLogger('pathfinder')
 
 
 def get(class_name, id):
+    if isinstance(class_name, type):
+        class_name = class_name.__name__
     return registry[class_name][id]
 
 
 def add(class_name, obj):
-    registry[class_name][obj.id] = obj
+    if isinstance(class_name, type):
+        class_name = class_name.__name__
+    if class_name not in registry:
+        registry[class_name] = CaselessDict()
+    if isinstance(obj, list) or isinstance(obj, tuple):
+        for o in obj:
+            add(class_name, o)
+    else:
+        registry[class_name][obj.name] = obj
 
 
-def loaded_data(clsname, parents, members):
-    registry[clsname] = CaselessDict()
+def add_from(cls, module):
+    to_add = []
+    for val in module.__dict__.itervalues():
+        if inspect.isclass(val) and issubclass(val, cls) and val != cls:
+            to_add.append(val)
+    add(cls, to_add)
 
-    if '__slots__' in members:
-        if 'id' not in members['__slots__']:
-            members['__slots__'] = list(members['__slots__'])
-            members['__slots__'].append('id')
-    elif 'id' not in members:
-        members['id'] = ''
 
-    members['persistent_id'] = staticmethod(lambda obj: obj.id)
-    members['persistent_load'] = staticmethod(lambda id: get(clsname, id))
-    cls = type(clsname, parents, members)
-    # noinspection PyUnresolvedReferences
-    pickler.register_external_type(cls, cls.persistent_id, cls.persistent_load)
-
-    oldinit = members.get('__init__', None)
-
-    def newinit(self, *a, **kw):
-        self.id = ''
-        for k, v in kw.iteritems():
-            try:
-                setattr(self, k, v)
-            except AttributeError:
-                continue
-        if oldinit is not None:
-            oldinit(self, *a, **kw)
-        else:
-            try:
-                super(cls, self).__init__(*a, **kw)
-            except TypeError:  # Don't die on __init__ param issues.
-                pass
-        logger.info("Loaded %s: %s" % (clsname, self.id))
-
-    cls.__init__ = newinit
-
-    return cls
+class ForceSlotsMetaclass(type):
+    def __new__(mcs, name, bases, dict):
+        if '__slots__' not in dict:
+            dict['__slots__'] = ()
+        return type.__new__(mcs, name, bases, dict)

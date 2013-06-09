@@ -1,51 +1,43 @@
-from collections import OrderedDict
-
 from .features import Feature
 from .sizes import size_categories
-from .data import loaded_data
-
-
-class RacialTrait(Feature):
-    pass
+from .effects import effects
+from .data import ForceSlotsMetaclass
 
 
 class Race(Feature):
-    __metaclass__ = loaded_data
-    __slots__ = ('id', 'singular', 'plural', 'size', 'racial_traits')
+    """
+    A race.
 
-    # Init runs with data already loaded into members.
-    def __init__(self, *a, **kw):  # Metaclass processes keyword args.
-        super(Race, self).__init__(self.name)
-        if not self.id:
-            self.id = self.singular
-        if isinstance(self.size, basestring):
-            if self.size in size_categories:
-                self.size = size_categories[self.size]
-        self._process_racial_traits()
+    Races should not be instantiated.
+    """
+    __metaclass__ = ForceSlotsMetaclass
+    name = ''
+    plural = ''
+    size = None
+    ability_modifiers = {}
+    effects = []
 
-    def __repr__(self):
-        return "pathfinder.race('%s')" % (self.id or self.singular)
 
-    def __str__(self):
-        return self.singular
-
-    @property
-    def name(self):
-        return self.singular
-
-    @name.setter
-    def name(self, val):
-        self.singular = val
-
-    def respond_to_event(self, event, responses):
-        self.delegate_event(event, responses, self.racial_traits)
-
-    def _process_racial_traits(self):
-        raw = self.racial_traits
-        traits = OrderedDict()
-        for name, info in raw.iteritems():
-            desc, effects = info
-            trait = RacialTrait(name, desc)
-            trait.effects = effects
-            traits[name] = trait
-        self.racial_traits = traits
+class Dwarf(Race):
+    name = 'Dwarf'
+    plural = 'Dwarves'
+    size = size_categories['medium']
+    ability_modifiers = {
+        'Constitution': 2,
+        'Wisdom': 2,
+        'Charisma': -2,
+    }
+    effects = effects(
+        'Grants Darkvision',
+        '+4 dodge bonus to AC against giant subtype',
+        '+2 racial bonus on Appraise skill checks',
+        '+1 bonus to Attack against orc subtype',
+        '+1 bonus to Attack against goblinoid subtype',
+        '+2 racial bonus to saving throws against poison',
+        '+2 racial bonus to saving throws against spells',
+        '+2 racial bonus to saving throws against spell-like abilities',
+        '+4 racial bonus to CMD against bull rush',
+        '+4 racial bonus to CMD against trip',
+        'Speak Common',
+        'Speak Dwarven'
+    )

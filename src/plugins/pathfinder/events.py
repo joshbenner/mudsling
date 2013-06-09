@@ -30,6 +30,15 @@ class HasEvents(object):
     """
     __slots__ = ()
 
+    def __init__(self, *a, **kw):
+        try:
+            # noinspection PyArgumentList
+            super(HasEvents, self).__init__(*a, **kw)
+        except TypeError:
+            # If we are last in MRO before object, then we may hit this, but it
+            # is harmless.
+            pass
+
     def trigger_event(self, event):
         responses = OrderedDict()
         for r in self.event_responders(event):
