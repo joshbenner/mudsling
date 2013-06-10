@@ -7,12 +7,16 @@ class Feat(Feature):
     """
     A feat.
 
-    Do not instantiate.
+    Instances represent the possession of the feat. So, when a character gains
+    a feat, an instance of that feat is stored on the character. This allows
+    some feats to have feat subtypes (ie: which weapon for Weapon Focus).
     """
     __metaclass__ = ForceSlotsMetaclass
-    __slots__ = ()
+    __slots__ = ('subtype',)
     name = ''
     type = 'general'
+    multiple = False
+    subtypes = []
     prerequisites = []
     effects = []
 
@@ -29,7 +33,7 @@ class AgileManeuvers(Feat):
     name = 'Agile Maneuvers'
     type = 'combat'
     effects = effects(
-        'CMB = BAB + max(STR, DEX) - Size Modifier'
+        'CMB = BAB + max(STR, DEX) - Size mod'
     )
 
 
@@ -41,24 +45,11 @@ class Altertness(Feat):
     )
 
 
-class AlignmentChannelChaos(Feat):
-    name = 'Alignment Channel (chaos)'
-    prrequisites = ["Channel Energy"]
-
-
-class AlignmentChannelEvil(Feat):
-    name = 'Alignment Channel (evil)'
-    prrequisites = ["Channel Energy"]
-
-
-class AlignmentChannelGood(Feat):
-    name = 'Alignment Channel (good)'
-    prrequisites = ["Channel Energy"]
-
-
-class AlignmentChannelLaw(Feat):
-    name = 'Alignment Channel (law)'
-    prrequisites = ["Channel Energy"]
+class AlignmentChannel(Feat):
+    name = 'Alignment Channel'
+    prerequisites = ["Channel Energy"]
+    multiple = True
+    subtypes = ['chas', 'evil', 'good', 'law']
 
 
 class AnimalAffinity(Feat):
@@ -243,7 +234,7 @@ class DefensiveCombatTraining(Feat):
     name = 'Defensive Combat Training'
     type = 'combat'
     effects = effects(
-        'CMD = 10 + max(BAB, HD) + STR + DEX - Size modifier'
+        'CMD = 10 + max(BAB, HD) + STR + DEX - Size mod'
     )
 
 
@@ -423,3 +414,187 @@ class ExtraPerformance(Feat):
     name = "Extra Performance"
     prerequisites = ['Bardic Performance']
     effects = effects('+6 rounds of bardic performance')
+
+
+class ExtraRage(Feat):
+    name = "Extra Rage"
+    prerequisites = ['Rage']
+    effects = effects('+6 rounds of rage')
+
+
+class GreatFortitude(Feat):
+    name = "Great Fortitude"
+    effects = effects('+2 on Fortitude saves')
+
+
+class ImprovedGreatFortitude(Feat):
+    name = "Improved Great Fortitude"
+    prerequisites = ['Great Fortitude']
+    effects = effects('+2 on Fortitude saves')
+
+
+class ImprovedChannel(Feat):
+    name = "Improved Channel"
+    prerequisites = ['Channel Energy']
+    effects = effects('+2 to channel energy DC')
+
+
+class ImprovedCounterspell(Feat):
+    name = "Improved Counterspell"
+
+
+class ImprovedCritical(Feat):
+    name = 'Improved Critical'
+    type = 'combat'
+    prerequisites = ['BAB 8']
+    multiple = True
+    subtypes = ()  # todo: Dynamically load weapon types
+
+
+class ImprovedInitiative(Feat):
+    name = "Improved Initiative"
+    type = "combat"
+    effects = effects('+4 bonus to initiative')
+
+
+class ImprovedUnarmedStrike(Feat):
+    name = "Improved Unarmed Strike"
+    type = "combat"
+    effects = effects('Lethal unarmed strike = BAB + STR + Size mod')
+
+
+class DeflectArrows(Feat):
+    name = "Deflect Arrows"
+    type = "combat"
+    prerequisites = ['Dexterity 13', 'Improved Unarmed Strike']
+
+
+class SnatchArrows(Feat):
+    name = "Snatch Arrows"
+    type = "combat"
+    prerequisites = ['Dexterity 15', 'Deflect Arrows']
+
+
+class ImprovedGrapple(Feat):
+    name = "Improved Grapple"
+    type = "combat"
+    prerequisites = ['Dexterity 13', 'Improved Unarmed Strike']
+    effects = effects('+2 bonus on grapple attempts')
+
+
+class GreaterGrapple(Feat):
+    name = "Greater Grapple"
+    type = "combat"
+    prerequisites = ['BAB 6', 'Improved Grapple']
+    effects = effects('+2 bonus on grapple attempts')
+
+
+class ScorpionStyle(Feat):
+    name = "Scorpion Style"
+    type = "combat"
+    prerequisites = ['Improved Unarmed Strike']
+
+
+class FistOfGorgon(Feat):
+    name = "Fist of Gorgon"
+    type = "combat"
+    prerequisites = ['Scorpion Style', 'BAB 6']
+
+
+class WrathOfMedusa(Feat):
+    name = "Wrath of Medusa"
+    type = "combat"
+    prerequisites = ['Fist of Gorgon', 'BAB 11']
+
+
+class StunningFist(Feat):
+    name = 'Stunning Fist'
+    type = 'combat'
+    prerequisites = ['Dexterity 13', 'Wisdom 13', 'Improved Unarmed Strike',
+                     'BAB 8']
+
+
+class ImprovisedWeaponMastery(Feat):
+    name = 'Improvised Weapon Mastery'
+    type = 'combat'
+    prerequisites = ['Catch Off-Guard', 'BAB 8']
+    effects = effects('+1d4 to improvised weapon damage')
+
+
+class IntimidatingProwess(Feat):
+    name = 'Intimidating Prowess'
+    type = 'combat'
+    effects = effects('+STR to Intimidate skill checks')
+
+
+class IronWill(Feat):
+    name = 'Iron Will'
+    effects = effects('+2 bonus on Will saves')
+
+
+class ImprovedIronWill(Feat):
+    name = 'Improved Iron Will'
+    prerequisites = ['Iron Will']
+    effects = effects('+2 bonus on Will saves')
+
+
+class LightningReflexes(Feat):
+    name = 'Lightning Reflexes'
+    effects = effects('+2 bonus on Reflex saves')
+
+
+class ImprovedLightningReflexes(Feat):
+    name = 'Improved Lightning Reflexes'
+    prerequisites = ['Lightning Reflexes']
+    effects = effects('+2 bonus on Reflex saves')
+
+
+class Lunge(Feat):
+    name = "Lunge"
+    type = 'combat'
+    prerequisites = ['BAB 6']
+
+
+class MagicalAptitude(Feat):
+    name = 'Magical Aptitude'
+    effects = effects(
+        '+2 bonus on Spellcraft checks',
+        '+2 bonus on Use Magic Device checks'
+    )
+
+
+class MartialWeaponProficiency(Feat):
+    name = 'Martial Weapon Proficiency'
+    type = 'combat'
+    multiple = True
+    subtypes = ()  # todo: Dynamic martial weapon list
+
+
+class Persuasive(Feat):
+    name = 'Persuasive'
+    effects = effects(
+        '+2 bonus on Diplomacy checks',
+        '+2 bonus on Intimidate checks'
+    )
+
+
+class PointBlankShot(Feat):
+    name = 'Point-Blank Shot'
+
+
+class FarShot(Feat):
+    name = 'Far Shot'
+    prerequisites = ['Point-Blank Shot']
+    effects = effects('range increment penalty = 0')
+
+
+class PreciseShot(Feat):
+    name = 'Precise Shot'
+    prerequisites = ['Point-Blank Shot']
+    effects = effects('shoot into melee penalty = 0')
+
+
+class ImprovedPreciseShot(Feat):
+    name = 'Improved Precise Shot'
+    prerequisites = ['Precise Shot', 'Dexterity 19', 'BAB 11']
+
