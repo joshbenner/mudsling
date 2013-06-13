@@ -5,7 +5,7 @@ from pathfinder.extensibility import PathfinderPlugin
 from pathfinder.objects import Thing, Character
 import pathfinder.data
 import pathfinder.races
-import pathfinder.skills
+import pathfinder.skills  # Skills must come before feats.
 import pathfinder.feats
 
 inflection = inflect.engine()
