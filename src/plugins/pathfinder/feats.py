@@ -18,11 +18,16 @@ class Feat(Feature):
     name = ''
     type = 'general'
     multiple = False
-    prerequisites = []
+    _prerequisites = []
     effects = []
 
-    def subtypes(self):
+    @classmethod
+    def subtypes(cls, character=None):
         return ()
+
+    @classmethod
+    def prerequisites(cls, subtype=None):
+        return cls._prerequisites
 
 
 class Acrobatic(Feat):
@@ -96,12 +101,12 @@ class ArmorProficiencyLight(Feat):
 
 class ArmorProficiencyMedium(Feat):
     name = 'Armor Proficiency, Medium'
-    prerequisites = ['Armor Proficiency, Light']
+    _prerequisites = ['Armor Proficiency, Light']
 
 
 class ArmorProficiencyHeavy(Feat):
     name = 'Armor Proficiency, Heavy'
-    prerequisites = ['Armor Proficiency, Medium']
+    _prerequisites = ['Armor Proficiency, Medium']
 
 
 class Athletic(Feat):
@@ -143,20 +148,20 @@ class CatchOffGuard(Feat):
 class CombatExpertise(Feat):
     name = 'Combat Expertise'
     type = 'combat'
-    prerequisites = ['Intelligence 13']
+    _prerequisites = ['Intelligence 13']
 
 
 class ImprovedDisarm(Feat):
     name = 'Improved Disarm'
     type = 'combat'
-    prerequisites = ['Combat Expertise']
+    _prerequisites = ['Combat Expertise']
     effects = effects('+2 bonus on disarm attempts')
 
 
 class GreaterDisarm(Feat):
     name = 'Greater Disarm'
     type = 'combat'
-    prerequisites = [
+    _prerequisites = [
         'Improved Disarm',
         'BAB 6'
     ]
@@ -166,14 +171,14 @@ class GreaterDisarm(Feat):
 class ImprovedFeint(Feat):
     name = 'Improved Feint'
     type = 'combat'
-    prerequisites = ['Combat Expertise']
+    _prerequisites = ['Combat Expertise']
     description = "Feint as a move action."
 
 
 class GreaterFeint(Feat):
     name = 'Greater Feint'
     type = 'combat'
-    prerequisites = [
+    _prerequisites = [
         'Improved Feint',
         'BAB 6'
     ]
@@ -183,7 +188,7 @@ class GreaterFeint(Feat):
 class ImprovedTrip(Feat):
     name = 'Improved Trip'
     type = 'combat'
-    prerequisites = ['Combat Expertise']
+    _prerequisites = ['Combat Expertise']
     description = "Tripping does not provoke attacks."
     effects = effects("+2 bonus on trip attempts")
 
@@ -191,7 +196,7 @@ class ImprovedTrip(Feat):
 class GreaterTrip(Feat):
     name = 'Greater Trip'
     type = 'combat'
-    prerequisites = [
+    _prerequisites = [
         'Improved Trip',
         'BAB 6'
     ]
@@ -202,7 +207,7 @@ class GreaterTrip(Feat):
 class WhirlwindAttack(Feat):
     name = 'Whirlwind Attack'
     type = 'combat'
-    prerequisites = [
+    _prerequisites = [
         'Dexterity 13',
         'Combat Expertise',
         'Sprint Attack',
@@ -214,21 +219,21 @@ class WhirlwindAttack(Feat):
 class CombatReflexes(Feat):
     name = 'Combat Reflexes'
     type = 'combat'
-    prerequisites = ['BAB 9']
+    _prerequisites = ['BAB 9']
     description = "Make additional attacks of opportunity equal to DEX bonus."
 
 
 class CriticalFocus(Feat):
     name = 'Critical Focus'
     type = 'combat'
-    prerequisites = ['BAB 9']
+    _prerequisites = ['BAB 9']
     effects = effects('+4 bonus to critical confirmation')
 
 
 class DeadlyAim(Feat):
     name = 'Deadly Aim'
     type = 'combat'
-    prerequisites = [
+    _prerequisites = [
         'Dexterity 13',
         'BAB 1'
     ]
@@ -276,21 +281,21 @@ class DeftHands(Feat):
 class Dodge(Feat):
     name = 'Dodge'
     type = 'combat'
-    prerequisites = ['Dexterity 13']
+    _prerequisites = ['Dexterity 13']
     effects = effects('+1 dodge bonus to AC')
 
 
 class Mobility(Feat):
     name = 'Mobility'
     type = 'combat'
-    prerequisites = ['Dodge']
+    _prerequisites = ['Dodge']
     effects = effects('+4 AC against attacks of opportunity from movement')
 
 
 class SpringAttack(Feat):
     name = 'Spring Attack'
     type = 'combat'
-    prerequisites = ['Mobility', 'BAB 4']
+    _prerequisites = ['Mobility', 'BAB 4']
 
 
 # class ElementalChannel(Feat):
@@ -305,7 +310,7 @@ class Endurance(Feat):
 
 class Diehard(Feat):
     name = 'Diehard'
-    prerequisites = ['Endurance']
+    _prerequisites = ['Endurance']
     description = "Automatically stabilize and remain concious below 0 hp."
 
 
@@ -317,7 +322,7 @@ class Diehard(Feat):
 class ExoticWeaponProficiency(Feat):
     name = 'Exotic Weapon Proficiency'
     type = 'combat'
-    prerequisites = ['BAB 1']
+    _prerequisites = ['BAB 1']
 
 
 # class ExtraChannel(Feat):
@@ -430,13 +435,13 @@ class ExoticWeaponProficiency(Feat):
 
 class ExtraPerformance(Feat):
     name = "Extra Performance"
-    prerequisites = ['Bardic Performance']
+    _prerequisites = ['Bardic Performance']
     effects = effects('+6 rounds of bardic performance')
 
 
 class ExtraRage(Feat):
     name = "Extra Rage"
-    prerequisites = ['Rage']
+    _prerequisites = ['Rage']
     effects = effects('+6 rounds of rage')
 
 
@@ -447,7 +452,7 @@ class GreatFortitude(Feat):
 
 class ImprovedGreatFortitude(Feat):
     name = "Improved Great Fortitude"
-    prerequisites = ['Great Fortitude']
+    _prerequisites = ['Great Fortitude']
     effects = effects('+2 on Fortitude saves')
 
 
@@ -465,7 +470,7 @@ class ImprovedGreatFortitude(Feat):
 class ImprovedCritical(Feat):
     name = 'Improved Critical'
     type = 'combat'
-    prerequisites = ['BAB 8']
+    _prerequisites = ['BAB 8']
     multiple = True
     subtypes = ()  # todo: Dynamically load weapon types
     description = "Double critical threat of a weapon type."
@@ -486,56 +491,56 @@ class ImprovedUnarmedStrike(Feat):
 class DeflectArrows(Feat):
     name = "Deflect Arrows"
     type = "combat"
-    prerequisites = ['Dexterity 13', 'Improved Unarmed Strike']
+    _prerequisites = ['Dexterity 13', 'Improved Unarmed Strike']
     description = "Avoid one arrow attack per combat round."
 
 
 class SnatchArrows(Feat):
     name = "Snatch Arrows"
     type = "combat"
-    prerequisites = ['Dexterity 15', 'Deflect Arrows']
+    _prerequisites = ['Dexterity 15', 'Deflect Arrows']
     description = "Catch one arrow per combat round."
 
 
 class ImprovedGrapple(Feat):
     name = "Improved Grapple"
     type = "combat"
-    prerequisites = ['Dexterity 13', 'Improved Unarmed Strike']
+    _prerequisites = ['Dexterity 13', 'Improved Unarmed Strike']
     effects = effects('+2 bonus on grapple attempts')
 
 
 class GreaterGrapple(Feat):
     name = "Greater Grapple"
     type = "combat"
-    prerequisites = ['BAB 6', 'Improved Grapple']
+    _prerequisites = ['BAB 6', 'Improved Grapple']
     effects = effects('+2 bonus on grapple attempts')
 
 
 class ScorpionStyle(Feat):
     name = "Scorpion Style"
     type = "combat"
-    prerequisites = ['Improved Unarmed Strike']
+    _prerequisites = ['Improved Unarmed Strike']
     description = "Melee attack to prevent opponent from moving for 2 turns."
 
 
 class FistOfGorgon(Feat):
     name = "Fist of Gorgon"
     type = "combat"
-    prerequisites = ['Scorpion Style', 'BAB 6']
+    _prerequisites = ['Scorpion Style', 'BAB 6']
     description = "Stagger an opponent affected by Scorpion Style."
 
 
 class WrathOfMedusa(Feat):
     name = "Wrath of Medusa"
     type = "combat"
-    prerequisites = ['Fist of Gorgon', 'BAB 11']
+    _prerequisites = ['Fist of Gorgon', 'BAB 11']
     description = "Stun a staggered target."
 
 
 class StunningFist(Feat):
     name = 'Stunning Fist'
     type = 'combat'
-    prerequisites = ['Dexterity 13', 'Wisdom 13', 'Improved Unarmed Strike',
+    _prerequisites = ['Dexterity 13', 'Wisdom 13', 'Improved Unarmed Strike',
                      'BAB 8']
     description = "Stun opponent with unarmed strike."
 
@@ -543,7 +548,7 @@ class StunningFist(Feat):
 class ImprovisedWeaponMastery(Feat):
     name = 'Improvised Weapon Mastery'
     type = 'combat'
-    prerequisites = ['Catch Off-Guard', 'BAB 8']
+    _prerequisites = ['Catch Off-Guard', 'BAB 8']
     effects = effects('+1d4 to improvised weapon damage')
 
 
@@ -560,7 +565,7 @@ class IronWill(Feat):
 
 class ImprovedIronWill(Feat):
     name = 'Improved Iron Will'
-    prerequisites = ['Iron Will']
+    _prerequisites = ['Iron Will']
     effects = effects('+2 bonus on Will saves')
 
 
@@ -571,14 +576,14 @@ class LightningReflexes(Feat):
 
 class ImprovedLightningReflexes(Feat):
     name = 'Improved Lightning Reflexes'
-    prerequisites = ['Lightning Reflexes']
+    _prerequisites = ['Lightning Reflexes']
     effects = effects('+2 bonus on Reflex saves')
 
 
 class Lunge(Feat):
     name = "Lunge"
     type = 'combat'
-    prerequisites = ['BAB 6']
+    _prerequisites = ['BAB 6']
     description = "Melee attack at range carrying a -2 AC penalty."
 
 
@@ -614,77 +619,77 @@ class PointBlankShot(Feat):
 class FarShot(Feat):
     name = 'Far Shot'
     type = 'combat'
-    prerequisites = ['Point-Blank Shot']
+    _prerequisites = ['Point-Blank Shot']
     effects = effects('range increment penalty = 0')
 
 
 class PreciseShot(Feat):
     name = 'Precise Shot'
     type = 'combat'
-    prerequisites = ['Point-Blank Shot']
+    _prerequisites = ['Point-Blank Shot']
     effects = effects('shoot into melee penalty = 0')
 
 
 class ImprovedPreciseShot(Feat):
     name = 'Improved Precise Shot'
     type = 'combat'
-    prerequisites = ['Precise Shot', 'Dexterity 19', 'BAB 11']
+    _prerequisites = ['Precise Shot', 'Dexterity 19', 'BAB 11']
     description = "Ignore all but total cover with ranged attacks."
 
 
 class PinpointTargeting(Feat):
     name = 'Pinpoint Targeting'
     type = 'combat'
-    prerequisites = ['Improved Precise Shot', 'BAB 16']
+    _prerequisites = ['Improved Precise Shot', 'BAB 16']
     description = "Ignore target's armor with ranged attack when not moving."
 
 
 class RapidShot(Feat):
     name = 'Rapid Shot'
     type = 'combat'
-    prerequisites = ['Dexterity 13', 'Point-Blank Shot']
+    _prerequisites = ['Dexterity 13', 'Point-Blank Shot']
     description = "Full-round ranged attack on multiple targets."
 
 
 class PowerAttack(Feat):
     name = 'Power Attack'
     type = 'combat'
-    prerequisites = ['Strength 13', 'BAB 1']
+    _prerequisites = ['Strength 13', 'BAB 1']
     description = "Sacrifice accuracy for extra damage during melee."
 
 
 class Cleave(Feat):
     name = 'Cleave'
     type = 'combat'
-    prerequisites = ['Power Attack']
+    _prerequisites = ['Power Attack']
     description = "Attempt to attack two targets at the cost of -2 to AC."
 
 
 class GreatCleave(Feat):
     name = 'Great Cleave'
     type = 'combat'
-    prerequisites = ['Cleave', 'BAB 4']
+    _prerequisites = ['Cleave', 'BAB 4']
     description = "Cleave more than two targets."
 
 
 class ImprovedSunder(Feat):
     name = 'Improved Sunder'
     type = 'combat'
-    prerequisites = ['Power Attack']
+    _prerequisites = ['Power Attack']
     effects = effects("+2 on sunder attempts")
 
 
 class GreaterSunder(Feat):
     name = 'Greater Sunder'
     type = 'combat'
-    prerequisites = ['Improved Sunder', 'BAB 6']
+    _prerequisites = ['Improved Sunder', 'BAB 6']
     effects = effects("+2 on sunder attempts")
 
 
 class QuickDraw(Feat):
     name = 'Quick Draw'
     type = 'combat'
-    prerequisites = ['BAB 1']
+    _prerequisites = ['BAB 1']
     description = "Draw weapons as a free action."
 
 
@@ -711,26 +716,26 @@ class ShieldProficiency(Feat):
 class ImprovedShieldBash(Feat):
     name = 'Improved Shield Bash'
     type = 'combat'
-    prerequisites = ['Shield Proficiency']
+    _prerequisites = ['Shield Proficiency']
 
 
 class ShieldFocus(Feat):
     name = 'Shield Focus'
     type = 'combat'
-    prerequisites = ['Shield Proficiency', 'BAB 1']
+    _prerequisites = ['Shield Proficiency', 'BAB 1']
     description = "Increase the AC bonus granted by any shield by 1."
 
 
 class GreaterShieldFocus(Feat):
     name = "Greater Shield Focus"
     type = 'combat'
-    prerequisites = ['Shield Focus', '8th-level Fighter']
+    _prerequisites = ['Shield Focus', '8th-level Fighter']
 
 
 class TowerShieldProficiency(Feat):
     name = "Tower Shield Proficiency"
     type = 'combat'
-    prerequisites = ['Shield Proficiency']
+    _prerequisites = ['Shield Proficiency']
     description = "Tower shields' AC penalty only affects STR and DEX skills."
 
 
@@ -774,7 +779,7 @@ class Stealthy(Feat):
 class StrikeBack(Feat):
     name = "Strike Back"
     type = 'combat'
-    prerequisites = ['BAB 11']
+    _prerequisites = ['BAB 11']
     description = "You can strike back in response to any melee attack."
 
 
@@ -787,7 +792,7 @@ class Toughness(Feat):
 class TwoWeaponFighting(Feat):
     name = "Two-Weapon Fighting"
     type = 'combat'
-    prerequisites = ['Dexterity 15']
+    _prerequisites = ['Dexterity 15']
     description = "You can fight skillfully with a weapon in each hand."
     effects = effects(
         "+2 to two weapon primary hand modifier",
@@ -798,21 +803,21 @@ class TwoWeaponFighting(Feat):
 class ImprovedTwoWeaponFighting(Feat):
     name = "Improved Two-Weapon Fighting"
     type = 'combat'
-    prerequisites = ['Dexterity 17', 'Two-Weapon Fighting', 'BAB 6']
+    _prerequisites = ['Dexterity 17', 'Two-Weapon Fighting', 'BAB 6']
     description = "Gain an additional attack with off-hand weapon at -5."
 
 
 class GreaterTwoWeaponFighting(Feat):
     name = "Greater Two-Weapon Fighting"
     type = 'combat'
-    prerequisites = ['Dexterity 19', 'Improved Two-Weapon Fighting', 'BAB 11']
+    _prerequisites = ['Dexterity 19', 'Improved Two-Weapon Fighting', 'BAB 11']
     description = "Gain a third attack with off-hand weapon at -10."
 
 
 class DoubleSlice(Feat):
     name = "Double Slice"
     type = 'combat'
-    prerequisites = ['Two-Weapon Fighting']
+    _prerequisites = ['Two-Weapon Fighting']
     description = "Use full Strength bonus to damage with off-hand weapon."
     effects = effects("+ceil(STR/2) to off-hand melee damage bonus")
 
@@ -820,35 +825,35 @@ class DoubleSlice(Feat):
 class TwoWeaponRend(Feat):
     name = "Two-Weapon Rend"
     type = 'combat'
-    prerequisites = ['Double Slice', 'Improved Two-Weapon Fighting', 'BAB 11']
+    _prerequisites = ['Double Slice', 'Improved Two-Weapon Fighting', 'BAB 11']
     description = "Rend a foe hit by both your weapons."
 
 
 class TwoWeaponDefense(Feat):
     name = "Two-Weapon Defense"
     type = 'combat'
-    prerequisites = ['Two-Weapon Fighting']
+    _prerequisites = ['Two-Weapon Fighting']
     description = "Gain +1 shield bonus to AC when wielding with two hands."
 
 
 class VitalStrike(Feat):
     name = 'Vital Strike'
     type = 'combat'
-    prerequisites = ['BAB 6']
+    _prerequisites = ['BAB 6']
     description = "Deal twice the normal damage on a single attack."
 
 
 class ImprovedVitalStrike(Feat):
     name = 'Improved Vital Strike'
     type = 'combat'
-    prerequisites = ['Vital Strike', 'BAB 11']
+    _prerequisites = ['Vital Strike', 'BAB 11']
     description = "Deal three times the normal damage on a single attack."
 
 
 class GreaterVitalStrike(Feat):
     name = "Greater Vital Strike"
     type = 'combat'
-    prerequisites = ['Improved Vital Strike', 'BAB 16']
+    _prerequisites = ['Improved Vital Strike', 'BAB 16']
     description = "Deal four times the normal damage on a single attack."
 
 
@@ -857,4 +862,34 @@ class WeaponFinesse(Feat):
     type = 'combat'
     description = "Use DEX instead of STR on attack rolls with light weapons."
     effects = effects("+max(STR, DEX) - STR to melee damage modifier")
+
+
+class WeaponFocus(Feat):
+    name = "Weapon Focus"
+    type = 'combat'
+    description = 'You are particularly skilled with a chosen weapon.'
+    _prerequisites = ['BAB 1']
+    multiple = True
+    # todo: dynamic list of weapon types.
+
+
+class GreaterWeaponFocus(Feat):
+    name = "Greater Weapon Focus"
+    type = "combat"
+    description = "You have great skill with a chosen weapon."
+    _prerequisites = ['Weapon Focus (same subtype)', "8th-level Fighter"]
+
+
+class PenetratingStrike(Feat):
+    name = "Penetrating Strike"
+    type = 'combat'
+    _prerequisites = ['Weapon Focus', "12th-level Fighter"]
+    description = "Your attacks ignore 5 points of damage reduction."
+
+
+class GreaterPenetratingStrike(Feat):
+    name = "Greater Penetrating Strike"
+    type = 'combat'
+    _prerequisites = ['Penetrating Strike', '16th-level Fighter']
+    description = "Your attacks ignore 10 points of damage reduction."
 
