@@ -113,7 +113,11 @@ class Character(CoreCharacter, PathfinderObject):
         'Constitution': 0, 'CON': 0,
         'Wisdom': 0,       'WIS': 0,
         'Intelligence': 0, 'INT': 0,
-        'Charisma': 0,     'CHA': 0
+        'Charisma': 0,     'CHA': 0,
+
+        'initiative': 'DEX',
+        'initiative check': '1d20 + initiative',
+        'fortitude save': '1d20 + '
     }
 
     def add_feat(self, feat_class, subtype=None):
@@ -144,7 +148,10 @@ class Character(CoreCharacter, PathfinderObject):
         return names
 
     def get_stat_default(self, stat):
-        # Catch skill names to give the 0 default.
+        # Catch skill names to give the 0 default. We don't define defaults on
+        # the character class since these could change, and we don't want to
+        # update two places to change a skill. Also, skills may not be loaded
+        # into registry at class definition time.
         if stat in pathfinder.data.registry['skill']:
             return 0
         else:
