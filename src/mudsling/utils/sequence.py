@@ -80,8 +80,15 @@ class CaselessDict:
             return self.__getitem__(key)
         return alt
 
+    def iterkeys(self):
+        return (i[0] for i in self.dict.itervalues())
+
     def iteritems(self):
-        return (v for v in self.dict.values())
+        # Itervalues is correct, since we store tuples to retain original.
+        return self.dict.itervalues()
+
+    def itervalues(self):
+        return (i[1] for i in self.dict.itervalues())
 
 
 def unique(seq):

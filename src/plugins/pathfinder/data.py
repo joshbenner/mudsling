@@ -1,6 +1,7 @@
 import inspect
 
 from mudsling.utils.sequence import CaselessDict
+from mudsling import errors
 
 registry = CaselessDict()
 
@@ -23,7 +24,37 @@ def add(class_name, obj):
         registry[class_name][obj.name] = obj
 
 
-def add_from(cls, module):
+def names(class_name):
+    return registry[class_name].keys()
+
+
+def __data_type_key(dt):
+    if isinstance(dt, basestring):
+        return str(dt).lower()
+    elif inspect.isclass(dt):
+        return dt.__name__.lower()
+    else:
+        return dt.__class__.__name__.lower()
+
+
+def match(name, types=None, multiple=False):
+    matches = []
+    types = [__data_type_key(o) for o in (types or registry.iterkeys())]
+    for data in (registry[clsname] for clsname in registry
+                 if clsname.lower() in types):
+        if name in data:
+            matches.append(data[name])
+    if multiple:
+        return matches
+    elif len(matches) > 1:
+        raise errors.AmbiguousMatch()
+    elif len(matches) > 0:
+        return matches[0]
+    else:
+        return None
+
+
+def add_classes(cls, module):
     to_add = []
     for val in module.__dict__.itervalues():
         if inspect.isclass(val) and issubclass(val, cls) and val != cls:

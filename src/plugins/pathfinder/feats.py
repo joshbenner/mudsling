@@ -1,8 +1,9 @@
 from .features import Feature
 from .data import ForceSlotsMetaclass
-from .effects import effects
+from .modifiers import modifiers
 
 import pathfinder
+from .effects import Effect
 
 
 class Feat(Feature):
@@ -15,11 +16,12 @@ class Feat(Feature):
     """
     __metaclass__ = ForceSlotsMetaclass
     __slots__ = ('subtype',)
+
     name = ''
     type = 'general'
     multiple = False
     _prerequisites = []
-    effects = []
+    modifiers = []
 
     @classmethod
     def subtypes(cls, character=None):
@@ -29,10 +31,31 @@ class Feat(Feature):
     def prerequisites(cls, subtype=None):
         return cls._prerequisites
 
+    def __init__(self, subtype=None):
+        self.subtype = subtype
+
+    def __str__(self):
+        if self.multiple:
+            return "%s (%s)" % (self.name, self.subtype)
+        else:
+            return super(Feat, self).__str__()
+
+    def respond_to_event(self, event, responses):
+        """
+        Children can override to do something special here. Otherwise, feat
+        modifiers are applied to characters upon gaining the feat, so many
+        feats have nothing to do here.
+        """
+        pass
+
+    def apply_static_effects(self, character):
+        for mod in self.modifiers:
+            character.apply_effect(mod, source=self)
+
 
 class Acrobatic(Feat):
     name = 'Acrobatic'
-    effects = effects(
+    modifiers = modifiers(
         '+2 bonus on Acrobatics checks',
         '+2 bonus on Fly checks'
     )
@@ -41,14 +64,12 @@ class Acrobatic(Feat):
 class AgileManeuvers(Feat):
     name = 'Agile Maneuvers'
     type = 'combat'
-    effects = effects(
-        'CMB = BAB + max(STR, DEX) - Size mod'
-    )
+    modifiers = modifiers('+max(STR, DEX) - STR to CMB')
 
 
 class Altertness(Feat):
     name = 'Alertness'
-    effects = effects(
+    modifiers = modifiers(
         '+2 bonus on Perception checks',
         '+2 bonus on SEnse Motive checks'
     )
@@ -63,7 +84,7 @@ class Altertness(Feat):
 
 class AnimalAffinity(Feat):
     name = 'Animal Affinity'
-    effects = effects(
+    modifiers = modifiers(
         '+2 bonus on Handle Animal checks',
         '+2 bonus on Ride checks'
     )
@@ -76,7 +97,7 @@ class AnimalAffinity(Feat):
 #         'Armor Proficiency, Light',
 #         'caster level 3rd'
 #     ]
-#     effects = effects('-10% to arcane spell failure chance')
+#     modifiers = modifiers('-10% to arcane spell failure chance')
 
 
 # class ArcaneArmorMastery(Feat):
@@ -87,7 +108,7 @@ class AnimalAffinity(Feat):
 #         'Armor Proficiency, Medium',
 #         'caster level 7th'
 #     ]
-#     effects = effects('-10% to arcane spell failure chance')
+#     modifiers = modifiers('-10% to arcane spell failure chance')
 
 
 # class ArcaneStrike(Feat):
@@ -111,7 +132,7 @@ class ArmorProficiencyHeavy(Feat):
 
 class Athletic(Feat):
     name = 'Athletic'
-    effects = effects(
+    modifiers = modifiers(
         '+2 bonus on Climb checks',
         '+2 bonus on Swim checks'
     )
@@ -125,13 +146,13 @@ class Athletic(Feat):
 class BlindFight(Feat):
     name = 'Blind-Fight'
     type = 'combat'
-    effects = effects('Concealment miss chance = 10%')
+    modifiers = modifiers('-10 to concealment miss chance')
 
 
 class CatchOffGuard(Feat):
     name = "Catch Off-Guard"
     type = 'combat'
-    effects = effects('Improvised weapon penalty = 0')
+    modifiers = modifiers('+4 to improvised weapon modifier')
 
 
 # class ChannelSmite(Feat):
@@ -142,7 +163,7 @@ class CatchOffGuard(Feat):
 
 # class CombatCasting(Feat):
 #     name = 'Combat Casting'
-#     effects = effects('+4 bonus to defensive concentration')
+#     modifiers = modifiers('+4 bonus to defensive concentration')
 
 
 class CombatExpertise(Feat):
@@ -155,7 +176,7 @@ class ImprovedDisarm(Feat):
     name = 'Improved Disarm'
     type = 'combat'
     _prerequisites = ['Combat Expertise']
-    effects = effects('+2 bonus on disarm attempts')
+    modifiers = modifiers('+2 bonus on disarm attempts')
 
 
 class GreaterDisarm(Feat):
@@ -165,7 +186,7 @@ class GreaterDisarm(Feat):
         'Improved Disarm',
         'BAB 6'
     ]
-    effects = effects('+4 bonus on disarm attempts')
+    modifiers = modifiers('+4 bonus on disarm attempts')
 
 
 class ImprovedFeint(Feat):
@@ -190,7 +211,7 @@ class ImprovedTrip(Feat):
     type = 'combat'
     _prerequisites = ['Combat Expertise']
     description = "Tripping does not provoke attacks."
-    effects = effects("+2 bonus on trip attempts")
+    modifiers = modifiers("+2 bonus on trip attempts")
 
 
 class GreaterTrip(Feat):
@@ -201,7 +222,7 @@ class GreaterTrip(Feat):
         'BAB 6'
     ]
     description = "Successful trip is followed by an attack against target."
-    effects = effects("+2 bonus on trip attempts")
+    modifiers = modifiers("+2 bonus on trip attempts")
 
 
 class WhirlwindAttack(Feat):
@@ -227,7 +248,7 @@ class CriticalFocus(Feat):
     name = 'Critical Focus'
     type = 'combat'
     _prerequisites = ['BAB 9']
-    effects = effects('+4 bonus to critical confirmation')
+    modifiers = modifiers('+4 bonus to critical confirmation')
 
 
 class DeadlyAim(Feat):
@@ -242,7 +263,7 @@ class DeadlyAim(Feat):
 
 class Deceitful(Feat):
     name = 'Deceitful'
-    effects = effects(
+    modifiers = modifiers(
         '+2 bonus on Bluff checks',
         '+2 bonus to Disguise checks'
     )
@@ -251,14 +272,13 @@ class Deceitful(Feat):
 class DefensiveCombatTraining(Feat):
     name = 'Defensive Combat Training'
     type = 'combat'
-    effects = effects(
-        'CMD = 10 + max(BAB, HD) + STR + DEX - Size mod'
-    )
+    description = 'You excel at defending yourself from combat maneuvers.'
+    modifiers = modifiers('+max(BAB, HD) - BAB to CMD')
 
 
 class DeftHands(Feat):
     name = 'Deft Hands'
-    effects = effects(
+    modifiers = modifiers(
         '+2 bonus on Disable Device checks',
         '+2 bonus on Sleight of Hand checks'
     )
@@ -268,7 +288,7 @@ class DeftHands(Feat):
 #     name = 'Disruptive'
 #     type = 'combat'
 #     prerequisites = ['6th-level Fighter']
-#     description = "Adjacent enemies have a harder time concentrating to cast."
+#     description = "Adjacent enemies have difficulty concentrating to cast."
 #
 #
 # class Spellbreaker(Feat):
@@ -282,14 +302,14 @@ class Dodge(Feat):
     name = 'Dodge'
     type = 'combat'
     _prerequisites = ['Dexterity 13']
-    effects = effects('+1 dodge bonus to AC')
+    modifiers = modifiers('+1 dodge bonus to AC')
 
 
 class Mobility(Feat):
     name = 'Mobility'
     type = 'combat'
     _prerequisites = ['Dodge']
-    effects = effects('+4 AC against attacks of opportunity from movement')
+    modifiers = modifiers('+4 AC against attacks of opportunity from movement')
 
 
 class SpringAttack(Feat):
@@ -328,19 +348,19 @@ class ExoticWeaponProficiency(Feat):
 # class ExtraChannel(Feat):
 #     name = 'Extra Channel'
 #     prerequisites = ['Channel Energy']
-#     effects = effects("+2 channel energy uses")
+#     modifiers = modifiers("+2 channel energy uses")
 
 
 # class ExtraKi(Feat):
 #     name = 'Extra Ki'
 #     prerequisites = ['Ki Pool']
-#     effects = effects("+2 ki pool")
+#     modifiers = modifiers("+2 ki pool")
 
 
 # class ExtraLayOnHands(Feat):
 #     name = 'Extra Lay On Hands'
 #     prerequisites = ['Lay On Hands']
-#     effects = effects("+2 lay on hands uses")
+#     modifiers = modifiers("+2 lay on hands uses")
 
 
 # class FatiguedMercy(Feat):
@@ -436,30 +456,30 @@ class ExoticWeaponProficiency(Feat):
 class ExtraPerformance(Feat):
     name = "Extra Performance"
     _prerequisites = ['Bardic Performance']
-    effects = effects('+6 rounds of bardic performance')
+    modifiers = modifiers('+6 rounds of bardic performance')
 
 
 class ExtraRage(Feat):
     name = "Extra Rage"
     _prerequisites = ['Rage']
-    effects = effects('+6 rounds of rage')
+    modifiers = modifiers('+6 rounds of rage')
 
 
 class GreatFortitude(Feat):
     name = "Great Fortitude"
-    effects = effects('+2 on Fortitude saves')
+    modifiers = modifiers('+2 on Fortitude saves')
 
 
 class ImprovedGreatFortitude(Feat):
     name = "Improved Great Fortitude"
     _prerequisites = ['Great Fortitude']
-    effects = effects('+2 on Fortitude saves')
+    modifiers = modifiers('+2 on Fortitude saves')
 
 
 # class ImprovedChannel(Feat):
 #     name = "Improved Channel"
 #     prerequisites = ['Channel Energy']
-#     effects = effects('+2 to channel energy DC')
+#     modifiers = modifiers('+2 to channel energy DC')
 
 
 # class ImprovedCounterspell(Feat):
@@ -479,13 +499,13 @@ class ImprovedCritical(Feat):
 class ImprovedInitiative(Feat):
     name = "Improved Initiative"
     type = "combat"
-    effects = effects('+4 bonus to initiative')
+    modifiers = modifiers('+4 bonus to initiative')
 
 
 class ImprovedUnarmedStrike(Feat):
     name = "Improved Unarmed Strike"
     type = "combat"
-    effects = effects('Lethal unarmed strike = BAB + STR + Size mod')
+    modifiers = modifiers('+4 to lethal unarmed strike')
 
 
 class DeflectArrows(Feat):
@@ -506,14 +526,14 @@ class ImprovedGrapple(Feat):
     name = "Improved Grapple"
     type = "combat"
     _prerequisites = ['Dexterity 13', 'Improved Unarmed Strike']
-    effects = effects('+2 bonus on grapple attempts')
+    modifiers = modifiers('+2 bonus on grapple attempts')
 
 
 class GreaterGrapple(Feat):
     name = "Greater Grapple"
     type = "combat"
     _prerequisites = ['BAB 6', 'Improved Grapple']
-    effects = effects('+2 bonus on grapple attempts')
+    modifiers = modifiers('+2 bonus on grapple attempts')
 
 
 class ScorpionStyle(Feat):
@@ -541,7 +561,7 @@ class StunningFist(Feat):
     name = 'Stunning Fist'
     type = 'combat'
     _prerequisites = ['Dexterity 13', 'Wisdom 13', 'Improved Unarmed Strike',
-                     'BAB 8']
+                      'BAB 8']
     description = "Stun opponent with unarmed strike."
 
 
@@ -549,35 +569,35 @@ class ImprovisedWeaponMastery(Feat):
     name = 'Improvised Weapon Mastery'
     type = 'combat'
     _prerequisites = ['Catch Off-Guard', 'BAB 8']
-    effects = effects('+1d4 to improvised weapon damage')
+    modifiers = modifiers('+1d4 to improvised weapon damage')
 
 
 class IntimidatingProwess(Feat):
     name = 'Intimidating Prowess'
     type = 'combat'
-    effects = effects('+STR to Intimidate skill checks')
+    modifiers = modifiers('+STR to Intimidate skill checks')
 
 
 class IronWill(Feat):
     name = 'Iron Will'
-    effects = effects('+2 bonus on Will saves')
+    modifiers = modifiers('+2 bonus on Will saves')
 
 
 class ImprovedIronWill(Feat):
     name = 'Improved Iron Will'
     _prerequisites = ['Iron Will']
-    effects = effects('+2 bonus on Will saves')
+    modifiers = modifiers('+2 bonus on Will saves')
 
 
 class LightningReflexes(Feat):
     name = 'Lightning Reflexes'
-    effects = effects('+2 bonus on Reflex saves')
+    modifiers = modifiers('+2 bonus on Reflex saves')
 
 
 class ImprovedLightningReflexes(Feat):
     name = 'Improved Lightning Reflexes'
     _prerequisites = ['Lightning Reflexes']
-    effects = effects('+2 bonus on Reflex saves')
+    modifiers = modifiers('+2 bonus on Reflex saves')
 
 
 class Lunge(Feat):
@@ -589,7 +609,7 @@ class Lunge(Feat):
 
 # class MagicalAptitude(Feat):
 #     name = 'Magical Aptitude'
-#     effects = effects(
+#     modifiers = modifiers(
 #         '+2 bonus on Spellcraft checks',
 #         '+2 bonus on Use Magic Device checks'
 #     )
@@ -604,7 +624,7 @@ class MartialWeaponProficiency(Feat):
 
 class Persuasive(Feat):
     name = 'Persuasive'
-    effects = effects(
+    modifiers = modifiers(
         '+2 bonus on Diplomacy checks',
         '+2 bonus on Intimidate checks'
     )
@@ -620,14 +640,14 @@ class FarShot(Feat):
     name = 'Far Shot'
     type = 'combat'
     _prerequisites = ['Point-Blank Shot']
-    effects = effects('range increment penalty = 0')
+    modifiers = modifiers('+1 to range increment modifier')
 
 
 class PreciseShot(Feat):
     name = 'Precise Shot'
     type = 'combat'
     _prerequisites = ['Point-Blank Shot']
-    effects = effects('shoot into melee penalty = 0')
+    modifiers = modifiers('+4 to shoot into melee modifier')
 
 
 class ImprovedPreciseShot(Feat):
@@ -676,14 +696,14 @@ class ImprovedSunder(Feat):
     name = 'Improved Sunder'
     type = 'combat'
     _prerequisites = ['Power Attack']
-    effects = effects("+2 on sunder attempts")
+    modifiers = modifiers("+2 on sunder attempts")
 
 
 class GreaterSunder(Feat):
     name = 'Greater Sunder'
     type = 'combat'
     _prerequisites = ['Improved Sunder', 'BAB 6']
-    effects = effects("+2 on sunder attempts")
+    modifiers = modifiers("+2 on sunder attempts")
 
 
 class QuickDraw(Feat):
@@ -702,7 +722,7 @@ class RapidReload(Feat):
 
 class SelfSufficient(Feat):
     name = 'Self-Sufficient'
-    effects = effects(
+    modifiers = modifiers(
         '+2 bonus on Heal checks',
         '+2 bonus on Survival checks'
     )
@@ -750,8 +770,9 @@ class SkillFocus(Feat):
     description = "You are particiularly adept at a chosen skill."
     multiple = True
 
-    def subtypes(self):
-        return (s.name for s in pathfinder.data.registry['skill'].itervalues())
+    @classmethod
+    def subtypes(cls, character=None):
+        return [s.name for s in pathfinder.data.registry['skill'].itervalues()]
 
 
 # class SpellFocus(Feat):
@@ -770,7 +791,7 @@ class SkillFocus(Feat):
 
 class Stealthy(Feat):
     name = "Stealthy"
-    effects = effects(
+    modifiers = modifiers(
         "+2 bonus on Escape Artist checks",
         "+2 bonus on Stealth checks"
     )
@@ -786,7 +807,7 @@ class StrikeBack(Feat):
 class Toughness(Feat):
     name = "Toughness"
     description = "3 HP, plus 1 HP per hit die beyond 3."
-    effects = effects("+3 + max(0, HD - 3) HP")
+    modifiers = modifiers("+3 + max(0, HD - 3) HP")
 
 
 class TwoWeaponFighting(Feat):
@@ -794,7 +815,7 @@ class TwoWeaponFighting(Feat):
     type = 'combat'
     _prerequisites = ['Dexterity 15']
     description = "You can fight skillfully with a weapon in each hand."
-    effects = effects(
+    modifiers = modifiers(
         "+2 to two weapon primary hand modifier",
         "+6 to two weapon off-hand modifier"
     )
@@ -819,7 +840,7 @@ class DoubleSlice(Feat):
     type = 'combat'
     _prerequisites = ['Two-Weapon Fighting']
     description = "Use full Strength bonus to damage with off-hand weapon."
-    effects = effects("+ceil(STR/2) to off-hand melee damage bonus")
+    modifiers = modifiers("+ceil(STR/2) to off-hand melee damage bonus")
 
 
 class TwoWeaponRend(Feat):
@@ -861,7 +882,7 @@ class WeaponFinesse(Feat):
     name = "Weapon Finesse"
     type = 'combat'
     description = "Use DEX instead of STR on attack rolls with light weapons."
-    effects = effects("+max(STR, DEX) - STR to melee damage modifier")
+    modifiers = modifiers("+max(STR, DEX) - STR to melee damage modifier")
 
 
 class WeaponFocus(Feat):

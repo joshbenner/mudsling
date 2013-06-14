@@ -6,25 +6,20 @@ from .objects import Character, Thing
 from .sizes import size, size_categories
 from pathfinder import data
 
+abilities = ['Strength', 'Dexterity', 'Constitution', 'Intelligence',
+             'Wisdom', 'Charisma']
+abil_short = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
 
-# class Ability(namedtuple("Ability", "name short")):
-#     pass
-#
-# abilities = OrderedDict([(a.short.lower(), a) for a in [
-#     Ability('Strength', 'STR'),
-#     Ability('Dexterity', 'DEX'),
-#     Ability('Constitution', 'CON'),
-#     Ability('Intelligence', 'INT'),
-#     Ability('Wisdom', 'WIS'),
-#     Ability('Charisma', 'CHA'),
-# ]])
-#
-#
-# def ability(name):
-#     n = name.lower()
-#     if n in abilities:
-#         return abilities[n]
-#     for a in abilities.itervalues():
-#         if a.name.lower() == n:
-#             return a
-#     raise KeyError("There is no '%s' ability" % name)
+
+class Damage(object):
+    """
+    Represents the damage done in an instance of damage being done.
+
+    Damage objects are short-lived only! Do not store damage objects.
+    """
+    __slots__ = ('type', 'points', 'nonlethal')
+
+    def __init__(self, points, type, nonlethal=False):
+        self.points = points
+        self.type = type
+        self.nonlethal = nonlethal

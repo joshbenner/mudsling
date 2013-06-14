@@ -1,129 +1,58 @@
-"""
-Effects are modifiers that are applied to various stats on an object. Effects
-can be provided by just about anything, and can apply to any Pathfinder object.
 
-BNF:
-        name ::= <printables> (<printables> | " ")*
-    rollexpr ::= <diceroll grammar>
-      nature ::= <alphanums> (<printables> | " ")*
-        type ::= "bonus" | "penalty"
-    statname ::= name
-      statvs ::= name
-        stat ::= statname [("against" | "vs") statvs]
-    timeunit ::= ("round" | "turn" | "second" | "minute" | "hour" | "day")["s"]
-    duration ::= "for" rollexpr timeunit
-       event ::= <printables>+
-       until ::= "until" event
-  expiration ::= duration | until
-       bonus ::= rollexpr [[nature] [type] ("to" | "on")] stat
-       grant ::= "grant"["s"] <alphanums>+ ["feat"]
-       speak ::= ["can"] "speak"["s"] <alphanums>+
-      effect ::= (bonus | grant | speak) [expiration]
+import time
 
-Examples:
-* +2 to STR for 2 turns
-* +1d4 + 1 enhancement bonus to Attack for 1 day
-* +1d4 Damage
+from .events import EventResponder
 
-TODO:
-* <expr> bonus to <stat> for <tags> (maybe same thing as vs/against?)
-* Convert effects to slots.
-* Implement overwriting effects, ie: CMB = BAB + max(STR, DEX) - Size Mod
-"""
-import logging
-from pyparsing import ParseException
-
-from mudsling.storage import PersistentSlots
-
-import dice
-
-logger = logging.getLogger('pathfinder')
+time_units = {
+    'second': 1,
+    'minute': 60,
+    'hour': 3600,
+    'day': 86400
+}
 
 
-def _grammar():
-    from pyparsing import Optional, CaselessKeyword, Suppress, StringEnd
-    from pyparsing import SkipTo, WordStart, oneOf
-
-    CK = CaselessKeyword
-    to = Suppress(CK("to") | CK("on"))
-
-    type = (CK("bonus") | CK("penalty")).setResultsName("type")
-    nature = WordStart() + SkipTo(type | to).setResultsName("nature")
-    effecttype = Optional(nature, default=None) + Optional(type, default=None)
-
-    timeunits = oneOf("round rounds turn turns second seconds minute minutes "
-                      "hour hours day days", caseless=True)
-    interval = dice.grammar + timeunits
-    duration = (CK("for").suppress() + interval).setResultsName("duration")
-    until = Suppress(CK("until")) + SkipTo(StringEnd()).setResultsName("until")
-    expire = duration | until
-
-    lastitem = SkipTo(expire | StringEnd())
-
-    stat = WordStart() + lastitem.setResultsName("stat")
-    val = dice.grammar.setResultsName("effect_val")
-    bonus = val + Optional(effecttype + to) + stat
-
-    grant = Suppress(CK("grant") | CK("grants"))
-    grant += WordStart() + lastitem.setResultsName("grant")
-
-    lang = Suppress(CK("speak") | CK("speaks"))
-    lang += WordStart() + lastitem.setResultsName("language")
-
-    effect = (bonus | grant | lang) + Optional(expire, default=None)
-
-    return effect
-
-grammar = _grammar()
-
-
-class Effect(PersistentSlots):
+class Effect(EventResponder):
     """
-    Represents an effect that can be provided by equipment, conditions, class
-    features, etc (just about anything).
-
-    This class is a *stored* effect, as opposed to an effect that is currently
-    applied to an object/character.
+    An Effect is a modifier applied against a specific object at a specific
+    point in time.
     """
-    __slots__ = ('roll', 'nature', 'type', 'stat', 'expire_event',
-                 'duration_roll', 'duration_unit')
+    __slots__ = ('modifier', 'source', 'start_time', 'expire_type', 'expire')
 
-    def __init__(self, effect, parser=None):
-        parser = parser or grammar
-        parsed = parser.parseString(effect, True)
-        self.roll = (dice.Roll(parsed['effect_val'])
-                     if 'effect_val' in parsed
-                     else None)
-        if parsed.get('nature', None) is not None:
-            self.nature = parsed['nature'].strip() or None
+    def __init__(self, modifier, source=None, subject=None):
+        self.modifier = modifier
+        self.source = source
+        if subject is not None:
+            self.apply_to(subject)
         else:
-            self.nature = None
-        if parsed.get('type', None) is not None:
-            self.type = parsed['type'].strip() or None
-        else:
-            self.type = None
-        # todo: Parse stat based on strings like "<skill> skill rolls" etc.
-        self.stat = parsed['stat'].strip() if 'stat' in parsed else None
-        if 'until' in parsed:
-            self.expire_event = parsed['until']
-        else:
-            self.expire_event = None
-        if 'duration' in parsed:
-            val, unit = parsed['duration']
-            self.duration_roll = dice.Roll(val)
-            self.duration_unit = unit
-        else:
-            self.duration_roll = None
-            self.duration_unit = None
+            self.start_time = None
 
-
-def effects(*a):
-    effects = []
-    for effect_str in a:
-        try:
-            e = Effect(effect_str)
-        except ParseException:
-            logger.warning("Could not parse effect: %s" % effect_str)
+    def apply_to(self, subject):
+        """
+        @type subject: L{pathfinder.objects.PathfinderObject}
+        """
+        self.start_time = time.time()
+        if self.modifier.duration_roll is not None:
+            val = subject.roll(self.modifier.duration_roll)
+            if self.modifier.duration_unit in time_units:
+                self.expire_type = 'time'
+                self.expire = val * time_units[self.modifier.duration_unit]
+            else:
+                self.expire_type = 'turns'
+                self.expire = val
         else:
-            effects.append(e)
-    return effects
+            self.expire = None
+        subject._apply_effect(self)
+
+    def still_applies(self):
+        """
+        Determine if the effect still applies.
+        """
+        if self.expire is not None and self.expire_type == 'time':
+            return time.time() < self.start_time + self.expire
+        # Non-expiring and turn-based expirations are always true until an
+        # event removes them. For turn-based expiration, the event is passing
+        # the subject's initiative position sufficient times.
+        return True
+
+    def respond_to_event(self, event, responses):
+        pass

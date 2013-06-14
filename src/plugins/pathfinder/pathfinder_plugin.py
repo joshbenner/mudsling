@@ -14,9 +14,9 @@ inflection = inflect.engine()
 class PathfinderCorePlugin(PathfinderPlugin):
 
     def plugins_loaded(self):
-        pathfinder.data.add_from(pathfinder.races.Race, pathfinder.races)
-        pathfinder.data.add_from(pathfinder.skills.Skill, pathfinder.skills)
-        pathfinder.data.add_from(pathfinder.feats.Feat, pathfinder.feats)
+        pathfinder.data.add_classes(pathfinder.races.Race, pathfinder.races)
+        pathfinder.data.add_classes(pathfinder.skills.Skill, pathfinder.skills)
+        pathfinder.data.add_classes(pathfinder.feats.Feat, pathfinder.feats)
 
     def pathfinder_data_path(self):
         """

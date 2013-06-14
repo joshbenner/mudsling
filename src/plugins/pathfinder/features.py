@@ -14,13 +14,13 @@ class Feature(EventResponder):
 
     name = ''
     description = ''
-    effects = []
+    modifiers = []
 
     def __str__(self):
         return self.name
 
     def respond_to_event(self, event, responses):
-        self.delegate_event(event, responses, self.effects)
+        self.delegate_event(event, responses, self.modifiers)
 
 
 class HasFeatures(HasEvents):
@@ -32,4 +32,4 @@ class HasFeatures(HasEvents):
         self.features = []
 
     def event_responders(self, event):
-        return self.features
+        return list(self.features)

@@ -100,8 +100,17 @@ class HasStats(Persistent):
             roll = part
         else:
             return part
-        vars = {'__var': resolve_roll_var}
-        return roll._eval(vars, {})[0]
+        return self.roll(roll)[0]
+
+    def roll(self, roll, desc=False, state=None, **vars):
+        state = state or {}
+        if isinstance(roll, basestring):
+            roll = dice.Roll(roll)
+        vars['__var'] = resolve_roll_var
+        state['stat object'] = self
+        state['desc'] = desc
+        result, d = roll._eval(vars, state)
+        return (result, d) if desc else result
 
     def set_stat(self, stat, val):
         if 'stats' not in self.__dict__:

@@ -6,15 +6,19 @@ class Skill(Feature):
     """
     A skill.
 
-    Skill instances represent the level of that skill possessed by a character.
+    Skills are not instantiated.
     """
     # So we don't need to set slots on every single skill class.
     __metaclass__ = ForceSlotsMetaclass
-    __slots__ = ('ranks',)
     name = ''
     ability = None
     untrained = False
     ac_penalty = False
+
+
+# Skills are classes instead of instances so we can keep things consistent, and
+# so we don't have to get very creative with how references to code-based data
+# are stored.
 
 
 class Acrobatics(Skill):
@@ -45,8 +49,134 @@ class Climb(Skill):
     ac_penalty = True
 
 
-class Craft(Skill):
-    name = 'Craft'
+class CraftArmor(Skill):
+    name = 'Craft (armor)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftBaskets(Skill):
+    name = 'Craft (baskets)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftBooks(Skill):
+    name = 'Craft (books)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftBows(Skill):
+    name = 'Craft (bows)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftCalligraphy(Skill):
+    name = 'Craft (calligraphy)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftCarpentry(Skill):
+    name = 'Craft (carpentry)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftCloth(Skill):
+    name = 'Craft (cloth)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftClothing(Skill):
+    name = 'Craft (clothing)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftGlass(Skill):
+    name = 'Craft (glass)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftJewelry(Skill):
+    name = 'Craft (jewelry)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftLeather(Skill):
+    name = 'Craft (leather)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftLocks(Skill):
+    name = 'Craft (locks)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftPaintings(Skill):
+    name = 'Craft (paintings)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftPottery(Skill):
+    name = 'Craft (pottery)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftSculptures(Skill):
+    name = 'Craft (sculptures)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftShips(Skill):
+    name = 'Craft (ships)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftStonemasonry(Skill):
+    name = 'Craft (stonemasonry)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftTraps(Skill):
+    name = 'Craft (traps)'
+    ability = 'Int'
+    untrained = True
+    ac_penalty = False
+
+
+class CraftWeapons(Skill):
+    name = 'Craft (weapons)'
     ability = 'Int'
     untrained = True
     ac_penalty = False
@@ -80,11 +210,11 @@ class EscapeArtist(Skill):
     ac_penalty = True
 
 
-class Fly(Skill):
-    name = 'Fly'
-    ability = 'Dex'
-    untrained = True
-    ac_penalty = True
+# class Fly(Skill):
+#     name = 'Fly'
+#     ability = 'Dex'
+#     untrained = True
+#     ac_penalty = True
 
 
 class HandleAnimal(Skill):
@@ -108,11 +238,11 @@ class Intimidate(Skill):
     ac_penalty = False
 
 
-class KnowledgeArcana(Skill):
-    name = 'Knowledge (arcana)'
-    ability = 'Int'
-    untrained = False
-    ac_penalty = False
+# class KnowledgeArcana(Skill):
+#     name = 'Knowledge (arcana)'
+#     ability = 'Int'
+#     untrained = False
+#     ac_penalty = False
 
 
 class KnowledgeDungeoneering(Skill):
@@ -157,18 +287,18 @@ class KnowledgeNature(Skill):
     ac_penalty = False
 
 
-class KnowledgeNobility(Skill):
-    name = 'Knowledge (nobility)'
-    ability = 'Int'
-    untrained = False
-    ac_penalty = False
+# class KnowledgeNobility(Skill):
+#     name = 'Knowledge (nobility)'
+#     ability = 'Int'
+#     untrained = False
+#     ac_penalty = False
 
 
-class KnowledgePlanes(Skill):
-    name = 'Knowledge (planes)'
-    ability = 'Int'
-    untrained = False
-    ac_penalty = False
+# class KnowledgePlanes(Skill):
+#     name = 'Knowledge (planes)'
+#     ability = 'Int'
+#     untrained = False
+#     ac_penalty = False
 
 
 class KnowledgeReligion(Skill):
@@ -192,8 +322,64 @@ class Perception(Skill):
     ac_penalty = False
 
 
-class Perform(Skill):
-    name = 'Perform'
+class PerformActing(Skill):
+    name = 'Perform (acting)'
+    ability = 'Cha'
+    untrained = True
+    ac_penalty = False
+
+
+class PerformComedy(Skill):
+    name = 'Perform (comedy)'
+    ability = 'Cha'
+    untrained = True
+    ac_penalty = False
+
+
+class PerformDance(Skill):
+    name = 'Perform (dance)'
+    ability = 'Cha'
+    untrained = True
+    ac_penalty = False
+
+
+class PerformKeyboard(Skill):
+    name = 'Perform (keyboard instruments)'
+    ability = 'Cha'
+    untrained = True
+    ac_penalty = False
+
+
+class PerformOratory(Skill):
+    name = 'Perform (oratory)'
+    ability = 'Cha'
+    untrained = True
+    ac_penalty = False
+
+
+class PerformPercussion(Skill):
+    name = 'Perform (percussion instruments)'
+    ability = 'Cha'
+    untrained = True
+    ac_penalty = False
+
+
+class PerformString(Skill):
+    name = 'Perform (string instruments)'
+    ability = 'Cha'
+    untrained = True
+    ac_penalty = False
+
+
+class PerformWind(Skill):
+    name = 'Perform (wind instruments)'
+    ability = 'Cha'
+    untrained = True
+    ac_penalty = False
+
+
+class PerformSing(Skill):
+    name = 'Perform (sing)'
     ability = 'Cha'
     untrained = True
     ac_penalty = False
@@ -227,11 +413,11 @@ class SleightOfHand(Skill):
     ac_penalty = True
 
 
-class Spellcraft(Skill):
-    name = 'Spellcraft'
-    ability = 'Int'
-    untrained = False
-    ac_penalty = False
+# class Spellcraft(Skill):
+#     name = 'Spellcraft'
+#     ability = 'Int'
+#     untrained = False
+#     ac_penalty = False
 
 
 class Stealth(Skill):
@@ -255,8 +441,8 @@ class Swim(Skill):
     ac_penalty = True
 
 
-class UseMagicDevice(Skill):
-    name = 'Use Magic Device'
-    ability = 'Cha'
-    untrained = False
-    ac_penalty = False
+# class UseMagicDevice(Skill):
+#     name = 'Use Magic Device'
+#     ability = 'Cha'
+#     untrained = False
+#     ac_penalty = False

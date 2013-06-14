@@ -1,6 +1,6 @@
 from .features import Feature
 from .sizes import size_categories
-from .effects import effects
+from .modifiers import modifiers
 from .data import ForceSlotsMetaclass
 
 
@@ -15,7 +15,7 @@ class Race(Feature):
     plural = ''
     size = None
     ability_modifiers = {}
-    effects = []
+    modifiers = []
 
 
 class Dwarf(Race):
@@ -27,7 +27,7 @@ class Dwarf(Race):
         'Wisdom': 2,
         'Charisma': -2,
     }
-    effects = effects(
+    modifiers = modifiers(
         'Grants Darkvision',
         '+4 dodge bonus to AC against giant subtype',
         '+2 racial bonus on Appraise skill checks',
