@@ -893,3 +893,22 @@ class GreaterPenetratingStrike(Feat):
     _prerequisites = ['Penetrating Strike', '16th-level Fighter']
     description = "Your attacks ignore 10 points of damage reduction."
 
+
+class WeaponSpecialization(Feat):
+    name = "Weapon Specialization"
+    type = 'combat'
+    description = "You are skilled at dealing damage with a chosen weapon."
+    multiple = True
+    _prerequisites = ['Weapon Focus (same subtype)', '4th-level Fighter']
+    # todo: Weapon type subtypes.
+
+
+class GreaterWeaponSpecialization(Feat):
+    name = "Greater Weapon Specialization"
+    type = 'combat'
+    description = "You are skilled at devastating with a chosen weapon."
+    multiple = True
+    _prerequisites = ['Weapon Specialization (same subtype)',
+                      'Greater Weapon Focus (same subtype)',
+                      '12th-level Fighter']
+    # todo: Weapon type subtypes.
