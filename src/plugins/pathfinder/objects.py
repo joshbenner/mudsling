@@ -1,12 +1,14 @@
+import re
 import math
 from collections import OrderedDict
 
 from mudsling.objects import Object
+from mudsling.storage import ObjRef
 
 from mudslingcore.objects import Thing as CoreThing
 from mudslingcore.objects import Character as CoreCharacter
 
-import dice
+from dice import Roll
 import pathfinder
 
 from .stats import HasStats
@@ -15,6 +17,11 @@ from .features import HasFeatures
 from .sizes import SizeCategory
 from .modifiers import Modifier
 from .effects import Effect
+
+
+def is_pfobj(obj):
+    return (isinstance(obj, PathfinderObject)
+            or (isinstance(obj, ObjRef) and obj.isa(PathfinderObject)))
 
 
 class StatModEvent(Event):
@@ -38,6 +45,10 @@ class PathfinderObject(Object, HasStats, HasFeatures):
         # noinspection PyArgumentList
         super(PathfinderObject, self).__init__(**kw)
         self.effects = []
+
+    def _check_attr(self, attr, val):
+        if attr not in self.__dict__:
+            setattr(self, attr, val)
 
     @property
     def max_hp(self):
@@ -87,8 +98,7 @@ class PathfinderObject(Object, HasStats, HasFeatures):
         """
         @type effect: L{pathfinder.effects.Effect}
         """
-        if 'effects' not in self.__dict__:
-            self.effects = []
+        self._check_attr('effects', [])
         self.effects.append(effect)
 
     def take_damage(self, damage):
@@ -105,31 +115,90 @@ class Character(CoreCharacter, PathfinderObject):
     """
     A Pathfinder-enabled character/creature/etc.
     """
+    levels = []
     feats = []
     skills = {}
+    ability_points = 0
+    skill_points = 0
+    feat_slots = {}  # key = type or '*', value = how many
     stat_defaults = {
-        'Strength': 0,     'STR': 0,
-        'Dexterity': 0,    'DEX': 0,
-        'Constitution': 0, 'CON': 0,
-        'Wisdom': 0,       'WIS': 0,
-        'Intelligence': 0, 'INT': 0,
-        'Charisma': 0,     'CHA': 0,
+        'strength': 0,     'str': 0,
+        'dexterity': 0,    'dex': 0,
+        'constitution': 0, 'con': 0,
+        'wisdom': 0,       'wis': 0,
+        'intelligence': 0, 'int': 0,
+        'charisma': 0,     'cha': 0,
+        'str modifier': Roll('str'), 'str mod': Roll('str'),
+        'dex modifier': Roll('dex'), 'dex mod': Roll('dex'),
+        'con modifier': Roll('con'), 'con mod': Roll('con'),
+        'wis modifier': Roll('wis'), 'wis mod': Roll('wis'),
+        'int modifier': Roll('int'), 'int mod': Roll('int'),
+        'cha modifier': Roll('cha'), 'cha mod': Roll('cha'),
 
-        'initiative': 'DEX',
-        'initiative check': '1d20 + initiative',
-        'fortitude save': '1d20 + '
+        'level': 0,
+        'lvl': Roll('level'),
+        'hit dice': Roll('level'),
+        'hd': Roll('hit dice'),
+
+        'initiative': Roll('DEX'),
+        'initiative check': Roll('1d20 + initiative'),
+        'shield bonus': 0,
+        'armor bonus': 0,
+        'armor enhancement bonus': 0,
+        'range increment modifier': -2,
+        'shoot into melee modifier': -4,
+        'improvised weapon modifier': -4,
+        'two weapon primary hand modifier': -4,
+        'two weapon off hand modifier': -8,
+        'melee damage modifier': Roll('STR'),
+        'primary melee damage bonus': Roll('melee damage modifier'),
+        'off hand melee damage bonus': Roll('trunc(melee damage modifier / 2)')
     }
 
+    # These are used to resolve stats to their canonical form.
+    _skill_check_re = re.compile('(.*)(?: +(check|roll)s?)?', re.I)
+    _save_re = re.compile(
+        '(Fort(?:itude)?|Ref(?:lex)?|Will)( +(save|check)s?)?', re.I)
+
+    # Used to identify class level stats for isolating base stat value.
+    _class_lvl_re = re.compile('(.*) +levels?', re.I)
+
+    @property
+    def features(self):
+        features = [self.race]
+        features.extend(c for c in self.classes.iterkeys())
+        features.extend(self.feats)
+        return features
+
+    @property
+    def classes(self):
+        classes = {}
+        for lvl in self.levels:
+            if lvl not in classes:
+                classes[lvl] = 1
+            else:
+                classes[lvl] += 1
+        return classes
+
+    def add_class(self, class_):
+        self._check_attr('levels', [])
+        self.levels.append(class_)
+
     def add_feat(self, feat_class, subtype=None):
-        if 'feats' not in self.__dict__:
-            self.feats = []
+        self._check_attr('feats', [])
         feat = feat_class(subtype)
         feat.apply_static_effects(self)
         self.feats.append(feat)
 
+    def add_feat_slot(self, type='*', slots=1):
+        self._check_attr('feat_slots', {})
+        if type not in self.feat_slots:
+            self.feat_slots[type] += slots
+        else:
+            self.feat_slots[type] = slots
+
     def add_skill_rank(self, skill, ranks=1):
-        if 'skills' not in self.__dict__:
-            self.skills = {}
+        self._check_attr('skills', {})
         if skill in self.skills:
             self.skills[skill] += ranks
         else:
@@ -139,6 +208,23 @@ class Character(CoreCharacter, PathfinderObject):
         if isinstance(skill, basestring):
             skill = pathfinder.data.match(skill, types=('skill',))
         return self.skills.get(skill, 0)
+
+    def resolve_stat_name(self, name):
+        name = name.lower()
+        m = self._save_re.match(name)
+        if m:
+            name = self.resolve_stat_name(m.groups()[0])
+        if name == 'fort':
+            return 'fortitude'
+        elif name == 'ref':
+            return 'reflex'
+        elif name == 'will':
+            return 'will'
+        m = self._skill_check_re.match(name)
+        if m:
+            name, extra = m.groups()
+            return name, ('check',) if extra else ()
+        return super(PathfinderObject, self).resolve_stat_name(name)
 
     def get_all_stat_names(self):
         names = super(Character, self).get_all_stat_names()
@@ -158,10 +244,20 @@ class Character(CoreCharacter, PathfinderObject):
             return super(Character, self).get_stat_default(stat)
 
     def get_stat_base(self, stat):
+        stat = stat.lower()
+        if stat == 'level' or stat == 'hit dice':
+            return len(self.levels)
         if stat in pathfinder.abil_short:
             abil = pathfinder.abilities[pathfinder.abil_short.index(stat)]
             return math.trunc(self.get_stat(abil) / 2)
         elif stat in pathfinder.data.registry['skill']:
             return self.skill_rank(stat)
         else:
+            m = self._class_lvl_re.match(stat)
+            if m:
+                class_name = m.groups()[0].lower()
+                for cls, levels in self.classes.iteritems():
+                    if cls.name.lower == class_name:
+                        return levels
+                return 0
             return super(Character, self).get_stat_base(stat)

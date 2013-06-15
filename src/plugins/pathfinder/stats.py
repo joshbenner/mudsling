@@ -50,6 +50,13 @@ class HasStats(Persistent):
                 return c.stat_attributes[attr]
         return None
 
+    def resolve_stat_name(self, name):
+        """
+        Takes a stat name and resolves it to its canonical name and any tags
+        implied by the original name.
+        """
+        return name.lower(), ()
+
     def get_stat_base(self, stat):
         stat = stat.lower()
         if stat in self.stats:

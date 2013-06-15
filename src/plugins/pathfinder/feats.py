@@ -3,7 +3,6 @@ from .data import ForceSlotsMetaclass
 from .modifiers import modifiers
 
 import pathfinder
-from .effects import Effect
 
 
 class Feat(Feature):
@@ -71,7 +70,7 @@ class Altertness(Feat):
     name = 'Alertness'
     modifiers = modifiers(
         '+2 bonus on Perception checks',
-        '+2 bonus on SEnse Motive checks'
+        '+2 bonus on Sense Motive checks'
     )
 
 
