@@ -107,7 +107,7 @@ class HasStats(Persistent):
             roll = part
         else:
             return part
-        return self.roll(roll)[0]
+        return self.roll(roll)
 
     def roll(self, roll, desc=False, state=None, **vars):
         state = state or {}
@@ -134,6 +134,9 @@ class HasStats(Persistent):
                 # define __getattr__, so give them an opportunity.
                 # noinspection PyUnresolvedReferences
                 return super(HasStats, self).__getattr__(item)
-            except AttributeError:
-                raise AttributeError("'%s' object has no attribute '%s'"
-                                     % (self.__class__.__name__, item))
+            except AttributeError as e:
+                if '__getattr__' in e.message:
+                    raise AttributeError("'%s' object has no attribute '%s'"
+                                         % (self.__class__.__name__, item))
+                else:
+                    raise

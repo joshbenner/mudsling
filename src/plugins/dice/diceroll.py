@@ -151,7 +151,7 @@ def _grammar():
                + Group(OneOrMore(DOT + identifier + call)))
     seqexpr.setParseAction(SeqMethodNode)
 
-    variable = identifier.copy()
+    variable = Word(alphas + "_", alphanums + "_ ")
     variable.setParseAction(VariableNode)
 
     atom = seqexpr | roll | literal | sequence | function | variable
@@ -367,7 +367,7 @@ class DieRollNode(EvalNode):
             for id, result in rolls.iteritems():
                 if id not in copy:
                     rolls[id] = 0
-                    descs[id] = "%d=>0" % result
+                    descs[id] = "%d[0]" % result
         else:
             sort_dict(rolls, key=lambda r: r[1], drop=drop)
 
@@ -379,7 +379,7 @@ class DieRollNode(EvalNode):
             for id, result in rolls.iteritems():
                 if id not in copy:
                     rolls[id] = 0
-                    descs[id] = "%d=>0" % result
+                    descs[id] = "%d[0]" % result
         else:
             sort_dict(rolls, key=lambda r: r[1], keep=-keep)
 
@@ -396,7 +396,7 @@ class DieRollNode(EvalNode):
             if result <= low:
                 rolls[id] = random.choice(high_faces)
                 if desc:
-                    newdesc = "%d=>%d" % (result, rolls[id])
+                    newdesc = "%d[%d]" % (result, rolls[id])
                     state['rolldescs'][state['current roll']][id] = newdesc
 
     def explode(self, rolls, vars, state, high=None):
@@ -443,7 +443,8 @@ class DieRollNode(EvalNode):
         else:
             result = Sequence(rolls)
         if state.get('desc', False):
-            rollsdesc = ','.join(state['rolldescs'][id].values())
+            rollsdesc = '+'.join(state['rolldescs'][id].values())
+            rollsdesc += '=' + str(sum(result))
             # Show runtime sides value.
             sides = (self.sides.eval(vars, state)[1]
                      if isinstance(self.sides, EvalNode) else str(self.sides))
@@ -545,7 +546,7 @@ class VariableNode(EvalNode):
     __slots__ = ('name',)
 
     def __init__(self, tok):
-        self.name = tok[0]
+        self.name = tok[0].strip().lower()
 
     def eval(self, vars, state):
         if self.name in vars:
@@ -830,9 +831,15 @@ class Roll(SlotPickleMixin):
         _vars.update(vars)
         return self.parsed.eval(_vars, state)
 
-    def limits(self, **vars):
-        minroll = self._eval(vars, {'minroll': True})[0]
-        maxroll = self._eval(vars, {'maxroll': True})[0]
+    def limits(self, vars=None, state=None):
+        vars = vars or {}
+        original_state = state or {}
+        state = dict(original_state)
+        state['minroll'] = True
+        minroll = self._eval(vars, state)[0]
+        state = dict(original_state)
+        state['maxroll'] = True
+        maxroll = self._eval(vars, state)[0]
         return minroll, maxroll
 
     def __repr__(self):

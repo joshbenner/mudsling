@@ -19,7 +19,6 @@ import commands.admin.perms
 import commands.admin.tasks
 import commands.admin.objects
 import commands.admin.players
-import commands.character
 
 
 class DescribableObject(Object):
@@ -103,15 +102,16 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser):
     """
     Core player class.
     """
-    import commands.player
+    import commands.player as player_commands
     private_commands = all_commands(
         commands.admin.system,
         commands.admin.perms,
         commands.admin.tasks,
         commands.admin.objects,
         commands.admin.players,
-        commands.player
+        player_commands
     )
+    del player_commands
     channels = {}
 
     def __init__(self, **kwargs):
@@ -144,19 +144,21 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
     """
     Core character class.
     """
-    # Try to avoid some circular imports.
-    from topography import Room, Exit
-    import commands.admin.building
-
+    import commands.admin.building as building_commands
+    import commands.character as character_commands
     private_commands = all_commands(
-        commands.character,
+        character_commands,
 
         # Building commands are administrative, but they apply in a "physical"
         # manner to the game world, so they are attached to the Character
         # instead of the Player.
-        commands.admin.building,
+        building_commands,
     )
+    _say_cmd = character_commands.SayCmd
+    _emote_cmd = character_commands.EmoteCmd
+    del character_commands, building_commands
 
+    from topography import Room, Exit
     object_settings = {
         # The classes to use when creating rooms and exits with @dig.
         ObjSetting(name='building.room_class',
@@ -170,6 +172,7 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
                    default=Exit,
                    parser=parsers.ObjClassStaticParser),
     }
+    del Room, Exit
 
     messages = Messages({
         'say': {
@@ -203,11 +206,11 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
 
     def preemptive_command_match(self, raw):
         if raw.startswith('"'):
-            return commands.character.SayCmd(raw, '"', raw[1:], self.game,
-                                             self.ref(), self.ref(), True)
+            return self._say_cmd(raw, '"', raw[1:], self.game,
+                                 self.ref(), self.ref(), True)
         elif raw.startswith(':'):
-            return commands.character.EmoteCmd(raw, ':', raw[1:], self.game,
-                                               self.ref(), self.ref(), True)
+            return self._emote_cmd(raw, ':', raw[1:], self.game,
+                                   self.ref(), self.ref(), True)
         return None
 
 

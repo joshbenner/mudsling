@@ -1,8 +1,14 @@
+import logging
+logger = logging.getLogger('pathfinder')
+logger.info("Loading pathfinder...")
+
 import os
 import inflect
+from pathfinder import Character
 
 from pathfinder.extensibility import PathfinderPlugin
-from pathfinder.objects import Thing, Character
+from pathfinder.objects import Thing
+import pathfinder.languages
 import pathfinder.data
 import pathfinder.races
 import pathfinder.skills  # Skills must come before feats.
@@ -14,9 +20,11 @@ inflection = inflect.engine()
 class PathfinderCorePlugin(PathfinderPlugin):
 
     def plugins_loaded(self):
-        pathfinder.data.add_classes(pathfinder.races.Race, pathfinder.races)
-        pathfinder.data.add_classes(pathfinder.skills.Skill, pathfinder.skills)
-        pathfinder.data.add_classes(pathfinder.feats.Feat, pathfinder.feats)
+        register = pathfinder.data.add_classes
+        register(pathfinder.languages.Language, pathfinder.languages)
+        register(pathfinder.races.Race, pathfinder.races)
+        register(pathfinder.skills.Skill, pathfinder.skills)
+        register(pathfinder.feats.Feat, pathfinder.feats)
 
     def pathfinder_data_path(self):
         """

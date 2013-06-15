@@ -1,10 +1,11 @@
-from .features import Feature
+import pathfinder
+from .features import CharacterFeature
 from .sizes import size_categories
-from .modifiers import modifiers
+from .modifiers import modifiers, Modifier
 from .data import ForceSlotsMetaclass
 
 
-class Race(Feature):
+class Race(CharacterFeature):
     """
     A race.
 
@@ -16,6 +17,27 @@ class Race(Feature):
     size = None
     ability_modifiers = {}
     modifiers = []
+
+    @classmethod
+    def apply_to(cls, char):
+        from .characters import is_pfchar
+        if not is_pfchar(char):
+            return
+        char.size_category = cls.size
+        mods = []
+        for abil, val in cls.ability_modifiers.iteritems():
+            bonus = pathfinder.format_modifier(val)
+            mods.append(Modifier(bonus + ' to ' + abil.capitalize()))
+        mods.extend(cls.modifiers)
+        for mod in mods:
+            char.apply_effect(mod, source=cls)
+
+    @classmethod
+    def remove_from(cls, char):
+        from .characters import is_pfchar
+        if not is_pfchar(char):
+            return
+        char.remove_effects_by_source(cls)
 
 
 class Dwarf(Race):

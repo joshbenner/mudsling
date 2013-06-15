@@ -1,11 +1,24 @@
-from .features import Feature
-from .data import ForceSlotsMetaclass
+from mudsling import errors
+
+from .features import CharacterFeature
 from .modifiers import modifiers
+from .prerequisites import feature_re
 
 import pathfinder
 
 
-class Feat(Feature):
+def parse_feat(name):
+    m = feature_re.match(name)
+    if not m:
+        raise errors.FailedMatch('No such feat: %s' % name)
+    info = m.groupdict()
+    feat = pathfinder.data.match(info['name'], types=('feat',))
+    if feat is None:
+        raise errors.FailedMatch('No such feat: %s' % info['name'])
+    return feat, info['subtype']
+
+
+class Feat(CharacterFeature):
     """
     A feat.
 
@@ -13,7 +26,6 @@ class Feat(Feature):
     a feat, an instance of that feat is stored on the character. This allows
     some feats to have feat subtypes (ie: which weapon for Weapon Focus).
     """
-    __metaclass__ = ForceSlotsMetaclass
     __slots__ = ('subtype',)
 
     name = ''
@@ -28,6 +40,7 @@ class Feat(Feature):
 
     @classmethod
     def prerequisites(cls, subtype=None):
+        # todo: Handle 'same subtype'
         return cls._prerequisites
 
     def __init__(self, subtype=None):
@@ -38,18 +51,6 @@ class Feat(Feature):
             return "%s (%s)" % (self.name, self.subtype)
         else:
             return super(Feat, self).__str__()
-
-    def respond_to_event(self, event, responses):
-        """
-        Children can override to do something special here. Otherwise, feat
-        modifiers are applied to characters upon gaining the feat, so many
-        feats have nothing to do here.
-        """
-        pass
-
-    def apply_static_effects(self, character):
-        for mod in self.modifiers:
-            character.apply_effect(mod, source=self)
 
 
 class Acrobatic(Feat):
@@ -308,7 +309,9 @@ class Mobility(Feat):
     name = 'Mobility'
     type = 'combat'
     _prerequisites = ['Dodge']
-    modifiers = modifiers('+4 AC against attacks of opportunity from movement')
+    modifiers = modifiers(
+        '+4 to AC against attacks of opportunity from movement'
+    )
 
 
 class SpringAttack(Feat):
@@ -455,13 +458,13 @@ class ExoticWeaponProficiency(Feat):
 class ExtraPerformance(Feat):
     name = "Extra Performance"
     _prerequisites = ['Bardic Performance']
-    modifiers = modifiers('+6 rounds of bardic performance')
+    modifiers = modifiers('+6 to rounds of bardic performance')
 
 
 class ExtraRage(Feat):
     name = "Extra Rage"
     _prerequisites = ['Rage']
-    modifiers = modifiers('+6 rounds of rage')
+    modifiers = modifiers('+6 to rounds of rage')
 
 
 class GreatFortitude(Feat):
@@ -806,7 +809,7 @@ class StrikeBack(Feat):
 class Toughness(Feat):
     name = "Toughness"
     description = "3 HP, plus 1 HP per hit die beyond 3."
-    modifiers = modifiers("+3 + max(0, HD - 3) HP")
+    modifiers = modifiers("+3 + max(0, HD - 3) to HP")
 
 
 class TwoWeaponFighting(Feat):

@@ -1,16 +1,14 @@
 from collections import namedtuple
 
-from mudsling.storage import ObjRef
-
-from .features import Feature
+from .features import CharacterFeature
 from .data import ForceSlotsMetaclass
-from .objects import is_pfobj
+from pathfinder.characters import is_pfchar
 
 
 lvl = namedtuple('lvl', 'level bab fort ref will features')
 
 
-class Class(Feature):
+class Class(CharacterFeature):
     __metaclass__ = ForceSlotsMetaclass
     name = ''
     hit_die = 'd1'
@@ -19,43 +17,42 @@ class Class(Feature):
     levels = []
 
 
-class AbilityPoint(Feature):
-    name = "Ability Point"
-    description = "Increase an ability by one point."
-    persistent = False
-
-    def apply_to(self, obj):
-        if is_pfobj(obj):
-            obj.ability_points += 1
-
-
-class GainFeat(Feature):
+class GainFeat(CharacterFeature):
     name = "Feat"
     description = "Gain a feat."
-    persistent = False
+    feat_type = '*'
 
     def apply_to(self, obj):
-        if is_pfobj(obj):
-            obj.add_feat_slot()
+        if is_pfchar(obj):
+            obj.add_feat_slot(type=self.feat_type)
+
+    def remove_from(self, obj):
+        if is_pfchar(obj):
+            obj.remove_feat_slot(type=self.feat_type)
 
 
-class BonusFeat(Feature):
+class BonusFeat(GainFeat):
     """
     Grants a bonus feat.
     """
     name = 'Bonus Feat'
     description = "Gain a bonus combat feat."
-    persistent = False
-
-    def apply_to(self, obj):
-        if is_pfobj(obj):
-            obj.add_feat_slot(type='combat')
+    feat_type = 'combat'
 
 
-class Bravery(Feature):
+class Bravery(CharacterFeature):
     name = 'Bravery'
     description = "+1 to will saves vs fear; +1 every 4th level after 2nd."
     modifiers = ['+trunc((LVL + 2) / 4) to Will saves against fear']
+
+
+class ArmorTraining(CharacterFeature):
+    name = 'Armor Training'
+    description = "The fighter learns to be more maneuverable in armor."
+    modifiers = [
+        "+min(4, trunc((level + 1) / 4)) to armor check penalty reduction",
+        "+min(4, trunc((level + 1) / 4)) to armor dex limit"
+    ]
 
 
 class Fighter(Class):

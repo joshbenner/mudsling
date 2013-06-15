@@ -1,5 +1,4 @@
 from .features import Feature
-from .data import ForceSlotsMetaclass
 
 
 class Skill(Feature):
@@ -8,8 +7,6 @@ class Skill(Feature):
 
     Skills are not instantiated.
     """
-    # So we don't need to set slots on every single skill class.
-    __metaclass__ = ForceSlotsMetaclass
     name = ''
     ability = None
     untrained = False

@@ -5,7 +5,7 @@ to use as Effects, which are applied to PathfinderObjects.
 BNF:
         name ::= <printables> (<printables> | " ")*
     rollexpr ::= <diceroll grammar>
-      nature ::= <alphanums> (<printables> | " ")*
+      nature ::= "enhancement" | "racial" | "dodge"
         type ::= "bonus" | "penalty"
     statname ::= name
       statvs ::= name
@@ -15,7 +15,7 @@ BNF:
        event ::= <printables>+
        until ::= "until" event
   expiration ::= duration | until
-       bonus ::= rollexpr [[nature] [type] ("to" | "on")] stat
+       bonus ::= rollexpr [nature] [type] ("to" | "on") stat
        grant ::= "grant"["s"] <alphanums>+ ["feat"]
        speak ::= ["can"] "speak"["s"] <alphanums>+
     modifier ::= (bonus | grant | speak) [expiration]
@@ -46,7 +46,8 @@ def _grammar():
     to = Suppress(CK("to") | CK("on"))
 
     type = (CK("bonus") | CK("penalty")).setResultsName("type")
-    nature = WordStart() + SkipTo(type | to).setResultsName("nature")
+    nature = (CK("enhancement") | CK("racial") | CK("dodge"))
+    nature = nature.setResultsName("nature")
     modtype = Optional(nature, default=None) + Optional(type, default=None)
 
     timeunits = oneOf("round rounds turn turns second seconds minute minutes "
@@ -59,8 +60,8 @@ def _grammar():
     lastitem = SkipTo(expire | StringEnd())
 
     stat = WordStart() + lastitem.setResultsName("stat")
-    val = dice.grammar.setResultsName("mod_val")
-    bonus = val + Optional(modtype + to) + stat
+    val = SkipTo(modtype + to).setResultsName('mod_val')
+    bonus = val + modtype + to + stat
 
     grant = Suppress(CK("grant") | CK("grants"))
     grant += WordStart() + lastitem.setResultsName("grant")
@@ -94,7 +95,7 @@ class Modifier(PersistentSlots):
         elif 'language' in parsed:
             self.lang = parsed['language']
         else:
-            self.roll = (dice.Roll(parsed['mod_val'])
+            self.roll = (dice.Roll(parsed['mod_val'][0])
                          if 'mod_val' in parsed
                          else None)
             if parsed.get('nature', None) is not None:
@@ -107,17 +108,17 @@ class Modifier(PersistentSlots):
                 self.type = None
                 # todo: Parse stat strings like "<skill> skill rolls" etc.
             self.stat = parsed['stat'].strip() if 'stat' in parsed else None
-            if 'until' in parsed:
-                self.expire_event = parsed['until']
-            else:
-                self.expire_event = None
-            if 'duration' in parsed:
-                val, unit = parsed['duration']
-                self.duration_roll = dice.Roll(val)
-                self.duration_unit = unit.rstrip('s')
-            else:
-                self.duration_roll = None
-                self.duration_unit = None
+        if 'until' in parsed:
+            self.expire_event = parsed['until']
+        else:
+            self.expire_event = None
+        if 'duration' in parsed:
+            val, unit = parsed['duration']
+            self.duration_roll = dice.Roll(val)
+            self.duration_unit = unit.rstrip('s')
+        else:
+            self.duration_roll = None
+            self.duration_unit = None
 
 
 def modifiers(*a):

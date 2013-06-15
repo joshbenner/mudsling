@@ -1,6 +1,7 @@
 
 import time
 
+import pathfinder
 from .events import EventResponder
 
 time_units = {
@@ -17,7 +18,7 @@ class Effect(EventResponder):
     point in time.
     """
     __slots__ = ('modifier', 'source', 'start_time', 'expire_type', 'expire',
-                 'resolved_stat')
+                 'type', 'payload')
 
     def __init__(self, modifier, source=None, subject=None):
         self.modifier = modifier
@@ -31,9 +32,18 @@ class Effect(EventResponder):
         """
         @type subject: L{pathfinder.objects.PathfinderObject}
         """
+        self.type = None
         self.start_time = time.time()
         if hasattr(self.modifier, 'stat'):
-            self.resolved_stat = subject.resolve_stat_name(self.modifier.stat)
+            self.type = 'stat'
+            self.payload = subject.resolve_stat_name(self.modifier.stat)
+        elif hasattr(self.modifier, 'lang'):
+            self.type = 'language'
+            self.payload = pathfinder.data.match(self.modifier.lang,
+                                                 types=('language',))
+        elif hasattr(self.modifier, 'grant'):
+            self.type = 'grant'
+            self.payload = self.modifier.grant
         if self.modifier.duration_roll is not None:
             val = subject.roll(self.modifier.duration_roll)
             if self.modifier.duration_unit in time_units:
@@ -58,4 +68,10 @@ class Effect(EventResponder):
         return True
 
     def respond_to_event(self, event, responses):
-        pass
+        if event.name == 'stat mods':
+            if self.type == 'stat' and self.payload[0] == event.stat:
+                if event.tags == () or event.tags == self.payload[1]:
+                    event.modifiers[self] = self.modifier.roll
+        elif event.name == 'spoken languages':
+            if self.type == 'language' and self.payload is not None:
+                event.languages.append(self.payload)

@@ -43,7 +43,10 @@ class SyntaxLiteral(SyntaxToken):
         return 'Literal("%s")' % self.text
 
     def _expr(self, nextToken):
-        return Keyword(self.text)
+        if self.text in printables and self.text not in alphanums:
+            return Literal(self.text)
+        else:
+            return Keyword(self.text)
 
 
 class SyntaxChoice(SyntaxToken):

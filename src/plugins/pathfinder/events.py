@@ -39,7 +39,6 @@ class HasEvents(object):
     """
     An object that can notify other objects of arbitrary events.
     """
-    __slots__ = ()
 
     def __init__(self, *a, **kw):
         try:
