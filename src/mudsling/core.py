@@ -65,7 +65,7 @@ class MUDSling(MultiService):
         """
         MultiService.__init__(self)
 
-        self.game_dir = gameDir  # Should already be init'd by mudsling.py.
+        self.game_dir = gameDir  # Should already be init'd by run.py.
 
         # Load configuration.
         config.read(configPaths)
