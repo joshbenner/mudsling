@@ -32,26 +32,34 @@ class Character(CoreCharacter, PathfinderObject):
     skill_points = 0
     feat_slots = {}  # key = type or '*', value = how many
     languages = []
+    _abil_modifier_stats = (
+        'strength modifier',
+        'dexterity modifier',
+        'constitution modifier',
+        'wisdom modifier',
+        'intelligence modifier',
+        'charisma modifier'
+    )
     stat_defaults = {
-        'strength': 0,     'str': 0,
-        'dexterity': 0,    'dex': 0,
-        'constitution': 0, 'con': 0,
-        'wisdom': 0,       'wis': 0,
-        'intelligence': 0, 'int': 0,
-        'charisma': 0,     'cha': 0,
-        'str modifier': Roll('str'), 'str mod': Roll('str'),
-        'dex modifier': Roll('dex'), 'dex mod': Roll('dex'),
-        'con modifier': Roll('con'), 'con mod': Roll('con'),
-        'wis modifier': Roll('wis'), 'wis mod': Roll('wis'),
-        'int modifier': Roll('int'), 'int mod': Roll('int'),
-        'cha modifier': Roll('cha'), 'cha mod': Roll('cha'),
+        'strength': 0,     'str': Roll('strength'),
+        'dexterity': 0,    'dex': Roll('dexterity'),
+        'constitution': 0, 'con': Roll('constitution'),
+        'wisdom': 0,       'wis': Roll('wisdom'),
+        'intelligence': 0, 'int': Roll('intelligence'),
+        'charisma': 0,     'cha': Roll('charisma'),
+        'str mod': Roll('strength modifier'),
+        'dex mod': Roll('dexterity modifier'),
+        'con mod': Roll('constitution modifier'),
+        'wis mod': Roll('wisdom modifier'),
+        'int mod': Roll('intelligence modifier'),
+        'cha mod': Roll('charisma modifier'),
 
         'level': 0,
         'lvl': Roll('level'),
         'hit dice': Roll('level'),
         'hd': Roll('hit dice'),
 
-        'initiative': Roll('DEX'),
+        'initiative': Roll('dexterity modifier'),
         'initiative check': Roll('1d20 + initiative'),
         'shield bonus': 0,
         'armor bonus': 0,
@@ -61,9 +69,32 @@ class Character(CoreCharacter, PathfinderObject):
         'improvised weapon modifier': -4,
         'two weapon primary hand modifier': -4,
         'two weapon off hand modifier': -8,
-        'melee damage modifier': Roll('STR'),
+        'melee damage modifier': Roll('strength modifier'),
         'primary melee damage bonus': Roll('melee damage modifier'),
         'off hand melee damage bonus': Roll('trunc(melee damage modifier / 2)')
+    }
+    # Map attributes to stats.
+    stat_attributes = {
+        'strength': 'strength',
+        'constitution': 'constitution',
+        'dexterity': 'dexterity',
+        'wisdom': 'wisdom',
+        'intelligence': 'intelligence',
+        'charisma': 'charisma',
+        'str': 'strength', 'con': 'constitution', 'dex': 'dexterity',
+        'wis': 'wisdom', 'int': 'intelligence', 'cha': 'charisma',
+        'strength_mod': 'strength modifier',
+        'constitution_mod': 'constitution modifier',
+        'dexterity_mod': 'dexterity modifier',
+        'wisdom_mod': 'wisdom modifier',
+        'intelligence_mod': 'intelligence modifier',
+        'charisma_mod': 'charisma modifier',
+        'str_mod': 'strength modifier',
+        'con_mod': 'constitution modifier',
+        'dex_mod': 'dexterity modifier',
+        'wis_mod': 'wisdom modifier',
+        'int_mod': 'intelligence modifier',
+        'cha_mod': 'charisma modifier',
     }
 
     # These are used to resolve stats to their canonical form.
@@ -189,18 +220,18 @@ class Character(CoreCharacter, PathfinderObject):
         # the character class since these could change, and we don't want to
         # update two places to change a skill. Also, skills may not be loaded
         # into registry at class definition time.
+        stat = self.resolve_stat_name(stat)[0]
         if stat in pathfinder.data.registry['skill']:
             return 0
         else:
             return super(Character, self).get_stat_default(stat)
 
     def get_stat_base(self, stat):
-        stat = stat.lower()
+        stat = self.resolve_stat_name(stat)[0]
         if stat == 'level' or stat == 'hit dice':
             return len(self.levels)
-        if stat in pathfinder.abil_short:
-            abil = pathfinder.abilities[pathfinder.abil_short.index(stat)]
-            return math.trunc(self.get_stat(abil) / 2 - 5)
+        if stat in self._abil_modifier_stats:
+            return math.trunc(self.get_stat(stat.split(' ')[0]) / 2 - 5)
         elif stat in pathfinder.data.registry['skill']:
             return self.skill_rank(stat)
         else:

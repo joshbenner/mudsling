@@ -64,7 +64,7 @@ class Acrobatic(Feat):
 class AgileManeuvers(Feat):
     name = 'Agile Maneuvers'
     type = 'combat'
-    modifiers = modifiers('+max(STR, DEX) - STR to CMB')
+    modifiers = modifiers('+max(STR mod, DEX mod) - STR mod to CMB')
 
 
 class Altertness(Feat):
@@ -577,7 +577,7 @@ class ImprovisedWeaponMastery(Feat):
 class IntimidatingProwess(Feat):
     name = 'Intimidating Prowess'
     type = 'combat'
-    modifiers = modifiers('+STR to Intimidate skill checks')
+    modifiers = modifiers('+STR mod to Intimidate skill checks')
 
 
 class IronWill(Feat):
@@ -842,7 +842,7 @@ class DoubleSlice(Feat):
     type = 'combat'
     _prerequisites = ['Two-Weapon Fighting']
     description = "Use full Strength bonus to damage with off-hand weapon."
-    modifiers = modifiers("+ceil(STR/2) to off-hand melee damage bonus")
+    modifiers = modifiers("+ceil(STR mod/2) to off-hand melee damage bonus")
 
 
 class TwoWeaponRend(Feat):
@@ -884,7 +884,9 @@ class WeaponFinesse(Feat):
     name = "Weapon Finesse"
     type = 'combat'
     description = "Use DEX instead of STR on attack rolls with light weapons."
-    modifiers = modifiers("+max(STR, DEX) - STR to melee damage modifier")
+    modifiers = modifiers(
+        "+max(STR mod, DEX mod) - STR mod to melee damage modifier"
+    )
 
 
 class WeaponFocus(Feat):

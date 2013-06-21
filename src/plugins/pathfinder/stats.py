@@ -33,19 +33,17 @@ class HasStats(Persistent):
     def _stats_mro(cls):
         return [c for c in cls.__mro__ if issubclass(c, HasStats)]
 
-    @classmethod
-    def get_stat_default(cls, stat):
-        for c in cls._stats_mro():
+    def get_stat_default(self, stat):
+        for c in self._stats_mro():
             if 'stat_defaults' in c.__dict__ and stat in c.stat_defaults:
                 return c.stat_defaults[stat]
         raise KeyError("No default for stat '%s'" % stat)
 
-    @classmethod
-    def stat_name_from_attribute(cls, attr):
+    def stat_name_from_attribute(self, attr):
         """
         Given an atribute name, find the mapped stat.
         """
-        for c in cls._stats_mro():
+        for c in self._stats_mro():
             if 'stat_attributes' in c.__dict__ and attr in c.stat_attributes:
                 return c.stat_attributes[attr]
         return None
@@ -58,7 +56,7 @@ class HasStats(Persistent):
         return name.lower(), ()
 
     def get_stat_base(self, stat):
-        stat = stat.lower()
+        stat = self.resolve_stat_name(stat)[0]
         if stat in self.stats:
             return self.stats[stat]
         return self.get_stat_default(stat)

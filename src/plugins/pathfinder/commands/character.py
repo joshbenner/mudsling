@@ -109,8 +109,9 @@ class RaceCmd(Command):
     def _show_races(self, actor):
         ui = pathfinder.ui
         table = ui.Table([
-            ui.Column('Race'),
-            ui.Column('Abilities', cell_formatter=self._format_abilities)
+            ui.Column('Race', align='r'),
+            ui.Column('Abilities', cell_formatter=self._format_abilities,
+                      align='l')
         ])
         # Table doesn't do data keys on objects without __dict__!
         for race in pathfinder.data.registry['race'].itervalues():
@@ -123,5 +124,6 @@ class RaceCmd(Command):
             i = pathfinder.abilities.index(abil.lower())
             abil = pathfinder.abil_short[i].upper()
             val = pathfinder.format_modifier(val)
-            abils.append('{m%s{n: {y%s' % (abil, val))
-        return '{n '.join(abils)
+            #abils.append('{m%s{n: {y%s' % (abil, val))
+            abils.append('{y%s {m%s' % (val, abil))
+        return '{n, '.join(abils)
