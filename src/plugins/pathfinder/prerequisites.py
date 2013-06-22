@@ -1,10 +1,10 @@
 """
 Prerequisites are stats and feature requirements.
 
-Syntax: <stat> <minimum>
-    or: <feature> [(<subtype>)]
-    or: <N><ord>-level <class>
-    or: restricted
+Syntax: [not] <stat> <minimum>
+    or: [not] <feature> [(<subtype>)]
+    or: [not] <N><ord>-level <class>
+    or: [not] restricted
 
 Examples:
 * restricted
@@ -48,6 +48,8 @@ def check_prerequisite(prerequisite, character):
 
     @rtype: C{bool}
     """
+    if prerequisite.startswith('not '):
+        return not check_prerequisite(prerequisite[4:], character)
     if prerequisite == 'restricted':
         return False
     m = lvl_re.match(prerequisite)
