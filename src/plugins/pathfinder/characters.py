@@ -128,17 +128,44 @@ class Character(CoreCharacter, PathfinderObject):
         if self.race is not None and issubclass(self.race, Race):
             self.race.remove_from(self)
         self.race = race
-        race.apply_to(self)
+        if race is not None:
+            race.apply_to(self)
 
     def add_class(self, class_):
         self._check_attr('levels', [])
         self.levels.append(class_)
 
-    def add_feat(self, feat_class, subtype=None):
+    def add_feat(self, feat_class, subtype=None, source=None):
         self._check_attr('feats', [])
-        feat = feat_class(subtype)
-        feat.apply_static_effects(self)
-        self.feats.append(feat)
+        existing = self.get_feat(feat_class, subtype)
+        if existing is not None:
+            existing.sources.append(source)
+        else:
+            feat = feat_class(subtype, source)
+            feat.apply_to(self)
+            self.feats.append(feat)
+
+    def remove_feat(self, feat, source=None):
+        """
+        Remove a feat instance from a character.
+
+        @param feat: The feat INSTANCE to remove.
+        @type feat: L{pathfinder.feats.Feat}
+        @param source: The source to remove in the case of a multi-source feat.
+            If a non-None source is specified but is not in the feat's list of
+            sources, then the feat will not be removed. On the other hand, if
+            the feat is multi-source, but no source is given, the feat will
+            also not be removed.
+        """
+        if source is not None:
+            if source in feat.sources:
+                feat.sources.remove(source)
+                # Call with no source, so other sources can maintian the feat's
+                # presence (and we avoid recursion!).
+                self.remove_feat(feat)
+        elif not feat.sources:
+            self.feats.remove(feat)
+            feat.remove_from(self)
 
     def add_feat_slot(self, type='*', slots=1):
         self._check_attr('feat_slots', {})
@@ -156,12 +183,23 @@ class Character(CoreCharacter, PathfinderObject):
                 self.feat_slots[type] -= slots
 
     def get_feat(self, feat, subtype=None):
+        """
+        Return the feat instance if this character has the specified feat.
+
+        If '*' is passed for subtype, then first feat of the feat class found
+        will be returned. Useful for determining if character has a feat with
+        any subtype.
+
+        @param feat: The feat class or name of the feat.
+        @param subtype: The subtype. Overrides subtype in feat name.
+        """
         if isinstance(feat, basestring):
             feat, subtype_ = parse_feat(feat)
             if subtype is None and subtype_ is not None:
                 subtype = subtype_
         for f in self.feats:
-            if f.__class__ == feat and f.subtype == subtype:
+            if f.__class__ == feat and (f.subtype == subtype
+                                        or subtype == '*'):
                 return f
         return None
 

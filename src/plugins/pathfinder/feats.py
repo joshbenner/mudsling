@@ -12,8 +12,9 @@ def parse_feat(name):
     if not m:
         raise errors.FailedMatch('No such feat: %s' % name)
     info = m.groupdict()
-    feat = pathfinder.data.match(info['name'], types=('feat',))
-    if feat is None:
+    try:
+        feat = pathfinder.data.match(info['name'], types=('feat',))
+    except errors.FailedMatch:
         raise errors.FailedMatch('No such feat: %s' % info['name'])
     return feat, info['subtype']
 
@@ -26,10 +27,11 @@ class Feat(CharacterFeature):
     a feat, an instance of that feat is stored on the character. This allows
     some feats to have feat subtypes (ie: which weapon for Weapon Focus).
     """
-    __slots__ = ('subtype',)
+    __slots__ = ('subtype', 'sources')
 
     name = ''
     type = 'general'
+    gainable = True
     multiple = False
     _prerequisites = []
     modifiers = []
@@ -43,14 +45,20 @@ class Feat(CharacterFeature):
         # todo: Handle 'same subtype'
         return cls._prerequisites
 
-    def __init__(self, subtype=None):
+    def __init__(self, subtype=None, source=None):
         self.subtype = subtype
+        self.sources = []
+        if source is not None:
+            self.sources.append(source)
 
     def __str__(self):
         if self.multiple:
             return "%s (%s)" % (self.name, self.subtype)
         else:
             return super(Feat, self).__str__()
+
+    def __repr__(self):
+        return 'Feat: %s' % str(self)
 
 
 class Acrobatic(Feat):

@@ -7,6 +7,8 @@ BNF:
     rollexpr ::= <diceroll grammar>
       nature ::= "enhancement" | "racial" | "dodge"
         type ::= "bonus" | "penalty"
+  damagetype ::= name
+   damageval ::= <nums>+
     statname ::= name
       statvs ::= name
         stat ::= statname [("against" | "vs") statvs]
@@ -18,18 +20,24 @@ BNF:
        bonus ::= rollexpr [nature] [type] ("to" | "on") stat
        grant ::= "grant"["s"] <alphanums>+ ["feat"]
        speak ::= ["can"] "speak"["s"] <alphanums>+
-    modifier ::= (bonus | grant | speak) [expiration]
+      resist ::= ["can" | "gain"["s"]] "resist"["s"] damagetype damageval
+      reduct ::= ["gain"["s"]] "DR" damageval "/" (damagetype | "-")
+    modifier ::= (bonus | resist | reduct | grant | speak) [expiration]
 
 Examples:
 * +2 to STR for 2 turns
 * +1d4 + 1 enhancement bonus to Attack for 1 day
 * +1d4 Damage
+* Grants Darkvision
+* Speak Common
+* Resist fire 5
 
 TODO:
 """
 import logging
 
 from pyparsing import ParseException
+from flufl.enum import Enum
 
 from mudsling.storage import PersistentSlots
 
@@ -38,17 +46,27 @@ import dice
 logger = logging.getLogger('pathfinder')
 
 
-def _grammar():
-    from pyparsing import Optional, CaselessKeyword, Suppress, StringEnd
-    from pyparsing import SkipTo, WordStart, oneOf
+class Types(Enum):
+    bonus = 1
+    damage_resistance = 2
+    damage_reduction = 3
+    grant = 4
+    language = 5
 
-    CK = CaselessKeyword
+
+def _grammar():
+    from pyparsing import Optional, Suppress, StringEnd
+    from pyparsing import SkipTo, WordStart, oneOf, Word, alphas, nums
+    from pyparsing import Literal as L
+    from pyparsing import CaselessLiteral as CL
+    from pyparsing import CaselessKeyword as CK
+
     to = Suppress(CK("to") | CK("on"))
 
     type = (CK("bonus") | CK("penalty")).setResultsName("type")
     nature = (CK("enhancement") | CK("racial") | CK("dodge"))
     nature = nature.setResultsName("nature")
-    modtype = Optional(nature, default=None) + Optional(type, default=None)
+    modtype = Optional(nature, default='') + Optional(type, default='')
 
     timeunits = oneOf("round rounds turn turns second seconds minute minutes "
                       "hour hours day days", caseless=True)
@@ -69,7 +87,19 @@ def _grammar():
     lang = Suppress(CK("speak") | CK("speaks"))
     lang += WordStart() + lastitem.setResultsName("language")
 
-    modifier = (bonus | grant | lang) + Optional(expire, default=None)
+    damagetype = Word(alphas, alphas + ' ')
+    damageval = Word(nums)
+    gain = CK("gain") | CK("gains")
+    resist = Optional(CK("can") | gain)
+    resist += (CK("resist") | CK("resists"))
+    resist += damagetype.setResultsName("resist type")
+    resist += damageval.setResultsName("resist value")
+
+    reduct = gain + CL("DR")
+    reduct += damageval.setResultsName("reduction value")
+    reduct += L('/') + (damagetype | L('-')).setResultsName("reduction type")
+
+    modifier = (bonus | resist | reduct | grant | lang) + Optional(expire)
 
     return modifier
 
@@ -84,41 +114,50 @@ class Modifier(PersistentSlots):
     This class is a stored modifier, as opposed to an mod that is currently
     applied to an object/character.
     """
-    __slots__ = ('roll', 'nature', 'type', 'stat', 'expire_event',
-                 'duration_roll', 'duration_unit', 'grant', 'lang')
+    __slots__ = ('original', 'type', 'payload', 'expiration')
 
     def __init__(self, mod_str, parser=None):
+        self.original = mod_str
         parser = parser or grammar
         parsed = parser.parseString(mod_str, True)
         if 'grant' in parsed:
-            self.grant = parsed['grant']
+            self.type = Types.grant
+            self.payload = parsed['grant'].strip().lower()
         elif 'language' in parsed:
-            self.lang = parsed['language']
+            self.type = Types.language
+            self.payload = parsed['language'].strip().lower()
+        elif 'resist type' in parsed:
+            self.type = Types.damage_resistance
+            resist_type = parsed['resist type'].strip().lower()
+            resist_value = int(parsed['resist value'].strip())
+            self.payload = (resist_value, resist_type)
+        elif 'reduction type' in parsed:
+            self.type = Types.damage_reduction
+            reduction_type = parsed['reduction type'].strip().lower()
+            reduction_value = int(parsed['reduction value'].strip())
+            self.payload = (reduction_value, reduction_type)
         else:
-            self.roll = (dice.Roll(parsed['mod_val'][0])
-                         if 'mod_val' in parsed
-                         else None)
-            if parsed.get('nature', None) is not None:
-                self.nature = parsed['nature'].strip() or None
-            else:
-                self.nature = None
-            if parsed.get('type', None) is not None:
-                self.type = parsed['type'].strip() or None
-            else:
-                self.type = None
-                # todo: Parse stat strings like "<skill> skill rolls" etc.
-            self.stat = parsed['stat'].strip() if 'stat' in parsed else None
+            self.type = Types.bonus
+            roll = (dice.Roll(parsed['mod_val'][0]) if 'mod_val' in parsed
+                    else None)
+            nature = parsed.get('nature', '').strip().lower() or None
+            type = parsed.get('type', '').strip().lower() or None
+            stat = parsed.get('stat', '').strip().lower() or None
+            self.payload = (roll, stat, type, nature)
+        self.expiration = None
         if 'until' in parsed:
-            self.expire_event = parsed['until']
-        else:
-            self.expire_event = None
+            self.expiration = parsed['until'].strip().lower()
         if 'duration' in parsed:
             val, unit = parsed['duration']
-            self.duration_roll = dice.Roll(val)
-            self.duration_unit = unit.rstrip('s')
-        else:
-            self.duration_roll = None
-            self.duration_unit = None
+            duration_roll = dice.Roll(val)
+            duration_unit = unit.rstrip('s')
+            self.expiration = (duration_roll, duration_unit)
+
+    def __str__(self):
+        return self.original
+
+    def __repr__(self):
+        return 'Modifier: %s' % self.original
 
 
 def modifiers(*a):

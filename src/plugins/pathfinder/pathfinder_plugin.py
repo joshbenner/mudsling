@@ -13,6 +13,7 @@ import pathfinder.data
 import pathfinder.races
 import pathfinder.skills  # Skills must come before feats.
 import pathfinder.feats
+import pathfinder.special_abilities
 
 inflection = inflect.engine()
 
@@ -25,6 +26,8 @@ class PathfinderCorePlugin(PathfinderPlugin):
         register(pathfinder.races.Race, pathfinder.races)
         register(pathfinder.skills.Skill, pathfinder.skills)
         register(pathfinder.feats.Feat, pathfinder.feats)
+        register(pathfinder.feats.Feat, pathfinder.special_abilities,
+                 exclude=(pathfinder.special_abilities.SpecialAbility,))
 
     def pathfinder_data_path(self):
         """

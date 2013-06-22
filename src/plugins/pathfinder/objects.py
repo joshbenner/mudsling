@@ -10,7 +10,7 @@ import pathfinder
 from .stats import HasStats
 from .events import Event
 from .features import HasFeatures
-from .sizes import SizeCategory
+from .sizes import size_categories
 from .modifiers import Modifier
 from .effects import Effect
 
@@ -54,8 +54,8 @@ class PathfinderObject(Object, HasStats, HasFeatures):
 
     @size_category.setter
     def size_category(self, val):
-        if not isinstance(val, SizeCategory):
-            raise ValueError("Size categories must be of type SizeCategory.")
+        if val not in size_categories.values():
+            raise ValueError("Invalid size category.")
         default = pathfinder.size(max(self.dimensions))
         if val == default:
             del self._size_category
@@ -97,6 +97,7 @@ class PathfinderObject(Object, HasStats, HasFeatures):
         self._check_attr('effects', [])
         if effect in self.effects:
             self.effects.remove(effect)
+            effect.remove_from(self)
             return True
         return False
 

@@ -51,13 +51,15 @@ def match(name, types=None, multiple=False):
     elif len(matches) > 0:
         return matches[0]
     else:
-        return None
+        raise errors.FailedMatch()
 
 
-def add_classes(cls, module):
+def add_classes(cls, module, exclude=()):
     to_add = []
+    excl = list(exclude)
+    excl.append(cls)
     for val in module.__dict__.itervalues():
-        if inspect.isclass(val) and issubclass(val, cls) and val != cls:
+        if inspect.isclass(val) and issubclass(val, cls) and val not in excl:
             to_add.append(val)
     add(cls, to_add)
 

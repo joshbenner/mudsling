@@ -17,7 +17,7 @@ class Class(CharacterFeature):
     levels = []
 
 
-class GainFeat(CharacterFeature):
+class GainFeatSlot(CharacterFeature):
     name = "Feat"
     description = "Gain a feat."
     feat_type = '*'
@@ -31,7 +31,7 @@ class GainFeat(CharacterFeature):
             obj.remove_feat_slot(type=self.feat_type)
 
 
-class BonusFeat(GainFeat):
+class BonusFeatSlot(GainFeatSlot):
     """
     Grants a bonus feat.
     """
@@ -66,6 +66,6 @@ class Fighter(Class):
               'Swim')
     skill_points = '2 + INT'
     levels = [
-        lvl(1, 1, 2, 0, 0, (GainFeat, BonusFeat,)),
-        lvl(2, 2, 3, 0, 0, (BonusFeat,))
+        lvl(1, 1, 2, 0, 0, (GainFeatSlot, BonusFeatSlot,)),
+        lvl(2, 2, 3, 0, 0, (BonusFeatSlot,))
     ]
