@@ -5,3 +5,4 @@ psutil>=0.6.1
 inflect==0.2.1
 fuzzywuzzy==0.1
 pytz
+flufl.enum==4.0
