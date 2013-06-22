@@ -4,8 +4,10 @@ Prerequisites are stats and feature requirements.
 Syntax: <stat> <minimum>
     or: <feature> [(<subtype>)]
     or: <N><ord>-level <class>
+    or: restricted
 
 Examples:
+* restricted
 * BAB 6
 * Combat Expertise
 * Weapon Focus (Shortsword)
@@ -46,6 +48,8 @@ def check_prerequisite(prerequisite, character):
 
     @rtype: C{bool}
     """
+    if prerequisite == 'restricted':
+        return False
     m = lvl_re.match(prerequisite)
     if m:
         level, class_name = m.groups()
