@@ -2,6 +2,7 @@
 Prerequisites are stats and feature requirements.
 
 Syntax: [not] <stat> <minimum>
+    or: [not] <type> feat slot
     or: [not] <feature> [(<subtype>)]
     or: [not] <N><ord>-level <class>
     or: [not] restricted
@@ -15,6 +16,7 @@ Examples:
 """
 import re
 
+slot_re = re.compile(r'^(?P<type>.*) +feat +slot$')
 lvl_re = re.compile(r'^(?P<level>\d+)(?:st|th|rd)-level +(?P<class>.*)$')
 stat_re = re.compile(r'^(?P<stat>.*) +(?P<minimum>\d+)$')
 feature_re = re.compile('^(?P<name>.*?)(?: +\((?P<subtype>.*)\))?$')
@@ -52,6 +54,11 @@ def check_prerequisite(prerequisite, character):
         return not check_prerequisite(prerequisite[4:], character)
     if prerequisite == 'restricted':
         return False
+    m = slot_re.match(prerequisite)
+    if m:
+        available_slots = character.available_feat_slots()
+        slot_type = m.groupdict()['type']
+        return slot_type in available_slots and available_slots[slot_type] > 0
     m = lvl_re.match(prerequisite)
     if m:
         level, class_name = m.groups()

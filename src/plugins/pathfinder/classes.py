@@ -3,9 +3,14 @@ from collections import namedtuple
 from .features import CharacterFeature
 from .data import ForceSlotsMetaclass
 from pathfinder.characters import is_pfchar
+from .feats import Feat
 
 
-lvl = namedtuple('lvl', 'level bab fort ref will features')
+Level = namedtuple('Level', 'level bab fort ref will features')
+
+
+def lvl(level, bab, fort, ref, will, *features):
+    return Level(level, bab, fort, ref, will, features)
 
 
 class Class(CharacterFeature):
@@ -17,7 +22,7 @@ class Class(CharacterFeature):
     levels = []
 
 
-class GainFeatSlot(CharacterFeature):
+class GainFeat(CharacterFeature):
     name = "Feat"
     description = "Gain a feat."
     feat_type = '*'
@@ -31,7 +36,7 @@ class GainFeatSlot(CharacterFeature):
             obj.remove_feat_slot(type=self.feat_type)
 
 
-class BonusFeatSlot(GainFeatSlot):
+class BonusFeat(GainFeat):
     """
     Grants a bonus feat.
     """
@@ -43,16 +48,50 @@ class BonusFeatSlot(GainFeatSlot):
 class Bravery(CharacterFeature):
     name = 'Bravery'
     description = "+1 to will saves vs fear; +1 every 4th level after 2nd."
-    modifiers = ['+trunc((LVL + 2) / 4) to Will saves against fear']
+    modifiers = ['+1 to Will saves against fear']
 
 
 class ArmorTraining(CharacterFeature):
     name = 'Armor Training'
     description = "The fighter learns to be more maneuverable in armor."
     modifiers = [
-        "+min(4, trunc((level + 1) / 4)) to armor check penalty reduction",
-        "+min(4, trunc((level + 1) / 4)) to armor dex limit"
+        "+1 to armor check penalty reduction",
+        "+1 to armor dex limit"
     ]
+
+
+class WeaponTrainingSlot(GainFeat):
+    name = 'Weapon Training'
+    description = "The fighter is highly trained in a chosen group of weapons."
+    feat_type = 'weapon training'
+
+
+weapon_training_groups = {
+    'Axes': [],
+    'Blades, Heavy': [],
+    # todo: fill out this mapping
+}
+
+
+class WeaponTraining(Feat):
+    __slots__ = ('gained_at_level',)
+    name = 'Weapon Training'
+    type = 'weapon training'
+    restricted = True
+    multiple = True
+    _prerequisites = ['weapon training feat slot']
+
+    @classmethod
+    def subtypes(cls, character=None):
+        return sorted(weapon_training_groups.keys())
+
+    def apply_to(self, obj):
+        if is_pfchar(obj):
+            self.gained_at_level = obj.get_stat('level')
+
+    def respond_to_event(self, event, responses):
+        # todo: Implement weapon bonuses
+        pass
 
 
 class Fighter(Class):
@@ -66,6 +105,19 @@ class Fighter(Class):
               'Swim')
     skill_points = '2 + INT'
     levels = [
-        lvl(1, 1, 2, 0, 0, (GainFeatSlot, BonusFeatSlot,)),
-        lvl(2, 2, 3, 0, 0, (BonusFeatSlot,))
+        #  LVL BAB Fort Ref Will Special
+        lvl(1,  1,  2,   0,  0,  GainFeat, BonusFeat),
+        lvl(2,  2,  3,   0,  0,  BonusFeat, Bravery),
+        lvl(3,  3,  3,   1,  1,  GainFeat, ArmorTraining),
+        lvl(4,  4,  4,   1,  1,  BonusFeat),
+        lvl(5,  5,  4,   1,  1,  GainFeat, WeaponTrainingSlot),
+        lvl(6,  6,  5,   2,  2,  BonusFeat, Bravery),
+        lvl(7,  7,  5,   2,  2,  GainFeat, ArmorTraining),
+        lvl(8,  8,  6,   2,  2,  BonusFeat),
+        lvl(9,  9,  6,   3,  3,  GainFeat, WeaponTrainingSlot),
+        lvl(10, 10, 7,   3,  3,  BonusFeat, Bravery),
+        lvl(11, 11, 7,   3,  3,  GainFeat, ArmorTraining),
+        lvl(12, 12, 8,   4,  4,  BonusFeat),
+        lvl(13, 13, 8,   4,  4,  GainFeat, WeaponTrainingSlot),
+        lvl(14, 14, 9,   4,  4,  BonusFeat, Bravery),
     ]

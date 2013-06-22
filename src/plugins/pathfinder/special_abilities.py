@@ -8,7 +8,10 @@ from .feats import Feat
 
 
 class SpecialAbility(Feat):
-    gainable = False
+    @classmethod
+    def prerequisites(cls, subtype=None):
+        # Special abilities cannot be gained like other feats.
+        return ['restricted']
 
     def __repr__(self):
         return 'Special Ability: %s' % str(self)

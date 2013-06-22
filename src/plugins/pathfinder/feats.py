@@ -27,11 +27,11 @@ class Feat(CharacterFeature):
     a feat, an instance of that feat is stored on the character. This allows
     some feats to have feat subtypes (ie: which weapon for Weapon Focus).
     """
-    __slots__ = ('subtype', 'sources')
+    __slots__ = ('subtype', 'sources', 'slot')
 
     name = ''
     type = 'general'
-    gainable = True
+    restricted = False  # Only available if a slot with specific type is free.
     multiple = False
     _prerequisites = []
     modifiers = []
@@ -45,11 +45,23 @@ class Feat(CharacterFeature):
         # todo: Handle 'same subtype'
         return cls._prerequisites
 
-    def __init__(self, subtype=None, source=None):
+    @classmethod
+    def compatible_slots(cls, subtype=None):
+        if cls.restricted:
+            return cls.type,
+        elif cls.type == 'general':
+            return 'general',
+        else:
+            return 'general', cls.type
+
+    def __init__(self, subtype=None, source=None, slot=None):
         self.subtype = subtype
         self.sources = []
+        self.slot = slot
         if source is not None:
             self.sources.append(source)
+        if slot is not None and 'slot' not in self.sources:
+            self.sources.append('slot')
 
     def __str__(self):
         if self.multiple:

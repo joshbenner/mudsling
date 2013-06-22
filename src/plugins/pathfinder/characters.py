@@ -6,6 +6,7 @@ from mudslingcore.objects import Character as CoreCharacter
 from dice import Roll
 from mudsling.storage import ObjRef
 from mudsling.commands import all_commands
+from mudsling import errors
 
 import pathfinder
 import pathfinder.prerequisites
@@ -13,6 +14,10 @@ from .feats import parse_feat
 from .objects import PathfinderObject
 from .events import Event
 from .races import Race
+
+
+class CharacterError(errors.Error):
+    pass
 
 
 class Character(CoreCharacter, PathfinderObject):
@@ -75,6 +80,7 @@ class Character(CoreCharacter, PathfinderObject):
     }
     # Map attributes to stats.
     stat_attributes = {
+        'level': 'level',
         'strength': 'strength',
         'constitution': 'constitution',
         'dexterity': 'dexterity',
@@ -135,37 +141,50 @@ class Character(CoreCharacter, PathfinderObject):
         self._check_attr('levels', [])
         self.levels.append(class_)
 
-    def add_feat(self, feat_class, subtype=None, source=None):
+    def add_feat(self, feat_class, subtype=None, source=None, slot=None):
         self._check_attr('feats', [])
+        if source is 'slot' and slot is None:
+            compatible = self.compatible_feat_slots(feat_class, subtype)
+            if compatible:
+                slot = compatible[0]
+            else:
+                msg = "No feat slot available for %s" % feat_class.name
+                raise CharacterError(msg)
         existing = self.get_feat(feat_class, subtype)
         if existing is not None:
+            if source == 'slot' and 'slot' in existing.sources:
+                raise CharacterError("Feat can only occupy one feat slot.")
             existing.sources.append(source)
         else:
-            feat = feat_class(subtype, source)
+            feat = feat_class(subtype, source, slot)
             feat.apply_to(self)
             self.feats.append(feat)
 
     def remove_feat(self, feat, source=None):
         """
-        Remove a feat instance from a character.
+        Remove a feat instance from a character. If the feat is provided by
+        multiple sources, it may not actually be removed.
 
         @param feat: The feat INSTANCE to remove.
         @type feat: L{pathfinder.feats.Feat}
         @param source: The source to remove in the case of a multi-source feat.
             If a non-None source is specified but is not in the feat's list of
-            sources, then the feat will not be removed. On the other hand, if
-            the feat is multi-source, but no source is given, the feat will
-            also not be removed.
+            sources, then the feat will not be removed. If no source is given,
+            and the feat is occupying a feat slot, the slot will be vacated.
         """
         if source is not None:
             if source in feat.sources:
                 feat.sources.remove(source)
-                # Call with no source, so other sources can maintian the feat's
-                # presence (and we avoid recursion!).
-                self.remove_feat(feat)
-        elif not feat.sources:
-            self.feats.remove(feat)
-            feat.remove_from(self)
+                if source == 'slot':
+                    feat.slot = None
+            else:
+                # Specified source does not provide the feat.
+                return
+        if feat.sources:  # Something still keeping feat around. Abort!
+            return
+        # Remove the feat that is no longer provided by anything.
+        self.feats.remove(feat)
+        feat.remove_from(self)
 
     def add_feat_slot(self, type='*', slots=1):
         self._check_attr('feat_slots', {})
@@ -181,6 +200,28 @@ class Character(CoreCharacter, PathfinderObject):
                 del self.feat_slots[type]
             else:
                 self.feat_slots[type] -= slots
+
+    def feats_by_slot(self):
+        slots = {}
+        for slot_type in self.feat_slots.iterkeys():
+            slots[slot_type] = []
+        for feat in self.feats:
+            if feat.slot is not None:
+                if feat.slot not in slots:
+                    slots[feat.slot] = []
+                slots[feat.slot].append(feat)
+        return slots
+
+    def available_feat_slots(self):
+        existing = self.feats_by_slot()
+        available = {}
+        for slot_type, count in self.feat_slots.iteritems():
+            available[slot_type] = count - len(existing[slot_type])
+        return available
+
+    def compatible_feat_slots(self, feat_class, subtype=None):
+        return [st for st, c in self.available_feat_slots()
+                if c > 0 and st in feat_class.compatible_slots(subtype)]
 
     def get_feat(self, feat, subtype=None):
         """
