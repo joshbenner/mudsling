@@ -94,6 +94,24 @@ class WeaponTraining(Feat):
         pass
 
 
+class ArmorMastery(CharacterFeature):
+    name = 'Armor Mastery'
+    description = "The fighter's use of armor and shields is so finely honed "\
+                  "that he effectively disregards 5 points of any blow."
+
+    def respond_to_event(self, event, responses):
+        if event.name == "damage reduction":
+            # todo: Provide DR 5/- if wearing armor or wielding a shield.
+            pass
+
+
+class WeaponMastery(CharacterFeature):
+    name = 'Weapon Mastery'
+    description = "A fighter's chosen weapon confirms all critical hits, and "\
+                  "deals more critical damage than usual."
+    # todo: Implement?
+
+
 class Fighter(Class):
     name = 'Fighter'
     hit_die = 'd10'
@@ -120,4 +138,10 @@ class Fighter(Class):
         lvl(12, 12, 8,   4,  4,  BonusFeat),
         lvl(13, 13, 8,   4,  4,  GainFeat, WeaponTrainingSlot),
         lvl(14, 14, 9,   4,  4,  BonusFeat, Bravery),
+        lvl(15, 15, 9,   5,  5,  GainFeat, ArmorTraining),
+        lvl(16, 16, 10,  5,  5,  BonusFeat),
+        lvl(17, 17, 10,  5,  5,  GainFeat, WeaponTrainingSlot),
+        lvl(18, 18, 11,  6,  6,  BonusFeat),
+        lvl(19, 19, 11,  6,  6,  GainFeat, ArmorMastery),
+        lvl(20, 20, 12,  6,  6,  BonusFeat, WeaponMastery)
     ]
