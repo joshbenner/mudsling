@@ -124,6 +124,13 @@ class RaceCmd(Command):
             i = pathfinder.abilities.index(abil.lower())
             abil = pathfinder.abil_short[i].upper()
             val = pathfinder.format_modifier(val)
-            #abils.append('{m%s{n: {y%s' % (abil, val))
             abils.append('{y%s {m%s' % (val, abil))
         return '{n, '.join(abils)
+
+
+class LevelUpCmd(Command):
+    """
+    +level-up <class>
+
+    Adds a level of the specified class.
+    """

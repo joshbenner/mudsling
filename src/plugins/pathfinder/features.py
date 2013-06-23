@@ -67,6 +67,5 @@ class HasFeatures(HasEvents):
             feature = feature()
         if not hasattr(self, '_features'):
             self._features = []
-        if feature.persistent:
-            self.features.append(feature)
+        self._features.append(feature)
         feature.apply_to(self)

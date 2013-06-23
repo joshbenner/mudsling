@@ -6,20 +6,30 @@ from pathfinder.characters import is_pfchar
 from .feats import Feat
 
 
-Level = namedtuple('Level', 'level bab fort ref will features')
+Level = namedtuple('Level', 'level bab fort ref will special')
 
 
-def lvl(level, bab, fort, ref, will, *features):
-    return Level(level, bab, fort, ref, will, features)
+def lvl(level, bab, fort, ref, will, *special):
+    return Level(level, bab, fort, ref, will, special)
 
 
 class Class(CharacterFeature):
-    __metaclass__ = ForceSlotsMetaclass
     name = ''
     hit_die = 'd1'
     skills = ()
     skill_points = '0 + INT'
     levels = []
+
+    @classmethod
+    def apply_next_level(cls, char):
+        """
+        @type char: L{pathfinder.characters.Character}
+        """
+        current_lvl = char.classes.get(cls, 0)
+        # 0-index, so current_lvl index = next level.
+        next_lvl = cls.levels[current_lvl]
+        for special in next_lvl.special:
+            char.add_feature(special)
 
 
 class GainFeat(CharacterFeature):

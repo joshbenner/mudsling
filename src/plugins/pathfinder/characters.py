@@ -14,6 +14,7 @@ from .feats import parse_feat
 from .objects import PathfinderObject
 from .events import Event
 from .races import Race
+from .advancement import active_table
 
 
 class CharacterError(errors.Error):
@@ -29,8 +30,10 @@ class Character(CoreCharacter, PathfinderObject):
     del character_commands
 
     finalized = False
+    xp = 0
     race = None
     levels = []
+    favored_class_bonuses = []
     feats = []
     skills = {}
     ability_points = 0
@@ -130,6 +133,42 @@ class Character(CoreCharacter, PathfinderObject):
                 classes[lvl] += 1
         return classes
 
+    @property
+    def favored_classes(self):
+        return (self.levels[0],) if self.levels else ()
+
+    @property
+    def unused_favored_class_bonuses(self):
+        """
+        Return the number of unused favored class bonuses.
+        @rtype: C{int}
+        """
+        bonuses = 0
+        favored = self.favored_classes
+        for cls in self.levels:
+            if cls in favored:
+                bonuses += 1
+        return bonuses - len(self.favored_class_bonuses)
+
+    def add_xp(self, xp, stealth=False):
+        if xp > 0:
+            self.xp += xp
+            if not stealth:
+                self.tell("{gYou gained {c", xp, "{g experience points!")
+
+    @property
+    def next_level_xp(self):
+        current_lvl = len(self.levels)
+        table = active_table()
+        if len(table) >= current_lvl:
+            return table[current_lvl]
+        else:
+            return None
+
+    @property
+    def xp_to_next_level(self):
+        return self.next_level_xp - self.xp
+
     def set_race(self, race):
         if self.race is not None and issubclass(self.race, Race):
             self.race.remove_from(self)
@@ -140,6 +179,7 @@ class Character(CoreCharacter, PathfinderObject):
     def add_class(self, class_):
         self._check_attr('levels', [])
         self.levels.append(class_)
+        class_.apply_next_level(self)
 
     def add_feat(self, feat_class, subtype=None, source=None, slot=None):
         self._check_attr('feats', [])
@@ -186,14 +226,14 @@ class Character(CoreCharacter, PathfinderObject):
         self.feats.remove(feat)
         feat.remove_from(self)
 
-    def add_feat_slot(self, type='*', slots=1):
+    def add_feat_slot(self, type='general', slots=1):
         self._check_attr('feat_slots', {})
         if type not in self.feat_slots:
             self.feat_slots[type] += slots
         else:
             self.feat_slots[type] = slots
 
-    def remove_feat_slot(self, type='*', slots=1):
+    def remove_feat_slot(self, type='general', slots=1):
         self._check_attr('feat_slots', {})
         if type in self.feat_slots:
             if slots >= self.feat_slots[type]:

@@ -1,6 +1,7 @@
 # from collections import namedtuple
 # from collections import OrderedDict
 
+import os
 import inflect
 inflection = inflect.engine()
 
@@ -8,12 +9,18 @@ import logging
 logger = logging.getLogger('pathfinder')
 
 from mudslingcore.ui import ClassicUI
+import mudsling.config
 
 # API-access imports: make important stuff easy to access.
 from .objects import Thing
 from .characters import Character
 from .sizes import size, size_categories
 from pathfinder import data
+
+config = mudsling.config.Config()
+config.read(os.path.join(os.path.dirname(__file__), 'defaults.cfg'))
+#: @type: L{mudsling.config.ConfigSection}
+config = config['pathfinder']
 
 ui = ClassicUI()
 abilities = ['strength', 'dexterity', 'constitution', 'intelligence',

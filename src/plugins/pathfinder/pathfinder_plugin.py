@@ -3,22 +3,23 @@ logger = logging.getLogger('pathfinder')
 logger.info("Loading pathfinder...")
 
 import os
-import inflect
-from pathfinder import Character
 
+import pathfinder
+from pathfinder import Character
 from pathfinder.extensibility import PathfinderPlugin
 from pathfinder.objects import Thing
 import pathfinder.languages
-import pathfinder.data
 import pathfinder.races
 import pathfinder.skills  # Skills must come before feats.
 import pathfinder.feats
 import pathfinder.special_abilities
 
-inflection = inflect.engine()
-
 
 class PathfinderCorePlugin(PathfinderPlugin):
+
+    def server_startup(self):
+        if self.options is not None:
+            pathfinder.config.update(self.options)
 
     def plugins_loaded(self):
         register = pathfinder.data.add_classes
