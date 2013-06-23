@@ -117,6 +117,14 @@ class HasStats(Persistent):
         result, d = roll._eval(vars, state)
         return (result, d) if desc else result
 
+    def roll_limits(self, roll, state=None, **vars):
+        state = state or {}
+        if isinstance(roll, basestring):
+            roll = dice.Roll(roll)
+        vars['__var'] = resolve_roll_var
+        state['stat object'] = self
+        return roll.limits(vars, state)
+
     def set_stat(self, stat, val):
         if 'stats' not in self.__dict__:
             self.stats = {}

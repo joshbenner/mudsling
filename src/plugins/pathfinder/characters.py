@@ -33,10 +33,11 @@ class Character(CoreCharacter, PathfinderObject):
     xp = 0
     race = None
     levels = []
+    ability_increases = []
+    hp_increases = []
     favored_class_bonuses = []
     feats = []
     skills = {}
-    ability_points = 0
     skill_points = 0
     feat_slots = {}  # key = type or '*', value = how many
     languages = []
@@ -107,9 +108,9 @@ class Character(CoreCharacter, PathfinderObject):
     }
 
     # These are used to resolve stats to their canonical form.
-    _skill_check_re = re.compile('(.*)(?: +(check|roll)s?)?', re.I)
+    _skill_check_re = re.compile('(.*)(?: +(check|roll)s?)', re.I)
     _save_re = re.compile(
-        '(Fort(?:itude)?|Ref(?:lex)?|Will)( +(save|check)s?)?', re.I)
+        '(Fort(?:itude)?|Ref(?:lex)?|Will)( +(save|check)s?)', re.I)
 
     # Used to identify class level stats for isolating base stat value.
     _class_lvl_re = re.compile('(.*) +levels?', re.I)
@@ -151,14 +152,27 @@ class Character(CoreCharacter, PathfinderObject):
         return bonuses - len(self.favored_class_bonuses)
 
     def add_xp(self, xp, stealth=False):
+        before = self.current_xp_level
         if xp > 0:
             self.xp += xp
             if not stealth:
                 self.tell("{gYou gained {c", xp, "{g experience points!")
+                if before < self.current_xp_level:
+                    self.tell('{r*** {yYOU CAN LEVEL-UP! {r***')
+
+    @property
+    def current_xp_level(self):
+        lvl = 0
+        for xp in active_table():
+            if self.xp >= xp:
+                lvl += 1
+            else:
+                break
+        return lvl
 
     @property
     def next_level_xp(self):
-        current_lvl = len(self.levels)
+        current_lvl = self.current_xp_level
         table = active_table()
         if len(table) >= current_lvl:
             return table[current_lvl]
@@ -168,6 +182,27 @@ class Character(CoreCharacter, PathfinderObject):
     @property
     def xp_to_next_level(self):
         return self.next_level_xp - self.xp
+
+    def increase_ability(self, ability):
+        self._check_attr('ability_increases', [])
+        self.ability_increases.append(ability)
+        previous = self.get_stat(ability)
+        new = previous + 1
+        self.set_stat(ability, new)
+        a = ability.capitalize()
+        self.tell('{gYour {m', a, '{g score is now {c', new, '{g.')
+
+    def roll_hitpoints(self, roll):
+        if self.level == 1:
+            min_, max_ = self.roll_limits(roll)
+            self.set_stat('hitpoints', max_)
+        else:
+            self._check_attr('hp_increases', [])
+            existing_hp = self.get_stat('hitpoints')
+            hp_to_add, desc = self.roll(roll, desc=True)
+            self.set_stat('hitpoints', existing_hp + hp_to_add)
+            self.hp_increases.append((desc, hp_to_add))
+            self.tell('{gYou gain {y', hp_to_add, '{g hit points!')
 
     def set_race(self, race):
         if self.race is not None and issubclass(self.race, Race):
@@ -180,6 +215,7 @@ class Character(CoreCharacter, PathfinderObject):
         self._check_attr('levels', [])
         self.levels.append(class_)
         class_.apply_next_level(self)
+        self.tell('{gYou have gained a level of {m', class_.name, '{g.')
 
     def add_feat(self, feat_class, subtype=None, source=None, slot=None):
         self._check_attr('feats', [])
@@ -229,9 +265,9 @@ class Character(CoreCharacter, PathfinderObject):
     def add_feat_slot(self, type='general', slots=1):
         self._check_attr('feat_slots', {})
         if type not in self.feat_slots:
-            self.feat_slots[type] += slots
-        else:
             self.feat_slots[type] = slots
+        else:
+            self.feat_slots[type] += slots
 
     def remove_feat_slot(self, type='general', slots=1):
         self._check_attr('feat_slots', {})

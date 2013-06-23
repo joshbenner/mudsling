@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 from .features import CharacterFeature
-from .data import ForceSlotsMetaclass
+from .modifiers import modifiers
 from pathfinder.characters import is_pfchar
 from .feats import Feat
 
@@ -17,7 +17,7 @@ class Class(CharacterFeature):
     name = ''
     hit_die = 'd1'
     skills = ()
-    skill_points = '0 + INT'
+    skill_points = '0'
     levels = []
 
     @classmethod
@@ -30,6 +30,7 @@ class Class(CharacterFeature):
         next_lvl = cls.levels[current_lvl]
         for special in next_lvl.special:
             char.add_feature(special)
+
 
 
 class GainFeat(CharacterFeature):
@@ -58,16 +59,16 @@ class BonusFeat(GainFeat):
 class Bravery(CharacterFeature):
     name = 'Bravery'
     description = "+1 to will saves vs fear; +1 every 4th level after 2nd."
-    modifiers = ['+1 to Will saves against fear']
+    modifiers = modifiers('+1 to Will saves against fear')
 
 
 class ArmorTraining(CharacterFeature):
     name = 'Armor Training'
     description = "The fighter learns to be more maneuverable in armor."
-    modifiers = [
+    modifiers = modifiers(
         "+1 to armor check penalty reduction",
         "+1 to armor dex limit"
-    ]
+    )
 
 
 class WeaponTrainingSlot(GainFeat):
@@ -131,7 +132,7 @@ class Fighter(Class):
               'Handle Animal', 'Intimidate', 'Knowledge (dungeoneering)',
               'Knowledge (engineering)', 'Profession', 'Ride', 'Survival',
               'Swim')
-    skill_points = '2 + INT'
+    skill_points = '2 + INT mod'
     levels = [
         #  LVL BAB Fort Ref Will Special
         lvl(1,  1,  2,   0,  0,  GainFeat, BonusFeat),

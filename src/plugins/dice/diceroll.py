@@ -441,7 +441,7 @@ class DieRollNode(EvalNode):
                 self.mod_funcs[mod[0]](self, rolls, vars, state, *args)
             result = Sequence(rolls.itervalues())
         else:
-            result = Sequence(rolls)
+            result = sum(rolls)
         if state.get('desc', False):
             rollsdesc = '+'.join(state['rolldescs'][id].values())
             rollsdesc += '=' + str(sum(result))

@@ -4,11 +4,15 @@ from mudsling.commands import Command
 from mudsling import locks
 from mudsling import errors
 
+from mudsling import utils
+import mudsling.utils.string
+
 from dice import Roll
 
 import pathfinder
 from pathfinder import inflection
 from pathfinder.parsers import AbilityNameStaticParser, RaceStaticParser
+from pathfinder.parsers import ClassStaticParser
 
 
 class AbilitiesCmd(Command):
@@ -130,7 +134,50 @@ class RaceCmd(Command):
 
 class LevelUpCmd(Command):
     """
-    +level-up <class>
+    +level-up [<class> [+<ability>]]
 
     Adds a level of the specified class.
     """
+    aliases = ('+level-up',)
+    syntax = '[<class> [+<ability>]]'
+    arg_parsers = {
+        'class': ClassStaticParser,
+        'ability': AbilityNameStaticParser
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{pathfinder.characters.Character}
+        @type actor: L{pathfinder.characters.Character}
+        @type args: C{dict}
+        """
+        class_ = args['class']
+        pending = this.current_xp_level - this.level
+        if class_ is None:
+            if pending:
+                lu = inflection.plural_noun('level-up', pending)
+                actor.tell('{yYou have {g', pending, '{y pending ', lu, '.')
+                classes = sorted(pathfinder.data.registry['class'].values(),
+                                 key=lambda x: x.name)
+                classes = ['{m%s{n' % c.name for c in classes]
+                classes = utils.string.english_list(classes)
+                actor.tell('Available classes: ', classes)
+            else:
+                actor.tell('{gYou have no pending level-ups.')
+            return
+        else:
+            if not pending:
+                actor.tell('{yYou have no pending level-ups.')
+                return
+            need_ability = ((this.level + 1) % 4 == 0)
+            ability = args['ability']
+            if need_ability and ability is None:
+                actor.tell('{yYou must indicate the ability to increase.')
+                return
+            elif not need_ability and ability is not None:
+                actor.tell('{yAbilities may be increased every 4th level.')
+                return
+            if need_ability:
+                this.increase_ability(ability)
+            this.add_class(class_)

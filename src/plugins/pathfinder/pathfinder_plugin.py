@@ -13,6 +13,7 @@ import pathfinder.races
 import pathfinder.skills  # Skills must come before feats.
 import pathfinder.feats
 import pathfinder.special_abilities
+import pathfinder.classes
 
 
 class PathfinderCorePlugin(PathfinderPlugin):
@@ -29,6 +30,7 @@ class PathfinderCorePlugin(PathfinderPlugin):
         register(pathfinder.feats.Feat, pathfinder.feats)
         register(pathfinder.feats.Feat, pathfinder.special_abilities,
                  exclude=(pathfinder.special_abilities.SpecialAbility,))
+        register(pathfinder.classes.Class, pathfinder.classes)
 
     def pathfinder_data_path(self):
         """

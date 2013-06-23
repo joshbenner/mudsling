@@ -22,14 +22,27 @@ class AbilityNameStaticParser(StaticParser):
         return val
 
 
-class RaceStaticParser(StaticParser):
+class StaticPFDataParser(StaticParser):
+    data_types = None
+    search_for = 'item'
+
     @classmethod
     def parse(cls, input):
-        race = pathfinder.data.match(input, types=('race',))
-        if race is None:
-            raise errors.ParseError("No race '%s'." % input)
-        return race
+        obj = pathfinder.data.match(input, types=cls.data_types)
+        if obj is None:
+            raise errors.ParseError("No %s '%s'." % (cls.search_for, input))
+        return obj
 
     @classmethod
     def unparse(cls, val, obj=None):
         return val.name
+
+
+class RaceStaticParser(StaticPFDataParser):
+    data_types = ('race',)
+    search_for = 'race'
+
+
+class ClassStaticParser(StaticPFDataParser):
+    data_types = ('class',)
+    search_for = 'class'
