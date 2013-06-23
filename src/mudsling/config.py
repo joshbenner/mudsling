@@ -253,6 +253,9 @@ class ConfigSection(object):
     def get(self, option, raw=False, vars=None):
         return self.config.get(self.section, option, raw, vars)
 
+    def getdefault(self, option, raw=False, vars=None, default=None):
+        return self.config.getdefault(self.section, option, raw, vars, default)
+
     def getint(self, option):
         return self.config.getint(self.section, option)
 
@@ -288,6 +291,13 @@ class ConfigSection(object):
 
     def options(self):
         return self.config.options(self.section)
+
+    def update(self, other):
+        """
+        @type other: L{ConfigSection}
+        """
+        for opt in other.options():
+            self.set(opt, other[opt])
 
 
 config = Config()
