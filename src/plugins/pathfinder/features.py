@@ -65,7 +65,7 @@ class HasFeatures(HasEvents):
     def add_feature(self, feature):
         if inspect.isclass(feature):
             feature = feature()
-        if not hasattr(self, '_features'):
+        if '_features' not in self.__dict__:
             self._features = []
         self._features.append(feature)
         feature.apply_to(self)

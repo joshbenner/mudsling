@@ -192,17 +192,9 @@ class Character(CoreCharacter, PathfinderObject):
         a = ability.capitalize()
         self.tell('{gYour {m', a, '{g score is now {c', new, '{g.')
 
-    def roll_hitpoints(self, roll):
-        if self.level == 1:
-            min_, max_ = self.roll_limits(roll)
-            self.set_stat('hitpoints', max_)
-        else:
-            self._check_attr('hp_increases', [])
-            existing_hp = self.get_stat('hitpoints')
-            hp_to_add, desc = self.roll(roll, desc=True)
-            self.set_stat('hitpoints', existing_hp + hp_to_add)
-            self.hp_increases.append((desc, hp_to_add))
-            self.tell('{gYou gain {y', hp_to_add, '{g hit points!')
+    def increment_stat(self, stat, amount=1):
+        existing = self.get_stat(stat)
+        self.set_stat(stat, existing + amount)
 
     def set_race(self, race):
         if self.race is not None and issubclass(self.race, Race):
@@ -213,9 +205,24 @@ class Character(CoreCharacter, PathfinderObject):
 
     def add_class(self, class_):
         self._check_attr('levels', [])
+        self._check_attr('hp_increases', [])
         self.levels.append(class_)
-        class_.apply_next_level(self)
+        class_.apply_level(self.classes[class_], self)
         self.tell('{gYou have gained a level of {m', class_.name, '{g.')
+
+    def class_skills(self):
+        # todo: Memoize?
+        skills = []
+        for class_ in self.classes.iterkeys():
+            for skill_name in class_.skills:
+                try:
+                    skill = pathfinder.data.match(skill_name, types=('skill',))
+                except errors.MatchError:
+                    # Exclude broken skill name.
+                    continue
+                if skills not in skills:
+                    skills.append(skill)
+        return skills
 
     def add_feat(self, feat_class, subtype=None, source=None, slot=None):
         self._check_attr('feats', [])

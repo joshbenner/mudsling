@@ -152,6 +152,10 @@ class LevelUpCmd(Command):
         @type actor: L{pathfinder.characters.Character}
         @type args: C{dict}
         """
+        if not this.get_stat('strength') or this.race is None:
+            msg = '{yYou must roll {c+abilities{y and choose a {c+race{y!'
+            actor.tell(msg)
+            return
         class_ = args['class']
         pending = this.current_xp_level - this.level
         if class_ is None:
@@ -171,7 +175,7 @@ class LevelUpCmd(Command):
                 actor.tell('{yYou have no pending level-ups.')
                 return
             need_ability = ((this.level + 1) % 4 == 0)
-            ability = args['ability']
+            ability = args.get('ability', None)
             if need_ability and ability is None:
                 actor.tell('{yYou must indicate the ability to increase.')
                 return

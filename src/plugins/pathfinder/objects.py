@@ -77,6 +77,16 @@ class PathfinderObject(Object, HasStats, HasFeatures):
         self.trigger_event(event)
         return event.modifiers
 
+    def get_stat_base(self, stat):
+        if stat == 'hitpoints':
+            return self.hitpoints
+        elif stat == 'max hitpoints':
+            return self.max_hp
+        elif stat == 'temporary hitpoints':
+            return self.temporary_hitpoints
+        else:
+            return super(PathfinderObject, self).get_stat_base(stat)
+
     def apply_effect(self, effect, source=None):
         """
         @type effect: L{pathfinder.effects.Effect}

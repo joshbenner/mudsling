@@ -21,16 +21,33 @@ class Class(CharacterFeature):
     levels = []
 
     @classmethod
-    def apply_next_level(cls, char):
+    def apply_level(cls, level, char):
         """
         @type char: L{pathfinder.characters.Character}
         """
-        current_lvl = char.classes.get(cls, 0)
-        # 0-index, so current_lvl index = next level.
-        next_lvl = cls.levels[current_lvl]
+        next_lvl = cls.levels[level - 1]
         for special in next_lvl.special:
             char.add_feature(special)
+        cls.add_hitpoints(char)
+        cls.add_skill_points(char)
 
+    @classmethod
+    def add_hitpoints(cls, char):
+        if char.level == 1:
+            min_, max_ = char.roll_limits(cls.hit_die)
+            char.hitpoints = max_ + max(0, char.con_mod)
+            char.tell('You begin with {y', char.hitpoints, '{g hit {npoints.')
+        else:
+            hp_to_add, desc = char.roll(cls.hit_die, desc=True)
+            char.hitpoints += hp_to_add + max(0, char.con_mod)
+            char.hp_increases.append((desc, hp_to_add))
+            char.tell('You gain {y', hp_to_add, '{g hit{n points!')
+
+    @classmethod
+    def add_skill_points(cls, char):
+        points = max(1, char.roll(cls.skill_points))
+        char.skill_points += points
+        char.tell('You gain {y', points, '{m skill{n points!')
 
 
 class GainFeat(CharacterFeature):
