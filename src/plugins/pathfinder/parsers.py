@@ -1,7 +1,8 @@
-from mudsling.parsers import StaticParser
+from mudsling.parsers import StaticParser, MatchDescendants
 from mudsling import errors
 
 import pathfinder
+from pathfinder.characters import Character
 
 
 class AbilityNameStaticParser(StaticParser):
@@ -51,3 +52,15 @@ class ClassStaticParser(StaticPFDataParser):
 class SkillStaticParser(StaticPFDataParser):
     data_types = ('skill',)
     search_for = 'skill'
+
+
+class MatchCharacter(MatchDescendants):
+    def __init__(self, cls=Character, search_for='character', show=True):
+        super(MatchCharacter, self).__init__(cls=cls,
+                                             search_for=search_for,
+                                             show=show)
+
+    def _match(self, obj, input):
+        if input == 'me' and obj.isa(self.objClass):
+            return [obj]
+        return super(MatchCharacter, self)._match(obj, input)

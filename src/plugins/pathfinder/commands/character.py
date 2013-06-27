@@ -3,6 +3,7 @@ import random
 from mudsling.commands import Command
 from mudsling import locks
 from mudsling import errors
+from mudsling import parsers
 
 from mudsling import utils
 import mudsling.utils.string
@@ -10,9 +11,12 @@ import mudsling.utils.string
 from dice import Roll
 
 import pathfinder
+from pathfinder import ui
 from pathfinder import inflection
 from pathfinder.parsers import AbilityNameStaticParser, RaceStaticParser
 from pathfinder.parsers import ClassStaticParser, SkillStaticParser
+from pathfinder.parsers import MatchCharacter
+import pathfinder.errors as pferr
 
 
 class AbilitiesCmd(Command):
@@ -209,4 +213,93 @@ class SkillUpCmd(Command):
         @type actor: L{pathfinder.characters.Character}
         @type args: C{dict}
         """
-        pass
+        try:
+            this.add_skill_rank(args['skill'])
+        except pferr.SkillError as e:
+            actor.tell('{y', e.message)
+
+
+class SkillDownCmd(Command):
+    """
+    +skill-down <skill>
+
+    Decrease a skill by one rank.
+    """
+    aliases = ('+skill-down',)
+    syntax = '<skill>'
+    arg_parsers = {
+        'skill': SkillStaticParser
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{pathfinder.characters.Character}
+        @type actor: L{pathfinder.characters.Character}
+        @type args: C{dict}
+        """
+        try:
+            this.remove_skill_rank(args['skill'])
+        except pferr.SkillError as e:
+            actor.tell('{y', e.message)
+
+
+class SkillsCmd(Command):
+    """
+    +skills[/all]
+
+    Display your skills.
+    """
+    aliases = ('+skills',)
+    switch_parsers = {
+        'all': parsers.BoolStaticParser
+    }
+    switch_defaults = {
+        'all': False
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{pathfinder.characters.Character}
+        @type actor: L{pathfinder.characters.Character}
+        @type args: C{dict}
+        """
+        skills = this.skills.keys()
+        if self.switches['all']:
+            for skill in pathfinder.data.registry['skill'].itervalues():
+                if skill not in skills:
+                    skills.append(skill)
+        self._show_skill_table(skills, actor)
+
+    def _show_skill_table(self, skills, actor):
+        table = ui.Table([
+            ui.Column('Skill'),
+            ui.Column('Total'),
+            ui.Column('Trained'),
+            ui.Column('Ability'),
+            ui.Column('Misc')
+        ])
+
+
+class AdminSkillsCmd(SkillsCmd):
+    """
+    +skills <character>
+
+    Display someone else's skills.
+    """
+    key = 'admin skills command'  # So it doesn't collide with other +skills.
+    aliases = ('+skills',)
+    syntax = '<character>'
+    arg_parsers = {
+        'character': MatchCharacter()
+    }
+    lock = locks.Lock('perm(view skills of others)')
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{pathfinder.characters.Character}
+        @type actor: L{pathfinder.characters.Character}
+        @type args: C{dict}
+        """
+        actor.tell('admin skills for ', args['character'])

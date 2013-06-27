@@ -15,19 +15,13 @@ from .objects import PathfinderObject
 from .events import Event
 from .races import Race
 from .advancement import active_table
-
-
-class CharacterError(errors.Error):
-    pass
+import pathfinder.errors as pferr
 
 
 class Character(CoreCharacter, PathfinderObject):
     """
     A Pathfinder-enabled character/creature/etc.
     """
-    from .commands import character as character_commands
-    private_commands = all_commands(character_commands)
-    del character_commands
 
     finalized = False
     xp = 0
@@ -39,6 +33,7 @@ class Character(CoreCharacter, PathfinderObject):
     feats = []
     skills = {}
     skill_points = 0
+    level_up_skills = {}
     feat_slots = {}  # key = type or '*', value = how many
     languages = []
     _abil_modifier_stats = (
@@ -211,7 +206,7 @@ class Character(CoreCharacter, PathfinderObject):
         self.tell('{gYou have gained a level of {m', class_.name, '{g.')
 
     def class_skills(self):
-        # todo: Memoize?
+        # todo: Memoize? Needs to be flushable, if so...
         skills = []
         for class_ in self.classes.iterkeys():
             for skill_name in class_.skills:
@@ -232,11 +227,12 @@ class Character(CoreCharacter, PathfinderObject):
                 slot = compatible[0]
             else:
                 msg = "No feat slot available for %s" % feat_class.name
-                raise CharacterError(msg)
+                raise pferr.CharacterError(msg)
         existing = self.get_feat(feat_class, subtype)
         if existing is not None:
             if source == 'slot' and 'slot' in existing.sources:
-                raise CharacterError("Feat can only occupy one feat slot.")
+                msg = "Feat can only occupy one feat slot."
+                raise pferr.CharacterError(msg)
             existing.sources.append(source)
         else:
             feat = feat_class(subtype, source, slot)
@@ -341,24 +337,67 @@ class Character(CoreCharacter, PathfinderObject):
                     return True
         return False
 
-    def add_skill_rank(self, skill, ranks=1):
+    def add_skill_rank(self, skill, ranks=1, level_up=True,
+                       deduct_points=True):
         self._check_attr('skills', {})
-        if skill in self.skills:
-            self.skills[skill] += ranks
-        else:
-            self.skills[skill] = ranks
+        self._check_attr('level_up_skills', {})
+        skill_current = self.skills.get(skill, 0)
+        if skill_current >= self.level:
+            raise pferr.SkillError("Cannot train skills above your level.")
+        if deduct_points:
+            if self.skill_points < ranks:
+                raise pferr.SkillError("Insufficient skill points.")
+            self.skill_points -= ranks
+        self.skills[skill] = skill_current + ranks
+        if level_up:
+            lvlup_current = self.level_up_skills.get(skill, 0)
+            self.level_up_skills[skill] = lvlup_current + ranks
+        self.tell('You are now trained to rank {g', skill_current + ranks,
+                  '{n in {c', skill, '{n (effective check bonus: {y',
+                  pathfinder.format_modifier(self.skill_base_bonus(skill)),
+                  '{n).')
 
-    def skill_ranks_trained(self, skill):
+    def remove_skill_rank(self, skill, ranks=1, level_up=True,
+                          credit_points=True):
+        self._check_attr('skills', {})
+        self._check_attr('level_up_skills', {})
+        skill_current = self.skills.get(skill, 0)
+        if skill_current < ranks:
+            raise pferr.SkillError("No ranks of %s to remove." % skill.name)
+        if level_up:
+            lvlup_current = self.level_up_skills.get(skill, 0)
+            if lvlup_current < ranks:
+                msg = "Cannot remove skill ranks gained in a previous level."
+                raise pferr.SkillError(msg)
+            self.level_up_skills[skill] = lvlup_current - ranks
+        if credit_points:
+            self.skill_points += ranks
+        self.skills[skill] -= ranks
+        self.tell('You are now trained to rank {g', skill_current - ranks,
+                  '{n in {c', skill, '{n (effective check bonus: {y',
+                  pathfinder.format_modifier(self.skill_base_bonus(skill)),
+                  '{n).')
+
+    def skill_ranks(self, skill):
+        """
+        How many ranks of training does the character have in the skill?
+        """
         if isinstance(skill, basestring):
             skill = pathfinder.data.match(skill, types=('skill',))
         return self.skills.get(skill, 0)
 
-    def skill_rank(self, skill):
+    def skill_base_bonus(self, skill):
+        """
+        Get the base skill bonus. Does not include effects.
+
+        Base bonus = ranks + ability modifier + class skill bonus (if any)
+        """
         if isinstance(skill, basestring):
             skill = pathfinder.data.match(skill, types=('skill',))
-        trained = self.skill_ranks_trained(skill)
+        trained = self.skill_ranks(skill)
+        ability_modifier = self.get_stat(skill.ability + ' mod')
         bonus = 3 if trained and skill in self.class_skills() else 0
-        return trained + bonus
+        return trained + ability_modifier + bonus
 
     def resolve_stat_name(self, name):
         name = name.lower()
@@ -402,7 +441,7 @@ class Character(CoreCharacter, PathfinderObject):
         if stat in self._abil_modifier_stats:
             return math.trunc(self.get_stat(stat.split(' ')[0]) / 2 - 5)
         elif stat in pathfinder.data.registry['skill']:
-            return self.skill_rank(stat)
+            return self.skill_base_bonus(stat)
         else:
             m = self._class_lvl_re.match(stat)
             if m:
@@ -421,6 +460,11 @@ class Character(CoreCharacter, PathfinderObject):
         e.languages = []
         self.trigger_event(e)
         return e.languages
+
+# Assign commands here to avoid circular import issues.
+from .commands import character as character_commands
+Character.private_commands = all_commands(character_commands)
+del character_commands
 
 
 def is_pfchar(obj):
