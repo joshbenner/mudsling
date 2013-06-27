@@ -46,3 +46,8 @@ class RaceStaticParser(StaticPFDataParser):
 class ClassStaticParser(StaticPFDataParser):
     data_types = ('class',)
     search_for = 'class'
+
+
+class SkillStaticParser(StaticPFDataParser):
+    data_types = ('skill',)
+    search_for = 'skill'

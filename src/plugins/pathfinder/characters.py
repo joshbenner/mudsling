@@ -348,10 +348,17 @@ class Character(CoreCharacter, PathfinderObject):
         else:
             self.skills[skill] = ranks
 
-    def skill_rank(self, skill):
+    def skill_ranks_trained(self, skill):
         if isinstance(skill, basestring):
             skill = pathfinder.data.match(skill, types=('skill',))
         return self.skills.get(skill, 0)
+
+    def skill_rank(self, skill):
+        if isinstance(skill, basestring):
+            skill = pathfinder.data.match(skill, types=('skill',))
+        trained = self.skill_ranks_trained(skill)
+        bonus = 3 if trained and skill in self.class_skills() else 0
+        return trained + bonus
 
     def resolve_stat_name(self, name):
         name = name.lower()

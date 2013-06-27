@@ -12,7 +12,7 @@ from dice import Roll
 import pathfinder
 from pathfinder import inflection
 from pathfinder.parsers import AbilityNameStaticParser, RaceStaticParser
-from pathfinder.parsers import ClassStaticParser
+from pathfinder.parsers import ClassStaticParser, SkillStaticParser
 
 
 class AbilitiesCmd(Command):
@@ -100,6 +100,9 @@ class RaceCmd(Command):
         @type actor: L{pathfinder.characters.Character}
         @type args: C{dict}
         """
+        if not this.str:
+            actor.tell('{yYou must first roll your {c+abilities{y!')
+            return
         race = args['race']
         if race is None:
             self._show_races(actor)
@@ -185,3 +188,25 @@ class LevelUpCmd(Command):
             if need_ability:
                 this.increase_ability(ability)
             this.add_class(class_)
+
+
+class SkillUpCmd(Command):
+    """
+    +skill-up <skill>
+
+    Increase a skill by one rank.
+    """
+    aliases = ('+skill-up',)
+    syntax = '<skill>'
+    arg_parsers = {
+        'skill': SkillStaticParser
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{pathfinder.characters.Character}
+        @type actor: L{pathfinder.characters.Character}
+        @type args: C{dict}
+        """
+        pass
