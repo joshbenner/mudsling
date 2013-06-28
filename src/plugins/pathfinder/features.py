@@ -12,7 +12,13 @@ from .events import EventResponder, HasEvents
 from .data import ForceSlotsMetaclass
 
 
+class FeatureMetaClass(ForceSlotsMetaclass):
+    def __str__(cls):
+        return cls.name if hasattr(cls, 'name') else repr(cls)
+
+
 class Feature(EventResponder):
+    __metaclass__ = FeatureMetaClass
     __slots__ = ()
 
     name = ''
@@ -32,7 +38,6 @@ class Feature(EventResponder):
 
 
 class CharacterFeature(Feature):
-    __metaclass__ = ForceSlotsMetaclass
     modifiers = []
 
     def apply_to(self, obj):

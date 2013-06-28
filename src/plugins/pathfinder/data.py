@@ -37,13 +37,25 @@ def __data_type_key(dt):
         return dt.__class__.__name__.lower()
 
 
-def match(name, types=None, multiple=False):
-    matches = []
+def match(name, types=None, multiple=False, exact=True):
+    # Match is done against CaselessDict, so name's case doesn't matter. But,
+    # if we are doing a non-exact match, we will be checking .startswith().
+    if not exact:
+        name = name.lower()
+    partial_matches = []
+    exact_matches = []
     types = [__data_type_key(o) for o in (types or registry.iterkeys())]
     for data in (registry[clsname] for clsname in registry
                  if clsname.lower() in types):
         if name in data:
-            matches.append(data[name])
+            exact_matches.append(data[name])
+        elif not exact and not len(exact_matches):
+            for d in data.keyList:
+                if d.startswith(name):
+                    partial_matches.append(data[d])
+
+    matches = exact_matches or partial_matches
+
     if multiple:
         return matches
     elif len(matches) > 1:

@@ -1,6 +1,9 @@
 from mudsling.parsers import StaticParser, MatchDescendants
 from mudsling import errors
 
+from mudsling import utils
+import mudsling.utils.string
+
 import pathfinder
 from pathfinder.characters import Character
 
@@ -26,10 +29,37 @@ class AbilityNameStaticParser(StaticParser):
 class StaticPFDataParser(StaticParser):
     data_types = None
     search_for = 'item'
+    exact = True
+    show_multiple = True
+
+    @classmethod
+    def plural(cls):
+        return pathfinder.inflection.plural(cls.search_for)
 
     @classmethod
     def parse(cls, input):
-        obj = pathfinder.data.match(input, types=cls.data_types)
+        try:
+            obj = pathfinder.data.match(input, types=cls.data_types,
+                                        exact=cls.exact,
+                                        multiple=cls.show_multiple)
+        except errors.AmbiguousMatch as e:
+            e.message = "Multiple %s match '%s'." % (cls.plural(), input)
+            raise e
+        except errors.FailedMatch as e:
+            e.message = "No %s match '%s'." % (cls.plural(), input)
+            raise e
+
+        if cls.show_multiple:
+            if len(obj) > 1:
+                msg = "Multiple %s match '%s': %s"
+                msg = msg % (cls.plural(), input,
+                             utils.string.english_list(obj))
+                raise errors.AmbiguousMatch(msg=msg)
+            elif len(obj):
+                obj = obj[0]
+            else:
+                obj = None
+
         if obj is None:
             raise errors.ParseError("No %s '%s'." % (cls.search_for, input))
         return obj
@@ -52,6 +82,7 @@ class ClassStaticParser(StaticPFDataParser):
 class SkillStaticParser(StaticPFDataParser):
     data_types = ('skill',)
     search_for = 'skill'
+    exact = False
 
 
 class MatchCharacter(MatchDescendants):

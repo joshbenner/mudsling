@@ -96,16 +96,27 @@ class HasStats(Persistent):
         return base + sum(map(self._eval_stat_part,
                               self.get_stat_modifiers(stat).itervalues()))
 
-    def _eval_stat_part(self, part):
+    def get_stat_limits(self, stat):
+        """
+        Retrieve the minimum and maximum of a stat.
+        """
+        low, high = self._eval_stat_part(self.get_stat_base(stat), limits=True)
+        for part in self.get_stat_modifiers(stat).itervalues():
+            l, h = self._eval_stat_part(part, limits=True)
+            low += l
+            high += h
+        return low, high
+
+    def _eval_stat_part(self, part, limits=False):
         if part is None:
-            return 0
+            return (0, 0) if limits else 0
         elif isinstance(part, basestring):
             roll = dice.Roll(part)
         elif isinstance(part, dice.Roll):
             roll = part
         else:
-            return part
-        return self.roll(roll)
+            return (part, part) if limits else part
+        return self.roll_limits(roll) if limits else self.roll(roll)
 
     def roll(self, roll, desc=False, state=None, **vars):
         state = state or {}

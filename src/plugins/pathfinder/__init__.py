@@ -44,3 +44,11 @@ class Damage(object):
 
 def format_modifier(mod):
     return ('+' if mod >= 0 else '') + str(mod)
+
+
+def format_range(low, high, force_range=False):
+    if low == high and not force_range:
+        return str(low)
+    if high < 0:
+        high = '(%s)' % high
+    return "%s-%s" % (low, high)

@@ -11,7 +11,6 @@ import mudsling.utils.string
 from dice import Roll
 
 import pathfinder
-from pathfinder import ui
 from pathfinder import inflection
 from pathfinder.parsers import AbilityNameStaticParser, RaceStaticParser
 from pathfinder.parsers import ClassStaticParser, SkillStaticParser
@@ -265,21 +264,55 @@ class SkillsCmd(Command):
         @type actor: L{pathfinder.characters.Character}
         @type args: C{dict}
         """
-        skills = this.skills.keys()
         if self.switches['all']:
-            for skill in pathfinder.data.registry['skill'].itervalues():
-                if skill not in skills:
-                    skills.append(skill)
-        self._show_skill_table(skills, actor)
+            skills = pathfinder.data.registry['skill'].values()
+        else:
+            skills = this.skills.keys()
+        self._show_skill_table(skills, this, actor)
 
-    def _show_skill_table(self, skills, actor):
+    def _show_skill_table(self, skills, char, actor):
+        """
+        @type skills: C{list}
+        @type char: L{pathfinder.characters.Character}
+        @type actor: L{pathfinder.characters.Character}
+        """
+        skills = sorted(skills, key=lambda s: s.name)
+        from pathfinder import ui
         table = ui.Table([
-            ui.Column('Skill'),
+            ui.Column(''),  # Class skill
+            ui.Column(''),  # Untrained
+            ui.Column('Skill', align='l'),
             ui.Column('Total'),
+            ui.Column('='),
             ui.Column('Trained'),
+            ui.Column('+'),
             ui.Column('Ability'),
+            ui.Column('+'),
             ui.Column('Misc')
         ])
+        class_skills = char.class_skills()
+        abil_mods = {}
+        abil_mod_str = {}
+        for abil in pathfinder.abil_short:
+            mod = char.get_stat(abil + ' mod')
+            abil_mods[abil] = mod
+            abil_mod_str[abil] = pathfinder.format_modifier(mod)
+        for skill in skills:
+            abil = skill.ability.lower()
+            name = skill.name
+            total = char.get_stat_limits(name)
+            trained = char.skill_ranks(skill)
+            ability = "%s (%s)" % (skill.ability.upper(), abil_mod_str[abil])
+            misc_low = total[0] - (trained + abil_mods[abil])
+            misc_high = total[1] - (trained + abil_mods[abil])
+            misc = pathfinder.format_range(misc_low, misc_high)
+            total = pathfinder.format_range(*total)
+            untrained = '{y*' if skill.untrained else ''
+            class_skill = 'C' if skill in class_skills else ''
+            table.add_row([class_skill, untrained, name, total, '', trained,
+                           '', ability, '', misc])
+        actor.tell(ui.report("Skills for %s" % char.name, table,
+                             'C = Class skill, * = Use untrained'))
 
 
 class AdminSkillsCmd(SkillsCmd):
