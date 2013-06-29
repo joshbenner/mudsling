@@ -128,11 +128,18 @@ class HasStats(Persistent):
         """
         Retrieve the minimum and maximum of a stat.
         """
+        if '_stat_cache' not in self.__dict__:
+            self._stat_cache = {}
+        cache = self._stat_cache
+        key = '%s|limits'
+        if key in cache:
+            return cache[key]
         low, high = self._eval_stat_part(self.get_stat_base(stat), limits=True)
         for part in self.get_stat_modifiers(stat).itervalues():
             l, h = self._eval_stat_part(part, limits=True)
             low += l
             high += h
+        cache[key] = (low, high)
         return low, high
 
     def _eval_stat_part(self, part, limits=False):
