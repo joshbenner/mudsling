@@ -118,10 +118,10 @@ class Session(object):
         """
         if flags is None:
             flags = {}
+        profile = flags.get('profile', False)
+        start = time.clock() if profile else None
         if isinstance(text, list):
-            for l in text:
-                self.send_output(l)
-            return
+            text = '\n'.join(text)
         text = str(text)
         if not text.endswith(self.line_delimiter):
             text += self.line_delimiter
@@ -147,7 +147,11 @@ class Session(object):
         elif not raw:
             text = string.parse_ansi(text, strip_ansi=True)
 
-        return self.raw_send_output(text)
+        d = self.raw_send_output(text)
+        duration = (time.clock() - start) if profile else None
+        if profile:
+            self.send_output("Output time: %.3f ms" % (duration * 1000))
+        return d
 
     def raw_send_output(self, text):
         """

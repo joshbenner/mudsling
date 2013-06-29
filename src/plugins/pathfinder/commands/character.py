@@ -297,10 +297,16 @@ class SkillsCmd(Command):
             mod = char.get_stat(abil + ' mod')
             abil_mods[abil] = mod
             abil_mod_str[abil] = pathfinder.format_modifier(mod)
+        import time
+        a = time.clock()
+        d = 0
         for skill in skills:
             abil = skill.ability.lower()
             name = skill.name
-            total = char.get_stat_limits(name)
+            c = time.clock()
+            #total = char.get_stat_limits(name)
+            total = (0, 0)
+            d += (time.clock() - c)
             trained = char.skill_ranks(skill)
             ability = "%s (%s)" % (skill.ability.upper(), abil_mod_str[abil])
             misc_low = total[0] - (trained + abil_mods[abil])
@@ -311,8 +317,12 @@ class SkillsCmd(Command):
             class_skill = 'C' if skill in class_skills else ''
             table.add_row([class_skill, untrained, name, total, '', trained,
                            '', ability, '', misc])
-        actor.tell(ui.report("Skills for %s" % char.name, table,
-                             'C = Class skill, * = Use untrained'))
+        b = (time.clock() - a) * 1000
+        actor.msg(ui.report("Skills for %s" % char.name, table,
+                            'C = Class skill, * = Use untrained'),
+                  flags={'profile': True})
+        actor.tell('Skill loop: ', str(b), ' ms')
+        actor.tell('get_stat_limits: ', str(d * 1000), ' ms')
 
 
 class AdminSkillsCmd(SkillsCmd):
