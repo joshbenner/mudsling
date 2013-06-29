@@ -19,7 +19,6 @@ class FeatureMetaClass(ForceSlotsMetaclass):
 
 class Feature(EventResponder):
     __metaclass__ = FeatureMetaClass
-    __slots__ = ()
 
     name = ''
     description = ''
@@ -38,6 +37,7 @@ class Feature(EventResponder):
 
 
 class CharacterFeature(Feature):
+    __slots__ = ('source', 'gained_at_level')
     modifiers = []
 
     def apply_to(self, obj):
@@ -74,3 +74,15 @@ class HasFeatures(HasEvents):
             self._features = []
         self._features.append(feature)
         feature.apply_to(self)
+        return feature
+
+    def remove_feature(self, feature):
+        if inspect.isclass(feature):
+            for f in self._features:
+                if isinstance(f, feature):
+                    feature = f
+                    break
+        if feature in self._features:
+            self._features.remove(feature)
+            feature.remove_from(self)
+        return feature

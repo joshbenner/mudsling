@@ -41,7 +41,7 @@ class AbilitiesCmd(Command):
         @type actor: L{pathfinder.characters.Character}
         @type args: C{dict}
         """
-        if this.finalized:
+        if this.frozen_level:
             msg = "You cannot roll abilities after the character is finalized."
             raise errors.CommandInvalid(msg=msg)
         if '0' in args:
@@ -110,7 +110,7 @@ class RaceCmd(Command):
         if race is None:
             self._show_races(actor)
         else:
-            if this.finalized:
+            if this.frozen_level:
                 msg = 'You cannot switch races after you finalize!'
                 raise errors.CommandInvalid(msg=msg)
             this.set_race(race)
@@ -264,11 +264,13 @@ class SkillsCmd(Command):
         @type actor: L{pathfinder.characters.Character}
         @type args: C{dict}
         """
+        self._show_skill_table(self._skills(this), this, actor)
+
+    def _skills(self, char):
         if self.switches['all']:
-            skills = pathfinder.data.registry['skill'].values()
+            return pathfinder.data.registry['skill'].values()
         else:
-            skills = this.skills.keys()
-        self._show_skill_table(skills, this, actor)
+            return char.skills.keys()
 
     def _show_skill_table(self, skills, char, actor):
         """
@@ -297,15 +299,10 @@ class SkillsCmd(Command):
             mod = char.get_stat(abil + ' mod')
             abil_mods[abil] = mod
             abil_mod_str[abil] = pathfinder.format_modifier(mod)
-        import time
-        a = time.clock()
-        d = 0
         for skill in skills:
             abil = skill.ability.lower()
             name = skill.name
-            c = time.clock()
             total = char.get_stat_limits(name)
-            d += (time.clock() - c)
             trained = char.skill_ranks(skill)
             ability = "%s (%s)" % (skill.ability.upper(), abil_mod_str[abil])
             misc_low = total[0] - (trained + abil_mods[abil])
@@ -316,27 +313,38 @@ class SkillsCmd(Command):
             class_skill = 'C' if skill in class_skills else ''
             table.add_row([class_skill, untrained, name, total, '', trained,
                            '', ability, '', misc])
-        b = (time.clock() - a) * 1000
-        actor.msg(ui.report("Skills for %s" % char.name, table,
-                            'C = Class skill, * = Use untrained'),
-                  flags={'profile': True})
-        actor.tell('Skill loop: ', str(b), ' ms')
-        actor.tell('get_stat_limits: ', str(d * 1000), ' ms')
+        actor.msg(ui.report("Skills for %s" % actor.name_for(char), table,
+                            'C = Class skill, * = Use untrained'))
 
 
 class AdminSkillsCmd(SkillsCmd):
     """
-    +skills <character>
+    +skills[/all] <character>
 
     Display someone else's skills.
     """
     key = 'admin skills command'  # So it doesn't collide with other +skills.
-    aliases = ('+skills',)
+    # Inherits aliases.
     syntax = '<character>'
     arg_parsers = {
         'character': MatchCharacter()
     }
+    # Inherits all switch.
     lock = locks.Lock('perm(view skills of others)')
+
+    def run(self, this, actor, args):
+        char = args['character']
+        self._show_skill_table(self._skills(char), char, actor)
+
+
+class UndoLevelCmd(Command):
+    """
+    +undo-level
+
+    Undoes any level-up changes that are not yet finalized.
+    """
+    aliases = ('+undo-level',)
+    lock = locks.all_pass
 
     def run(self, this, actor, args):
         """
@@ -344,4 +352,3 @@ class AdminSkillsCmd(SkillsCmd):
         @type actor: L{pathfinder.characters.Character}
         @type args: C{dict}
         """
-        actor.tell('admin skills for ', args['character'])

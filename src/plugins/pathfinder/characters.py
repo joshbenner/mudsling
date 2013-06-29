@@ -1,5 +1,6 @@
 import math
 import re
+import inspect
 
 from mudslingcore.objects import Character as CoreCharacter
 
@@ -10,6 +11,7 @@ from mudsling import errors
 
 import pathfinder
 import pathfinder.prerequisites
+from .features import CharacterFeature
 from .feats import parse_feat
 from .objects import PathfinderObject
 from .events import Event
@@ -23,7 +25,7 @@ class Character(CoreCharacter, PathfinderObject):
     A Pathfinder-enabled character/creature/etc.
     """
 
-    finalized = False
+    frozen_level = 0
     xp = 0
     race = None
     levels = []
@@ -33,6 +35,7 @@ class Character(CoreCharacter, PathfinderObject):
     feats = []
     skills = {}
     skill_points = 0
+    skill_point_increases = []
     level_up_skills = {}
     feat_slots = {}  # key = type or '*', value = how many
     languages = []
@@ -118,6 +121,26 @@ class Character(CoreCharacter, PathfinderObject):
         features.extend(c for c in self.classes.iterkeys())
         features.extend(self.feats)
         return features
+
+    def add_feature(self, feature, source=None):
+        feature = super(Character, self).add_feature(feature)
+        if isinstance(feature, CharacterFeature):
+            feature.source = source
+            feature.gained_at_level = self.level
+        return feature
+
+    def remove_feature(self, feature, source=None, level=None):
+        if inspect.isclass(feature):  # Search for it!
+            if (not issubclass(feature, CharacterFeature)
+                    or (source is None and level is None)):
+                return super(Character, self).remove_feature(feature)
+            for f in self._features:
+                if (isinstance(f, feature)
+                        and (source is None or f.source == source)
+                        and (level is None or f.gained_at_level == level)):
+                    return super(Character, self).remove_feature(f)
+        else:
+            return super(Character, self).remove_feature(feature)
 
     @property
     def classes(self):
@@ -206,6 +229,25 @@ class Character(CoreCharacter, PathfinderObject):
         self.clear_stat_cache()
         class_.apply_level(self.classes[class_], self)
         self.tell('{gYou have gained a level of {m', class_.name, '{g.')
+
+    def gain_hitpoints(self, points, level_up=True):
+        if isinstance(points, basestring):
+            points, d = self.roll(points, desc=True)
+            self.tell('You roll for hit points: {c', d)
+        self.hitpoints += points
+        if level_up:
+            self._check_attr('hp_increases', [])
+            self.hp_increases.append(points)
+        self.tell('You gain {y', points, '{n hit points, for a total of {g',
+                  self.hitpoints, '{n.')
+
+    def undo_level_hitpoints(self, level):
+        if level in self.hp_increases:
+            points = self.hp_increases[level - 1]
+            self.hitpoints -= points
+            del self.hp_increases[level - 1]
+            self.tell('You lose {y', points,
+                      '{n hit points gained at level {c', level, '{n.')
 
     def class_skills(self):
         if '__class_skills' in self._stat_cache:
@@ -344,6 +386,12 @@ class Character(CoreCharacter, PathfinderObject):
                     return True
         return False
 
+    def gain_skill_points(self, points, level_up=True):
+        self.skill_points += points
+        if level_up:
+            self.skill_point_increases.append(points)
+        self.tell('You gain {y', points, ' {mskill {npoints!')
+
     def add_skill_rank(self, skill, ranks=1, level_up=True,
                        deduct_points=True):
         self._check_attr('skills', {})
@@ -381,6 +429,8 @@ class Character(CoreCharacter, PathfinderObject):
         if credit_points:
             self.skill_points += ranks
         self.skills[skill] -= ranks
+        if self.skills[skill] == 0:
+            del self.skills[skill]
         self.clear_stat_cache()
         self.tell('You are now trained to rank {g', skill_current - ranks,
                   '{n in {c', skill, '{n (effective check bonus: {y',
@@ -407,6 +457,17 @@ class Character(CoreCharacter, PathfinderObject):
         ability_modifier = self.get_stat(skill.ability + ' mod')
         bonus = 3 if trained and skill in self.class_skills() else 0
         return trained + ability_modifier + bonus
+
+    def undo_level_up(self):
+        """
+        Un-does any changes during a level-up that are not yet finalized.
+        """
+        # Will be modifying level_up_skills during loop, so avoid generator.
+        for skill, ranks in self.level_up_skills.items():
+            self.remove_skill_rank(skill, ranks=ranks)
+        while self.level > self.frozen_level:
+            class_ = self.levels.pop()
+
 
     def resolve_stat_name(self, name):
         name = name.lower()
