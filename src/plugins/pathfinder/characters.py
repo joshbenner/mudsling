@@ -203,8 +203,8 @@ class Character(CoreCharacter, PathfinderObject):
         self._check_attr('levels', [])
         self._check_attr('hp_increases', [])
         self.levels.append(class_)
-        class_.apply_level(self.classes[class_], self)
         self.clear_stat_cache()
+        class_.apply_level(self.classes[class_], self)
         self.tell('{gYou have gained a level of {m', class_.name, '{g.')
 
     def class_skills(self):

@@ -161,6 +161,8 @@ class HasStats(Persistent):
         state['stat object'] = self
         state['desc'] = desc
         result, d = roll._eval(vars, state)
+        if isinstance(result, list):
+            result = sum(result)
         return (result, d) if desc else result
 
     def roll_limits(self, roll, state=None, **vars):
