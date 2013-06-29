@@ -304,8 +304,7 @@ class SkillsCmd(Command):
             abil = skill.ability.lower()
             name = skill.name
             c = time.clock()
-            #total = char.get_stat_limits(name)
-            total = (0, 0)
+            total = char.get_stat_limits(name)
             d += (time.clock() - c)
             trained = char.skill_ranks(skill)
             ability = "%s (%s)" % (skill.ability.upper(), abil_mod_str[abil])
