@@ -131,7 +131,7 @@ class HasStats(Persistent):
         if '_stat_cache' not in self.__dict__:
             self._stat_cache = {}
         cache = self._stat_cache
-        key = '%s|limits'
+        key = '%s|limits' % stat
         if key in cache:
             return cache[key]
         low, high = self._eval_stat_part(self.get_stat_base(stat), limits=True)
