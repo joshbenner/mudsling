@@ -28,6 +28,7 @@ class HasStats(Persistent):
     stats = {}
     stat_defaults = {}
     stat_attributes = {}
+    _stat_cache = {}
 
     @classmethod
     def _stats_mro(cls):
@@ -89,12 +90,39 @@ class HasStats(Persistent):
         return stats
 
     def get_stat(self, stat):
-        """
-        Evaluate the stat and return the result.
-        """
-        base = self._eval_stat_part(self.get_stat_base(stat))
-        return base + sum(map(self._eval_stat_part,
-                              self.get_stat_modifiers(stat).itervalues()))
+        if '_stat_cache' not in self.__dict__:
+            self._stat_cache = {}
+        cache = self._stat_cache
+        if stat in cache:
+            cached = cache[stat]
+            if isinstance(cached, list):
+                return sum(map(self._eval_stat_part, cached))
+            else:
+                return cached
+        low, high = self.get_stat_limits(stat)
+        if low == high:  # Only ever a single result.
+            cache[stat] = low
+        else:
+            # Cache the base and all modifiers in a single list to be summed.
+            parts = [self.get_stat_base(stat)]
+            parts.extend(self.get_stat_modifiers(stat).itervalues())
+            cache[stat] = parts
+        return self.get_stat(stat)  # Should get the cached results now.
+
+    def clear_stat_cache(self, key=None):
+        if key is not None:
+            if key in self._stat_cache:
+                del self._stat_cache[key]
+        else:
+            self._stat_cache = {}
+
+    # def get_stat(self, stat):
+    #     """
+    #     Evaluate the stat and return the result.
+    #     """
+    #     base = self._eval_stat_part(self.get_stat_base(stat))
+    #     return base + sum(map(self._eval_stat_part,
+    #                           self.get_stat_modifiers(stat).itervalues()))
 
     def get_stat_limits(self, stat):
         """
@@ -139,6 +167,7 @@ class HasStats(Persistent):
     def set_stat(self, stat, val):
         if 'stats' not in self.__dict__:
             self.stats = {}
+        self.clear_stat_cache()
         self.stats[stat] = val
 
     def __getattr__(self, item):

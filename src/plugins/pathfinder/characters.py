@@ -197,16 +197,19 @@ class Character(CoreCharacter, PathfinderObject):
         self.race = race
         if race is not None:
             race.apply_to(self)
+        self.clear_stat_cache()
 
     def add_class(self, class_):
         self._check_attr('levels', [])
         self._check_attr('hp_increases', [])
         self.levels.append(class_)
         class_.apply_level(self.classes[class_], self)
+        self.clear_stat_cache()
         self.tell('{gYou have gained a level of {m', class_.name, '{g.')
 
     def class_skills(self):
-        # todo: Memoize? Needs to be flushable, if so...
+        if '__class_skills' in self._stat_cache:
+            return self._stat_cache['__class_skills']
         skills = []
         for class_ in self.classes.iterkeys():
             for skill_name in class_.skills:
@@ -217,6 +220,8 @@ class Character(CoreCharacter, PathfinderObject):
                     continue
                 if skills not in skills:
                     skills.append(skill)
+        self._check_attr('_stat_cache', {})
+        self._stat_cache['__class_skills'] = skills
         return skills
 
     def add_feat(self, feat_class, subtype=None, source=None, slot=None):
@@ -238,6 +243,7 @@ class Character(CoreCharacter, PathfinderObject):
             feat = feat_class(subtype, source, slot)
             feat.apply_to(self)
             self.feats.append(feat)
+            self.clear_stat_cache()
 
     def remove_feat(self, feat, source=None):
         """
@@ -264,6 +270,7 @@ class Character(CoreCharacter, PathfinderObject):
         # Remove the feat that is no longer provided by anything.
         self.feats.remove(feat)
         feat.remove_from(self)
+        self.clear_stat_cache()
 
     def add_feat_slot(self, type='general', slots=1):
         self._check_attr('feat_slots', {})
@@ -352,6 +359,7 @@ class Character(CoreCharacter, PathfinderObject):
         if level_up:
             lvlup_current = self.level_up_skills.get(skill, 0)
             self.level_up_skills[skill] = lvlup_current + ranks
+        self.clear_stat_cache()
         self.tell('You are now trained to rank {g', skill_current + ranks,
                   '{n in {c', skill, '{n (effective check bonus: {y',
                   pathfinder.format_modifier(self.skill_base_bonus(skill)),
@@ -373,6 +381,7 @@ class Character(CoreCharacter, PathfinderObject):
         if credit_points:
             self.skill_points += ranks
         self.skills[skill] -= ranks
+        self.clear_stat_cache()
         self.tell('You are now trained to rank {g', skill_current - ranks,
                   '{n in {c', skill, '{n (effective check bonus: {y',
                   pathfinder.format_modifier(self.skill_base_bonus(skill)),

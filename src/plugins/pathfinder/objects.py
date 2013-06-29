@@ -21,6 +21,8 @@ def is_pfobj(obj):
 
 
 class PathfinderObject(Object, HasStats, HasFeatures):
+    _transient_vars = ['_stat_cache']
+
     cost = 0
     weight = 0
     hardness = 0
