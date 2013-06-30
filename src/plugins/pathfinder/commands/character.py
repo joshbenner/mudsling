@@ -188,9 +188,7 @@ class LevelUpCmd(Command):
             elif not need_ability and ability is not None:
                 actor.tell('{yAbilities may be increased every 4th level.')
                 return
-            if need_ability:
-                this.increase_ability(ability)
-            this.add_class(class_)
+            this.add_level(class_, ability)
 
 
 class SkillUpCmd(Command):

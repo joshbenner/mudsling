@@ -27,36 +27,33 @@ class Class(CharacterFeature):
         """
         next_lvl = cls.levels[level - 1]
         for special in next_lvl.special:
-            char.add_feature(special, source=cls)
-        cls.add_hitpoints(char)
-        cls.add_skill_points(char)
+            feature = char.add_feature(special)
+            char.level_log(level, 'class_special', cls, feature)
 
-    @classmethod
-    def remove_level(cls, level, char):
-        """
-        @type char: L{pathfinder.characters.Character}
-        """
-        level = cls.levels[level - 1]
-        for special in level.special:
-            char.remove_feature(special, source=cls, level=level)
-        char.undo_level_hitpoints(level)
-
-    @classmethod
-    def add_hitpoints(cls, char):
-        if char.level == 1:
-            min_, max_ = char.roll_limits(cls.hit_die)
-            char.gain_hitpoints(max_, level_up=True)
+        # Hit points.
+        if level == 1:
+            min_, points = char.roll_limits(cls.hit_die)
         else:
-            char.gain_hitpoints(cls.hit_die, level_up=True)
+            points = cls.hit_die
+        points = char.gain_hitpoints(points)
+        char.level_log(level, 'hitpoints', cls, points)
 
-    @classmethod
-    def undo_hitpoints(cls, char, level):
-
-
-    @classmethod
-    def add_skill_points(cls, char):
+        # Skill points.
         points = max(1, char.roll(cls.skill_points))
-        char.gain_skill_points(points, level_up=True)
+        char.gain_skill_points(points)
+        char.level_log(level, 'skillpoints', cls, points)
+
+    @classmethod
+    def undo_level_class_special(cls, char, level, feature):
+        char.remove_feature(feature)
+
+    @classmethod
+    def undo_level_hitpoints(cls, char, level, points):
+        char.lose_hitpoints(points)
+
+    @classmethod
+    def undo_level_skillpoints(cls, char, level, points):
+        char.lose_skill_points(points)
 
 
 class GainFeat(CharacterFeature):

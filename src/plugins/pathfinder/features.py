@@ -37,7 +37,6 @@ class Feature(EventResponder):
 
 
 class CharacterFeature(Feature):
-    __slots__ = ('source', 'gained_at_level')
     modifiers = []
 
     def apply_to(self, obj):
