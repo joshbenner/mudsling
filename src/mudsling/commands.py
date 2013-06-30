@@ -258,7 +258,7 @@ class Command(object):
         Determine if the input matches the command syntax.
         @rtype: bool
         """
-        if self._syntax is None:
+        if '_syntax' not in self.__class__.__dict__:
             self._compile_syntax()
 
         parsed = {}
