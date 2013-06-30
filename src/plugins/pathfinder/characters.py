@@ -210,6 +210,17 @@ class Character(CoreCharacter, PathfinderObject):
             race.apply_to(self)
         self.clear_stat_cache()
 
+    def reset_character(self, wipe_xp=False):
+        while self.level > 0:
+            self.undo_level(stealth=True)
+        self.set_race(None)
+        self.stats = {}
+        if wipe_xp:
+            self.xp = 0
+            self.tell('You have {r0 {nXP.')
+        self.clear_stat_cache()
+        self.tell('{rYour character sheet has been reset!')
+
     def add_level(self, class_, ability=None):
         self._check_attr('levels', [])
         self.levels.append(class_)
@@ -228,7 +239,7 @@ class Character(CoreCharacter, PathfinderObject):
     def undo_level_ability(self, char, level, ability):
         char.lose_ability(ability)
 
-    def undo_level(self):
+    def undo_level(self, stealth=False):
         """
         Undo all the character changes tha resulted from the last level gained.
         """
@@ -242,10 +253,17 @@ class Character(CoreCharacter, PathfinderObject):
             for change in level_changes[activity]:
                 source, data = change
                 getattr(source, fname)(self, level, *data)
+        # Use .items() instead of .iteritems() because we will be editing.
+        for skill, ranks in self.level_up_skills.items():
+            self.remove_skill_rank(skill, ranks)
         del self.level_history[level]
+        if self.frozen_level < self.level and not stealth:
+            self.tell('{yLevel-up changes have been cancelled.')
         self.levels.pop()
         self.clear_stat_cache()
         self.frozen_level = self.level
+        if not stealth:
+            self.tell('{yYou are currently at level {c', self.level, '{y.')
 
     def level_log(self, level, activity, source, *data):
         self._check_attr('level_history', {})
@@ -456,6 +474,8 @@ class Character(CoreCharacter, PathfinderObject):
                 msg = "Cannot remove skill ranks gained in a previous level."
                 raise pferr.SkillError(msg)
             self.level_up_skills[skill] = lvlup_current - ranks
+            if not self.level_up_skills[skill]:
+                del self.level_up_skills[skill]
         if credit_points:
             self.skill_points += ranks
         self.skills[skill] -= ranks

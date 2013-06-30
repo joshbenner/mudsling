@@ -311,8 +311,10 @@ class SkillsCmd(Command):
             class_skill = 'C' if skill in class_skills else ''
             table.add_row([class_skill, untrained, name, total, '', trained,
                            '', ability, '', misc])
-        actor.msg(ui.report("Skills for %s" % actor.name_for(char), table,
-                            'C = Class skill, * = Use untrained'))
+        title = "Skills for %s" % actor.name_for(char)
+        footer = 'C = Class skill, * = Use untrained'
+        footer += ' | Available skill points: %s' % char.skill_points
+        actor.msg(ui.report(title, table, footer))
 
 
 class AdminSkillsCmd(SkillsCmd):
@@ -350,3 +352,65 @@ class UndoLevelCmd(Command):
         @type actor: L{pathfinder.characters.Character}
         @type args: C{dict}
         """
+        if this.frozen_level < this.level:
+            this.undo_level()
+        else:
+            actor.tell('{yYou are not in the process of levelling up!')
+
+
+class FinalizeCmd(Command):
+    """
+    +finalize[/confirm]
+
+    Finalize the character, allowing no more changes.
+    """
+    aliases = ('+finalize',)
+    switch_parsers = {
+        'confirm': parsers.BoolStaticParser
+    }
+    switch_defaults = {
+        'confirm': False
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{pathfinder.characters.Character}
+        @type actor: L{pathfinder.characters.Character}
+        @type args: C{dict}
+        """
+        if this.frozen_level >= this.level:
+            actor.tell('You are already finalized.')
+        elif not self.switches['confirm']:
+            actor.tell('Once you finalize, you cannot change your character.')
+            actor.tell('Are you {ysure{n? If so, type: {c+finalize/confirm')
+        else:
+            this.finalize_level()
+
+
+class ResetCharCmd(Command):
+    """
+    +reset-charsheet[/xp] <character>
+
+    Administrative command to completely reset a character to level 0. If the
+    xp switch is used, then the character's accumulated XP is also reset.
+    """
+    aliases = ('+reset-charsheet',)
+    syntax = '<char>'
+    arg_parsers = {
+        'char': MatchCharacter()
+    }
+    switch_parsers = {
+        'xp': parsers.BoolStaticParser
+    }
+    switch_defaults = {
+        'xp': False
+    }
+    lock = locks.Lock('perm(reset character sheets)')
+
+    def run(self, this, actor, args):
+        char = args['char']
+        char.reset_character(wipe_xp=self.switches['xp'])
+        if self.switches['xp']:
+            actor.tell('{c', char, '{n now has 0 XP.')
+        actor.tell('You have reset {c', char, '{n.')
