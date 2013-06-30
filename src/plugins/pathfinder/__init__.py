@@ -9,6 +9,7 @@ import logging
 logger = logging.getLogger('pathfinder')
 
 from mudslingcore.ui import ClassicUI
+ui = ClassicUI()
 import mudsling.config
 
 # API-access imports: make important stuff easy to access.
@@ -22,7 +23,6 @@ config.read(os.path.join(os.path.dirname(__file__), 'defaults.cfg'))
 #: @type: L{mudsling.config.ConfigSection}
 config = config['pathfinder']
 
-ui = ClassicUI()
 abilities = ['strength', 'dexterity', 'constitution', 'intelligence',
              'wisdom', 'charisma']
 abil_short = ['str', 'dex', 'con', 'int', 'wis', 'cha']
@@ -44,6 +44,7 @@ class Damage(object):
 
 def format_modifier(mod):
     return ('+' if mod >= 0 else '') + str(mod)
+format_mod = format_modifier  # Short-version (convenience).
 
 
 def format_range(low, high, force_range=False):

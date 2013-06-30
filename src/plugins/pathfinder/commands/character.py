@@ -1,4 +1,5 @@
 import random
+import math
 
 from mudsling.commands import Command
 from mudsling import locks
@@ -7,10 +8,12 @@ from mudsling import parsers
 
 from mudsling import utils
 import mudsling.utils.string
+import mudsling.utils.units
 
 from dice import Roll
 
 import pathfinder
+from pathfinder import ui
 from pathfinder import inflection
 from pathfinder.parsers import AbilityNameStaticParser, RaceStaticParser
 from pathfinder.parsers import ClassStaticParser, SkillStaticParser
@@ -277,7 +280,6 @@ class SkillsCmd(Command):
         @type actor: L{pathfinder.characters.Character}
         """
         skills = sorted(skills, key=lambda s: s.name)
-        from pathfinder import ui
         table = ui.Table([
             ui.Column(''),  # Class skill
             ui.Column(''),  # Untrained
@@ -413,3 +415,96 @@ class ResetCharCmd(Command):
         if self.switches['xp']:
             actor.tell('{c', char, '{n now has 0 XP.')
         actor.tell('You have reset {c', char, '{n.')
+
+
+class CharsheetCmd(Command):
+    """
+    +charsheet
+
+    Display your own character sheet.
+    """
+    aliases = ('+charsheet', '+char')
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{pathfinder.characters.Character}
+        @type actor: L{pathfinder.characters.Character}
+        @type args: C{dict}
+        """
+        actor.msg(ui.report('Character Sheet: %s' % actor.name_for(this),
+                            self._character_sheet(this)))
+
+    def _character_sheet(self, char):
+        abil_table = self._abil_table(char)
+        mid_table = list(self._top_table(char))
+        mid_table.append('')
+        mid_table.extend(self._bottom_table(char))
+        vital_table = self._vital_table(char)
+        class_table = self._class_table(char)
+        tables = (abil_table, mid_table, vital_table, class_table)
+        fmt = "{:<28} {{c|{{n {:<27} {{c|{{n {:<20} {}"
+        g = lambda t, i: t[i] if i < len(t) else ''
+        n = max(len(abil_table), len(class_table))
+        lines = [fmt.format(*(g(t, i) for t in tables)) for i in xrange(n)]
+        return '\n'.join(lines)
+
+    def _abil_table(self, char):
+        fmt = '{abil:<12} ({short}) {score:<5} {mod:>+3}'
+        lines = ['Ability            Score Mod']
+        for abil, short in zip(pathfinder.abilities, pathfinder.abil_short):
+            base = char.get_stat_base(abil)
+            score = char.get_stat(abil)
+            if score != base:
+                "{score}{mod:+}".format(score=score, mod=score - base)
+            mod = char.get_stat(abil + ' mod')
+            line = fmt.format(abil=abil.capitalize(),
+                              short=short, score=score, mod=mod)
+            lines.append(line)
+        return lines
+
+    def _top_table(self, char):
+        hp_line = ' Hit Points: %s / %s' % (char.hp, char.max_hp)
+        if char.temporary_hitpoints:
+            hp_line += "(%s)" % char.temporary_hitpoints
+        ac_line = 'Armor Class: %s' % char.armor_class
+        init_line = ' Initiative: {:+}'.format(char.initiative)
+        return hp_line, ac_line, init_line
+
+    def _bottom_table(self, char):
+        l1 = "Fort {fort:<2}    BAB {bab:<+3}  CMB {cmb:<+3}".format(
+            fort=char.fortitude,
+            bab=char.bab,
+            cmb=char.cmb
+        )
+        l2 = " Ref {ref:<2}  Melee {melee:<+3}  CMD {cmd:<+3}".format(
+            ref=char.reflex,
+            melee=char.get_stat('melee attack bonus'),
+            cmd=char.cmd
+        )
+        l3 = "Will {will:<2} Ranged {ranged:<+3}".format(
+            will=char.will,
+            ranged=char.get_stat('ranged attack bonus')
+        )
+        return l1, l2, l3
+
+    def _vital_table(self, char):
+        height = char.dimensions[2] * utils.units.meter
+        feet = int(height.to(utils.units.foot))
+        inches = int(height.to(utils.units.inch)) - feet * 12
+        pounds = int(char.weight * utils.units.pound)
+        return (
+            '    Race: %s' % (char.race if char.race is not None else 'none'),
+            '  Gender: %s' % char.gender.capitalize(),
+            '     Age: %s' % ui.format_interval(char.age, format='%yeary'),
+            '  Height: %s\'%s"' % (feet, inches),
+            '  Weight: %s lbs' % pounds,
+            '      XP: {:,d}'.format(char.xp),
+            'Next Lvl: {:,d}'.format(char.next_level_xp)
+        )
+
+    def _class_table(self, char):
+        lines = ['        Level %s' % char.level]
+        for class_, lvl in char.classes.iteritems():
+            lines.append("{cls:>13} {lvl}".format(cls=class_.name, lvl=lvl))
+        return lines

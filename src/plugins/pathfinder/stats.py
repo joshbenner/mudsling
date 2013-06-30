@@ -89,10 +89,11 @@ class HasStats(Persistent):
                 stats.update(cls.stat_defaults.iterkeys())
         return stats
 
-    def get_stat(self, stat):
+    def get_stat(self, stat, resolved=False):
         if '_stat_cache' not in self.__dict__:
             self._stat_cache = {}
         cache = self._stat_cache
+        stat = stat if resolved else self.resolve_stat_name(stat)[0]
         if stat in cache:
             cached = cache[stat]
             if isinstance(cached, list):
@@ -116,21 +117,14 @@ class HasStats(Persistent):
         else:
             self._stat_cache = {}
 
-    # def get_stat(self, stat):
-    #     """
-    #     Evaluate the stat and return the result.
-    #     """
-    #     base = self._eval_stat_part(self.get_stat_base(stat))
-    #     return base + sum(map(self._eval_stat_part,
-    #                           self.get_stat_modifiers(stat).itervalues()))
-
-    def get_stat_limits(self, stat):
+    def get_stat_limits(self, stat, resolved=False):
         """
         Retrieve the minimum and maximum of a stat.
         """
         if '_stat_cache' not in self.__dict__:
             self._stat_cache = {}
         cache = self._stat_cache
+        stat = stat if resolved else self.resolve_stat_name(stat)[0]
         key = '%s|limits' % stat
         if key in cache:
             return cache[key]

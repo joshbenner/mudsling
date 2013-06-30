@@ -178,7 +178,7 @@ class SimpleUI(BaseUI):
 
 class ClassicUI(BaseUI):
     width = 100
-    hr = '{c' + ('-=' * 50)  # Half width because two chars.
+    _hr = '{c' + ('-=' * 50)  # Half width because two chars.
     h1_format = "{{y{text}"
     body_prefix = ' '
     body_suffix = ' '
@@ -205,25 +205,25 @@ class ClassicUI(BaseUI):
         w = self.width - len(self.body_prefix) - len(self.body_suffix)
         self.table_settings['width'] = w
         if self.width != 100:
-            self.hr = '{c' + ('-=' * (self.width / 2))
+            self._hr = '{c' + ('-=' * (self.width / 2))
 
     def h1(self, text=''):
         if text:
             text = ansi.center(super(ClassicUI, self).h1(text), self.width)
-        return '\n'.join([self.hr, text, self.hr])
+        return '\n'.join([self._hr, text, self._hr])
 
     def h2(self, text=''):
         return super(ClassicUI, self).h2(text.upper())
 
     def hr(self):
-        return self.hr
+        return self._hr
 
     def body_line(self, line):
         return self.body_prefix + line + self.body_suffix
 
     def footer(self, text=''):
-        lines = [self.hr]
+        lines = [self._hr]
         if text:
             lines.append(super(ClassicUI, self).footer(text))
-            lines.append(self.hr)
+            lines.append(self._hr)
         return '\n'.join(lines)

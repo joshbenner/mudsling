@@ -37,6 +37,8 @@ class Character(CoreCharacter, PathfinderObject):
     level_up_skills = {}
     feat_slots = {}  # key = type or '*', value = how many
     languages = []
+    gender = 'Neuter'
+    age = 0
     _abil_modifier_stats = (
         'strength modifier',
         'dexterity modifier',
@@ -45,27 +47,50 @@ class Character(CoreCharacter, PathfinderObject):
         'intelligence modifier',
         'charisma modifier'
     )
+    # If it can be modifier separately, it is NOT an alias!
+    _stat_aliases = {
+        'str': 'strength',     'str mod': 'strength modifier',
+        'dex': 'dexterity',    'dex mod': 'dexterity modifier',
+        'con': 'constitution', 'con mod': 'constitution modifier',
+        'wis': 'wisdom',       'wis mod': 'wisdom modifier',
+        'int': 'intelligence', 'int mod': 'intelligence modifier',
+        'cha': 'charisma',     'cha mod': 'charisma modifier',
+        'str modifier': 'strength modifier',
+        'dex modifier': 'dexterity modifier',
+        'con modifier': 'constitution modifier',
+        'wis modifier': 'wisdom modifier',
+        'int modifier': 'intelligence modifier',
+        'cha modifier': 'charisma modifier',
+        'strength mod': 'strength modifier',
+        'dexterity mod': 'dexterity modifier',
+        'constitution mod': 'constitution modifier',
+        'wisdom mod': 'wisdom modifier',
+        'intelligence mod': 'intelligence modifier',
+        'charisma mod': 'charisma modifier',
+
+        'lvl': 'level',
+        'hd': 'hit dice',
+        'bab': 'base attack bonus',
+        'ac': 'armor class',
+        'size mod': 'size modifier',
+        'special size mod': 'special size modifier',
+
+        'fort': 'fortitude', 'ref': 'reflex',
+        'cmb': 'combat maneuver bonus',
+        'cmd': 'combat maneuver defense',
+    }
     stat_defaults = {
-        'strength': 0,     'str': Roll('strength'),
-        'dexterity': 0,    'dex': Roll('dexterity'),
-        'constitution': 0, 'con': Roll('constitution'),
-        'wisdom': 0,       'wis': Roll('wisdom'),
-        'intelligence': 0, 'int': Roll('intelligence'),
-        'charisma': 0,     'cha': Roll('charisma'),
-        'str mod': Roll('strength modifier'),
-        'dex mod': Roll('dexterity modifier'),
-        'con mod': Roll('constitution modifier'),
-        'wis mod': Roll('wisdom modifier'),
-        'int mod': Roll('intelligence modifier'),
-        'cha mod': Roll('charisma modifier'),
+        'strength': 0,
+        'dexterity': 0,
+        'constitution': 0,
+        'wisdom': 0,
+        'intelligence': 0,
+        'charisma': 0,
 
         'level': 0,
-        'lvl': Roll('level'),
-        'hit dice': Roll('level'),
-        'hd': Roll('hit dice'),
 
+        'base attack bonus': 0,
         'initiative': Roll('dexterity modifier'),
-        'initiative check': Roll('1d20 + initiative'),
         'shield bonus': 0,
         'armor bonus': 0,
         'armor enhancement bonus': 0,
@@ -76,7 +101,24 @@ class Character(CoreCharacter, PathfinderObject):
         'two weapon off hand modifier': -8,
         'melee damage modifier': Roll('strength modifier'),
         'primary melee damage bonus': Roll('melee damage modifier'),
-        'off hand melee damage bonus': Roll('trunc(melee damage modifier / 2)')
+        'off hand melee damage bonus': Roll('trunc(melee damage modifier/2)'),
+
+        'armor dex limit': 99,  # todo: Retrieve this from armor.
+        'dex bonus to ac': Roll('min(dexterity modifier, armor dex limit)'),
+        'armor class': Roll('10 + armor bonus + shield bonus + dex bonus to ac'
+                            '+ size modifier'),
+
+        'combat maneuver bonus': Roll('BAB + STR mod + special size mod'),
+        'combat maneuver defense': Roll('10 + BAB + STR mod + DEX mod'
+                                        '+ special size mod'),
+
+        'melee attack bonus': Roll('BAB + STR mod + size mod'),
+        'ranged attack bonus': Roll('BAB + DEX mod + size mod'),
+        # These can be separately modified, so they are not aliases.
+        'melee touch bonus': Roll('melee attack bonus'),
+        'ranged touch bonus': Roll('ranged attack bonus'),
+        'unarmed strike bonus': Roll('melee attack bonus'),
+        'lethal unarmed strike bonus': Roll('unarmed strike bonus - 4')
     }
     # Map attributes to stats.
     stat_attributes = {
@@ -101,6 +143,19 @@ class Character(CoreCharacter, PathfinderObject):
         'wis_mod': 'wisdom modifier',
         'int_mod': 'intelligence modifier',
         'cha_mod': 'charisma modifier',
+        'armor_class': 'armor class',
+        'initiative': 'initiative',
+        'base_attack_bonus': 'base attack bonus',
+        'bab': 'base attack bonus',
+        'fortitude': 'fortitude', 'reflex': 'reflex', 'will': 'will',
+        'size_modifier': 'size modifier',
+        'size_mod': 'size modifier',
+        'special_size_modifier': 'special size modifier',
+        'special_size_mod': 'special size modifier',
+        'combat_maneuver_bonus': 'combat maneuver bonus',
+        'cmb': 'combat maneuver bonus',
+        'combat_maneuver_defense': 'combat maneuver defense',
+        'cmd': 'combat maneuver defense',
     }
 
     # These are used to resolve stats to their canonical form.
@@ -122,12 +177,16 @@ class Character(CoreCharacter, PathfinderObject):
 
     @property
     def classes(self):
+        if '__classes' in self._stat_cache:
+            return self._stat_cache['__classes']
         classes = {}
         for lvl in self.levels:
             if lvl not in classes:
                 classes[lvl] = 1
             else:
                 classes[lvl] += 1
+        self._check_attr('_stat_cache', {})
+        self._stat_cache['__classes'] = classes
         return classes
 
     @property
@@ -510,15 +569,11 @@ class Character(CoreCharacter, PathfinderObject):
 
     def resolve_stat_name(self, name):
         name = name.lower()
+        if name in self._stat_aliases:
+            return self._stat_aliases[name], ()
         m = self._save_re.match(name)
         if m:
-            name = self.resolve_stat_name(m.groups()[0])
-        if name == 'fort':
-            return 'fortitude'
-        elif name == 'ref':
-            return 'reflex'
-        elif name == 'will':
-            return 'will'
+            return self.resolve_stat_name(m.groups()[0])
         m = self._skill_check_re.match(name)
         if m:
             name, extra = m.groups()
@@ -532,16 +587,10 @@ class Character(CoreCharacter, PathfinderObject):
         names.update(pathfinder.data.names('skill'))
         return names
 
-    def get_stat_default(self, stat):
-        # Catch skill names to give the 0 default. We don't define defaults on
-        # the character class since these could change, and we don't want to
-        # update two places to change a skill. Also, skills may not be loaded
-        # into registry at class definition time.
-        stat = self.resolve_stat_name(stat)[0]
-        if stat in pathfinder.data.registry['skill']:
-            return 0
-        else:
-            return super(Character, self).get_stat_default(stat)
+    def best_class_stat(self, stat):
+        options = [0]
+        options.extend(getattr(c[l - 1], stat) for c, l in self.classes)
+        return max(options)
 
     def get_stat_base(self, stat):
         stat = self.resolve_stat_name(stat)[0]
@@ -549,6 +598,18 @@ class Character(CoreCharacter, PathfinderObject):
             return len(self.levels)
         if stat in self._abil_modifier_stats:
             return math.trunc(self.get_stat(stat.split(' ')[0]) / 2 - 5)
+        elif stat == 'size modifier':
+            return self.size_category.size_modifier
+        elif stat == 'special size modifier':
+            return self.size_category.special_size_modifier
+        elif stat == 'base attack bonus':
+            return self.best_class_stat('bab')
+        elif stat == 'fortitude':
+            return self.best_class_stat('fort')
+        elif stat == 'reflex':
+            return self.best_class_stat('ref')
+        elif stat == 'will':
+            return self.best_class_stat('will')
         elif stat in pathfinder.data.registry['skill']:
             return self.skill_base_bonus(stat)
         else:
