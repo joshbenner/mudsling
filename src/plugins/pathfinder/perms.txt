@@ -1,2 +1,2 @@
-view skills of others: Can use +skills to see any character's skills.
-reset character sheets: Can use +reset-charsheet to reset a character.
+view skills of others: Can use @skills to see any character's skills.
+reset character sheets: Can use @reset-charsheet to reset a character.

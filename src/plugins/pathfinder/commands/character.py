@@ -319,12 +319,11 @@ class SkillsCmd(Command):
 
 class AdminSkillsCmd(SkillsCmd):
     """
-    +skills[/all] <character>
+    @skills[/all] <character>
 
     Display someone else's skills.
     """
-    key = 'admin skills command'  # So it doesn't collide with other +skills.
-    # Inherits aliases.
+    aliases = ('@skills',)
     syntax = '<character>'
     arg_parsers = {
         'character': MatchCharacter()
@@ -390,12 +389,12 @@ class FinalizeCmd(Command):
 
 class ResetCharCmd(Command):
     """
-    +reset-charsheet[/xp] <character>
+    @reset-charsheet[/xp] <character>
 
     Administrative command to completely reset a character to level 0. If the
     xp switch is used, then the character's accumulated XP is also reset.
     """
-    aliases = ('+reset-charsheet',)
+    aliases = ('@reset-charsheet',)
     syntax = '<char>'
     arg_parsers = {
         'char': MatchCharacter()
