@@ -14,6 +14,7 @@ class BaseUI(object):
     h1_format = "{text}"
     h2_format = "{text}"
     h3_format = "{text}"
+    hr_format = '----'
     footer_format = "{text}"
 
     def h1(self, text=''):
@@ -24,6 +25,9 @@ class BaseUI(object):
 
     def h3(self, text=''):
         return self.h3_format.format(text=text)
+
+    def hr(self):
+        return self.hr_format
 
     def footer(self, text=''):
         return self.footer_format.format(text=text)
@@ -130,6 +134,9 @@ class SimpleUI(BaseUI):
     def h3(self, text=''):
         return self.h2(text)
 
+    def hr(self):
+        return '-' * 100
+
     def body_line(self, line):
         return self.body_prefix + line
 
@@ -207,6 +214,9 @@ class ClassicUI(BaseUI):
 
     def h2(self, text=''):
         return super(ClassicUI, self).h2(text.upper())
+
+    def hr(self):
+        return self.hr
 
     def body_line(self, line):
         return self.body_prefix + line + self.body_suffix
