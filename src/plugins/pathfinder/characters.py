@@ -589,7 +589,8 @@ class Character(CoreCharacter, PathfinderObject):
 
     def best_class_stat(self, stat):
         options = [0]
-        options.extend(getattr(c[l - 1], stat) for c, l in self.classes)
+        options.extend(getattr(c.levels[l - 1], stat)
+                       for c, l in self.classes.iteritems())
         return max(options)
 
     def get_stat_base(self, stat):

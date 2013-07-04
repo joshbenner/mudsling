@@ -1,3 +1,4 @@
+import operator
 
 from mudsling import utils
 import mudsling.utils.string
@@ -16,6 +17,16 @@ class BaseUI(object):
     h3_format = "{text}"
     hr_format = '----'
     footer_format = "{text}"
+
+    _op_map = {
+        '<': operator.lt,
+        '>': operator.gt,
+        '<=': operator.le,
+        '>=': operator.ge,
+        '=': operator.eq,
+        '==': operator.eq,
+        '!=': operator.ne
+    }
 
     def h1(self, text=''):
         return self.h1_format.format(text=text)
@@ -81,6 +92,22 @@ class BaseUI(object):
 
     def format_dhms(self, seconds):
         return utils.time.format_dhms(seconds)
+
+    def conditional_style(self, value, styles=(), formatter=str, suffix='',
+                          alternate=None):
+        """
+        Conditionally apply an ANSI prefix to the string form of the given
+        numeric value.
+
+        style format is iterable of (operator, value, prefix string)
+        """
+        s = alternate if alternate is not None else formatter(value)
+        ops = self._op_map
+        for opname, val, prefix in styles:
+            op = ops[opname] if opname in ops else getattr(operator, opname)
+            if op(value, val):
+                return prefix + s + suffix
+        return s + suffix
 
 
 class LimitedWidthUI(BaseUI):

@@ -1,5 +1,5 @@
 import random
-import math
+import re
 
 from mudsling.commands import Command
 from mudsling import locks
@@ -258,6 +258,7 @@ class SkillsCmd(Command):
         'all': False
     }
     lock = locks.all_pass
+    _multiskill_re = re.compile("^(.+) \(.+\)$")
 
     def run(self, this, actor, args):
         """
@@ -273,6 +274,12 @@ class SkillsCmd(Command):
         else:
             return char.skills.keys()
 
+    def _format_range(self, range):
+        return pathfinder.format_range(*range, color=True)
+
+    def _format_rank(self, rank):
+        return ui.conditional_style(rank, styles=(('>', 0, '{c'),))
+
     def _show_skill_table(self, skills, char, actor):
         """
         @type skills: C{list}
@@ -284,38 +291,54 @@ class SkillsCmd(Command):
             ui.Column(''),  # Class skill
             ui.Column(''),  # Untrained
             ui.Column('Skill', align='l'),
-            ui.Column('Total'),
+            ui.Column('Total', cell_formatter=self._format_range),
             ui.Column('='),
-            ui.Column('Trained'),
+            ui.Column('Trained', cell_formatter=self._format_rank),
             ui.Column('+'),
             ui.Column('Ability'),
             ui.Column('+'),
-            ui.Column('Misc')
+            ui.Column('Misc', cell_formatter=self._format_range)
         ])
         class_skills = char.class_skills()
         abil_mods = {}
-        abil_mod_str = {}
+        abil_str = {}
+        # Skills with subtypes can make the skill list really long. So, we will
+        # only show a subtypeable skill if it is trained. We will at most show
+        # one rendition of untrained subtypeable skills.
+        multiskills = []
+        multiskill_re = self._multiskill_re
         for abil in pathfinder.abil_short:
             mod = char.get_stat(abil + ' mod')
             abil_mods[abil] = mod
-            abil_mod_str[abil] = pathfinder.format_modifier(mod)
+            abil_mod_str = pathfinder.format_modifier(mod, color=True)
+            abil_str[abil] = "%s (%s{n)" % (abil.upper(), abil_mod_str)
         for skill in skills:
-            abil = skill.ability.lower()
-            name = skill.name
-            total = char.get_stat_limits(name)
+            name = display_name = skill.name
             trained = char.skill_ranks(skill)
-            ability = "%s (%s)" % (skill.ability.upper(), abil_mod_str[abil])
+            m = multiskill_re.match(name)
+            if not trained and m:
+                multiskill_name = m.group(1)
+                if multiskill_name not in multiskills:
+                    display_name = multiskill_name
+                    multiskills.append(multiskill_name)
+                else:
+                    continue
+            if trained:
+                display_name = '{c' + display_name
+            abil = skill.ability.lower()
+            total = char.get_stat_limits(name)
             misc_low = total[0] - (trained + abil_mods[abil])
             misc_high = total[1] - (trained + abil_mods[abil])
-            misc = pathfinder.format_range(misc_low, misc_high)
-            total = pathfinder.format_range(*total)
+            misc = (misc_low, misc_high)
             untrained = '{y*' if skill.untrained else ''
-            class_skill = 'C' if skill in class_skills else ''
-            table.add_row([class_skill, untrained, name, total, '', trained,
-                           '', ability, '', misc])
+            class_skill = '{mC' if skill in class_skills else ''
+            table.add_row([class_skill, untrained, display_name, total, '',
+                           trained, '', abil_str[abil], '', misc])
         title = "Skills for %s" % actor.name_for(char)
-        footer = 'C = Class skill, * = Use untrained'
-        footer += ' | Available skill points: %s' % char.skill_points
+        skill_points = ui.conditional_style(char.skill_points,
+                                            styles=(('<', 1, '{r'),))
+        footer = '{mC{n = Class skill, {y*{n = Use untrained'
+        footer += ' | Available skill points: {y%s' % skill_points
         actor.msg(ui.report(title, table, footer))
 
 
