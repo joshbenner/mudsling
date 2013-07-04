@@ -28,10 +28,20 @@ class PathfinderObject(Object, HasStats, HasFeatures):
     hardness = 0
     dimensions = (0, 0, 0)
     _size_category = None
-    hitpoints = 0
-    temporary_hitpoints = 0
+    _hit_points = 0
+    _temp_hit_points = 0
     damage = 0
     effects = []
+    _stat_aliases = {
+        'hp': 'hit points',
+        'thp': 'temporary hit points',
+        'mhp': 'max hit points',
+    }
+    _stat_attributes = {
+        'hit_points': 'hit points',
+        'max_hp': 'max hit points',
+        'temporary_hit_points': 'temporary hit points',
+    }
 
     def __init__(self, **kw):
         # noinspection PyArgumentList
@@ -43,12 +53,16 @@ class PathfinderObject(Object, HasStats, HasFeatures):
             setattr(self, attr, val)
 
     @property
-    def max_hp(self):
-        return self.hitpoints + self.temporary_hitpoints
+    def remaining_hp(self):
+        return self.max_hp - self.damage
 
     @property
-    def hp(self):
-        return self.max_hp - self.damage
+    def hp_ratio(self):
+        return self.remaining_hp / self.hit_points
+
+    @property
+    def hp_percent(self):
+        return self.hp_ratio * 100
 
     @property
     def size_category(self):
@@ -69,6 +83,13 @@ class PathfinderObject(Object, HasStats, HasFeatures):
         responders.extend(self.effects)
         return responders
 
+    def resolve_stat_name(self, name):
+        name = name.lower()
+        for cls in self.__class__._stats_mro():
+            if '_stat_aliases' in cls.__dict__ and name in cls._stat_aliases:
+                return cls._stat_aliases[name]
+        return super(PathfinderObject, self).resolve_stat_name(name)
+
     def get_stat_modifiers(self, stat, **kw):
         """
         @rtype: L{collections.OrderedDict}
@@ -80,12 +101,12 @@ class PathfinderObject(Object, HasStats, HasFeatures):
         return event.modifiers
 
     def get_stat_base(self, stat):
-        if stat == 'hitpoints':
-            return self.hitpoints
-        elif stat == 'max hitpoints':
-            return self.max_hp
-        elif stat == 'temporary hitpoints':
-            return self.temporary_hitpoints
+        if stat == 'hit points':
+            return self._hit_points
+        elif stat == 'max hit points':
+            return self.hit_points + self.temporary_hit_points
+        elif stat == 'temporary hit points':
+            return self._temp_hit_points
         else:
             return super(PathfinderObject, self).get_stat_base(stat)
 

@@ -344,15 +344,15 @@ class Character(CoreCharacter, PathfinderObject):
         if isinstance(points, basestring):
             points, d = self.roll(points, desc=True)
             self.tell('You roll for hit points: {c', d)
-        self.hitpoints += points
+        self._hit_points += points
         self.tell('You gain {y', points, '{n hit points, for a total of {g',
-                  self.hitpoints, '{n.')
+                  self._hit_points, '{n.')
         return points
 
     def lose_hitpoints(self, points):
-        self.hitpoints -= points
+        self._hit_points -= points
         self.tell('You lose {y', points, '{n hit points, for a total of {g',
-                  self.hitpoints, '{n.')
+                  self._hit_points, '{n.')
 
     def class_skills(self):
         if '__class_skills' in self._stat_cache:
@@ -569,8 +569,6 @@ class Character(CoreCharacter, PathfinderObject):
 
     def resolve_stat_name(self, name):
         name = name.lower()
-        if name in self._stat_aliases:
-            return self._stat_aliases[name], ()
         m = self._save_re.match(name)
         if m:
             return self.resolve_stat_name(m.groups()[0])
