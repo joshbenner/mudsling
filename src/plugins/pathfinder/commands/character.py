@@ -448,7 +448,7 @@ class CharsheetCmd(Command):
     """
     aliases = ('+charsheet', '+char')
     lock = locks.all_pass
-    _hp_pct_style = (('>=', 75, '{g'), ('<', 75, '{y'), ('<', 30, '{r'))
+    _hp_pct_style = (('>=', 75, '{g'), ('<', 30, '{r'), ('<', 75, '{y'))
 
     def run(self, this, actor, args):
         """
@@ -460,21 +460,23 @@ class CharsheetCmd(Command):
                             self._character_sheet(this)))
 
     def _character_sheet(self, char):
-        abil_table = self._abil_table(char)
+        ljust = utils.string.ljust  # Handles ANSI.
+        abil_table = [ljust(l, 28) for l in self._abil_table(char)]
         mid_table = list(self._top_table(char))
         mid_table.append('')
         mid_table.extend(self._bottom_table(char))
+        mid_table = [ljust(l, 27) for l in mid_table]
         vital_table = self._vital_table(char)
         class_table = self._class_table(char)
         tables = (abil_table, mid_table, vital_table, class_table)
-        fmt = "{:<28} {{c|{{n {:<27} {{c|{{n {:<20} {}"
+        fmt = "{} {{c|{{n {} {{c|{{n {:<20} {}"
         g = lambda t, i: t[i] if i < len(t) else ''
         n = max(len(abil_table), len(class_table))
         lines = [fmt.format(*(g(t, i) for t in tables)) for i in xrange(n)]
         return '\n'.join(lines)
 
     def _abil_table(self, char):
-        fmt = '{abil:<12} ({short}) {score:<5} {mod:>3}'
+        fmt = '{abil:<12} ({short}) {score:<5} {mod}'
         lines = ['Ability            Score Mod']
         for abil, short in zip(pathfinder.abilities, pathfinder.abil_short):
             base = char.get_stat_base(abil)
@@ -489,13 +491,14 @@ class CharsheetCmd(Command):
         return lines
 
     def _top_table(self, char):
-        hp_pct = (char.remaining_hp / (char.max_hp - char.temporary_hitpoints)) * 100
-        hp = ui.conditional_style(char.remaining_hp)
-        hp_line = ' Hit Points: %s / %s' % (char.remaining_hp, char.max_hp)
-        if char.temporary_hitpoints:
-            hp_line += "(%s)" % char.temporary_hitpoints
+        hp = ui.conditional_style(char.hp_percent(),
+                                  styles=self._hp_pct_style,
+                                  alternate=str(char.remaining_hp()))
+        hp_line = ' Hit Points: %s{n / %s' % (hp, char.max_hp)
+        if char.temporary_hit_points:
+            hp_line += "(%s)" % char.temporary_hit_points
         ac_line = 'Armor Class: %s' % char.armor_class
-        init_line = ' Initiative: {:+}'.format(char.initiative)
+        init_line = ' Initiative: %s' % pathfinder.format_mod(char.initiative)
         return hp_line, ac_line, init_line
 
     def _bottom_table(self, char):

@@ -28,7 +28,7 @@ abilities = ['strength', 'dexterity', 'constitution', 'intelligence',
 abil_short = ['str', 'dex', 'con', 'int', 'wis', 'cha']
 
 # Styles for use with ui.conditional_style.
-bonus_style = (('<', 0, '{r'), ('>', 0, '{g'))
+bonus_style = (('<', 0, '{r'), ('>', 0, '{g'), ('=', 0, '{y'))
 
 
 class Damage(object):

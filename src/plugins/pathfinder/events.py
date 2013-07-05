@@ -1,3 +1,4 @@
+import inspect
 from collections import OrderedDict
 
 from mudsling.storage import PersistentSlots
@@ -53,8 +54,11 @@ class HasEvents(object):
         event.obj = self
         responses = OrderedDict()
         for r in self.event_responders(event):
-            if isinstance(r, EventResponder):
-                responses[r] = r.respond_to_event(event, responses)
+            if isinstance(r, EventResponder) or issubclass(r, EventResponder):
+                d = r.respond_to_event
+                if (inspect.isfunction(d)
+                        or (inspect.ismethod(d) and d.im_self is not None)):
+                    responses[r] = d(event, responses)
         return responses
 
     def event_responders(self, event):

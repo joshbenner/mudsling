@@ -28,13 +28,15 @@ class HasStats(Persistent):
     stats = {}
     stat_defaults = {}
     stat_attributes = {}
+    stat_aliases = {}
     _stat_cache = {}
 
     @classmethod
     def _stats_mro(cls):
         return [c for c in cls.__mro__ if issubclass(c, HasStats)]
 
-    def get_stat_default(self, stat):
+    def get_stat_default(self, stat, resolved=False):
+        stat = stat if resolved else self.resolve_stat_name(stat)[0]
         for c in self._stats_mro():
             if 'stat_defaults' in c.__dict__ and stat in c.stat_defaults:
                 return c.stat_defaults[stat]
@@ -54,10 +56,14 @@ class HasStats(Persistent):
         Takes a stat name and resolves it to its canonical name and any tags
         implied by the original name.
         """
+        name = name.lower()
+        for cls in self.__class__._stats_mro():
+            if 'stat_aliases' in cls.__dict__ and name in cls.stat_aliases:
+                return cls.stat_aliases[name], ()
         return name.lower(), ()
 
-    def get_stat_base(self, stat):
-        stat = self.resolve_stat_name(stat)[0]
+    def get_stat_base(self, stat, resolved=False):
+        stat = stat if resolved else self.resolve_stat_name(stat)[0]
         if stat in self.stats:
             return self.stats[stat]
         return self.get_stat_default(stat)

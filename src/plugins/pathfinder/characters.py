@@ -48,7 +48,7 @@ class Character(CoreCharacter, PathfinderObject):
         'charisma modifier'
     )
     # If it can be modifier separately, it is NOT an alias!
-    _stat_aliases = {
+    stat_aliases = {
         'str': 'strength',     'str mod': 'strength modifier',
         'dex': 'dexterity',    'dex mod': 'dexterity modifier',
         'con': 'constitution', 'con mod': 'constitution modifier',
@@ -344,15 +344,15 @@ class Character(CoreCharacter, PathfinderObject):
         if isinstance(points, basestring):
             points, d = self.roll(points, desc=True)
             self.tell('You roll for hit points: {c', d)
-        self._hit_points += points
+        self.permanent_hit_points += points
         self.tell('You gain {y', points, '{n hit points, for a total of {g',
-                  self._hit_points, '{n.')
+                  self.permanent_hit_points, '{n.')
         return points
 
     def lose_hitpoints(self, points):
-        self._hit_points -= points
+        self.permanent_hit_points -= points
         self.tell('You lose {y', points, '{n hit points, for a total of {g',
-                  self._hit_points, '{n.')
+                  self.permanent_hit_points, '{n.')
 
     def class_skills(self):
         if '__class_skills' in self._stat_cache:
@@ -576,7 +576,7 @@ class Character(CoreCharacter, PathfinderObject):
         if m:
             name, extra = m.groups()
             return name, ('check',) if extra else ()
-        return super(PathfinderObject, self).resolve_stat_name(name)
+        return super(Character, self).resolve_stat_name(name)
 
     def get_all_stat_names(self):
         names = super(Character, self).get_all_stat_names()
@@ -591,8 +591,8 @@ class Character(CoreCharacter, PathfinderObject):
                        for c, l in self.classes.iteritems())
         return max(options)
 
-    def get_stat_base(self, stat):
-        stat = self.resolve_stat_name(stat)[0]
+    def get_stat_base(self, stat, resolved=False):
+        stat = stat if resolved else self.resolve_stat_name(stat)[0]
         if stat == 'level' or stat == 'hit dice':
             return len(self.levels)
         if stat in self._abil_modifier_stats:
@@ -619,7 +619,7 @@ class Character(CoreCharacter, PathfinderObject):
                     if cls.name.lower == class_name:
                         return levels
                 return 0
-            return super(Character, self).get_stat_base(stat)
+            return super(Character, self).get_stat_base(stat, resolved=True)
 
     def check_prerequisites(self, prerequisites):
         return pathfinder.prerequisites.check(prerequisites, self)
