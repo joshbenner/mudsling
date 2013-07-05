@@ -6,6 +6,11 @@ from mudsling.commands import Command
 from mudsling import parsers
 from mudsling import locks
 
+from mudsling import utils
+import mudsling.utils.string
+
+from mudslingcore.genders import genders
+
 
 class LookCmd(Command):
     """
@@ -110,3 +115,30 @@ class EmoteCmd(Command):
         prefix = '' if self.argstr.startswith(':') else ' '
         msg = [actor, prefix, args['pose']]
         this.emit(msg)
+
+
+class GenderCmd(Command):
+    """
+    +gender [<gender>]
+    """
+    aliases = ('+gender',)
+    syntax = '[<gender>]'
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{mudslingcore.objects.Character}
+        @type actor: L{mudslingcore.objects.Character}
+        @type args: C{dict}
+        """
+        if args['gender'] is not None:
+            gender_name = args['gender'].lower()
+            if gender_name in genders:
+                this.gender = genders[gender_name]
+                actor.tell('You are now a {m', this.gender.name, '{n.')
+            else:
+                actor.tell('{yUnknown gender: {c', gender_name)
+        else:
+            actor.tell('You are a {c', actor.gender.name, '{n.')
+            all = sorted(["{c%s{n" % g.name for g in genders.itervalues()])
+            actor.tell('Valid genders: ', utils.string.english_list(all))

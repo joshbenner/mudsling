@@ -12,6 +12,7 @@ import mudsling.utils.string
 from objsettings import ObjSetting, ConfigurableObject
 from mudslingcore import bans
 from mudslingcore.channels import ChannelUser
+from mudslingcore.genders import Neuter
 
 from mudslingcore import commands
 import commands.admin.system
@@ -144,6 +145,8 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
     """
     Core character class.
     """
+    gender = Neuter
+
     import commands.admin.building as building_commands
     import commands.character as character_commands
     private_commands = all_commands(
