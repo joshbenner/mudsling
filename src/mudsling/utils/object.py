@@ -7,6 +7,27 @@ class ClassProperty(property):
         return self.fget.__get__(None, owner)()
 
 
+class AttributeAlias(object):
+    def __init__(self, original):
+        self.original = original
+
+    def __get__(self, obj, objtype=None):
+        # Works on instances AND classes.
+        if obj is not None:
+            return getattr(obj, self.original)
+        else:
+            return getattr(objtype, self.original)
+
+    def __set__(self, obj, value):
+        # Only works for instances!
+        return setattr(obj, self.original, value)
+
+    def __delete__(self, obj):
+        # Only works for instances!
+        delattr(obj, self.original)
+
+
+
 def filter_by_class(objects, cls):
     """
     Filter a list of objects to only descendants of a class or classes.
