@@ -135,7 +135,7 @@ class GenderCmd(Command):
             gender_name = args['gender'].lower()
             if gender_name in genders:
                 this.gender = genders[gender_name]
-                actor.tell('You are now a {m', this.gender.name, '{n.')
+                actor.tell('You are now a {c', this.gender.name, '{n.')
             else:
                 actor.tell('{yUnknown gender: {c', gender_name)
         else:

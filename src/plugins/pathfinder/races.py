@@ -17,6 +17,7 @@ class Race(CharacterFeature):
     size = None
     ability_modifiers = {}
     modifiers = []
+    genders = ('male', 'female')
 
     @classmethod
     def apply_to(cls, char):

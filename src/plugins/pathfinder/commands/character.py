@@ -10,6 +10,9 @@ from mudsling import utils
 import mudsling.utils.string
 import mudsling.utils.units
 
+from mudslingcore.commands import character as core_character_commands
+from mudslingcore.genders import genders
+
 from dice import Roll
 
 import pathfinder
@@ -139,6 +142,40 @@ class RaceCmd(Command):
             val = pathfinder.format_modifier(val)
             abils.append('{y%s {m%s' % (val, abil))
         return '{n, '.join(abils)
+
+
+class GenderCmd(core_character_commands.GenderCmd):
+    """
+    +gender [<gender>]
+
+    List current genders or set your gender.
+    """
+    def run(self, this, actor, args):
+        """
+        @type this: L{pathfinder.characters.Character}
+        @type actor: L{pathfinder.characters.Character}
+        @type args: C{dict}
+        """
+        if this.race is None:
+            actor.tell('{yChoose a race before a gender. Try {c+race')
+            return
+        valid = sorted([g for n, g in genders.iteritems()
+                        if n in this.race.genders],
+                       key=lambda g: g.name)
+        valid_keys = [g.name.lower() for g in valid]
+        show = utils.string.english_list(["{c%s{n" % g.name for g in valid])
+        if args['gender'] is None:
+            actor.tell('You are a {c', actor.gender.name, '{n.')
+            if actor.gender not in valid:
+                actor.tell('{rYou must select a valid gender!')
+            actor.tell("Possible genders of {m", this.race, "{n: ", show, '.')
+        elif this.frozen_level:
+            actor.tell('{yYou cannot change your gender after finalizing.')
+        elif args['gender'].lower() not in valid_keys:
+            actor.tell('{yInvalid gender: {c', args['gender'])
+            actor.tell("Possible genders of {m", this.race, "{n: ", show, '.')
+        else:
+            super(GenderCmd, self).run(this, actor, args)
 
 
 class LevelUpCmd(Command):

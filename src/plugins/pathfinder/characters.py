@@ -37,7 +37,6 @@ class Character(CoreCharacter, PathfinderObject):
     level_up_skills = {}
     feat_slots = {}  # key = type or '*', value = how many
     languages = []
-    gender = 'Neuter'
     age = 0
     _abil_modifier_stats = (
         'strength modifier',
@@ -563,6 +562,8 @@ class Character(CoreCharacter, PathfinderObject):
         if isinstance(skill, basestring):
             skill = pathfinder.data.match(skill, types=('skill',))
         trained = self.skill_ranks(skill)
+        if not skill.untrained and not trained:
+            return 0
         ability_modifier = self.get_stat(skill.ability + ' mod')
         bonus = 3 if trained and skill in self.class_skills() else 0
         return trained + ability_modifier + bonus
