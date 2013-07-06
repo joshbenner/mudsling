@@ -63,8 +63,8 @@ class _Quantity(object):
     :param units: units of the physical quantity to be created.
     :type units: UnitsContainer, str or Quantity.
     """
-    #### HACK ####
-    __slots__ = ('_magnitude', '_units', '__handling')
+    #### HACK for smaller memory footprint in MUDSling ####
+    __slots__ = ('_magnitude', '_units', '__handling', '_dimensionality')
     #### /HACK ####
 
     def __reduce__(self):
