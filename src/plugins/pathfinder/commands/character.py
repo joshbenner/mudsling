@@ -10,6 +10,8 @@ from mudsling import utils
 import mudsling.utils.string
 import mudsling.utils.units
 
+from mudsling.utils.string import inflection
+
 from mudslingcore.commands import character as core_character_commands
 from mudslingcore.genders import genders
 
@@ -17,7 +19,6 @@ from dice import Roll
 
 import pathfinder
 from pathfinder import ui
-from pathfinder import inflection
 from pathfinder.parsers import AbilityNameStaticParser, RaceStaticParser
 from pathfinder.parsers import ClassStaticParser, SkillStaticParser
 from pathfinder.parsers import MatchCharacter
@@ -197,9 +198,9 @@ class HeightCmd(Command):
         @type actor: L{pathfinder.characters.Character}
         @type args: C{dict}
         """
-        # Not implemented.
-        actor.tell(repr(args))
-        super(HeightCmd, self).run(this, actor, args)
+        if args['height'] is None:
+            height = this.dimensions.height
+            actor.tell('You are {y', )
 
 
 class LevelUpCmd(Command):

@@ -5,6 +5,9 @@ import sys
 import random
 import string
 import shlex
+import inflect
+
+inflection = inflect.engine()
 
 from .ansi import *
 from .table import *

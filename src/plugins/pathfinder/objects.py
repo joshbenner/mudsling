@@ -2,6 +2,7 @@ from collections import OrderedDict
 
 from mudsling.objects import Object
 from mudsling.storage import ObjRef
+from mudsling.utils import units
 
 from mudslingcore.objects import Thing as CoreThing
 
@@ -24,9 +25,9 @@ class PathfinderObject(Object, HasStats, HasFeatures):
     _transient_vars = ['_stat_cache']
 
     cost = 0
-    weight = 0
+    weight = 0 * units.gram
     hardness = 0
-    dimensions = (0, 0, 0)
+    dimensions = units.Dimensions(0, 0, 0)
     _size_category = None
     permanent_hit_points = 0
     damage = 0

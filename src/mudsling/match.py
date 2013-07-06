@@ -2,11 +2,11 @@
 Various functions and utilities for matching game-world objects.
 """
 import re
-import inflect
 
 from mudsling.errors import AmbiguousMatch, FailedMatch
 from mudsling.utils import string
 from mudsling.utils.string import ansi
+from mudsling.utils.string import inflection
 
 ordinal_words = ('first', 'second', 'third', 'fourth', 'fifth', 'sixth',
                  'seventh', 'eighth', 'ninth', 'tenth')
@@ -159,20 +159,18 @@ def match_failed(matches, search=None, search_for=None, show=False):
     @return: Message if match failed, or False if match did not fail.
     @rtype: C{str} or C{bool}
     """
-    p = inflect.engine()
-
     if len(matches) == 1:
         return False
     elif len(matches) > 1:
         if search is not None:
             if search_for is not None:
                 msg = ("Multiple %s match '%s'"
-                       % (p.plural(search_for), search))
+                       % (inflection.plural(search_for), search))
             else:
                 msg = "Multiple matches for '%s'" % search
         else:
             if search_for is not None:
-                msg = "Multiple %s found" % p.plural(search_for)
+                msg = "Multiple %s found" % inflection.plural(search_for)
             else:
                 msg = "Multiple matches"
         if show:
@@ -187,7 +185,7 @@ def match_failed(matches, search=None, search_for=None, show=False):
                 msg = "No '%s' was found." % search
         else:
             if search_for is not None:
-                msg = "No matching %s found." % p.plural(search_for)
+                msg = "No matching %s found." % inflection.plural(search_for)
             else:
                 msg = "No match found."
     return msg

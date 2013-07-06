@@ -61,6 +61,7 @@ class EvalCmd(Command):
         import sys
         import datetime
         import calendar
+        import math
         from mudsling import registry
         from mudsling.config import config
 
@@ -91,6 +92,7 @@ class EvalCmd(Command):
                      else None),
             'mudsling': mudsling,
             'utils': mudsling.utils,
+            'math': math,
         }
         for plugin in self.game.plugins:
             if plugin.info.module is not None:

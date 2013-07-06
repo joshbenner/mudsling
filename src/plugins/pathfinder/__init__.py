@@ -2,15 +2,14 @@
 # from collections import OrderedDict
 
 import os
-import inflect
-inflection = inflect.engine()
 
 import logging
 logger = logging.getLogger('pathfinder')
 
+import mudsling.config
+
 from mudslingcore.ui import ClassicUI
 ui = ClassicUI()
-import mudsling.config
 
 # API-access imports: make important stuff easy to access.
 from .objects import Thing
