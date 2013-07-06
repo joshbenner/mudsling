@@ -1,29 +1,36 @@
+# -*- coding: utf-8 -*-
 import sys
 import re
+import pkg_resources
+import math
 
 import pint
-from pint.quantity import _Quantity
+from pint.unit import PrefixDefinition, UnitDefinition, ScaleConverter
+from pint.quantity import _Quantity as __Quantity
 
 
-def _build_quantity(value, units):
-    return Quantity(value, units)
-
-
-class Quantity(_Quantity):
+class _Quantity(__Quantity):
     __slots__ = ()
     _REGISTRY = None
     force_ndarray = False
 
     def __reduce__(self):
         # Smaller pickle size, less class dependency in pickle file.
-        return _build_quantity, (self.magnitude, str(self.units))
+        return self._REGISTRY.Quantity, (self.magnitude, str(self.units))
+
+    def is_simple_dimension(self, d):
+        """
+        Determine if quantity consists
+        """
+        d = '[%s]' % d.strip(' []')
+        return (len(self.dimensionality) == 1
+                and self.dimensionality[d] == 1.0)
 
 
 class UnitRegistry(pint.UnitRegistry):
     """
     An instance of this class will replace sys.modules[__name__].
     """
-    # unit_re = re.compile(r'(?P<magnitude>\d*\.?\d+) *(?P<unit>[^\d]+),?')
     multi_expr_re = re.compile(r'(\d*\.?\d+) *([^\d,]+) *,? *')
     expr_re = re.compile(r'^(\d*\.?\d+) *(.+)$')
     unit_aliases = {
@@ -31,13 +38,41 @@ class UnitRegistry(pint.UnitRegistry):
         '"': ' inch, ',
         "'": ' foot, ',
     }
-    Quantity = Quantity
-    _build_quantity = _build_quantity
-    pint = pint
 
-    def __init__(self):
-        super(UnitRegistry, self).__init__()
-        self.Quantity._REGISTRY = self
+    # Override init so we can use our own Quantity which is smaller in memory
+    # and will pickle efficiently.
+    def __init__(self, filename='', default_to_delta=True):
+        class Quantity(_Quantity):
+            __slots__ = ()
+            _REGISTRY = self
+
+        self.Quantity = Quantity
+        #: Map dimension name (string) to its definition (DimensionDefinition).
+        self._dimensions = {}
+
+        #: Map unit name (string) to its definition (UnitDefinition).
+        self._units = {}
+
+        #: Map prefix name (string) to its definition (PrefixDefinition).
+        self._prefixes = {'': PrefixDefinition('', '', (), 1)}
+
+        #: Map suffix name (string) to canonical, and unit alias to canonical
+        # unit name
+        self._suffixes = {'': None, 's': ''}
+
+        #: In the context of a multiplication of units, interpret
+        #: non-multiplicative units as their *delta* counterparts.
+        self.default_to_delta = default_to_delta
+
+        if filename == '':
+            # Purposefully *not* using resource_stream as it may return a
+            # StringIO object for which we can't specify the encoding
+            data = pkg_resources.resource_string(pint.__name__, 'default_en.txt').decode('utf-8')
+            self.load_definitions(data.splitlines())
+        elif filename is not None:
+            self.load_definitions(filename)
+
+        self.define(UnitDefinition('pi', 'π', (), ScaleConverter(math.pi)))
 
     def parse(self, input):
         """
