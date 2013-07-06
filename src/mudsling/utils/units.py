@@ -6,6 +6,8 @@ import math
 
 import pint
 from pint.unit import PrefixDefinition, UnitDefinition, ScaleConverter
+from pint.unit import UnitsContainer
+from pint import UndefinedUnitError, DimensionalityError
 from pint.quantity import _Quantity as __Quantity
 
 
@@ -38,6 +40,9 @@ class UnitRegistry(pint.UnitRegistry):
         '"': ' inch, ',
         "'": ' foot, ',
     }
+    UnitsContainer = UnitsContainer
+    UndefinedUnitError = UndefinedUnitError
+    DimensionalityError = DimensionalityError
 
     # Override init so we can use our own Quantity which is smaller in memory
     # and will pickle efficiently.

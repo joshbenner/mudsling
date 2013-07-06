@@ -10,6 +10,7 @@ from mudsling.storage import StoredObject
 
 from mudsling import utils
 import mudsling.utils.time
+import mudsling.utils.units
 
 
 class StaticParser(object):
@@ -151,6 +152,30 @@ class Parser(object):
         @param input: The user input to parse.
         @param actor: If parsing from an object's perspective, the object.
         """
+
+
+class UnitParser(Parser):
+    """
+    A parser for quantities expressed with units.
+    """
+
+    def __init__(self, dimensions=None):
+        self.dimensions = dimensions
+
+    def parse(self, input, actor=None):
+        try:
+            q = utils.units.parse(input)
+        except (utils.units.UndefinedUnitError,
+                utils.units.DimensionalityError):
+            raise errors.ParseError("Invalid quantity.")
+        dims = self.dimensions
+        if isinstance(dims, basestring):
+            if not q.is_simple_dimension(dims):
+                raise errors.ParseError("Invalid %s." % dims)
+        elif isinstance(dims, utils.units.UnitsContainer):
+            if dims != q.dimensionality:
+                raise errors.ParseError("Units not compatible with %s." % dims)
+        return q
 
 
 class MatchObject(Parser):

@@ -178,6 +178,30 @@ class GenderCmd(core_character_commands.GenderCmd):
             super(GenderCmd, self).run(this, actor, args)
 
 
+class HeightCmd(Command):
+    """
+    +height [<height>]
+
+    Display or specify your character's height.
+    """
+    aliases = ('+height',)
+    syntax = '[<height>]'
+    arg_parsers = {
+        'height': parsers.UnitParser(dimensions='length')
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{pathfinder.characters.Character}
+        @type actor: L{pathfinder.characters.Character}
+        @type args: C{dict}
+        """
+        # Not implemented.
+        actor.tell(repr(args))
+        super(HeightCmd, self).run(this, actor, args)
+
+
 class LevelUpCmd(Command):
     """
     +level-up [<class> [+<ability>]]
