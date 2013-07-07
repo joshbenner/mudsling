@@ -3,6 +3,7 @@ from collections import OrderedDict
 from mudsling.objects import Object
 from mudsling.storage import ObjRef
 from mudsling.utils import units
+from mudsling.utils.measurements import Dimensions
 
 from mudslingcore.objects import Thing as CoreThing
 
@@ -27,7 +28,7 @@ class PathfinderObject(Object, HasStats, HasFeatures):
     cost = 0
     weight = 0 * units.gram
     hardness = 0
-    dimensions = units.Dimensions(0, 0, 0)
+    dimensions = Dimensions()
     _size_category = None
     permanent_hit_points = 0
     damage = 0

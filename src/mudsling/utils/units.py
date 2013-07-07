@@ -3,15 +3,12 @@ import sys
 import re
 import pkg_resources
 import math
-from collections import namedtuple
 
 import pint
 from pint.unit import PrefixDefinition, UnitDefinition, ScaleConverter
 from pint.unit import UnitsContainer
 from pint import UndefinedUnitError, DimensionalityError
 from pint.quantity import _Quantity as __Quantity
-
-from mudsling.utils.object import AttributeAlias
 
 
 class _Quantity(__Quantity):
@@ -41,55 +38,36 @@ class _Quantity(__Quantity):
                                              product_fmt='*', division_fmt='/')
         return '{} {}'.format(self._magnitude, u)
 
-    def graduated(self, short=False):
-        if len(self._units) != 1:
-            return str(self) if not short else self.short()
-        native_unit = str(self._units.keys()[0])
-        scale = None
-        for grad_units in self._REGISTRY.graduated_units:
-            if native_unit in grad_units:
-                scale = grad_units
-                break
-        if scale is None:
-            return str(self) if not short else self.short()
-        parts = []
-        remainder = self.to(self._units)
-        Q = self.__class__
-        for unit in scale:
-            as_unit = remainder.to(unit)
-            if as_unit._magnitude >= 1:
-                # Compromise at 14 digits to avoid float precision issues.
-                value = int(round(as_unit._magnitude, 14))
-                if value:
-                    part = Q(value, unit)
-                    parts.append(part)
-                    remainder -= part
-        return parts
-
-
-class Dimensions(namedtuple('Dimensions', 'length width height')):
-    __slots__ = ()
-    l = AttributeAlias('length')
-    w = AttributeAlias('width')
-    h = AttributeAlias('height')
-    Quantity = None
-
-    def __init__(self, length=0, width=0, height=0):
-        args = []
-        for dim in (length, width, height):
-            if isinstance(dim, self.Quantity):
-                args.append(dim.to('meter').magnitude)
+    def graduated(self, strings=False, short=False):
+        if len(self._units) != 1 or not round(self._magnitude, 14):
+            parts = [self]
+        else:
+            native_unit = str(self._units.keys()[0])
+            scale = None
+            for grad_units in self._REGISTRY.graduated_units:
+                if native_unit in grad_units:
+                    scale = grad_units
+                    break
+            if scale is None:
+                parts = [self]
             else:
-                args.append(dim)
-        super(Dimensions, self).__init__(*args)
-
-    def to(self, unit):
-        dims = (self.length, self.width, self.height)
-        return tuple(self.Quantity(d, unit) for d in dims)
-
-    @property
-    def volume(self):
-        return self.length * self.width * self.height
+                parts = []
+                remainder = self.to(self._units)
+                Q = self.__class__
+                for i, unit in enumerate(scale):
+                    last = (i == len(scale) - 1)
+                    as_unit = remainder.to(unit)
+                    if as_unit._magnitude >= 1 or (last and not parts):
+                        # Compromise at 14 digits to avoid float precision.
+                        value = int(round(as_unit._magnitude, 14))
+                        if value:
+                            part = Q(value, unit)
+                            parts.append(part)
+                            remainder -= part
+        if strings:
+            return [(p.short() if short else str(p)) for p in parts]
+        else:
+            return parts
 
 
 class UnitRegistry(pint.UnitRegistry):
@@ -111,7 +89,6 @@ class UnitRegistry(pint.UnitRegistry):
     UnitsContainer = UnitsContainer
     UndefinedUnitError = UndefinedUnitError
     DimensionalityError = DimensionalityError
-    Dimensions = Dimensions
 
     # Units used together when displaying a graduated set of quantities.
     graduated_units = (
@@ -130,7 +107,6 @@ class UnitRegistry(pint.UnitRegistry):
             _REGISTRY = self
 
         self.Quantity = Quantity
-        self.Dimensions.Quantity = Quantity
         #: Map dimension name (string) to its definition (DimensionDefinition).
         self._dimensions = {}
 

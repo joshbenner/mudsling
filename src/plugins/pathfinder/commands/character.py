@@ -199,8 +199,15 @@ class HeightCmd(Command):
         @type args: C{dict}
         """
         if args['height'] is None:
-            height = this.dimensions.height
-            actor.tell('You are {y', )
+            height = ', '.join(this.dimensions.height.graduated(strings=True))
+            actor.tell('You are {y', height, '{n tall.')
+        elif this.frozen_level:
+            actor.tell('{rYou may not change your height after chargen.')
+        else:
+            h = args['height']
+            this.dimensions = this.dimensions._replace(h=h, units=str(h.units))
+            height = ', '.join(this.dimensions.height.graduated(strings=True))
+            actor.tell('You are now {y', height, '{n tall.')
 
 
 class LevelUpCmd(Command):
