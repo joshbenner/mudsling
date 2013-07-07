@@ -621,7 +621,7 @@ class CharsheetCmd(Command):
     def _vital_table(self, char):
         height = ' '.join(char.height.graduated(strings=True, short=True))
         return (
-            '{c    Race:{n %s' % (char.race if char.race is not None else 'none'),
+            '{c    Race:{n %s' % (char.race if char.race is not None else '?'),
             '{c  Gender:{n %s' % char.gender.name,
             '{c     Age:{n %s' % ui.format_interval(char.age, format='%yeary'),
             '{c  Height:{n %s' % height,
