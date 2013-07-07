@@ -166,6 +166,10 @@ class Character(CoreCharacter, PathfinderObject):
     _class_lvl_re = re.compile('(.*) +levels?', re.I)
 
     @property
+    def height(self):
+        return self.dimensions.height
+
+    @property
     def features(self):
         features = []
         if self.race is not None:

@@ -127,7 +127,7 @@ size_categories = OrderedDict((c.name.lower(), c) for c in [
 
 
 def size(dimension):
-    if dimension > 0:
+    if dimension > 0 * units.meter:
         for size in reversed(size_categories.values()):
             if dimension >= size.length[0]:
                 return size

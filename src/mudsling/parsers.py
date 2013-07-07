@@ -165,8 +165,7 @@ class UnitParser(Parser):
     def parse(self, input, actor=None):
         try:
             q = utils.units.parse(input)
-        except (utils.units.UndefinedUnitError,
-                utils.units.DimensionalityError):
+        except ValueError:
             raise errors.ParseError("Invalid quantity.")
         dims = self.dimensions
         if isinstance(dims, basestring):

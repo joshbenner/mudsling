@@ -17,6 +17,10 @@ class Dimensions(namedtuple('Dimensions', 'l w h units')):
     width = property(lambda self: self._as_quantity('w'))
     height = property(lambda self: self._as_quantity('h'))
 
+    @property
+    def all(self):
+        return self.length, self.width, self.height
+
     def _as_quantity(self, dim, units=None):
         """
         @rtype: L{mudsling.utils.units.Quantity}

@@ -210,6 +210,34 @@ class HeightCmd(Command):
             actor.tell('You are now {y', height, '{n tall.')
 
 
+class WeightCmd(Command):
+    """
+    +weight [<weight>]
+
+    Display or specify your character's weight.
+    """
+    aliases = ('+weight',)
+    syntax = '[<weight>]'
+    arg_parsers = {
+        'weight': parsers.UnitParser(dimensions='mass')
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        @type this: L{pathfinder.characters.Character}
+        @type actor: L{pathfinder.characters.Character}
+        @type args: C{dict}
+        """
+        if args['weight'] is None:
+            actor.tell('You weigh {y', this.weight, '{n.')
+        elif this.frozen_level:
+            actor.tell('{rYou may not change your weight after chargen.')
+        else:
+            this.weight = args['weight']
+            actor.tell('You now weigh {y', this.weight, '{n.')
+
+
 class LevelUpCmd(Command):
     """
     +level-up [<class> [+<ability>]]
@@ -545,8 +573,8 @@ class CharsheetCmd(Command):
         return '\n'.join(lines)
 
     def _abil_table(self, char):
-        fmt = '{abil:<12} ({short}) {score:<5} {mod}'
-        lines = ['Ability            Score Mod']
+        fmt = '{abil:<12} ({short}) {{y{score:<5}{{n {mod}'
+        lines = ['{cAbility            Score Mod']
         for abil, short in zip(pathfinder.abilities, pathfinder.abil_short):
             base = char.get_stat_base(abil)
             score = char.get_stat(abil)
@@ -563,47 +591,48 @@ class CharsheetCmd(Command):
         hp = ui.conditional_style(char.hp_percent(),
                                   styles=self._hp_pct_style,
                                   alternate=str(char.remaining_hp()))
-        hp_line = ' Hit Points: %s{n / %s' % (hp, char.max_hp)
+        hp_line = ' {cHit Points:{n %s{n / %s' % (hp, char.max_hp)
         if char.temporary_hit_points:
             hp_line += "(%s)" % char.temporary_hit_points
-        ac_line = 'Armor Class: %s' % char.armor_class
-        init_line = ' Initiative: %s' % pathfinder.format_mod(char.initiative)
+        ac_line = '{cArmor Class:{n %s' % char.armor_class
+        init_line = (' {cInitiative:{n %s'
+                     % pathfinder.format_mod(char.initiative))
         return hp_line, ac_line, init_line
 
     def _bottom_table(self, char):
-        l1 = "Fort {fort:<2}    BAB {bab:<+3}  CMB {cmb:<+3}".format(
+        l = "{{mFort{{n {fort:<2}  (BAB){{n {bab:<+3}  {{yCMB{{n {cmb:<+3}"
+        l1 = l.format(
             fort=char.fortitude,
             bab=char.bab,
             cmb=char.cmb
         )
-        l2 = " Ref {ref:<2}  Melee {melee:<+3}  CMD {cmd:<+3}".format(
+        l = " {{mRef{{n {ref:<2}  {{rMelee{{n {melee:<+3}  {{yCMD{{n {cmd:<+3}"
+        l2 = l.format(
             ref=char.reflex,
             melee=char.get_stat('melee attack bonus'),
             cmd=char.cmd
         )
-        l3 = "Will {will:<2} Ranged {ranged:<+3}".format(
+        l3 = "{{mWill{{n {will:<2} {{rRanged{{n {ranged:<+3}".format(
             will=char.will,
             ranged=char.get_stat('ranged attack bonus')
         )
         return l1, l2, l3
 
     def _vital_table(self, char):
-        height = char.dimensions[2] * utils.units.meter
-        feet = int(height.to(utils.units.foot))
-        inches = int(height.to(utils.units.inch)) - feet * 12
-        pounds = int(char.weight * utils.units.pound)
+        height = ' '.join(char.height.graduated(strings=True, short=True))
         return (
-            '    Race: %s' % (char.race if char.race is not None else 'none'),
-            '  Gender: %s' % char.gender.capitalize(),
-            '     Age: %s' % ui.format_interval(char.age, format='%yeary'),
-            '  Height: %s\'%s"' % (feet, inches),
-            '  Weight: %s lbs' % pounds,
-            '      XP: {:,d}'.format(char.xp),
-            'Next Lvl: {:,d}'.format(char.next_level_xp)
+            '{c    Race:{n %s' % (char.race if char.race is not None else 'none'),
+            '{c  Gender:{n %s' % char.gender.name,
+            '{c     Age:{n %s' % ui.format_interval(char.age, format='%yeary'),
+            '{c  Height:{n %s' % height,
+            '{c  Weight:{n %s' % char.weight.short(),
+            '{{c      XP:{{n {:,d}'.format(char.xp),
+            '{{cNext Lvl:{{n {:,d}'.format(char.next_level_xp)
         )
 
     def _class_table(self, char):
-        lines = ['        Level %s' % char.level]
+        lines = ['        {cLevel {y%s' % char.level]
         for class_, lvl in char.classes.iteritems():
-            lines.append("{cls:>13} {lvl}".format(cls=class_.name, lvl=lvl))
+            lines.append("{{m{cls:>13} {{n{lvl}".format(cls=class_.name,
+                                                        lvl=lvl))
         return lines

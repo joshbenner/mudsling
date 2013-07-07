@@ -128,7 +128,7 @@ class UnitRegistry(pint.UnitRegistry):
             # Purposefully *not* using resource_stream as it may return a
             # StringIO object for which we can't specify the encoding
             data = pkg_resources\
-                .resource_string(pint.__name__, 'default_en.txt')\
+                .resource_string(__name__, 'unit_definitions.txt')\
                 .decode('utf-8')
             self.load_definitions(data.splitlines())
         elif filename is not None:

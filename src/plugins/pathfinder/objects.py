@@ -26,7 +26,7 @@ class PathfinderObject(Object, HasStats, HasFeatures):
     _transient_vars = ['_stat_cache']
 
     cost = 0
-    weight = 0 * units.gram
+    weight = units.Quantity(0, 'gram')
     hardness = 0
     dimensions = Dimensions()
     _size_category = None
@@ -67,15 +67,18 @@ class PathfinderObject(Object, HasStats, HasFeatures):
 
     @property
     def size_category(self):
-        return self._size_category or pathfinder.size(max(self.dimensions))
+        return self._size_category or pathfinder.size(max(self.dimensions.all))
 
     @size_category.setter
     def size_category(self, val):
         if val not in size_categories.values():
             raise ValueError("Invalid size category.")
-        default = pathfinder.size(max(self.dimensions))
+        default = pathfinder.size(max(self.dimensions.all))
         if val == default:
-            del self._size_category
+            try:
+                del self._size_category
+            except AttributeError:
+                pass  # It's not there, don't worry.
         else:
             self._size_category = val
 
