@@ -1,0 +1,5 @@
+name = IC Time
+description = Provides a base for "in character" calendars and timeframes.
+author = Josh Benner
+version = 0.1
+module = ictime_plugin.py

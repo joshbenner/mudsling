@@ -3,7 +3,6 @@ Timezone handling.
 
 Some code copyright (c) Django Software Foundation and individual contributors.
 """
-import time
 import datetime
 import logging
 from ConfigParser import NoSectionError, NoOptionError
@@ -13,10 +12,22 @@ import pytz
 from mudsling.config import config
 
 __all__ = ('local_tz', 'get_tz', 'is_aware', 'is_naive', 'make_aware',
-           'make_naive', 'nowlocal', 'nowutc')
+           'make_naive', 'nowlocal', 'nowutc', 'parser_tzinfo')
 
 # Cache for local_tz()
 __local_tz = None
+
+
+def parser_tzinfo(abbrev, offset):
+    """
+    tzinfos callback for dateutil.parser.parse.
+    """
+    if abbrev is not None:
+        return pytz.timezone(abbrev)
+    elif offset is not None:
+        return offset
+    else:
+        return local_tz()
 
 
 def local_tz():

@@ -1,6 +1,10 @@
 from __future__ import absolute_import
 import datetime
+import time
 import re
+
+import dateutil
+import dateutil.parser
 
 from .timeschema import TimeSchema, TimeUnit
 from .timezone import *
@@ -21,7 +25,10 @@ realTime = TimeSchema(
 )
 realTime.default_interval_format = "%yeary %monthm %dayd"
 
-formats = {'default': '%Y-%m-%d %H:%i:%s %O'}
+formats = {
+    'default': '%Y-%m-%d %H:%i:%s %O',
+    'date_default': '%Y-%m-%d',
+}
 
 
 def get_datetime(timestamp=None, tz=None):
@@ -47,6 +54,19 @@ def get_datetime(timestamp=None, tz=None):
         # noinspection PyTypeChecker
         dt = datetime.datetime.fromtimestamp(timestamp, tz=tz)
     return dt
+
+
+def unixtime(dt=None):
+    """
+    Given a datetime instance, return the corresponding UNIX timestamp.
+    @type dt: C{datetime.datetime}
+    """
+    dt = dt or get_datetime()
+    return time.mktime(dt.timetuple())
+
+
+def parse_datetime(input):
+    return dateutil.parser.parse(input, tzinfos=parser_tzinfo)
 
 
 def parse_dhms(input):
