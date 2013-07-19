@@ -1,12 +1,14 @@
 from collections import namedtuple
 import datetime
 import time
+import inspect
 
 import dateutil
 import dateutil.parser
 
 from mudsling import utils
 import mudsling.utils.time
+import mudsling.utils.code
 
 calendars = {}
 default_calendar = None
@@ -93,6 +95,21 @@ class Calendar(object):
         return Duration(duration, cls)
 
     @classmethod
+    def rl_duration(cls, duration):
+        return cls.duration(duration)
+
+    @classmethod
+    def ic_duration(cls, duration):
+        """
+        Generate a Duration object based on IC input.
+
+        @param duration: A parseable IC duration string or numeric IC seconds.
+        """
+        if isinstance(duration, basestring):
+            return cls.parse_ic_duration(duration)
+        return cls.duration(duration * cls.time_scale)
+
+    @classmethod
     def interval(cls, interval):
         return cls.duration(interval)
 
@@ -113,6 +130,17 @@ class Calendar(object):
         dt = dateutil.parser.parse(input, ignoretz=True, default=default_ic_dt)
         ic_unixtime = utils.time.unixtime(dt)
         return Timestamp(cls._rl_unixtime(ic_unixtime), cls)
+
+    @classmethod
+    def parse_ic_duration(cls, input):
+        """
+        Parse a string representation of an IC duration. Default implementaiton
+        uses the Gregorian calendar, so we parse via time utils.
+        @rtype: L{Duration}
+        """
+        ic_seconds = utils.time.parse_duration(input)
+        rl_seconds = ic_seconds / cls.time_scale
+        return cls.duration(rl_seconds)
 
     @classmethod
     def get_part(cls, timestamp, part):
@@ -188,22 +216,32 @@ class Date(namedtuple('Date', 'timestamp')):
 class Timestamp(namedtuple('Timestamp', 'unix_time calendar_name')):
     def __new__(cls, timestamp=None, calendar=None):
         """
-        @type timestamp: int or float or datetime.datetime or L{Timestamp}
+        @type timestamp: str or int or float or datetime.datetime or Timestamp
         @type calendar: basestring or Calendar subclass
         """
         if issubclass(calendar, Calendar):
             calendar_name = calendar.machine_name
         elif calendar is None:
-            calendar_name = default_calendar
+            if isinstance(timestamp, Timestamp):
+                # No calendar specified, and a timestamp given as the ref,
+                # so let's just use the reference Timestamp's calendar!
+                calendar_name = timestamp.calendar.machine_name
+            else:
+                calendar_name = default_calendar
         else:
             # Allow potentially bad calendar names to be forgiving, especially
             # during unpickling.
             calendar_name = str(calendar)
+        if isinstance(timestamp, basestring):
+            # Ask calendar to parse a string into a timestamp object.
+            return Calendar(calendar_name).parse_ic_datetime(timestamp)
         if timestamp is None:
             unix_time = time.time()
         elif isinstance(timestamp, datetime.datetime):
             unix_time = utils.time.unixtime(timestamp)
         elif isinstance(timestamp, Timestamp):
+            # Calendar can be different, so while we are copying the real time,
+            # the IC time may be totally different.
             unix_time = timestamp.unix_time
         elif isinstance(timestamp, (int, float)):
             unix_time = timestamp
@@ -225,11 +263,30 @@ class Timestamp(namedtuple('Timestamp', 'unix_time calendar_name')):
         return self.calendar.format_datetime(self)
 
 
+def _duration_op_result(original, result):
+    """
+    Produce a Duration object that is the result of an operator call.
+
+    @param original: The Duration instance that called the operator.
+    @type original: L{Duration}
+    @param result: The numeric result of the operation on the real_seconds.
+    @type result: int or float
+
+    @return: A new Duration instance containing the resultant real_seconds.
+    @rtype: L{Duration}
+    """
+    return Duration(result, original.calendar)
+
+
+@utils.code.comparison_passthru('real_seconds', factory=_duration_op_result)
+@utils.code.arithmetic_passthru('real_seconds', factory=_duration_op_result)
 class Duration(namedtuple('Duration', 'real_seconds calendar_name')):
     def __new__(cls, real_seconds, calendar=None):
         if isinstance(real_seconds, Duration):
             real_seconds = real_seconds.real_seconds
-        if issubclass(calendar, Calendar):
+        elif isinstance(real_seconds, basestring):
+            real_seconds = utils.time.parse_duration(real_seconds)
+        if inspect.isclass(calendar) and issubclass(calendar, Calendar):
             calendar_name = calendar.machine_name
         elif calendar is None:
             calendar_name = default_calendar
@@ -246,6 +303,69 @@ class Duration(namedtuple('Duration', 'real_seconds calendar_name')):
 
     def __str__(self):
         return self.calendar.format_interval(self)
+
+    def before(self, timestamp=None):
+        """
+        Get a timestamp before the given timestamp (default now) by the
+        Duration's amount.
+
+        @param timestamp: The timestamp before which to generate the output.
+        @type timestamp: str or int or float or datetime.datetime or Timestamp
+        @return: Timestamp before the given timestamp.
+        @rtype: L{Timestamp}
+        """
+        timestamp = Timestamp(timestamp, self.calendar_name)
+        return Timestamp(timestamp.unix_time - self.real_seconds,
+                         self.calendar_name)
+
+    def after(self, timestamp=None):
+        """
+        Get a timestamp after the given timestamp (default now) by the
+        Duration's amount.
+
+        @param timestamp: The timestamp after which to generate the output.
+        @type timestamp: str or int or float or datetime.datetime or Timestamp
+        @return: Timestamp after the given timestamp.
+        @rtype: L{Timestamp}
+        """
+        timestamp = Timestamp(timestamp, self.calendar_name)
+        return Timestamp(timestamp.unix_time + self.real_seconds,
+                         self.calendar_name)
+
+    def __hash__(self):
+        return self.real_seconds
+
+    def __nonzero__(self):
+        return True if self.real_seconds else False
+
+    def __mul__(self, other):
+        if isinstance(other, (int, float)):
+            return Duration(self.real_seconds * other, self.calendar)
+        return NotImplemented
+
+    def __div__(self, other):
+        if isinstance(other, (int, float)):
+            return Duration(self.real_seconds / other, self.calendar)
+        return NotImplemented
+
+    def __truediv__(self, other):
+        return self.__div__(other)
+
+    def __floordiv__(self, other):
+        if isinstance(other, (int, float)):
+            return Duration(self.real_seconds // other, self.calendar)
+        return NotImplemented
+
+    def __mod__(self, other):
+        if isinstance(other, (int, float)):
+            return Duration(self.real_seconds % other, self.calendar)
+        return NotImplemented
+
+    def __divmod__(self, other):
+        if isinstance(other, (int, float)):
+            div, mod = divmod(self.real_seconds, other)
+            return Duration(div, self.calendar), Duration(mod, self.calendar)
+        return NotImplemented
 
 
 class RealTime(Calendar):

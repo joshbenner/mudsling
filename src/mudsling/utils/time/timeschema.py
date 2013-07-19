@@ -1,3 +1,4 @@
+import re
 from collections import namedtuple
 
 __all__ = ('TimeUnit', 'UnknownTimeUnitError', 'TimeSchema')
@@ -21,6 +22,7 @@ class TimeSchema(object):
     units = []
     all_unit_names = {}
     default_interval_format = ''
+    interval_re = re.compile(r'(\d*\.?\d+) +([^ ,]+)[ ,]*')
 
     def __init__(self, *units):
         self.units = []
@@ -67,5 +69,9 @@ class TimeSchema(object):
         """
         is_dict = isinstance(unit_vals, dict)
         iter = unit_vals.iteritems() if is_dict else unit_vals
-        return sum(*[self.unit_to_seconds(*i) for i in iter])
+        return sum([self.unit_to_seconds(*i) for i in iter])
 
+    def parse_interval(self, input):
+        return self.units_to_seconds(
+            (u, float(n)) for n, u in self.interval_re.findall(input)
+        )

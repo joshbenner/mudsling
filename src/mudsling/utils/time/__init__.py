@@ -69,6 +69,10 @@ def parse_datetime(input):
     return dateutil.parser.parse(input, tzinfos=parser_tzinfo)
 
 
+def parse_duration(input):
+    return realTime.parse_interval(input)
+
+
 def parse_dhms(input):
     """
     Parse a string in dhms format and return a dict of the values.

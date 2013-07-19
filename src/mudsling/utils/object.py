@@ -27,7 +27,6 @@ class AttributeAlias(object):
         delattr(obj, self.original)
 
 
-
 def filter_by_class(objects, cls):
     """
     Filter a list of objects to only descendants of a class or classes.
