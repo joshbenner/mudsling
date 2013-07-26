@@ -2,13 +2,13 @@ from collections import namedtuple
 import datetime
 import time
 import inspect
+import functools
 
 import dateutil
 import dateutil.parser
 
 from mudsling import utils
 import mudsling.utils.time
-import mudsling.utils.code
 
 calendars = {}
 default_calendar = None
@@ -114,6 +114,38 @@ class Calendar(object):
         return cls.duration(interval)
 
     @classmethod
+    def date_number(cls, date):
+        """
+        Given a date input, calculate a number that can be compared to other
+        date numbers to determine if the date is the same, comes before, etc.
+
+        Default (Gregorian) generates a numeric date from YYYYMMDD.
+        """
+        if not isinstance(date, Date):
+            date = Date(date, cls)
+        ic_unixtime = cls._ic_unixtime(date.timestamp.unix_time)
+        ic_date = datetime.datetime.utcfromtimestamp(ic_unixtime)
+        return int(ic_date.strftime('%Y%m%d'))
+
+    @classmethod
+    def rl_date_span_from_ic_timestamp(cls, timestamp):
+        """
+        Given a Timestamp input, calculate the RL unixtimes beginning and
+        ending the IC date in which the Timestamp falls.
+
+        This may be used in Date initialization, so do not instantiate Date
+        here!
+        """
+        if not isinstance(timestamp, Timestamp):
+            timestamp = Timestamp(timestamp, cls)
+        ic_unixtime = cls._ic_unixtime(timestamp.unix_time)
+        ic_datetime = datetime.datetime.utcfromtimestamp(ic_unixtime)
+        s = ic_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+        e = ic_datetime.replace(hour=23, minute=59, second=59, microsecond=0)
+        start, end = time.mktime(s.timetuple()), time.mktime(e.timetuple())
+        return cls._rl_unixtime(start), cls._rl_unixtime(end)
+
+    @classmethod
     def parse_ic_datetime(cls, input):
         """
         Parse a string representing an IC datetime. Default implementation uses
@@ -178,13 +210,19 @@ class Calendar(object):
         return utils.time.format_timestamp(ic_unixtime, format)
 
 
+@functools.total_ordering
 class Date(namedtuple('Date', 'timestamp')):
     def __new__(cls, date=None, calendar=None):
         """
         @type date: basestring or int or float or L{Timestamp} or datetime.date
         @type calendar: basestring or Calendar subclass
         """
-        calendar = Calendar(calendar)
+        if date is None:
+            date = time.time()
+        if isinstance(date, Timestamp) and calendar is None:
+            calendar = date.calendar
+        else:
+            calendar = Calendar(calendar)
         if isinstance(date, basestring):
             timestamp = calendar.parse_ic_datetime(date)
         elif isinstance(date, datetime.date):
@@ -203,7 +241,18 @@ class Date(namedtuple('Date', 'timestamp')):
 
     @property
     def calendar(self):
+        """
+        @rtype: Calendar
+        """
         return self.timestamp.calendar
+
+    @property
+    def start_rl_unixtime(self):
+        return self.calendar.rl_date_span_from_ic_timestamp(self.timestamp)[0]
+
+    @property
+    def end_rl_unixtime(self):
+        return self.calendar.rl_date_span_from_ic_timestamp(self.timestamp)[1]
 
     def __getattr__(self, item):
         # Should raise an attribute error upon failure.
@@ -212,22 +261,54 @@ class Date(namedtuple('Date', 'timestamp')):
     def __str__(self):
         return self.calendar.format_date(self)
 
+    def __add__(self, other):
+        if isinstance(other, Duration):
+            return Date(self.start_rl_unixtime + other.real_seconds,
+                        self.calendar)
+        return NotImplemented
 
+    def __sub__(self, other):
+        if isinstance(other, Duration):
+            return Date(self.start_rl_unixtime - other.real_seconds,
+                        self.calendar)
+        return NotImplemented
+
+    def __lt__(self, other):
+        if isinstance(other, Date):
+            return self.start_rl_unixtime < other.start_rl_unixtime
+        elif isinstance(other, Timestamp):
+            return other.unix_time < self.start_rl_unixtime
+        return NotImplemented
+
+    def __eq__(self, other):
+        if isinstance(other, Date):
+            mycal = self.calendar
+            ocal = other.calendar
+            if mycal == ocal:
+                return ocal.date_number(self) == ocal.date_number(other)
+            else:
+                mystart, myend = self.start_rl_unixtime, self.end_rl_unixtime
+                ostart, oend = other.start_rl_unixtime, other.end_rl_unixtime
+                return mystart == ostart and myend == oend
+        return NotImplemented
+
+
+@functools.total_ordering
 class Timestamp(namedtuple('Timestamp', 'unix_time calendar_name')):
     def __new__(cls, timestamp=None, calendar=None):
         """
         @type timestamp: str or int or float or datetime.datetime or Timestamp
         @type calendar: basestring or Calendar subclass
         """
-        if issubclass(calendar, Calendar):
-            calendar_name = calendar.machine_name
-        elif calendar is None:
+        if calendar is None:
             if isinstance(timestamp, Timestamp):
                 # No calendar specified, and a timestamp given as the ref,
                 # so let's just use the reference Timestamp's calendar!
                 calendar_name = timestamp.calendar.machine_name
             else:
                 calendar_name = default_calendar
+        elif issubclass(calendar, Calendar):
+            calendar_name = calendar.machine_name
         else:
             # Allow potentially bad calendar names to be forgiving, especially
             # during unpickling.
@@ -259,27 +340,41 @@ class Timestamp(namedtuple('Timestamp', 'unix_time calendar_name')):
         return (calendars.get(self.calendar_name, None)
                 or calendars[default_calendar])
 
+    @property
+    def date(self):
+        return Date(self)
+
     def __str__(self):
         return self.calendar.format_datetime(self)
 
+    def __lt__(self, other):
+        if isinstance(other, Timestamp):
+            return self.unix_time < other.unix_time
+        elif isinstance(other, Date):
+            return self.date < other
+        return NotImplemented
 
-def _duration_op_result(original, result):
-    """
-    Produce a Duration object that is the result of an operator call.
+    def __eq__(self, other):
+        if isinstance(other, Timestamp):
+            return self.unix_time == other.unix_time
+        elif isinstance(other, Date):
+            return self.date == other
+        return NotImplemented
 
-    @param original: The Duration instance that called the operator.
-    @type original: L{Duration}
-    @param result: The numeric result of the operation on the real_seconds.
-    @type result: int or float
+    def __add__(self, other):
+        if isinstance(other, Duration):
+            return Timestamp(self.unix_time + other.real_seconds,
+                             self.calendar)
+        return NotImplemented
 
-    @return: A new Duration instance containing the resultant real_seconds.
-    @rtype: L{Duration}
-    """
-    return Duration(result, original.calendar)
+    def __sub__(self, other):
+        if isinstance(other, Duration):
+            return Timestamp(self.unix_time - other.real_seconds,
+                             self.calendar)
+        return NotImplemented
 
 
-@utils.code.comparison_passthru('real_seconds', factory=_duration_op_result)
-@utils.code.arithmetic_passthru('real_seconds', factory=_duration_op_result)
+@functools.total_ordering
 class Duration(namedtuple('Duration', 'real_seconds calendar_name')):
     def __new__(cls, real_seconds, calendar=None):
         if isinstance(real_seconds, Duration):
@@ -338,6 +433,27 @@ class Duration(namedtuple('Duration', 'real_seconds calendar_name')):
     def __nonzero__(self):
         return True if self.real_seconds else False
 
+    def __lt__(self, other):
+        if isinstance(other, Duration):
+            return self.real_seconds < other.real_seconds
+        return NotImplemented
+
+    def __eq__(self, other):
+        if isinstance(other, Duration):
+            return self.real_seconds == other.real_seconds
+        return NotImplemented
+
+    def __add__(self, other):
+        if isinstance(other, Duration):
+            return Duration(self.real_seconds + other.real_seconds,
+                            self.calendar)
+        return NotImplemented
+
+    def __sub__(self, other):
+        if isinstance(other, Duration):
+            return Duration(self.real_seconds - other.real_seconds,
+                            self.calendar)
+
     def __mul__(self, other):
         if isinstance(other, (int, float)):
             return Duration(self.real_seconds * other, self.calendar)
@@ -345,11 +461,8 @@ class Duration(namedtuple('Duration', 'real_seconds calendar_name')):
 
     def __div__(self, other):
         if isinstance(other, (int, float)):
-            return Duration(self.real_seconds / other, self.calendar)
+            return Duration(float(self.real_seconds) / other, self.calendar)
         return NotImplemented
-
-    def __truediv__(self, other):
-        return self.__div__(other)
 
     def __floordiv__(self, other):
         if isinstance(other, (int, float)):
