@@ -2,6 +2,7 @@ from __future__ import absolute_import
 import datetime
 import time
 import re
+import calendar
 
 import dateutil
 import dateutil.parser
@@ -62,7 +63,10 @@ def unixtime(dt=None):
     @type dt: C{datetime.datetime}
     """
     dt = dt or get_datetime()
-    return time.mktime(dt.timetuple())
+    if is_naive(dt):
+        dt = make_aware(dt, local_tz())
+    dt = dt.astimezone(get_tz('UTC'))
+    return calendar.timegm(dt.timetuple())
 
 
 def parse_datetime(input):

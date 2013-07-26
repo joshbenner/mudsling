@@ -155,11 +155,12 @@ class Calendar(object):
         @rtype: L{Timestamp}
         """
         default_ic_dt = datetime.datetime.combine(
-            utils.time.get_datetime(cls._ic_unixtime()),
+            utils.time.get_datetime(cls._ic_unixtime(), tz='UTC'),
             datetime.time()
         )
         # This parses the input as if it was input during the current IC time.
         dt = dateutil.parser.parse(input, ignoretz=True, default=default_ic_dt)
+        dt = utils.time.make_aware(dt, utils.time.get_tz('UTC'))
         ic_unixtime = utils.time.unixtime(dt)
         return Timestamp(cls._rl_unixtime(ic_unixtime), cls)
 
@@ -189,7 +190,7 @@ class Calendar(object):
         Default implementation formats Gregorian datetime.
         """
         ic_unixtime = cls._ic_unixtime(timestamp.unix_time)
-        return utils.time.format_timestamp(ic_unixtime, format)
+        return utils.time.format_timestamp(ic_unixtime, format, tz='UTC')
 
     @classmethod
     def format_interval(cls, interval, format=None):
@@ -214,7 +215,8 @@ class Calendar(object):
 class Date(namedtuple('Date', 'timestamp')):
     def __new__(cls, date=None, calendar=None):
         """
-        @type date: basestring or int or float or L{Timestamp} or datetime.date
+        @type date: basestring or int or long or float or L{Timestamp}
+                    or datetime.date
         @type calendar: basestring or Calendar subclass
         """
         if date is None:
@@ -228,7 +230,7 @@ class Date(namedtuple('Date', 'timestamp')):
         elif isinstance(date, datetime.date):
             dt = datetime.datetime.combine(date, datetime.time())
             timestamp = Timestamp(dt, calendar)
-        elif isinstance(date, (int, float)):
+        elif isinstance(date, (int, long, float)):
             timestamp = Timestamp(date, calendar)
         elif isinstance(date, Timestamp):
             timestamp = date
@@ -297,7 +299,8 @@ class Date(namedtuple('Date', 'timestamp')):
 class Timestamp(namedtuple('Timestamp', 'unix_time calendar_name')):
     def __new__(cls, timestamp=None, calendar=None):
         """
-        @type timestamp: str or int or float or datetime.datetime or Timestamp
+        @type timestamp: str or int or long or float or datetime.datetime
+                         or Timestamp
         @type calendar: basestring or Calendar subclass
         """
         if calendar is None:
@@ -324,7 +327,7 @@ class Timestamp(namedtuple('Timestamp', 'unix_time calendar_name')):
             # Calendar can be different, so while we are copying the real time,
             # the IC time may be totally different.
             unix_time = timestamp.unix_time
-        elif isinstance(timestamp, (int, float)):
+        elif isinstance(timestamp, (int, long, float)):
             unix_time = timestamp
         else:
             raise TypeError("First parameter to Timestamp must be number,"
@@ -455,27 +458,27 @@ class Duration(namedtuple('Duration', 'real_seconds calendar_name')):
                             self.calendar)
 
     def __mul__(self, other):
-        if isinstance(other, (int, float)):
+        if isinstance(other, (int, long, float)):
             return Duration(self.real_seconds * other, self.calendar)
         return NotImplemented
 
     def __div__(self, other):
-        if isinstance(other, (int, float)):
+        if isinstance(other, (int, long, float)):
             return Duration(float(self.real_seconds) / other, self.calendar)
         return NotImplemented
 
     def __floordiv__(self, other):
-        if isinstance(other, (int, float)):
+        if isinstance(other, (int, long, float)):
             return Duration(self.real_seconds // other, self.calendar)
         return NotImplemented
 
     def __mod__(self, other):
-        if isinstance(other, (int, float)):
+        if isinstance(other, (int, long, float)):
             return Duration(self.real_seconds % other, self.calendar)
         return NotImplemented
 
     def __divmod__(self, other):
-        if isinstance(other, (int, float)):
+        if isinstance(other, (int, long, float)):
             div, mod = divmod(self.real_seconds, other)
             return Duration(div, self.calendar), Duration(mod, self.calendar)
         return NotImplemented
