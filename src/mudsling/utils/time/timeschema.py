@@ -63,15 +63,32 @@ class TimeSchema(object):
         return unit.seconds * num
 
     def units_to_seconds(self, unit_vals):
+        """Given a key/val iterable of unit names and amounts, output the
+        number of seconds represented by those units together.
+
+        :param unit_vals: Collection containing (unit name, value).
+        :type unit_vals: dict or list or tuple or set
+
+        :raises ValueError: If unit_vals is zero length.
+
+        :returns: The number of seconds in the sum of the intervals.
+        :rtype: int or float
         """
-        Given a key/val iterable of unit names and amounts, output the number
-        of seconds represented by those units together.
-        """
+        if len(unit_vals) < 1:
+            raise ValueError("Invalid duration value")
         is_dict = isinstance(unit_vals, dict)
         iter = unit_vals.iteritems() if is_dict else unit_vals
         return sum([self.unit_to_seconds(*i) for i in iter])
 
     def parse_interval(self, input):
+        """Parse a string interval into the represented seconds.
+
+        :param input: A string representation of an interval.
+        :type input: str
+
+        :return: The number of seconds represented by the string interval.
+        :rtype: int or float
+        """
         return self.units_to_seconds(
-            (u, float(n)) for n, u in self.interval_re.findall(input)
+            [(u, float(n)) for n, u in self.interval_re.findall(input)]
         )

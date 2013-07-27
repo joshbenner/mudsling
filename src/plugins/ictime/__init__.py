@@ -1,3 +1,16 @@
+"""
+.. module: ictime
+    :synopsis: Tools for maintaining IC calendar systems.
+
+.. data:: dict calendars
+
+    A dictionary of the available calendars.
+
+.. data:: str default_calendar
+
+    The key by which to find the default calendar in the calendars dictionary.
+"""
+
 from collections import namedtuple
 import datetime
 import time
@@ -14,14 +27,74 @@ calendars = {}
 default_calendar = None
 
 
+def parse_user_duration(input):
+    """Iterate through available calendars, attempting to parse the duration.
+
+    :param input: The user input to attempt to parse.
+    :type input: str
+
+    :raises ValueError: When no calendar can parse the input.
+
+    :returns: The parsed duration result.
+    :rtype: :class:`Duration`
+    """
+    for cal in calendars.itervalues():
+        # noinspection PyBroadException
+        try:
+            duration = cal.parse_ic_duration(input)
+        except:
+            continue
+        else:
+            # Successful parse!
+            return duration
+    raise ValueError("Unable to parse duration with any Calendar")
+
+
+def parse_user_datetime(input):
+    """Iterate through available calendars, attempting to parse the datetime.
+
+    :param input: The user input to attempt to parse.
+    :type input: str
+
+    :raises ValueError: When no calendar can parse the input.
+
+    :returns: The Timestamp represented by the user input.
+    :rtype: :class:`Timestamp`
+    """
+    for cal in calendars.itervalues():
+        # noinspection PyBroadException
+        try:
+            timestamp = cal.parse_ic_datetime(input)
+        except:
+            continue
+        else:
+            # Successful parse!
+            return timestamp
+    raise ValueError("Unable to parse datetime with any Calendar")
+
+
 class Calendar(object):
     """
     Default calendar class implementation handles a "real" time using the
     modern Gregorian calendar (ie: default Python calendar). Subclasses can
     change some settings to offset and/or compress the calendar.
 
-    For instance, if you had a game with 1:3 time ratio set in WWII era, you
-    might
+    For instance, if you had a game with 1:3 time ratio set in WWII era, your
+    game's IC time started on Jan 1, 1943, you launched on Feb 17, 2013, and
+    you want to use the calendar as the default, you might create a Calendar
+    subclass like this in your game-specific plugin:
+
+    >>> import mudsling.utils.time as t
+    >>> import ictime
+    >>>
+    >>> class WW2Era(Calendar):
+    >>>     machine_name = 'ww2era'
+    >>>     epoc_rl_time = t.unixtime(t.parse_datetime('Feb 17, 2013'))
+    >>>     epoc_ic_time = t.unixtime(t.parse_datetime('Jan 1, 1943'))
+    >>>     time_scale = 3
+    >>>
+    >>> ictime.calendars['ww2era'] = WW2Era
+    >>> ictime.default_calendar = 'ww2era'
     """
     machine_name = ''
     # Schema used for intervals (duration).
@@ -38,6 +111,12 @@ class Calendar(object):
     # time scale of 3:1 would have this value set to 3. Default implementation
     # is real time, so the time scale is 1.
     time_scale = 1
+
+    age_format = "%yeary %monthm"
+    """The duration format to use when displaying an age (ie: of a person)."""
+
+    date_format = 'medium date'  # Named format useable via utils.time.
+    """The date format to use by defalt."""
 
     def __new__(cls, calendar=None):
         """
@@ -72,26 +151,26 @@ class Calendar(object):
     @classmethod
     def timestamp(cls, timestamp=None):
         """
-        Obtain an L{ictime.timestamp} instance related to this calendar for a
+        Obtain an :class:`Timestamp` instance related to this calendar for a
         given timestamp.
 
-        @param timestamp: The source timestamp to convert. May be a UNIX
-            timestamp, L{datetime.datetime} instance, or L{ictime.Timestamp}
-            instance.
-        @type timestamp: C{int} or L{datetime.datetime} or L{ictime.Timestamp}
+        :param timestamp: The source timestamp to convert. May be a UNIX
+            timestamp, :class:`datetime.datetime` instance, or
+            :class:`Timestamp` instance.
+        :type timestamp: int or datetime.datetime or Timestamp
 
-        @return: An L{ictime.Timestamp} instance corresponding to the provided
+        :return: An :class:`Timestamp` instance corresponding to the provided
             time built against this calendar.
-        @rtype: L{ictime.Timestamp}
+        :rtype: Timestamp
         """
         return Timestamp(timestamp, cls)
 
     @classmethod
-    def date(cls, date):
+    def date(cls, date=None):
         return Date(date, cls)
 
     @classmethod
-    def duration(cls, duration):
+    def duration(cls, duration=0):
         return Duration(duration, cls)
 
     @classmethod
@@ -100,10 +179,12 @@ class Calendar(object):
 
     @classmethod
     def ic_duration(cls, duration):
-        """
-        Generate a Duration object based on IC input.
+        """Generate a Duration object based on IC input.
 
-        @param duration: A parseable IC duration string or numeric IC seconds.
+        :param duration: A parseable IC duration string or numeric IC seconds.
+        :type duration: str or int or float or long
+
+        :rtype: Duration
         """
         if isinstance(duration, basestring):
             return cls.parse_ic_duration(duration)
@@ -112,6 +193,14 @@ class Calendar(object):
     @classmethod
     def interval(cls, interval):
         return cls.duration(interval)
+
+    @classmethod
+    def now(cls):
+        return cls.timestamp()
+
+    @classmethod
+    def today(cls):
+        return cls.date()
 
     @classmethod
     def date_number(cls, date):
@@ -151,8 +240,8 @@ class Calendar(object):
         Parse a string representing an IC datetime. Default implementation uses
         the Gregorian calendar, so we simply pass this off to parse_datetime.
 
-        @return: A L{Timestamp} based on this L{Calendar}.
-        @rtype: L{Timestamp}
+        :return: A :class:`Timestamp` based on this Calendar.
+        :rtype: Timestamp
         """
         default_ic_dt = datetime.datetime.combine(
             utils.time.get_datetime(cls._ic_unixtime(), tz='UTC'),
@@ -169,7 +258,8 @@ class Calendar(object):
         """
         Parse a string representation of an IC duration. Default implementaiton
         uses the Gregorian calendar, so we parse via time utils.
-        @rtype: L{Duration}
+
+        :rtype: Duration
         """
         ic_seconds = utils.time.parse_duration(input)
         rl_seconds = ic_seconds / cls.time_scale
@@ -202,22 +292,23 @@ class Calendar(object):
                                           format)
 
     @classmethod
-    def format_date(cls, date, format='date_default'):
+    def format_date(cls, date, format=None):
         """
         Default implementation formats a real-time date.
         """
         date = Date(date, cls)
+        format = format or cls.date_format
         ic_unixtime = cls._ic_unixtime(date.timestamp.unix_time)
-        return utils.time.format_timestamp(ic_unixtime, format)
+        return utils.time.format_timestamp(ic_unixtime, format, tz='UTC')
 
 
 @functools.total_ordering
 class Date(namedtuple('Date', 'timestamp')):
     def __new__(cls, date=None, calendar=None):
         """
-        @type date: basestring or int or long or float or L{Timestamp}
+        :type date: basestring or int or long or float or Timestamp
                     or datetime.date
-        @type calendar: basestring or Calendar subclass
+        :type calendar: basestring or Calendar subclass
         """
         if date is None:
             date = time.time()
@@ -244,7 +335,7 @@ class Date(namedtuple('Date', 'timestamp')):
     @property
     def calendar(self):
         """
-        @rtype: Calendar
+        :rtype: Calendar
         """
         return self.timestamp.calendar
 
@@ -256,9 +347,13 @@ class Date(namedtuple('Date', 'timestamp')):
     def end_rl_unixtime(self):
         return self.calendar.rl_date_span_from_ic_timestamp(self.timestamp)[1]
 
+    def format(self, format=None, calendar=None):
+        calendar = calendar or self.calendar
+        return calendar.format_date(self, format)
+
     def __getattr__(self, item):
         # Should raise an attribute error upon failure.
-        return self.timestamp.calendar.get_part(item)
+        return self.timestamp.calendar.get_part(self.timestamp, item)
 
     def __str__(self):
         return self.calendar.format_date(self)
@@ -273,6 +368,9 @@ class Date(namedtuple('Date', 'timestamp')):
         if isinstance(other, Duration):
             return Date(self.start_rl_unixtime - other.real_seconds,
                         self.calendar)
+        elif isinstance(other, Date):
+            return Duration(self.start_rl_unixtime - other.start_rl_unixtime,
+                            self.calendar)
         return NotImplemented
 
     def __lt__(self, other):
@@ -299,9 +397,9 @@ class Date(namedtuple('Date', 'timestamp')):
 class Timestamp(namedtuple('Timestamp', 'unix_time calendar_name')):
     def __new__(cls, timestamp=None, calendar=None):
         """
-        @type timestamp: str or int or long or float or datetime.datetime
+        :type timestamp: str or int or long or float or datetime.datetime
                          or Timestamp
-        @type calendar: basestring or Calendar subclass
+        :type calendar: basestring or Calendar subclass
         """
         if calendar is None:
             if isinstance(timestamp, Timestamp):
@@ -310,7 +408,7 @@ class Timestamp(namedtuple('Timestamp', 'unix_time calendar_name')):
                 calendar_name = timestamp.calendar.machine_name
             else:
                 calendar_name = default_calendar
-        elif issubclass(calendar, Calendar):
+        elif inspect.isclass(calendar) and issubclass(calendar, Calendar):
             calendar_name = calendar.machine_name
         else:
             # Allow potentially bad calendar names to be forgiving, especially
@@ -407,10 +505,10 @@ class Duration(namedtuple('Duration', 'real_seconds calendar_name')):
         Get a timestamp before the given timestamp (default now) by the
         Duration's amount.
 
-        @param timestamp: The timestamp before which to generate the output.
-        @type timestamp: str or int or float or datetime.datetime or Timestamp
-        @return: Timestamp before the given timestamp.
-        @rtype: L{Timestamp}
+        :param timestamp: The timestamp before which to generate the output.
+        :type timestamp: str or int or float or datetime.datetime or Timestamp
+        :return: Timestamp before the given timestamp.
+        :rtype: Timestamp
         """
         timestamp = Timestamp(timestamp, self.calendar_name)
         return Timestamp(timestamp.unix_time - self.real_seconds,
@@ -421,14 +519,18 @@ class Duration(namedtuple('Duration', 'real_seconds calendar_name')):
         Get a timestamp after the given timestamp (default now) by the
         Duration's amount.
 
-        @param timestamp: The timestamp after which to generate the output.
-        @type timestamp: str or int or float or datetime.datetime or Timestamp
-        @return: Timestamp after the given timestamp.
-        @rtype: L{Timestamp}
+        param timestamp: The timestamp after which to generate the output.
+        type timestamp: str or int or float or datetime.datetime or Timestamp
+        return: Timestamp after the given timestamp.
+        rtype: Timestamp
         """
         timestamp = Timestamp(timestamp, self.calendar_name)
         return Timestamp(timestamp.unix_time + self.real_seconds,
                          self.calendar_name)
+
+    def format(self, format=None, calendar=None):
+        calendar = calendar or self.calendar
+        return calendar.format_interval(self, format)
 
     def __hash__(self):
         return self.real_seconds

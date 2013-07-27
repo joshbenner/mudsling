@@ -8,7 +8,6 @@ from mudsling import parsers
 
 from mudsling import utils
 import mudsling.utils.string
-import mudsling.utils.units
 
 from mudsling.utils.string import inflection
 
@@ -16,6 +15,8 @@ from mudslingcore.commands import character as core_character_commands
 from mudslingcore.genders import genders
 
 from dice import Roll
+
+import ictime.parsers
 
 import pathfinder
 from pathfinder import ui
@@ -143,6 +144,70 @@ class RaceCmd(Command):
             val = pathfinder.format_modifier(val)
             abils.append('{y%s {m%s' % (val, abil))
         return '{n, '.join(abils)
+
+
+class AgeCmd(Command):
+    """
+    +age [<age>]
+
+    Display or set the age of your character.
+    """
+    aliases = ('+age',)
+    syntax = '[<age>]'
+    arg_parsers = {
+        'age': ictime.parsers.ICDurationStaticParser
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        age = args['age']
+        if age is None:
+            actor.tell('{yYou are {c', this.age, '{y old.')
+        elif this.frozen_level:
+            msg = "You may not set your age after you have finalized."
+            raise errors.CommandInvalid(msg=msg)
+        else:
+            this.age = age
+            actor.tell('{gYou are now {c', this.age, "{g old.")
+
+
+class BornCmd(Command):
+    """
+    +born [<date>]
+
+    Display or set the birthday of your character.
+    """
+    aliases = ('+born',)
+    syntax = '[<date>]'
+    arg_parsers = {
+        'date': ictime.parsers.ICDateStaticParser
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        date = args['date']
+        if date is None:
+            dob = this.date_of_birth
+            actor.tell('{yYou were born on {c', self._date(dob), "{y.")
+        elif this.frozen_level:
+            msg = "You may not set your birthday after you have finalized."
+            raise errors.CommandInvalid(msg=msg)
+        else:
+            this.date_of_birth = date
+            actor.tell('{gYour birthday is now {c', self._date(date), "{g.")
+
+    def _date(self, date):
+        return date.format(date.calendar.date_format)
 
 
 class GenderCmd(core_character_commands.GenderCmd):
@@ -620,10 +685,11 @@ class CharsheetCmd(Command):
 
     def _vital_table(self, char):
         height = ' '.join(char.height.graduated(strings=True, short=True))
+        age = char.age
         return (
             '{c    Race:{n %s' % (char.race if char.race is not None else '?'),
             '{c  Gender:{n %s' % char.gender.name,
-            '{c     Age:{n %s' % ui.format_interval(char.age, format='%yeary'),
+            '{c     Age:{n %s' % age.format(age.calendar.age_format),
             '{c  Height:{n %s' % height,
             '{c  Weight:{n %s' % char.weight.short(),
             '{{c      XP:{{n {:,d}'.format(char.xp),

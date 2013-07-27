@@ -10,6 +10,8 @@ from mudsling.storage import ObjRef
 from mudsling.commands import all_commands
 from mudsling import errors
 
+import ictime
+
 import pathfinder
 import pathfinder.prerequisites
 from .feats import parse_feat
@@ -37,7 +39,8 @@ class Character(CoreCharacter, PathfinderObject):
     level_up_skills = {}
     feat_slots = {}  # key = type or '*', value = how many
     languages = []
-    age = 0
+    #: @type: ictime.Date
+    date_of_birth = None
     _abil_modifier_stats = (
         'strength modifier',
         'dexterity modifier',
@@ -164,6 +167,25 @@ class Character(CoreCharacter, PathfinderObject):
 
     # Used to identify class level stats for isolating base stat value.
     _class_lvl_re = re.compile('(.*) +levels?', re.I)
+
+    @property
+    def age(self):
+        """
+        @rtype: L{ictime.Duration}
+        """
+        if self.date_of_birth is None:
+            return ictime.Duration(0)
+        else:
+            today = self.date_of_birth.calendar.today()
+            return today - self.date_of_birth
+
+    @age.setter
+    def age(self, age):
+        if isinstance(age, ictime.Duration):
+            today = age.calendar.today()
+            self.date_of_birth = today - age
+        else:
+            raise TypeError("Character age must be of type ictime.Duration")
 
     @property
     def height(self):
