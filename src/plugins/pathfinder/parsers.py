@@ -6,6 +6,7 @@ import mudsling.utils.string
 
 import pathfinder
 from pathfinder.characters import Character
+from pathfinder.feats import parse_feat
 
 
 class AbilityNameStaticParser(StaticParser):
@@ -34,7 +35,7 @@ class StaticPFDataParser(StaticParser):
 
     @classmethod
     def plural(cls):
-        return pathfinder.inflection.plural(cls.search_for)
+        return utils.string.inflection.plural(cls.search_for)
 
     @classmethod
     def parse(cls, input):
@@ -83,6 +84,20 @@ class SkillStaticParser(StaticPFDataParser):
     data_types = ('skill',)
     search_for = 'skill'
     exact = False
+
+
+class FeatStaticParser(StaticParser):
+    @classmethod
+    def parse(cls, input):
+        return parse_feat(input)
+
+    @classmethod
+    def unparse(cls, val, obj=None):
+        if isinstance(val, tuple):
+            feat, subtype = val
+        else:
+            feat = val
+        return feat.name
 
 
 class MatchCharacter(MatchDescendants):

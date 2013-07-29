@@ -20,6 +20,7 @@ class FeatureMetaClass(ForceSlotsMetaclass):
 class Feature(EventResponder):
     __metaclass__ = FeatureMetaClass
 
+    feature_type = 'feature'
     name = ''
     description = ''
 
@@ -37,6 +38,7 @@ class Feature(EventResponder):
 
 
 class CharacterFeature(Feature):
+    feature_type = 'character feature'
     modifiers = []
 
     def apply_to(self, obj):

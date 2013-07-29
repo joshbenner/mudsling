@@ -90,6 +90,15 @@ class CaselessDict:
     def itervalues(self):
         return (i[1] for i in self.dict.itervalues())
 
+    def canonical_key(self, key):
+        if key in self:
+            key = key.lower()
+            for k in self.keyList:
+                if key == k:
+                    return k
+        else:
+            raise KeyError
+
 
 def unique(seq):
     """

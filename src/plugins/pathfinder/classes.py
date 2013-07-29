@@ -1,5 +1,7 @@
 from collections import namedtuple
 
+from mudsling.utils.sequence import CaselessDict
+
 from .features import CharacterFeature
 from .modifiers import modifiers
 from pathfinder.characters import is_pfchar
@@ -59,7 +61,7 @@ class Class(CharacterFeature):
 class GainFeat(CharacterFeature):
     name = "Feat"
     description = "Gain a feat."
-    feat_type = '*'
+    feat_type = 'general'
 
     def apply_to(self, obj):
         if is_pfchar(obj):
@@ -116,8 +118,9 @@ class WeaponTraining(Feat):
     _prerequisites = ['weapon training feat slot']
 
     @classmethod
-    def subtypes(cls, character=None):
-        return sorted(weapon_training_groups.keys())
+    def subtypes(cls):
+        groups = sorted(weapon_training_groups.keys())
+        return CaselessDict(zip(groups, groups))
 
     def apply_to(self, obj):
         if is_pfchar(obj):

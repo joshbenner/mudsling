@@ -10,6 +10,9 @@ from mudsling.storage import ObjRef
 from mudsling.commands import all_commands
 from mudsling import errors
 
+from mudsling import utils
+import mudsling.utils.string
+
 import ictime
 
 import pathfinder
@@ -39,7 +42,7 @@ class Character(CoreCharacter, PathfinderObject):
     level_up_skills = {}
     feat_slots = {}  # key = type or '*', value = how many
     languages = []
-    #: @type: ictime.Date
+    #: :type: ictime.Date
     date_of_birth = None
     _abil_modifier_stats = (
         'strength modifier',
@@ -416,15 +419,16 @@ class Character(CoreCharacter, PathfinderObject):
             feat.apply_to(self)
             self.feats.append(feat)
             self.clear_stat_cache()
+            self.tell("{gYou gain the {c", feat, "{g ", feat.feature_type, '.')
 
     def remove_feat(self, feat, source=None):
         """
         Remove a feat instance from a character. If the feat is provided by
         multiple sources, it may not actually be removed.
 
-        @param feat: The feat INSTANCE to remove.
-        @type feat: L{pathfinder.feats.Feat}
-        @param source: The source to remove in the case of a multi-source feat.
+        :param feat: The feat INSTANCE to remove.
+        :type feat: pathfinder.feats.Feat
+        :param source: The source to remove in the case of a multi-source feat.
             If a non-None source is specified but is not in the feat's list of
             sources, then the feat will not be removed. If no source is given,
             and the feat is occupying a feat slot, the slot will be vacated.
@@ -478,7 +482,7 @@ class Character(CoreCharacter, PathfinderObject):
         return available
 
     def compatible_feat_slots(self, feat_class, subtype=None):
-        return [st for st, c in self.available_feat_slots()
+        return [st for st, c in self.available_feat_slots().iteritems()
                 if c > 0 and st in feat_class.compatible_slots(subtype)]
 
     def get_feat(self, feat, subtype=None):
@@ -489,8 +493,8 @@ class Character(CoreCharacter, PathfinderObject):
         will be returned. Useful for determining if character has a feat with
         any subtype.
 
-        @param feat: The feat class or name of the feat.
-        @param subtype: The subtype. Overrides subtype in feat name.
+        :param feat: The feat class or name of the feat.
+        :param subtype: The subtype. Overrides subtype in feat name.
         """
         if isinstance(feat, basestring):
             feat, subtype_ = parse_feat(feat)
@@ -588,8 +592,6 @@ class Character(CoreCharacter, PathfinderObject):
         if isinstance(skill, basestring):
             skill = pathfinder.data.match(skill, types=('skill',))
         trained = self.skill_ranks(skill)
-        if not skill.untrained and not trained:
-            return 0
         ability_modifier = self.get_stat(skill.ability + ' mod')
         bonus = 3 if trained and skill in self.class_skills() else 0
         return trained + ability_modifier + bonus
@@ -650,6 +652,11 @@ class Character(CoreCharacter, PathfinderObject):
 
     def check_prerequisites(self, prerequisites):
         return pathfinder.prerequisites.check(prerequisites, self)
+
+    def tell_prerequisite_failures(self, failures, subject):
+        fails = utils.string.english_list(["{r%s{n" % f for f in failures])
+        self.tell("{yYou do not meet these requirements for "
+                  "{c", subject, "{y: ", fails)
 
     def spoken_languages(self):
         e = Event('spoken languages')

@@ -1,4 +1,7 @@
 """
+.. module:: pathfinder.prerequisites
+    :synopsis: Utilities for checking the status of prerequisites.
+
 Prerequisites are stats and feature requirements.
 
 Syntax: [not] <stat> <minimum>
@@ -22,33 +25,31 @@ stat_re = re.compile(r'^(?P<stat>.*) +(?P<minimum>\d+)$')
 feature_re = re.compile('^(?P<name>.*?)(?: +\((?P<subtype>.*)\))?$')
 
 
-def check(prerequisites, character):
+def check(prerequisites, char):
     """
     Determine if the character satisfies the prerequisites.
 
-    @param prerequisites: List of prerequisite expressions.
-    @type prerequisites: C{list} or C{tuple} or C{set}
-    @param character: The character to test for compliance.
-    @type character: L{pathfinder.Character}
+    :param prerequisites: List of prerequisite expressions.
+    :type prerequisites: list or tuple or set
+    :param char: The character to test for compliance.
+    :type char: pathfinder.Character
 
-    @rtype: C{bool}
+    :returns: A tuple of a bool pass/fail and the list of failures.
+    :rtype: tuple
     """
-    for pr in prerequisites:
-        if not check_prerequisite(pr, character):
-            return False
-    return True
+    failures = [f for f in prerequisites if not check_prerequisite(f, char)]
+    return len(failures) < 1, failures
 
 
 def check_prerequisite(prerequisite, character):
-    """
-    Determine if the character satisfies a single prerequisite expression.
+    """Determine if the character satisfies a single prerequisite expression.
 
-    @param prerequisite: List of prerequisite expressions.
-    @type prerequisite: C{str}
-    @param character: The character to test for compliance.
-    @type character: L{pathfinder.Character}
+    :param prerequisite: List of prerequisite expressions.
+    :type prerequisite: str
+    :param character: The character to test for compliance.
+    :type character: pathfinder.Character
 
-    @rtype: C{bool}
+    :rtype: bool
     """
     if prerequisite.startswith('not '):
         return not check_prerequisite(prerequisite[4:], character)

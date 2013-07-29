@@ -22,7 +22,7 @@ import pathfinder
 from pathfinder import ui
 from pathfinder.parsers import AbilityNameStaticParser, RaceStaticParser
 from pathfinder.parsers import ClassStaticParser, SkillStaticParser
-from pathfinder.parsers import MatchCharacter
+from pathfinder.parsers import MatchCharacter, FeatStaticParser
 import pathfinder.errors as pferr
 
 
@@ -487,6 +487,8 @@ class SkillsCmd(Command):
                     continue
             if trained:
                 display_name = '{c' + display_name
+            elif not skill.untrained:
+                display_name = '{r' + display_name
             abil = skill.ability.lower()
             total = char.get_stat_limits(name)
             misc_low = total[0] - (trained + abil_mods[abil])
@@ -521,6 +523,47 @@ class AdminSkillsCmd(SkillsCmd):
     def run(self, this, actor, args):
         char = args['character']
         self._show_skill_table(self._skills(char), char, actor)
+
+
+class FeatAddCmd(Command):
+    """
+    +feat-add <feat>
+
+    Adds a feat.
+    """
+    aliases = ('+feat-add',)
+    syntax = '[<feat>]'
+    arg_parsers = {
+        'feat': FeatStaticParser
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        if args['feat'] is None:
+            out = ["{gAvailable feat slot types:"]
+            available = this.available_feat_slots().iteritems()
+            out.extend([("  {m%s: {y%d" % s) for s in available if s[1] > 0])
+            if len(out) > 1:
+                actor.msg("\n".join(out))
+            else:
+                actor.tell("{yNo feat slots available.")
+        else:
+            feat_class, subtype = args['feat']
+            reqs = feat_class.prerequisites(subtype)
+            reqs_met, failures = this.check_prerequisites(reqs)
+            if not reqs_met:
+                name = feat_class.canonical_name(subtype)
+                actor.tell_prerequisite_failures(failures, name)
+            else:
+                try:
+                    this.add_feat(feat_class, subtype, source='slot')
+                except pferr.PathfinderError as e:
+                    raise errors.CommandInvalid(msg=e.message)
 
 
 class UndoLevelCmd(Command):

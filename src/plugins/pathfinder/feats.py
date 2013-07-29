@@ -1,8 +1,10 @@
 from mudsling import errors
+from mudsling.utils.sequence import CaselessDict
 
 from .features import CharacterFeature
 from .modifiers import modifiers
 from .prerequisites import feature_re
+import pathfinder.errors as pferr
 
 import pathfinder
 
@@ -29,6 +31,7 @@ class Feat(CharacterFeature):
     """
     __slots__ = ('subtype', 'sources', 'slot')
 
+    feature_type = 'feat'
     name = ''
     type = 'general'
     restricted = False  # Only available if a slot with specific type is free.
@@ -37,13 +40,42 @@ class Feat(CharacterFeature):
     modifiers = []
 
     @classmethod
-    def subtypes(cls, character=None):
-        return ()
+    def subtypes(cls):
+        """Get the list of subtypes available.
+
+        :return: A case-insensitive dict of strings subtype names as keys, and
+            the data to store on the feat instance as value.
+        :rtype: mudsling.utils.sequence.CaselessDict
+        """
+        return {}
+
+    @classmethod
+    def canonical_subtype(cls, subtype):
+        """Return the case-correct name of the given subtype.
+
+        :param subtype: The subtype to canonicalize.
+        :type subtype: str
+
+        :returns: A case-correct name of a subtype.
+        :rtype: str
+        """
+        return cls.subtypes().canonical_key(subtype)
+
+    @classmethod
+    def canonical_name(cls, subtype=None):
+        name = cls.name
+        if subtype is not None:
+            name += " (%s)" % cls.canonical_subtype(subtype)
+        return name
 
     @classmethod
     def prerequisites(cls, subtype=None):
-        # todo: Handle 'same subtype'
-        return cls._prerequisites
+        prerequisites = []
+        for req in cls._prerequisites:
+            if 'same subtype' in req:
+                req = req.replace('same subtype', subtype)
+            prerequisites.append(req)
+        return prerequisites
 
     @classmethod
     def compatible_slots(cls, subtype=None):
@@ -53,6 +85,14 @@ class Feat(CharacterFeature):
             return 'general',
         else:
             return 'general', cls.type
+
+    def __new__(cls, subtype=None, source=None, slot=None):
+        subtypes = cls.subtypes()
+        if ((len(subtypes) and subtype not in subtypes)
+                or (not len(subtypes) and subtype is not None)):
+            msg = "Invalid subtype (%s) for Feat %s" % (subtype, cls.name)
+            raise pferr.InvalidSubtype(msg, cls, subtype)
+        return super(Feat, cls).__new__(cls, subtype, source, slot)
 
     def __init__(self, subtype=None, source=None, slot=None):
         self.subtype = subtype
@@ -793,8 +833,8 @@ class SkillFocus(Feat):
     multiple = True
 
     @classmethod
-    def subtypes(cls, character=None):
-        return [s.name for s in pathfinder.data.registry['skill'].itervalues()]
+    def subtypes(cls):
+        return CaselessDict(pathfinder.data.registry['skill'])
 
 
 # class SpellFocus(Feat):

@@ -16,3 +16,10 @@ class CharacterError(PathfinderError):
 
 class SkillError(CharacterError):
     pass
+
+
+class InvalidSubtype(PathfinderError):
+    def __init__(self, msg='', feat_class=None, subtype=''):
+        super(InvalidSubtype, self).__init__(msg)
+        self.feat_class = feat_class
+        self.subtype = subtype

@@ -8,6 +8,8 @@ from .feats import Feat
 
 
 class SpecialAbility(Feat):
+    feature_type = 'special ability'
+
     @classmethod
     def prerequisites(cls, subtype=None):
         # Special abilities cannot be gained like other feats.

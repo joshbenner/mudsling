@@ -28,6 +28,10 @@ def names(class_name):
     return registry[class_name].keys()
 
 
+def all(class_name):
+    return registry[class_name].values()
+
+
 def __data_type_key(dt):
     if isinstance(dt, basestring):
         return str(dt).lower()
