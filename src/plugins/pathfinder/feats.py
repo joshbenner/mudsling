@@ -86,15 +86,14 @@ class Feat(CharacterFeature):
         else:
             return 'general', cls.type
 
-    def __new__(cls, subtype=None, source=None, slot=None):
-        subtypes = cls.subtypes()
+    def __init__(self, subtype=None, source=None, slot=None):
+        subtypes = self.subtypes()
         if ((len(subtypes) and subtype not in subtypes)
                 or (not len(subtypes) and subtype is not None)):
-            msg = "Invalid subtype (%s) for Feat %s" % (subtype, cls.name)
-            raise pferr.InvalidSubtype(msg, cls, subtype)
-        return super(Feat, cls).__new__(cls, subtype, source, slot)
-
-    def __init__(self, subtype=None, source=None, slot=None):
+            msg = "Invalid subtype (%s) for Feat %s" % (subtype, self.name)
+            raise pferr.InvalidSubtype(msg, self, subtype)
+        if subtype is not None:
+            subtype = self.canonical_subtype(subtype)
         self.subtype = subtype
         self.sources = []
         self.slot = slot
@@ -835,6 +834,15 @@ class SkillFocus(Feat):
     @classmethod
     def subtypes(cls):
         return CaselessDict(pathfinder.data.registry['skill'])
+
+    def _skill_bonus(self, char):
+        return
+
+    def respond_to_event(self, event, responses):
+        if event.name == 'stat mods':
+            if event.stat == self.subtype.lower():
+                bonus = 6 if event.obj.skill_ranks(self.subtype) >= 10 else 3
+                event.modifiers[self] = bonus
 
 
 # class SpellFocus(Feat):

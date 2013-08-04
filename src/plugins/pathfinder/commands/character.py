@@ -26,6 +26,27 @@ from pathfinder.parsers import MatchCharacter, FeatStaticParser
 import pathfinder.errors as pferr
 
 
+class LevellingCommand(Command):
+    """
+    A command which can only be used while levelling up.
+    """
+
+    #: :type: pathfinder.characters.Character
+    obj = None
+    lock = locks.all_pass
+    not_levelling_msg = None
+
+    def prepare(self):
+        if not self.obj.levelling_up():
+            if self.not_levelling_msg is None:
+                msg = "{rYou may only use %s while levelling up." % self.cmdstr
+            else:
+                msg = self.not_levelling_msg
+            self.actor.tell(msg)
+            return False
+        return True
+
+
 class AbilitiesCmd(Command):
     """
     +abilities <best ability>,<next best>,<next>,<next>,<next>,<next>
@@ -356,7 +377,7 @@ class LevelUpCmd(Command):
             this.add_level(class_, ability)
 
 
-class SkillUpCmd(Command):
+class SkillUpCmd(LevellingCommand):
     """
     +skill-up <skill>
 
@@ -367,7 +388,7 @@ class SkillUpCmd(Command):
     arg_parsers = {
         'skill': SkillStaticParser
     }
-    lock = locks.all_pass
+    not_levelling_msg = "{rYou may only gain skill ranks while levelling up."
 
     def run(self, this, actor, args):
         """
@@ -381,7 +402,7 @@ class SkillUpCmd(Command):
             actor.tell('{y', e.message)
 
 
-class SkillDownCmd(Command):
+class SkillDownCmd(LevellingCommand):
     """
     +skill-down <skill>
 
@@ -392,7 +413,7 @@ class SkillDownCmd(Command):
     arg_parsers = {
         'skill': SkillStaticParser
     }
-    lock = locks.all_pass
+    not_levelling_msg = "{rYou may only remove skill ranks while levelling up."
 
     def run(self, this, actor, args):
         """
@@ -525,9 +546,9 @@ class AdminSkillsCmd(SkillsCmd):
         self._show_skill_table(self._skills(char), char, actor)
 
 
-class FeatAddCmd(Command):
+class FeatAddCmd(LevellingCommand):
     """
-    +feat-add <feat>
+    +feat-add [<feat>]
 
     Adds a feat.
     """
@@ -536,7 +557,7 @@ class FeatAddCmd(Command):
     arg_parsers = {
         'feat': FeatStaticParser
     }
-    lock = locks.all_pass
+    not_levelling_msg = "{rYou may only gain feats while levelling up."
 
     def run(self, this, actor, args):
         """
@@ -566,6 +587,43 @@ class FeatAddCmd(Command):
                     raise errors.CommandInvalid(msg=e.message)
 
 
+class FeatRemoveCmd(LevellingCommand):
+    """
+    +feat-remove [<feat>]
+
+    Removes a feat from a feat slot.
+    """
+    aliases = ('+feat-remove', '+feat-rem')
+    syntax = '[<feat>]'
+    arg_parsers = {
+        'feat': FeatStaticParser
+    }
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        if args['feat'] is None:
+            feats = utils.string.english_list(["{c%s{n" % f
+                                               for f in this.level_up_feats],
+                                              nothingstr="{rNone")
+            actor.tell('{yFeats added during current level-up: ', feats)
+        else:
+            (feat_class, subtype) = args['feat']
+            feat = this.get_feat(feat_class, subtype)
+            if feat in this.level_up_feats:
+                this.remove_feat(feat, 'slot')
+            else:
+                n = str(feat_class)
+                t = feat_class.feature_type
+                if feat is None:
+                    actor.tell('{yYou do not have the {c', n, ' {y', t, '.')
+                else:
+                    actor.tell('{rThe {c', n, ' {r', t, ' cannot be removed.')
+
+
 class UndoLevelCmd(Command):
     """
     +undo-level
@@ -587,7 +645,7 @@ class UndoLevelCmd(Command):
             actor.tell('{yYou are not in the process of levelling up!')
 
 
-class FinalizeCmd(Command):
+class FinalizeCmd(LevellingCommand):
     """
     +finalize[/confirm]
 
@@ -600,7 +658,10 @@ class FinalizeCmd(Command):
     switch_defaults = {
         'confirm': False
     }
-    lock = locks.all_pass
+
+    @property
+    def not_levelling_msg(self):
+        return "{gYou are already finalized at level {c%d{g." % self.obj.level
 
     def run(self, this, actor, args):
         """
@@ -608,9 +669,7 @@ class FinalizeCmd(Command):
         @type actor: L{pathfinder.characters.Character}
         @type args: C{dict}
         """
-        if this.frozen_level >= this.level:
-            actor.tell('You are already finalized.')
-        elif not self.switches['confirm']:
+        if not self.switches['confirm']:
             actor.tell('Once you finalize, you cannot change your character.')
             actor.tell('Are you {ysure{n? If so, type: {c+finalize/confirm')
         else:
@@ -745,3 +804,9 @@ class CharsheetCmd(Command):
             lines.append("{{m{cls:>13} {{n{lvl}".format(cls=class_.name,
                                                         lvl=lvl))
         return lines
+
+
+class FeatsCmd(Command):
+    """
+    +feats[/all]
+    """

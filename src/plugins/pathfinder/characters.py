@@ -40,6 +40,7 @@ class Character(CoreCharacter, PathfinderObject):
     skills = {}
     skill_points = 0
     level_up_skills = {}
+    level_up_feats = []
     feat_slots = {}  # key = type or '*', value = how many
     languages = []
     #: :type: ictime.Date
@@ -271,6 +272,13 @@ class Character(CoreCharacter, PathfinderObject):
     def xp_to_next_level(self):
         return self.next_level_xp - self.xp
 
+    def levelling_up(self):
+        """
+        :return: True if character is currently levelling up.
+        :rtype: bool
+        """
+        return self.level > self.frozen_level
+
     def gain_ability(self, ability):
         previous = self.get_stat_base(ability)
         new = previous + 1
@@ -364,6 +372,8 @@ class Character(CoreCharacter, PathfinderObject):
         level = self.level
         self.level_log(level, 'skills', self, self.level_up_skills.items())
         self.level_up_skills = {}
+        self.level_log(level, 'feats', self, self.level_up_feats)
+        self.level_up_feats = []
         self.frozen_level = level
         self.tell('{gYou have finalized level {y', level, '{g!')
         self.tell('You may no longer make changes to your character sheet.')
@@ -401,6 +411,7 @@ class Character(CoreCharacter, PathfinderObject):
 
     def add_feat(self, feat_class, subtype=None, source=None, slot=None):
         self._check_attr('feats', [])
+        self._check_attr('level_up_feats', [])
         if source is 'slot' and slot is None:
             compatible = self.compatible_feat_slots(feat_class, subtype)
             if compatible:
@@ -418,6 +429,8 @@ class Character(CoreCharacter, PathfinderObject):
             feat = feat_class(subtype, source, slot)
             feat.apply_to(self)
             self.feats.append(feat)
+            if source == 'slot':
+                self.level_up_feats.append(feat)
             self.clear_stat_cache()
             self.tell("{gYou gain the {c", feat, "{g ", feat.feature_type, '.')
 
@@ -433,11 +446,15 @@ class Character(CoreCharacter, PathfinderObject):
             sources, then the feat will not be removed. If no source is given,
             and the feat is occupying a feat slot, the slot will be vacated.
         """
+        if source is None and 'slot' in feat.sources:
+            source = 'slot'
         if source is not None:
             if source in feat.sources:
                 feat.sources.remove(source)
                 if source == 'slot':
                     feat.slot = None
+                    if feat in self.level_up_feats:
+                        self.level_up_feats.remove(feat)
             else:
                 # Specified source does not provide the feat.
                 return
@@ -447,6 +464,7 @@ class Character(CoreCharacter, PathfinderObject):
         self.feats.remove(feat)
         feat.remove_from(self)
         self.clear_stat_cache()
+        self.tell("{yYou lose the {c", feat, "{y ", feat.feature_type, '.')
 
     def add_feat_slot(self, type='general', slots=1):
         self._check_attr('feat_slots', {})
