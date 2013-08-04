@@ -66,7 +66,8 @@ class CaselessDict:
         return self.dict.values()
 
     def __contains__(self, item):
-        return item.lower() in self.dict
+        key = item.lower() if isinstance(item, basestring) else item
+        return key in self.dict
 
     def __repr__(self):
         items = ", ".join([("%r: %r" % (k, v)) for k, v in self.items()])
@@ -91,10 +92,10 @@ class CaselessDict:
         return (i[1] for i in self.dict.itervalues())
 
     def canonical_key(self, key):
-        if key in self:
-            key = key.lower()
-            for k in self.keyList:
-                if key == k:
+        key = key.lower()
+        if key in self.keyList:
+            for k in self.iterkeys():
+                if key == k.lower():
                     return k
         else:
             raise KeyError

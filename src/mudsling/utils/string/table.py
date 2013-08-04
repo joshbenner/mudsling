@@ -28,6 +28,7 @@ class Table(object):
         'header_formatter': lambda c: str(c.name),
         'header_args': (),
         'header_hr': True,
+        'rowrule': False,
     }
 
     #: @type: list
@@ -122,6 +123,22 @@ class Table(object):
 
         return widths
 
+    def _hr(self, settings=None):
+        s = settings or self.settings
+        if 'hr' in s:
+            return s['hr']
+        junct = (s['junction'] or ' ')
+        lp = s['lpad']
+        rp = s['rpad'] + ansi.ANSI_NORMAL
+        padlen = ansi.length(lp) + ansi.length(rp)
+        bansi = (s['border_ansi'] or '')
+        hrule = (s['hrule'] or ' ')
+        hrlen = ansi.length(hrule)
+        hr = bansi + junct + junct.join([hrule * ((w + padlen) / hrlen)
+                                        for w in s['widths']]) + junct
+        s['hr'] = hr
+        return hr
+
     def _build_header(self, settings=None):
         s = settings or self.settings
 
@@ -131,24 +148,18 @@ class Table(object):
         widths = s['widths']
 
         bansi = (s['border_ansi'] or '')
-        hrule = (s['hrule'] or ' ')
-        hrlen = ansi.length(hrule)
         vrule = bansi + (s['vrule'] or ' ') + ansi.ANSI_NORMAL
-        junct = (s['junction'] or ' ')
         lp = s['lpad']
         rp = s['rpad'] + ansi.ANSI_NORMAL
-        padlen = ansi.length(lp) + ansi.length(rp)
 
         lines = []
-        hr = bansi + junct.join([hrule * ((w + padlen) / hrlen)
-                                 for w in widths])
+        hr = self._hr(s)
         hf_func = s['header_formatter']
         hf_args = s['header_args']
         hf = lambda c: hf_func(c, *hf_args)
         heads = vrule.join([lp + c.align_cell(hf(c), widths[i], c.align) + rp
                             for i, c in enumerate(self.columns)])
         if s['frame']:
-            hr = bansi + junct + hr + junct
             lines.append(hr)
             heads = vrule + heads + vrule
         lines.append(heads)
@@ -164,20 +175,56 @@ class Table(object):
         s['widths'] = self._calc_widths(s)
         w = s['widths']
         bansi = (s['border_ansi'] or '')
-        vrule = bansi + (s['vrule'] or ' ') + ansi.ANSI_NORMAL
         lpad = s['lpad']
         rpad = s['rpad'] + ansi.ANSI_NORMAL
         frame = s['frame']
+        vrule = bansi + (s['vrule'] or ' ') + ansi.ANSI_NORMAL
+        rowrule = s['rowrule']
+        hr = self._hr(s)
 
         lines = []
+        linecount = 0
         for r in rows:
+            linecount += 1
             if isinstance(r, basestring):
                 lines.append(r)
                 continue
-            line = [] if not frame else [vrule]
-            line.append(vrule.join([lpad + cols[i].align_cell(v, w[i]) + rpad
-                                    for i, v in enumerate(r)]))
-            lines.append(''.join(line) + (vrule if frame else ''))
+            line = []
+            row_cells = []
+            max_lines = 1
+            for i, val in enumerate(r):
+                cell_content = cols[i].align_cell(val, w[i])
+                cell_lines = cell_content.split('\n')
+                max_lines = max(max_lines, len(cell_lines))
+                row_cells.append(cell_lines)
+            if max_lines == 1:
+                vr = vrule if frame else ''
+                line = ''.join([
+                    vr,
+                    vrule.join(lpad + cols[i].align_cell(c[0], w[i]) + rpad
+                               for i, c in enumerate(row_cells)),
+                    vr
+                ])
+            else:
+                # Fill in empty cells.
+                empty_cells = [cols[i].align_cell('', w[i])
+                               for i in range(len(cols))]
+                for ii, cell_lines in enumerate(row_cells):
+                    if len(cell_lines) < max_lines:
+                        filler = max_lines - len(cell_lines)
+                        if filler:
+                            row_cells[ii] += [empty_cells[ii]] * filler
+                # Build rows, accounting for multiple lines.
+                for i in range(max_lines):
+                    line.append(vrule if frame else '')
+                    line.extend(vrule.join(lpad + c[i] + rpad
+                                           for c in row_cells))
+                    line.append(vrule if frame else '')
+                    if i < (max_lines - 1):
+                        line.append('\n')
+            lines.append(''.join(line))
+            if rowrule and linecount < len(rows):
+                lines.append(hr)
 
         return lines
 
@@ -252,13 +299,14 @@ class TableColumn(object):
     }
 
     def __init__(self, name, width=None, align=None, data_key=None,
-                 cell_formatter=None, formatter_args=()):
+                 cell_formatter=None, formatter_args=(), wrap=False):
         self.name = name
         self.align = align or 'c'
         self.width = width or 'auto'
         self.data_key = data_key
         self.cell_formatter = cell_formatter or self.default_formatter
         self.formatter_args = formatter_args
+        self.wrap = wrap
 
     def align_cell(self, cell, width, align=None):
         align = align or self.align
@@ -266,7 +314,15 @@ class TableColumn(object):
             func = self.align_funcs[align]
         except KeyError:
             raise Exception("Invalid column alignment: %s" % align)
-        return func(ansi.slice(cell, 0, width), width)
+        lns = cell.split('\n')
+        if not self.wrap or (len(lns) < 2 and ansi.length(lns[0]) <= width):
+            wrapped = lns
+        else:
+            wrapped = []
+            for line in lns:
+                wrapped.extend(ansi.wrap(line, width) or [''])
+        return '\n'.join(func(ansi.slice(line, 0, width), width)
+                         for line in wrapped)
 
     def format_cell(self, val, args=None):
         args = args or self.formatter_args

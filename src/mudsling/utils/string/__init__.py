@@ -120,6 +120,30 @@ def tabletest(who):
     who.msg(str(x))
 
 
+def tablewraptest(who):
+    x = Table(
+        [
+            TableColumn('Item Name', align='l', width=20, wrap=True),
+            TableColumn('Description', align='l', width=78, wrap=True)
+        ],
+        rowrule=True
+    )
+    x.add_row([
+        'Parturient Condimentum',
+        '{yCras mattis consectetur purus sit amet fermentum. Nulla vitae elit '
+        'libero, a pharetra augue. Duis mollis, est non commodo luctus, nisi '
+        'erat porttitor ligula, eget lacinia odio sem nec elit. Cum sociis '
+        'natoque penatibus et magnis dis parturient montes, nascetur ridiculus'
+        ' mus.'
+    ])
+    x.add_row([
+        'Ornare',
+        'Donec ullamcorper nulla non metus auctor fringilla. Etiam porta sem '
+        'malesuada magna mollis euismod.'
+    ])
+    who.tell(x)
+
+
 def split_quoted_words(text):
     lex = shlex.shlex(text, posix=True)
     lex.quotes = '"'

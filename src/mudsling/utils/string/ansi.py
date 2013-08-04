@@ -38,6 +38,7 @@ POSSIBILITY OF SUCH DAMAGE.
 import textwrap
 import re
 import operator
+from collections import namedtuple
 
 
 __all__ = ['ANSI_PARSER', 'AnsiWrapper', 'wrap', 'fill', 'parse_ansi',
@@ -89,6 +90,18 @@ ANSI_SPACE = " "
 ANSI_ESCAPES = ("{{", "%%", "\\\\")
 
 
+class ANSIState(namedtuple('ANSIState', 'bg fg special')):
+    def update(self, state):
+        replacements = {}
+        if self.special == 'n':
+            return state
+        for attr in ['bg', 'fg', 'special']:
+            v = getattr(state, attr)
+            if v is not None:
+                replacements[attr] = v
+        return self._replace(**replacements)
+
+
 class ANSIParser(object):
     """
     A class that parses ansi markup
@@ -137,21 +150,29 @@ class ANSIParser(object):
             (r'{u', ANSI_UNDERLINE),
             (r'{i', ANSI_ITALIC),
             (r'{r', hilite + ANSI_RED),
-            (r'{R', normal + ANSI_RED),
+            (r'{R', ANSI_RED),
+            (r'{_r', ANSI_BACK_RED),
             (r'{g', hilite + ANSI_GREEN),
-            (r'{G', normal + ANSI_GREEN),
+            (r'{G', ANSI_GREEN),
+            (r'{_g', ANSI_BACK_GREEN),
             (r'{y', hilite + ANSI_YELLOW),
-            (r'{Y', normal + ANSI_YELLOW),
+            (r'{Y', ANSI_YELLOW),
+            (r'{_y', ANSI_BACK_YELLOW),
             (r'{b', hilite + ANSI_BLUE),
-            (r'{B', normal + ANSI_BLUE),
+            (r'{B', ANSI_BLUE),
+            (r'{_b', ANSI_BACK_BLUE),
             (r'{m', hilite + ANSI_MAGENTA),
-            (r'{M', normal + ANSI_MAGENTA),
+            (r'{M', ANSI_MAGENTA),
+            (r'{_m', ANSI_BACK_MAGENTA),
             (r'{c', hilite + ANSI_CYAN),
-            (r'{C', normal + ANSI_CYAN),
+            (r'{C', ANSI_CYAN),
+            (r'{_c', ANSI_BACK_CYAN),
             (r'{w', hilite + ANSI_WHITE),  # pure white
-            (r'{W', normal + ANSI_WHITE),  # light grey
+            (r'{W', ANSI_WHITE),  # light grey
+            (r'{_w', ANSI_BACK_WHITE),
             (r'{x', hilite + ANSI_BLACK),  # dark grey
-            (r'{X', normal + ANSI_BLACK),  # pure black
+            (r'{X', ANSI_BLACK),  # pure black
+            (r'{_x', ANSI_BACK_BLACK),
             (r'{n', normal)                # reset
         ]
 
@@ -165,7 +186,7 @@ class ANSIParser(object):
 
         # prepare regex matching
         self.ansi_sub = [(re.compile(sub[0], re.DOTALL), sub[1])
-                         for sub in (self.xterm256_map + self.ext_ansi_map)]
+                         for sub in self.ext_ansi_map]
         self.ansi_map = self.ext_ansi_map
         self.xterm256_sub = [(re.compile(sub[0], re.DOTALL), sub[1])
                              for sub in self.xterm256_map]
@@ -190,6 +211,48 @@ class ANSIParser(object):
         self.compound_regex = re.compile('(%s)' % (token_pat
                                                    + '|'
                                                    + self.ansi_regex.pattern))
+        self.parse_token_regex = re.compile(
+            r'\{(?:_(?P<bg>[rgybmcwx])'
+            r'|(?P<fg>[rRgGyYbBmMcCwWxX])'
+            r'|(?P<special>[nui]))')
+
+    def token_to_state(self, token):
+        """
+        Given an extended token in format '{[_]<color>', parses components.
+        :rtype: ANSIState
+        """
+        m = self.parse_token_regex.match(token)
+        if m:
+            state = m.groupdict()
+            return ANSIState(bg=state['bg'], fg=state['fg'],
+                             special=state['special'])
+        else:
+            raise ValueError("Invalid ANSI token: %s" % token)
+
+    def state_to_tokens(self, state):
+        code = ''
+        if state.bg is not None:
+            code += '{_' + state.bg
+        if state.fg is not None:
+            code += '{' + state.fg
+        if state.special is not None:
+            code += '{' + state.special
+        return code
+
+    def final_state(self, text):
+        """
+        Determine the effective final ANSI state given an ANSI string with ANSI
+        tokens (ie: not converted into sequences!).
+        :rtype: ANSIState
+        """
+        normal = self.token_to_state('{n')
+        state = normal
+        for token in self._token_regex.findall(text):
+            if token == '{n':
+                state = normal
+            else:
+                state = state.update(self.token_to_state(token))
+        return state
 
     def parse_rgb(self, rgbmatch):
         """
@@ -373,6 +436,7 @@ class ANSIParser(object):
         out = parts[start:end]
         return stash + ''.join(out)
 
+
 ANSI_PARSER = ANSIParser()
 
 
@@ -437,6 +501,14 @@ class AnsiWrapper(textwrap.TextWrapper):
             # of all lines (return value).
             if cur_line:
                 lines.append(indent + ''.join(cur_line))
+
+        # Preserve ANSI state across lines.
+        ansi_state = ''
+        for i, line in enumerate(lines):
+            line = ansi_state + line
+            lines[i] = line
+            ansi_state = self.ansi_parser.state_to_tokens(
+                self.ansi_parser.final_state(line))
 
         return lines
 
