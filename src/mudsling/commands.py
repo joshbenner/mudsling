@@ -241,7 +241,6 @@ class Command(object):
         """
         self.raw = raw
         self.cmdstr, sep, self.switchstr = cmdstr.partition('/')
-        self.cmdstr = cmdstr
         self.argstr = argstr
         try:
             self.argwords = utils.string.split_quoted_words(argstr)
