@@ -46,8 +46,7 @@ class Table(object):
         """
         settings = dict(self.default_settings)
         for key, val in kwargs.iteritems():
-            if key in settings:
-                settings[key] = val
+            settings[key] = val
         self.settings = settings
         self.rows = []
         self.columns = []

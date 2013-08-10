@@ -59,7 +59,7 @@ class BaseUI(object):
     def _table_settings(self, **kwargs):
         mro = list(self.__class__.__mro__)
         mro.reverse()
-        settings = self.table_class.default_settings
+        settings = dict(self.table_class.default_settings)
         if 'table_settings' in self.__dict__:
             settings.update(self.table_settings)
         for cls in mro:
@@ -219,7 +219,7 @@ class ClassicUI(BaseUI):
         'lpad': '',
         'rpad': ' ',
         'header_hr': False,
-        'header_formatter': lambda c: '{c' + str(c.name)
+        'header_formatter': lambda c: '{c' + str(c.name),
     }
 
     def __init__(self, **kwargs):

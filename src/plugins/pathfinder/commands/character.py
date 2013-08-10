@@ -635,9 +635,9 @@ class UndoLevelCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{pathfinder.characters.Character}
-        @type actor: L{pathfinder.characters.Character}
-        @type args: C{dict}
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
         """
         if this.frozen_level < this.level:
             this.undo_level()
@@ -665,9 +665,9 @@ class FinalizeCmd(LevellingCommand):
 
     def run(self, this, actor, args):
         """
-        @type this: L{pathfinder.characters.Character}
-        @type actor: L{pathfinder.characters.Character}
-        @type args: C{dict}
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
         """
         if not self.switches['confirm']:
             actor.tell('Once you finalize, you cannot change your character.')
@@ -716,9 +716,9 @@ class CharsheetCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{pathfinder.characters.Character}
-        @type actor: L{pathfinder.characters.Character}
-        @type args: C{dict}
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
         """
         actor.msg(ui.report('Character Sheet: %s' % actor.name_for(this),
                             self._character_sheet(this)))
@@ -810,3 +810,48 @@ class FeatsCmd(Command):
     """
     +feats[/all]
     """
+    aliases = ('+feats',)
+    switches = {
+        'all': parsers.BoolStaticParser
+    }
+    switch_defaults = {
+        'all': False
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        if self.switches['all']:
+            title = 'All Feats'
+            feats = pathfinder.data.all('feat')
+        else:
+            title = 'Feats for %s' % actor.name_for(actor)
+            feats = this.feats
+        actor.msg(ui.report(title, self._feat_table(feats)))
+
+    def _feat_table(self, feat_classes):
+        """
+        :param feat_classes: List of feat classes to include in the table.
+        :return: Table instance.
+        :rtype: mudsling.utils.string.Table
+        """
+        table = ui.Table(
+            [
+                ui.Column('Feat Name', width='auto', align='l',
+                          cell_formatter=str),
+                ui.Column('Benefits', width='*', align='l', wrap=True,
+                          cell_formatter=self._format_benefits),
+            ],
+            rowrule=True
+        )
+        table.add_rows(*sorted(feat_classes, key=lambda f: f.name))
+        return table
+
+    def _format_benefits(self, feat):
+        lines = [feat.description] if len(feat.description) else []
+        lines.extend(map(str, feat.modifiers))
+        return '\n'.join(lines)
