@@ -1,2 +1,3 @@
 view skills of others: Can use @skills to see any character's skills.
+view feats of others: Can use @feats to see any character's feats.
 reset character sheets: Can use @reset-charsheet to reset a character.

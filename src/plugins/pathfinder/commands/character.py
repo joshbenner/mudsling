@@ -855,3 +855,28 @@ class FeatsCmd(Command):
         lines = [feat.description] if len(feat.description) else []
         lines.extend(map(str, feat.modifiers))
         return '\n'.join(lines)
+
+
+class AdminFeatsCmd(FeatsCmd):
+    """
+    @feats <character>
+
+    Display the feats for a specific character.
+    """
+    aliases = ('@feats',)
+    syntax = '<character>'
+    arg_parsers = {
+        'character': MatchCharacter()
+    }
+    lock = locks.Lock('perm(view feats of others)')
+    switches = {}
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        feats = args['character'].feats
+        title = "Feats for %s" % actor.name_for(args['character'])
+        actor.msg(ui.report(title, self._feat_table(feats)))
