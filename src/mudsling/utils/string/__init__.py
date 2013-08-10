@@ -124,7 +124,7 @@ def tablewraptest(who):
     x = Table(
         [
             TableColumn('Item Name', align='l', width=20, wrap=True),
-            TableColumn('Description', align='l', width=78, wrap=True)
+            TableColumn('Description', align='l', width=73, wrap=True)
         ],
         rowrule=True
     )

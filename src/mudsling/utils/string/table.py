@@ -44,9 +44,8 @@ class Table(object):
         """
         @type columns: list or None
         """
-        settings = dict(self.default_settings)
-        for key, val in kwargs.iteritems():
-            settings[key] = val
+        settings = dict(self.default_settings.items())
+        settings.update(kwargs)
         self.settings = settings
         self.rows = []
         self.columns = []
@@ -77,6 +76,9 @@ class Table(object):
         for row in rows:
             self.add_row(row)
 
+    def _longestline(self, text):
+        return max(map(ansi.length, text.split('\n')))
+
     def _calc_widths(self, settings=None):
         s = settings or self.settings
         if 'widths' in s:
@@ -101,7 +103,7 @@ class Table(object):
             if w is None or w == 'auto':
                 w = ansi.length(col.name)
                 if len(rows):
-                    w = max(w, *[ansi.length(row[index])
+                    w = max(w, *[self._longestline(row[index])
                                  for row in rows if isinstance(row, list)])
             if isinstance(w, basestring):
                 if w in ('*', 'expand', 'fill'):
@@ -124,18 +126,19 @@ class Table(object):
 
     def _hr(self, settings=None):
         s = settings or self.settings
-        if 'hr' in s:
-            return s['hr']
-        junct = (s['junction'] or ' ')
+        if '_hr' in s:
+            return s['_hr']
+        junct = s['junction']
+        frame = junct if s['frame'] else ''
         lp = s['lpad']
         rp = s['rpad'] + ansi.ANSI_NORMAL
         padlen = ansi.length(lp) + ansi.length(rp)
         bansi = (s['border_ansi'] or '')
         hrule = (s['hrule'] or ' ')
         hrlen = ansi.length(hrule)
-        hr = bansi + junct + junct.join([hrule * ((w + padlen) / hrlen)
-                                        for w in s['widths']]) + junct
-        s['hr'] = hr
+        hr_ = [hrule * ((w + padlen) / hrlen) for w in s['widths']]
+        hr = bansi + frame + junct.join(hr_) + frame
+        s['_hr'] = hr
         return hr
 
     def _build_header(self, settings=None):
@@ -216,7 +219,7 @@ class Table(object):
                 # Build rows, accounting for multiple lines.
                 for i in range(max_lines):
                     line.append(vrule if frame else '')
-                    line.extend(vrule.join(lpad + c[i] + rpad
+                    line.append(vrule.join(lpad + c[i] + rpad
                                            for c in row_cells))
                     line.append(vrule if frame else '')
                     if i < (max_lines - 1):
