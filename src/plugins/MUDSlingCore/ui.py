@@ -211,11 +211,11 @@ class ClassicUI(BaseUI):
     body_suffix = ' '
     table_settings = {
         'width': 98,  # Indent
-        'hrule': '',
+        'hrule': '-',
         'vrule': '',
-        'junction': '',
+        'junction': ' ',
         'frame': False,
-        'border_ansi': '',
+        'border_ansi': '{c',
         'lpad': '',
         'rpad': ' ',
         'header_hr': False,

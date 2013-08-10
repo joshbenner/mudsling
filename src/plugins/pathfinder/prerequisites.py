@@ -65,7 +65,7 @@ def check_prerequisite(prerequisite, character):
         level, class_name = m.groups()
         class_name = class_name.lower()
         level = int(level)
-        for cls, lvl in character.classes:
+        for cls, lvl in character.classes.iteritems():
             if cls.name.lower() == class_name:
                 return lvl >= level
         return False

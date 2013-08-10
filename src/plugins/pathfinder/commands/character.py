@@ -1,5 +1,6 @@
 import random
 import re
+import inspect
 
 from mudsling.commands import Command
 from mudsling import locks
@@ -866,8 +867,10 @@ class FeatsCmd(Command):
         """
         table = ui.Table(
             [
-                ui.Column('Feat Name', width='auto', align='l',
-                          cell_formatter=str),
+                ui.Column('Feat Name', width=30, align='l', wrap=True,
+                          cell_formatter=self._format_name),
+                ui.Column('Prerequisites', width=30, align='l', wrap=True,
+                          cell_formatter=self._format_prerequisites),
                 ui.Column('Benefits', width='*', align='l', wrap=True,
                           cell_formatter=self._format_benefits),
             ],
@@ -875,6 +878,19 @@ class FeatsCmd(Command):
         )
         table.add_rows(*sorted(feat_classes, key=lambda f: f.name))
         return table
+
+    def _format_name(self, feat):
+        name = str(feat)
+        if feat.type != 'general':
+            name += " [{m%s{n]" % feat.type
+        return name
+
+    def _format_prerequisites(self, feat):
+        if inspect.isclass(feat):
+            reqs = feat.prerequisites()
+        else:
+            reqs = feat.prerequisites(feat.subtype)
+        return '\n'.join(reqs)
 
     def _format_benefits(self, feat):
         lines = [feat.description] if len(feat.description) else []
@@ -905,3 +921,53 @@ class AdminFeatsCmd(FeatsCmd):
         feats = args['character'].feats
         title = "Feats for %s" % actor.name_for(args['character'])
         actor.msg(ui.report(title, self._feat_table(feats)))
+
+
+class FeatCmd(Command):
+    """
+    +feat <feat>
+
+    Display information about a single feat.
+    """
+    aliases = ('+feat',)
+    syntax = '<feat>'
+    arg_parsers = {
+        'feat': FeatStaticParser
+    }
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        (feat, subtype) = args['feat']
+        table = ui.Table(
+            [
+                ui.Column('Label', width='auto', align='r',
+                          cell_formatter=lambda t: "{c%s{y:" % t),
+                ui.Column('Value', width='*', align='l', wrap=True),
+            ],
+            show_header=False,
+            frame=False,
+            lpad=''
+        )
+        prerequisites = feat.prerequisites(subtype)
+        qualify, misses = this.check_prerequisites(prerequisites)
+        met = '{gyou qualify'
+        unmet = '{ryou do not qualify'
+        reqs = []
+        for r in prerequisites:
+            reqs.append("%s (%s{n)" % (r, met if r not in misses else unmet))
+        if len(reqs) == 0:
+            reqs = ['None']
+        mods = feat.modifiers
+        table.add_rows(
+            ['Feat Name', str(feat)],
+            ['Description', feat.description],
+            ['Requirements', '\n'.join(reqs)]
+        )
+        if len(mods) > 0:
+            table.add_row(['Benefits', '\n'.join(map(str, mods))])
+        actor.tell(table)

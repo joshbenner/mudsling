@@ -72,7 +72,7 @@ class Feat(CharacterFeature):
     def prerequisites(cls, subtype=None):
         prerequisites = []
         for req in cls._prerequisites:
-            if 'same subtype' in req:
+            if 'same subtype' in req and subtype is not None:
                 req = req.replace('same subtype', subtype)
             prerequisites.append(req)
         return prerequisites
