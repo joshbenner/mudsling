@@ -669,6 +669,31 @@ class FinalizeCmd(LevellingCommand):
         :type actor: pathfinder.characters.Character
         :type args: dict
         """
+        err = []
+        if this.race is None:
+            err.append("{yYou must select your race! Use {c+race{y.")
+        elif this.gender.name.lower() not in this.race.genders:
+            err.append('{yYou must choose a valid gender! Use {c+gender{y.')
+        if this.date_of_birth is None:
+            err.append('{yYou must set your age! Use {c+age {yor {c+born{y.')
+        if this.height == 0 * utils.units.m:
+            err.append('{yYou must set your height! Use {c+height{y.')
+        if this.weight == 0 * utils.units.g:
+            err.append('{yYou must set your weight! Use {c+weight{y.')
+        if this.level == this.frozen_level:
+            err.append('{yYou have not gained any levels to finalized.')
+        if this.skill_points > 0:
+            msg = '{yYou have {c%d{y unspent skill points! Use {c+skill-up{y.'
+            msg %= this.skill_points
+            err.append(msg)
+        actor.tell('\n'.join(err))
+        slots = sum(this.available_feat_slots().itervalues())
+        if slots > 0:
+            msg = '{yYou have {c%d{y unused feat slots. Use {c+feat-add{y.'
+            msg %= slots
+            actor.tell(msg)
+        if len(err):
+            return
         if not self.switches['confirm']:
             actor.tell('Once you finalize, you cannot change your character.')
             actor.tell('Are you {ysure{n? If so, type: {c+finalize/confirm')

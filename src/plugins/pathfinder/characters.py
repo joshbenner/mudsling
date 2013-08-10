@@ -518,7 +518,7 @@ class Character(CoreCharacter, PathfinderObject):
             feat, subtype_ = parse_feat(feat)
             if subtype is None and subtype_ is not None:
                 subtype = subtype_
-        subtype = subtype.lower()
+        subtype = subtype.lower() if isinstance(subtype, basestring) else None
         for f in self.feats:
             if f.__class__ == feat and (f.subtype.lower() == subtype
                                         or subtype == '*'):
