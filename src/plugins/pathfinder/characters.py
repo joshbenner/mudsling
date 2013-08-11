@@ -22,10 +22,11 @@ from .objects import PathfinderObject
 from .events import Event
 from .races import Race
 from .advancement import active_table
+from .combat import Combatant
 import pathfinder.errors as pferr
 
 
-class Character(CoreCharacter, PathfinderObject):
+class Character(CoreCharacter, PathfinderObject, Combatant):
     """
     A Pathfinder-enabled character/creature/etc.
     """
@@ -234,6 +235,14 @@ class Character(CoreCharacter, PathfinderObject):
             if cls in favored:
                 bonuses += 1
         return bonuses - len(self.favored_class_bonuses)
+
+    @property
+    def unconscious(self):
+        """
+        :return: Whether or not the character is unconscious.
+        :rtype: bool
+        """
+        return self.remaining_hp() < 0
 
     def add_xp(self, xp, stealth=False, force=True):
         if self.level > self.frozen_level and not force:

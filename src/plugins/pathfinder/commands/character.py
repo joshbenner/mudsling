@@ -25,27 +25,7 @@ from pathfinder.parsers import AbilityNameStaticParser, RaceStaticParser
 from pathfinder.parsers import ClassStaticParser, SkillStaticParser
 from pathfinder.parsers import MatchCharacter, FeatStaticParser
 import pathfinder.errors as pferr
-
-
-class LevellingCommand(Command):
-    """
-    A command which can only be used while levelling up.
-    """
-
-    #: :type: pathfinder.characters.Character
-    obj = None
-    lock = locks.all_pass
-    not_levelling_msg = None
-
-    def prepare(self):
-        if not self.obj.levelling_up():
-            if self.not_levelling_msg is None:
-                msg = "{rYou may only use %s while levelling up." % self.cmdstr
-            else:
-                msg = self.not_levelling_msg
-            self.actor.tell(msg)
-            return False
-        return True
+from pathfinder.commands import LevellingCommand
 
 
 class AbilitiesCmd(Command):
@@ -67,9 +47,9 @@ class AbilitiesCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{pathfinder.characters.Character}
-        @type actor: L{pathfinder.characters.Character}
-        @type args: C{dict}
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
         """
         if this.frozen_level:
             msg = "You cannot roll abilities after the character is finalized."
