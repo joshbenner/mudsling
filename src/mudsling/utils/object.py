@@ -28,18 +28,17 @@ class AttributeAlias(object):
 
 
 def filter_by_class(objects, cls):
-    """
-    Filter a list of objects to only descendants of a class or classes.
+    """Filter a list of objects to only descendants of a class or classes.
 
-    @param objects: Objects to filter.
-    @type: C{list}
+    :param objects: Objects to filter.
+    :type: list
 
-    @param cls: Class(es) that objects must be descendant from. If None is
+    :param cls: Class(es) that objects must be descendant from. If None is
         passed, then no filtering is done.
-    @type: C{type} or C{None}
+    :type: type or None
 
-    @return: List of filtered objects.
-    @rtype: C{list}
+    :return: List of filtered objects.
+    :rtype: list
     """
     if cls is not None:
         filtered = []
@@ -61,13 +60,12 @@ def filter_by_class(objects, cls):
 
 
 def ascend_mro(cls):
-    """
-    Return an iterable to ascend the MRO of the provided object, whether an
+    """Return an iterable to ascend the MRO of the provided object, whether an
     instance or a class.
 
-    @param cls: Instance or class whose MRO to ascend.
+    :param cls: Instance or class whose MRO to ascend.
 
-    @rtype: C{list}
+    :rtype: list
     """
     if not inspect.isclass(cls):
         cls = cls.__class__
@@ -79,3 +77,36 @@ def descend_mro(cls):
     mro = ascend_mro(cls)
     mro.reverse()
     return mro
+
+
+def dict_inherit(obj, member, key):
+    """Ascend the object or class's MRO, looking at a member containing a dict.
+    Each dict is check for the provided key, until the key is found and its
+    corresponding value is returned.
+
+    :param obj: The object whose MRO to search for the dictionary key.
+    :type obj: type or object
+
+    :param member: The member containing the dictionary.
+    :type member: str
+
+    :param key: The dictionary key to look for.
+
+    :return: The value for the given key from the first object in the MRO whose
+        member dictionary possesses the indicated key.
+
+    :raises KeyError: if the key is not found in the member anywhere in MRO.
+    """
+    if inspect.isclass(obj):
+        mro = obj.__mro__
+    else:
+        mro = [obj]
+        mro.extend(ascend_mro(obj))
+    for o in mro:
+        try:
+            d = getattr(o, member)
+        except AttributeError:
+            continue
+        if isinstance(d, dict) and key in d:
+            return d[key]
+    raise KeyError
