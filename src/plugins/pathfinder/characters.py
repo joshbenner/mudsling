@@ -18,7 +18,6 @@ import ictime
 import pathfinder
 import pathfinder.prerequisites
 from .feats import parse_feat
-from .objects import PathfinderObject
 from .events import Event
 from .races import Race
 from .advancement import active_table
@@ -26,7 +25,7 @@ from .combat import Combatant
 import pathfinder.errors as pferr
 
 
-class Character(CoreCharacter, PathfinderObject, Combatant):
+class Character(CoreCharacter, Combatant):
     """
     A Pathfinder-enabled character/creature/etc.
     """
@@ -691,6 +690,9 @@ class Character(CoreCharacter, PathfinderObject, Combatant):
         e.languages = []
         self.trigger_event(e)
         return e.languages
+
+    def join_battle(self, battle):
+        battle.add_combatant(self.ref())
 
 # Assign commands here to avoid circular import issues.
 from .commands import character as character_commands

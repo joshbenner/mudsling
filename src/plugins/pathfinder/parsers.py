@@ -1,4 +1,4 @@
-from mudsling.parsers import StaticParser, MatchDescendants
+from mudsling.parsers import StaticParser, MatchDescendants, MatchObject
 from mudsling import errors
 
 from mudsling import utils
@@ -7,6 +7,9 @@ import mudsling.utils.string
 import pathfinder
 from pathfinder.characters import Character
 from pathfinder.feats import parse_feat
+
+
+match_combatant = MatchObject(cls=Character, search_for='combatant')
 
 
 class AbilityNameStaticParser(StaticParser):
