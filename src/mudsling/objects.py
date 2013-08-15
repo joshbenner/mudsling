@@ -678,30 +678,32 @@ class Object(BaseObject):
     This should be the parent for most game objects. It is the object class
     that has location, and can contain other objects.
 
-    @ivar _location: The object in which this object is located.
-    @type _location: L{Object}
+    :ivar _location: The object in which this object is located.
+    :type _location: Object
 
-    @ivar _contents: The set of objects contained by this object.
-    @type _contents: C{list}
+    :ivar _contents: The set of objects contained by this object.
+    :type _contents: list of Object
     """
-
-    #: @type: Object
     _location = None
     _contents = None
 
     def __init__(self, **kwargs):
         super(Object, self).__init__(**kwargs)
+        #: :type: list of Object
         self._contents = []
 
     @property
     def location(self):
         """
-        @rtype: L{Object}
+        :rtype: Object
         """
         return self._location
 
     @property
     def contents(self):
+        """
+        :rtype: list of Object
+        """
         # Read only, enforce copy. If performance is critical, make the effort
         # to reference _contents directly (and CAREFULLY).
         return list(self._contents)
@@ -982,8 +984,9 @@ class Object(BaseObject):
         Emit a message to the object's location, optionally excluding some
         objects.
 
-        @see: L{Object.msg_contents}
-        @rtype: C{list}
+        See: :method:`Object.msg_contents`
+
+        :rtype: list
         """
         if location is None:
             location = self.location
