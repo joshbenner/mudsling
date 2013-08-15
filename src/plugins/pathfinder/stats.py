@@ -154,6 +154,26 @@ class HasStats(Persistent):
         return self.roll_limits(roll) if limits else self.roll(roll)
 
     def roll(self, roll, desc=False, state=None, **vars):
+        """Calculate the results of rolls and stats.
+
+        :param roll: The roll expression to evaluate.
+        :type roll: basestring or dice.Roll
+
+        :param desc: Whether or not to include the details of how the result
+            was calculated. Useful to show to users.
+        :type desc: bool
+
+        :param state: The state dictionary to pass to the roll. Useful when
+            complex information needs to be passed into or out of the roll.
+        :type state: dict or None
+
+        :param vars: Variables to make available to the roll expression.
+        :type vars: dict
+
+        :return: A tuple of result value and description (if desc enabled), or
+            just the result value.
+        :rtype: tuple or int or float
+        """
         state = state or {}
         if isinstance(roll, basestring):
             roll = dice.Roll(roll)
@@ -166,6 +186,21 @@ class HasStats(Persistent):
         return (result, d) if desc else result
 
     def roll_limits(self, roll, state=None, **vars):
+        """
+        Similar to :method:`HasStats.roll`, but the lower and upper bounds of
+        the possible result values are returned instead of performing a normal
+        evaluation of the roll expression.
+
+        :param roll: A roll expression to evaluate.
+        :type roll: basestring or dice.Roll
+        :param state: A state dictionary to pass into roll evaluation.
+        :type state: dict or None
+        :param vars: Variables to make available to the roll evaluation.
+        :type vars: dict
+
+        :return: A tuple of lower and upper bounds of possible results.
+        :rtype: tuple
+        """
         state = state or {}
         if isinstance(roll, basestring):
             roll = dice.Roll(roll)
