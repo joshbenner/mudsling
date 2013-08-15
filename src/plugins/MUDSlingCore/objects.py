@@ -13,6 +13,7 @@ from objsettings import ObjSetting, ConfigurableObject
 from mudslingcore import bans
 from mudslingcore.channels import ChannelUser
 from mudslingcore.genders import Neuter
+from mudslingcore import senses
 
 from mudslingcore import commands
 import commands.admin.system
@@ -127,7 +128,7 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser):
 
     def preemptive_command_match(self, raw):
         """
-        @type raw: C{str}
+        :type raw: str
         """
         if raw.startswith(';') and self.has_perm("eval code"):
             return commands.admin.system.EvalCmd(raw, ';', raw[1:],
@@ -141,10 +142,10 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser):
         return None
 
 
-class Character(BaseCharacter, DescribableObject, ConfigurableObject):
-    """
-    Core character class.
-    """
+class Character(BaseCharacter, DescribableObject, ConfigurableObject,
+                senses.SensingObject):
+    """Core character class."""
+
     gender = Neuter
 
     import commands.admin.building as building_commands
@@ -159,6 +160,7 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
     )
     _say_cmd = character_commands.SayCmd
     _emote_cmd = character_commands.EmoteCmd
+    _look_cmd = character_commands.LookCmd
     del character_commands, building_commands
 
     from topography import Room, Exit
@@ -215,6 +217,33 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject):
             return self._emote_cmd(raw, ':', raw[1:], self.game,
                                    self.ref(), self.ref(), True)
         return None
+
+    def after_object_moved(self, moved_from, moved_to, by=None):
+        if self.game.db.is_valid(moved_to, DescribableObject):
+            cmd = self._look_cmd('look', 'look', '', self.game, self.ref(),
+                                 self.ref())
+            cmd.execute()
+
+    def vision_sense(self, sensation):
+        self.msg(sensation.content)
+
+    def hearing_sense(self, sensation):
+        if isinstance(sensation, senses.Speech):
+            msg = [sensation.origin, ' says, "{c', sensation.content, '{n".']
+        elif 'bare' in sensation.traits:
+            msg = sensation.content
+        else:
+            msg = ["{mYou hear: {n", sensation.content]
+        self.msg(msg)
+
+    def say(self, speech):
+        if not isinstance(speech, senses.Speech):
+            speech = senses.Speech(str(speech), origin=self.ref())
+        self.emit(speech, exclude=(self.ref(),))
+        self.tell('You say, "{g', speech.content, '{n".')
+
+    def emote(self, pose, sep=' '):
+        self.emit([self.ref(), sep, pose])
 
 
 class Thing(DescribableObject):

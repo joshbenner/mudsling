@@ -35,6 +35,9 @@ class LookCmd(Command):
         @type actor: L{mudslingcore.objects.Character}
         @type args: C{dict}
         """
+        if not this.can_see:
+            actor.msg("{yYou are unable to see.")
+            return
         if args['something'] is None:
             # Naked look.
             if self._is_lookable(actor.location):
@@ -93,7 +96,7 @@ class SayCmd(Command):
         @type actor: L{mudslingcore.objects.Character}
         @type args: C{dict}
         """
-        this.emit_message('say', actor=actor, speech=args['speech'])
+        this.say(args['speech'])
 
 
 class EmoteCmd(Command):
@@ -112,9 +115,8 @@ class EmoteCmd(Command):
         @type actor: L{mudslingcore.objects.Character}
         @type args: C{dict}
         """
-        prefix = '' if self.argstr.startswith(':') else ' '
-        msg = [actor, prefix, args['pose']]
-        this.emit(msg)
+        this.emote(args['pose'],
+                   sep='' if self.argstr.startswith(':') else ' ')
 
 
 class GenderCmd(Command):

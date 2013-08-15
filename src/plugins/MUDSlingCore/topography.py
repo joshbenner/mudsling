@@ -12,10 +12,11 @@ from mudsling import utils
 import mudsling.utils.string
 
 from mudslingcore.objects import DescribableObject, Object
+from mudslingcore.senses import SensoryMedium
 
 
 # noinspection PyShadowingBuiltins
-class Room(DescribableObject):
+class Room(DescribableObject, SensoryMedium):
     """
     A standard room.
 
@@ -24,8 +25,8 @@ class Room(DescribableObject):
     * Exits
     """
     desc = "A very nondescript room."
-
     exits = []
+    senses = {'hearing', 'vision'}
 
     def __init__(self, **kwargs):
         super(Room, self).__init__(**kwargs)
@@ -81,10 +82,6 @@ class Room(DescribableObject):
         @see: L{Room.enterStopped}
         """
         return self.allow_leave(what, exit=exit)
-
-    def after_content_added(self, what, previous_location, by=None):
-        super(Room, self).after_content_added(what, previous_location)
-        what.msg(self.seen_by(what))
 
     def add_exit(self, exit):
         if exit.is_valid(Exit):
