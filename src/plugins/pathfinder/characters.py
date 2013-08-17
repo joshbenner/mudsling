@@ -219,7 +219,7 @@ class Character(CoreCharacter, Combatant):
 
     @property
     def features(self):
-        features = super(Character, self).features()
+        features = super(Character, self).features
         if self.race is not None:
             features.append(self.race)
         features.extend(c for c in self.classes.iterkeys())
@@ -693,7 +693,7 @@ class Character(CoreCharacter, Combatant):
         elif stat == 'defensive dex mod':
             # Normally, the dex MODIFIER (bonus + penalties) is applied to AC,
             # but character can lose dex BONUSES (positive only) to AC.
-            dex_mod = max(self.get_stat('dex mod'),
+            dex_mod = min(self.get_stat('dex mod'),
                           self.get_stat('armor dex limit'))
             if self.can_use_defensive_dex_bonus:
                 return max(0, dex_mod)
