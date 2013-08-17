@@ -803,6 +803,10 @@ class Roll(SlotPickleMixin):
     __slots__ = ('raw', 'parsed', 'vars')
 
     def __init__(self, expr, parser=None, vars=None):
+        self._parse(expr, parser)
+        self.vars = vars or {}
+
+    def _parse(self, expr, parser=None):
         parser = parser or grammar
         if isinstance(expr, basestring):
             self.raw = expr
@@ -812,7 +816,6 @@ class Roll(SlotPickleMixin):
             self.parsed = expr
         else:
             raise TypeError("Roll takes string or EvalNode.")
-        self.vars = vars or {}
 
     def __eq__(self, other):
         if isinstance(other, Roll):
@@ -847,6 +850,16 @@ class Roll(SlotPickleMixin):
 
     def __str__(self):
         return str(self.parsed)
+
+    def __getstate__(self):
+        state = super(Roll, self).__getstate__()
+        if 'parsed' in state:
+            del state['parsed']
+        return state
+
+    def __setstate__(self, state):
+        super(Roll, self).__setstate__(state)
+        self._parse(self.raw)
 
 
 def roll(expr, **vars):

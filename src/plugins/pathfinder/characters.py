@@ -528,7 +528,8 @@ class Character(CoreCharacter, Combatant):
                 subtype = subtype_
         subtype = subtype.lower() if isinstance(subtype, basestring) else None
         for f in self.feats:
-            if f.__class__ == feat and (f.subtype.lower() == subtype
+            f_subtype = f.subtype.lower() if f.subtype is not None else None
+            if f.__class__ == feat and (f_subtype == subtype
                                         or subtype == '*'):
                 return f
         return None

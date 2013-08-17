@@ -38,7 +38,7 @@ class LookCmd(Command):
         if not this.can_see:
             actor.msg("{yYou are unable to see.")
             return
-        if args['something'] is None:
+        if 'something' not in args or args['something'] is None:
             # Naked look.
             if self._is_lookable(actor.location):
                 #noinspection PyUnresolvedReferences

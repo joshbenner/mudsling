@@ -115,8 +115,12 @@ class Modifier(PersistentSlots):
     applied to an object/character.
     """
     __slots__ = ('original', 'type', 'payload', 'expiration')
+    _transient_vars = ['payload', 'expiration', 'type']
 
     def __init__(self, mod_str, parser=None):
+        self._parse_mod(mod_str, parser)
+
+    def _parse_mod(self, mod_str, parser=None):
         self.original = mod_str
         parser = parser or grammar
         parsed = parser.parseString(mod_str, True)
@@ -158,6 +162,10 @@ class Modifier(PersistentSlots):
 
     def __repr__(self):
         return 'Modifier: %s' % self.original
+
+    def __setstate__(self, state):
+        super(Modifier, self).__setstate__(state)
+        self._parse_mod(self.original)
 
 
 def modifiers(*a):
