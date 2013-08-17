@@ -16,13 +16,14 @@ BNF:
     duration ::= "for" rollexpr timeunit
        event ::= <printables>+
        until ::= "until" event
-  expiration ::= duration | until
+      expire ::= duration | until
        bonus ::= rollexpr [nature] [type] ("to" | "on") stat
        grant ::= "grant"["s"] <alphanums>+ ["feat"]
+      become ::= "become"["s"] <name>
        speak ::= ["can"] "speak"["s"] <alphanums>+
       resist ::= ["can" | "gain"["s"]] "resist"["s"] damagetype damageval
       reduct ::= ["gain"["s"]] "DR" damageval "/" (damagetype | "-")
-    modifier ::= (bonus | resist | reduct | grant | speak) [expiration]
+    modifier ::= (bonus | resist | reduct | grant | cause | speak) [expire]
 
 Examples:
 * +2 to STR for 2 turns
@@ -31,6 +32,7 @@ Examples:
 * Grants Darkvision
 * Speak Common
 * Resist fire 5
+* Becomes Disabled
 
 TODO:
 """
@@ -52,6 +54,7 @@ class Types(Enum):
     damage_reduction = 3
     grant = 4
     language = 5
+    condition = 6
 
 
 def _grammar():
@@ -84,6 +87,9 @@ def _grammar():
     grant = Suppress(CK("grant") | CK("grants"))
     grant += WordStart() + lastitem.setResultsName("grant")
 
+    become = Suppress(CK("become") | CK("becomes"))
+    become += WordStart() + lastitem.setResultsName("condition")
+
     lang = Suppress(CK("speak") | CK("speaks"))
     lang += WordStart() + lastitem.setResultsName("language")
 
@@ -99,7 +105,8 @@ def _grammar():
     reduct += damageval.setResultsName("reduction value")
     reduct += L('/') + (damagetype | L('-')).setResultsName("reduction type")
 
-    modifier = (bonus | resist | reduct | grant | lang) + Optional(expire)
+    modifier = (bonus | resist | reduct | grant | become | lang)
+    modifier += Optional(expire)
 
     return modifier
 
@@ -127,6 +134,9 @@ class Modifier(PersistentSlots):
         if 'grant' in parsed:
             self.type = Types.grant
             self.payload = parsed['grant'].strip().lower()
+        elif 'condition' in parsed:
+            self.type = Types.condition
+            self.payload = parsed['condition'].strip().lower()
         elif 'language' in parsed:
             self.type = Types.language
             self.payload = parsed['language'].strip().lower()

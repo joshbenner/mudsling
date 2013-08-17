@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import inspect
 
 from mudsling.objects import Object
 from mudsling.storage import ObjRef
@@ -15,6 +16,7 @@ from .features import HasFeatures
 from .sizes import size_categories
 from .modifiers import Modifier
 from .effects import Effect
+from .conditions import Condition
 
 
 def is_pfobj(obj):
@@ -33,6 +35,7 @@ class PathfinderObject(Object, HasStats, HasFeatures):
     permanent_hit_points = 0
     damage = 0
     effects = []
+    conditions = []
     stat_aliases = {
         'hp': 'hit points',
         'thp': 'temporary hit points',
@@ -50,20 +53,31 @@ class PathfinderObject(Object, HasStats, HasFeatures):
         # noinspection PyArgumentList
         super(PathfinderObject, self).__init__(**kw)
         self.effects = []
+        self.conditions = []
 
     def _check_attr(self, attr, val):
         if attr not in self.__dict__:
             setattr(self, attr, val)
 
+    @property
+    def features(self):
+        return list(self.conditions)
+
+    @property
     def remaining_hp(self):
+        """:rtype: int"""
         return self.max_hp - self.damage
 
+    @property
     def hp_ratio(self):
-        hp = self.hit_points
-        return self.remaining_hp() / hp if hp else 0
+        """:rtype: float"""
+        hp = float(self.hit_points)
+        return float(self.remaining_hp) / hp if hp > 0.0 else 0.0
 
+    @property
     def hp_percent(self):
-        return self.hp_ratio() * 100
+        """:rtype: float"""
+        return self.hp_ratio * 100.0
 
     @property
     def size_category(self):
@@ -116,7 +130,7 @@ class PathfinderObject(Object, HasStats, HasFeatures):
         """
         if isinstance(effect, Modifier):
             effect = Effect(effect, source)
-        effect.apply_to(self)
+        effect.apply_to(self.ref())
 
     def _apply_effect(self, effect):
         """
@@ -146,6 +160,75 @@ class PathfinderObject(Object, HasStats, HasFeatures):
             if e.source == source:
                 remove.add(e)
         return self.remove_effects(remove)
+
+    def add_condition(self, condition, source=None):
+        """Add the specified condition to the object.
+
+        :param condition: The condition, condition class, or condition name
+            specifying the condition to add to the object.
+        :type condition: pathfinder.conditions.Condition or str or type
+
+        :param source: The cause of the condition.
+        """
+        if isinstance(condition, basestring):
+            condition = pathfinder.data.get('condition', condition)
+        if inspect.isclass(condition):
+            condition = condition(source=source)
+        if isinstance(condition, Condition):
+            condition.apply_to(self)
+        else:
+            raise ValueError("Condition must be a string, condition class, or"
+                             " condition instance")
+
+    def remove_condition(self, condition):
+        """Remove the specified condition.
+
+        :param condition: The condition to remove.
+        :type condition: pathfinder.conditions.Condition
+        """
+        condition.remove_from(self)
+        if condition in self.conditions:
+            self.conditions.remove(condition)
+
+    def _apply_condition(self, condition):
+        self._check_attr('conditions', [])
+        if condition not in self.conditions:
+            self.conditions.append(condition)
+
+    def get_condition(self, condition, source=None):
+        """Retrieve any instances of the condition specified.
+
+        :param condition: The condition name or class to look for.
+        :type condition: str or type
+
+        :param source: Limit results to those with a specified source.
+
+        :return: List of conditions of the specified type which are currently
+            in effect for this object.
+        :rtype: list
+        """
+        if isinstance(condition, basestring):
+            condition = pathfinder.data.get('condition', condition)
+        return [c for c in self.conditions
+                if c.__class__ == condition
+                and (source is None or source == c.source)]
+
+    def has_condition(self, condition):
+        """Determine whether or not the object has a specific condition.
+
+        :param condition: The condition in question.
+        :type condition: str or type
+
+        :return: Whether this object has the specified condition or not.
+        :rtype: bool
+        """
+        return len(self.get_condition(condition)) > 0
+
+    def has_any_condition(self, conditions):
+        for condition in conditions:
+            if self.has_condition(condition):
+                return True
+        return False
 
     def take_damage(self, damage):
         pass

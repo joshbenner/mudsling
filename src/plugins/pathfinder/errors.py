@@ -10,6 +10,10 @@ class PathfinderError(errors.Error):
         super(PathfinderError, self).__init__(msg)
 
 
+class DataNotFound(PathfinderError):
+    pass
+
+
 class CharacterError(PathfinderError):
     pass
 

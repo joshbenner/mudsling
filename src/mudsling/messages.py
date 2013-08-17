@@ -203,3 +203,22 @@ class Messages(object):
                 del msg[kw]
 
         return msg
+
+
+class HasMessages(object):
+    """Basic implementation of IHasMessages that will search .messages through
+    the object's MRO to look for the requested message. This implementation
+    does NOT allow object instances to override messages."""
+    __slots__ = ()
+    zope.interface.implements(IHasMessages)
+
+    messages = Messages()
+
+    @classmethod
+    def get_message(cls, key, **keywords):
+        for parent in cls.__mro__:
+            if IHasMessages.implementedBy(parent):
+                msg = parent.messages.get_message(key, **keywords)
+                if msg is not None:
+                    return msg
+        return None

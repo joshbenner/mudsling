@@ -53,6 +53,14 @@ class Character(CoreCharacter, Combatant):
         'intelligence modifier',
         'charisma modifier'
     )
+    _abil_bonus_stats = (
+        'strength bonus',
+        'dexterity bonus',
+        'constitution bonus',
+        'wisdom bonus',
+        'intelligence bonus',
+        'charisma bonus',
+    )
     # If it can be modifier separately, it is NOT an alias!
     stat_aliases = {
         'str': 'strength',     'str mod': 'strength modifier',
@@ -73,6 +81,13 @@ class Character(CoreCharacter, Combatant):
         'wisdom mod': 'wisdom modifier',
         'intelligence mod': 'intelligence modifier',
         'charisma mod': 'charisma modifier',
+
+        'str bonus': 'strength bonus',
+        'dex bonus': 'dexterity bonus',
+        'con bonus': 'constitution bonus',
+        'wis bonus': 'wisdom bonus',
+        'int bonus': 'intelligence bonus',
+        'cha bonus': 'charisma bonus',
 
         'lvl': 'level',
         'hd': 'hit dice',
@@ -95,6 +110,13 @@ class Character(CoreCharacter, Combatant):
 
         'level': 0,
 
+        # Modifiers might apply to all abilities or skills, so we use these
+        # stats to capture that scenario.
+        'all ability checks': 0,
+        'all skill checks': 0,
+        'all saves': 0,
+        'all attacks': 0,
+
         'base attack bonus': 0,
         'initiative': Roll('dexterity modifier'),
         'shield bonus': 0,
@@ -110,21 +132,21 @@ class Character(CoreCharacter, Combatant):
         'off hand melee damage bonus': Roll('trunc(melee damage modifier/2)'),
 
         'armor dex limit': 99,  # todo: Retrieve this from armor.
-        'dex bonus to ac': Roll('min(dexterity modifier, armor dex limit)'),
-        'armor class': Roll('10 + armor bonus + shield bonus + dex bonus to ac'
-                            '+ size modifier'),
+        'armor class': Roll('10 + armor bonus + shield bonus'
+                            '+ defensive dex mod + size modifier'),
 
         'combat maneuver bonus': Roll('BAB + STR mod + special size mod'),
-        'combat maneuver defense': Roll('10 + BAB + STR mod + DEX mod'
+        'combat maneuver defense': Roll('10 + BAB + STR mod'
+                                        '+ defensive dex mod'
                                         '+ special size mod'),
 
-        'melee attack bonus': Roll('BAB + STR mod + size mod'),
-        'ranged attack bonus': Roll('BAB + DEX mod + size mod'),
+        'melee attack': Roll('BAB + STR mod + size mod'),
+        'ranged attack': Roll('BAB + DEX mod + size mod'),
         # These can be separately modified, so they are not aliases.
-        'melee touch bonus': Roll('melee attack bonus'),
-        'ranged touch bonus': Roll('ranged attack bonus'),
-        'unarmed strike bonus': Roll('melee attack bonus'),
-        'lethal unarmed strike bonus': Roll('unarmed strike bonus - 4')
+        'melee touch': Roll('melee attack'),
+        'ranged touch': Roll('ranged attack'),
+        'unarmed strike': Roll('melee attack'),
+        'lethal unarmed strike': Roll('unarmed strike - 4')
     }
     # Map attributes to stats.
     stat_attributes = {
@@ -197,7 +219,7 @@ class Character(CoreCharacter, Combatant):
 
     @property
     def features(self):
-        features = []
+        features = super(Character, self).features()
         if self.race is not None:
             features.append(self.race)
         features.extend(c for c in self.classes.iterkeys())
@@ -236,12 +258,9 @@ class Character(CoreCharacter, Combatant):
         return bonuses - len(self.favored_class_bonuses)
 
     @property
-    def unconscious(self):
-        """
-        :return: Whether or not the character is unconscious.
-        :rtype: bool
-        """
-        return self.remaining_hp() < 0
+    def can_use_defensive_dex_bonus(self):
+        event = Event('allow defensive dex bonus')
+        return False not in self.trigger_event(event).values()
 
     def add_xp(self, xp, stealth=False, force=True):
         if self.level > self.frozen_level and not force:
@@ -629,10 +648,12 @@ class Character(CoreCharacter, Combatant):
         m = self._save_re.match(name)
         if m:
             return self.resolve_stat_name(m.groups()[0])
-        m = self._skill_check_re.match(name)
-        if m:
-            name, extra = m.groups()
-            return name, ('check',) if extra else ()
+        if not name.startswith('all'):
+            # Exclude 'all skill checks', 'all ability checks', etc.
+            m = self._skill_check_re.match(name)
+            if m:
+                name, extra = m.groups()
+                return name, ('check',) if extra else ()
         return super(Character, self).resolve_stat_name(name)
 
     def get_all_stat_names(self):
@@ -654,6 +675,9 @@ class Character(CoreCharacter, Combatant):
             return len(self.levels)
         if stat in self._abil_modifier_stats:
             return math.trunc(self.get_stat(stat.split(' ')[0]) / 2 - 5)
+        elif stat in self._abil_bonus_stats:
+            mod = math.trunc(self.get_stat(stat.split(' ')[0]) / 2 - 5)
+            return max(0, mod)
         elif stat == 'size modifier':
             return self.size_category.size_modifier
         elif stat == 'special size modifier':
@@ -666,6 +690,15 @@ class Character(CoreCharacter, Combatant):
             return self.best_class_stat('ref')
         elif stat == 'will':
             return self.best_class_stat('will')
+        elif stat == 'defensive dex mod':
+            # Normally, the dex MODIFIER (bonus + penalties) is applied to AC,
+            # but character can lose dex BONUSES (positive only) to AC.
+            dex_mod = max(self.get_stat('dex mod'),
+                          self.get_stat('armor dex limit'))
+            if self.can_use_defensive_dex_bonus:
+                return max(0, dex_mod)
+            else:
+                return dex_mod
         elif stat in pathfinder.data.registry['skill']:
             return self.skill_base_bonus(stat)
         else:
@@ -697,8 +730,9 @@ class Character(CoreCharacter, Combatant):
 
 # Assign commands here to avoid circular import issues.
 from .commands import character as character_commands
-Character.private_commands = all_commands(character_commands)
-del character_commands
+from .commands import combat as combat_commands
+Character.private_commands = all_commands(character_commands, combat_commands)
+del character_commands, combat_commands
 
 
 def is_pfchar(obj):

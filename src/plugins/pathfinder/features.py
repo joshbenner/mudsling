@@ -8,6 +8,10 @@ Features are also designed to respond to events on HasEvents objects.
 
 import inspect
 
+from mudsling.messages import HasMessages
+from mudsling.storage import ObjRef
+from mudsling.objects import Object
+
 from .events import EventResponder, HasEvents
 from .data import ForceSlotsMetaclass
 
@@ -17,12 +21,13 @@ class FeatureMetaClass(ForceSlotsMetaclass):
         return cls.name if hasattr(cls, 'name') else repr(cls)
 
 
-class Feature(EventResponder):
+class Feature(EventResponder, HasMessages):
     __metaclass__ = FeatureMetaClass
 
     feature_type = 'feature'
     name = ''
     description = ''
+    modifiers = []
 
     def __str__(self):
         return self.name
@@ -31,15 +36,27 @@ class Feature(EventResponder):
         pass
 
     def apply_to(self, obj):
-        pass
+        from .objects import is_pfobj
+        if is_pfobj(obj):
+            for mod in self.modifiers:
+                obj.apply_effect(mod, source=self)
+        self._show_msg(obj, 'apply')
 
     def remove_from(self, obj):
-        pass
+        from .objects import is_pfobj
+        if is_pfobj(obj):
+            obj.remove_effects_by_source(self)
+        self._show_msg(obj, 'remove')
+
+    def _show_msg(self, obj, msg):
+        if isinstance(obj, (ObjRef, Object)) and obj.isa(Object):
+            msg = self.get_message(msg, feature=self, subject=obj)
+            if msg:
+                obj.emit(msg)
 
 
 class CharacterFeature(Feature):
     feature_type = 'character feature'
-    modifiers = []
 
     def apply_to(self, obj):
         from .characters import is_pfchar

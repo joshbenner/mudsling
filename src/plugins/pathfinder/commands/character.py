@@ -761,9 +761,9 @@ class CharsheetCmd(Command):
         return lines
 
     def _top_table(self, char):
-        hp = ui.conditional_style(char.hp_percent(),
+        hp = ui.conditional_style(char.hp_percent,
                                   styles=self._hp_pct_style,
-                                  alternate=str(char.remaining_hp()))
+                                  alternate=str(char.remaining_hp))
         hp_line = ' {cHit Points:{n %s{n / %s' % (hp, char.max_hp)
         if char.temporary_hit_points:
             hp_line += "(%s)" % char.temporary_hit_points
@@ -782,12 +782,12 @@ class CharsheetCmd(Command):
         l = " {{mRef{{n {ref:<2}  {{rMelee{{n {melee:<+3}  {{yCMD{{n {cmd:<+3}"
         l2 = l.format(
             ref=char.reflex,
-            melee=char.get_stat('melee attack bonus'),
+            melee=char.get_stat('melee attack'),
             cmd=char.cmd
         )
         l3 = "{{mWill{{n {will:<2} {{rRanged{{n {ranged:<+3}".format(
             will=char.will,
-            ranged=char.get_stat('ranged attack bonus')
+            ranged=char.get_stat('ranged attack')
         )
         return l1, l2, l3
 

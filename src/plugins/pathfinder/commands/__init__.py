@@ -35,6 +35,9 @@ class SomaticCommand(Command):
     def prepare(self):
         """
         Make sure the character can physically complete this command.
-        :return:
+        :return: True if the character is physically capable.
+        :rtype: bool
         """
-        pass
+        #: :type: pathfinder.characters.Character
+        actor = self.actor  # Presumed to be a Character.
+        return not actor.has_any_condition(('unconscious', 'helpless'))

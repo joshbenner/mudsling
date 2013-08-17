@@ -1,6 +1,5 @@
 import sys
 import random
-from collections import defaultdict
 
 from mudsling.storage import Persistent
 
@@ -29,7 +28,7 @@ class Battle(Persistent):
         """
         # Add them directly, then add them one at a time so they all receive
         # notice of each combatant joining the fray during initialization.
-        self.combatants = list(combatants)
+        self.combatants = [c.ref() for c in combatants]
         for combatant in combatants:
             self.add_combatant(combatant, update_initiative=False)
         self.update_initiative()
@@ -53,11 +52,35 @@ class Battle(Persistent):
         except IndexError:
             return None
 
+    @property
+    def next_combatant(self):
+        if len(self.combatants) < 1:
+            return None
+        if self.active_combatant_offset > len(self.combatants):
+            next_offset = 0
+        else:
+            next_offset = self.active_combatant_offset + 1
+        return self.combatants[next_offset]
+
     def tell_combatants(self, *parts):
+        """Sends text to all combatants in this battle.
+
+        :param parts: The parts of the message in the same format passed to
+            :method:`Combatant.tell`.
+        :type parts: list
+        """
         for combatant in self.combatants:
             combatant.tell(*parts)
 
     def add_combatant(self, combatant, update_initiative=True):
+        """Adds a combatant to the battle.
+
+        :param combatant: The combatant to add.
+        :type combatant: Combatant
+        :param update_initiative: Whether or not to update initiative.
+        :type update_initiative: bool
+        """
+        combatant = combatant.ref()
         if combatant not in self.combatants:
             self.combatants.append(combatant)
         combatant.battle = self
@@ -93,9 +116,30 @@ class Battle(Persistent):
             self.set_active_combatant(self.combatants[0])
 
     def set_active_combatant(self, combatant):
+        """Activate a specific combatant.
+
+        :param combatant: The combatant to activate.
+        :type combatant: Combatant or mudsling.storage.ObjRef
+
+        :return: The newly-active combatant's round offset, or None.
+        :rtype: int or None
+        """
+        combatant = combatant.ref()
         for i in (i for i, c in enumerate(self.combatants) if c == combatant):
             self.active_combatant_offset = i
             return i
+        return None
+
+    def activate_next_combatant(self):
+        """Activates the next combatant.
+
+        :return: The newly-active combatant, or None.
+        :rtype: Combatant or None
+        """
+        next_combatant = self.next_combatant
+        if next_combatant is not None:
+            self.set_active_combatant(next_combatant)
+            return self.active_combatant
         return None
 
 

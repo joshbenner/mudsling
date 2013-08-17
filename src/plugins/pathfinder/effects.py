@@ -6,6 +6,7 @@ import pathfinder
 from .events import EventResponder
 from .modifiers import Types as mod_types
 from .feats import parse_feat
+from .errors import DataNotFound
 
 time_units = {
     'second': 1,
@@ -53,6 +54,7 @@ class Effect(EventResponder):
         # initialized, but the data should be reigstered by the time effects
         # are applied.
         from .characters import is_pfchar
+        from .objects import is_pfobj
         self.start_time = time.time()
         if self.type == mod_types.language:
             self.payload = pathfinder.data.match(self.modifier.payload,
@@ -61,11 +63,21 @@ class Effect(EventResponder):
             try:
                 self.payload = parse_feat(self.modifier.payload)
             except errors.MatchError:
-                # Just do nothing in this case. They get not feat!
-                pass
+                # Just do nothing in this case. They get no feat!
+                pathfinder.logger.warning("Unknown feat: %s"
+                                          % str(self.modifier.payload))
             else:
                 if is_pfchar(subject):
                     subject.add_feat(*self.payload, source=self)
+        elif self.type == mod_types.condition:
+            self.payload = self.modifier.payload
+            try:
+                if is_pfobj(subject):
+                    subject.add_condition(self.payload, source=self)
+            except DataNotFound:
+                # Ignore the effect.
+                pathfinder.logger.warning("Unknown condition: %s"
+                                          % self.payload)
         elif self.type in (mod_types.damage_reduction,
                            mod_types.damage_resistance):
             self.payload = self.modifier.payload
@@ -87,9 +99,13 @@ class Effect(EventResponder):
 
     def remove_from(self, subject):
         from .characters import is_pfchar
+        from .objects import is_pfobj
         if self.type == mod_types.grant and is_pfchar(subject):
             feat = subject.get_feat(*self.payload)
             subject.remove_feat(feat, source=self)
+        elif self.type == mod_types.condition and is_pfobj(subject):
+            for condition in subject.get_conditions(self.payload, source=self):
+                subject.remove_condition(condition)
 
     def still_applies(self):
         """
