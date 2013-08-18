@@ -49,7 +49,7 @@ class Battle(Persistent):
         """:rtype: Combatant"""
         try:
             return self.combatants[self.active_combatant_offset]
-        except IndexError:
+        except (IndexError, TypeError):
             return None
 
     @property
@@ -104,8 +104,8 @@ class Battle(Persistent):
         cmp_roll = lambda c: c.battle_initiative[0]
         cmp_init = lambda c: c.battle_initiative[1]
         cmp_rand = lambda c: c.battle_initiative[2]
-        combatants = sorted(self.combatants, key=cmp_roll)
-        combatants = sorted(combatants, key=cmp_init)
+        combatants = sorted(self.combatants, key=cmp_roll, reverse=True)
+        combatants = sorted(combatants, key=cmp_init, reverse=True)
         self.combatants = sorted(combatants, key=cmp_rand)
         if current_combatant is not None:
             for i, combatant in enumerate(self.combatants):
