@@ -812,6 +812,30 @@ class CharsheetCmd(Command):
         return lines
 
 
+class AdminCharsheetCmd(CharsheetCmd):
+    """
+    @charsheet <character>
+
+    Display the character sheet of another player.
+    """
+    aliases = ('@charsheet', '@char')
+    syntax = '<character>'
+    arg_parsers = {
+        'character': MatchCharacter()
+    }
+    lock = locks.Lock('perm(view character sheets)')
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        char = args['character']
+        actor.msg(ui.report('Character Sheet: %s' % actor.name_for(char),
+                            self._character_sheet(char)))
+
+
 class FeatsCmd(Command):
     """
     +feats[/all]
