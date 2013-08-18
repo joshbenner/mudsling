@@ -39,6 +39,15 @@ class Bleeding(Condition):
 
 class Blind(Condition):
     name = 'Blind'
+    modifiers = mods(
+        '-2 to armor class',
+        '-4 to all strength-based skill checks',
+        '-4 to all dexterity-based skill checks'
+    )
+
+    def respond_to_event(self, event, responses):
+        if event.name == 'allow defensive dex bonus':
+            return False
 
 
 class Broken(Condition):
@@ -85,8 +94,7 @@ class Dying(Condition):
 class Entangled(Condition):
     name = 'Entangled'
     modifiers = mods(
-        '-2 to melee attack',
-        '-2 to ranged attack',
+        '-2 to all attacks',
         '-4 to Dexterity'
     )
 
@@ -128,7 +136,12 @@ class Grappled(Condition):
 
 class Helpless(Condition):
     name = 'Helpless'
-    modifiers = mods('Become Incapable', 'Become Immobilized')
+    modifiers = mods(
+        'Become Incapable',
+        'Become Immobilized',
+        '-4 to armor class against melee attacks',
+        '-10 to Dexterity'
+    )
 
 
 class Immobilized(Condition):
@@ -149,34 +162,64 @@ class Nauseated(Condition):
 
 class Paralyzed(Condition):
     name = 'Paralyzed'
+    modifiers = mods(
+        'Become Helpless',
+        '-10 to Srength'
+    )
 
 
 class Pinned(Condition):
     name = 'Pinned'
+    modifiers = mods(
+        'Become Immobilized',
+        'Become Incapable',
+        '-10 to Dexterity',
+        '-4 to armor class'
+    )
 
 
 class Prone(Condition):
     name = 'Prone'
-
-
-class Shaken(Condition):
-    name = 'Shaken'
+    modifiers = mods(
+        '-4 to melee attack',
+        '+4 to armor class against ranged attacks',
+        '-4 to armor class against melee attacks'
+    )
 
 
 class Sickened(Condition):
     name = 'Sickened'
+    modifiers = mods(
+        '-2 to all attacks',
+        '-2 to all damage rolls',
+        '-2 to all saves',
+        '-2 to all skill checks',
+        '-2 to all ability checks'
+    )
 
 
 class Stable(Condition):
     name = 'Stable'
+    modifiers = mods('Become Unconcious')
 
 
 class Staggered(Condition):
     name = 'Staggered'
+    description = "Character can move or act, but not both, in a single turn."
+    # Condition primarily achieved by taking nonlethal damage equal to current
+    # hit points.
 
 
 class Stunned(Condition):
     name = 'Stunned'
+    modifiers = mods(
+        '-2 to armor class',
+        '-4 to combat maneuver defense'
+    )
+
+    def respond_to_event(self, event, responses):
+        if event.name == 'allow defensive dex bonus':
+            return False
 
 
 class Unconscious(Condition):

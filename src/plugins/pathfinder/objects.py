@@ -217,7 +217,7 @@ class PathfinderObject(Object, HasStats, HasFeatures):
         """Determine whether or not the object has a specific condition.
 
         :param condition: The condition in question.
-        :type condition: str or type
+        :type condition: str or Condition subclass
 
         :return: Whether this object has the specified condition or not.
         :rtype: bool

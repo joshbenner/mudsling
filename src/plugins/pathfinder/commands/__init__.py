@@ -1,6 +1,8 @@
 from mudsling.commands import Command
 from mudsling import locks
 
+from pathfinder import conditions
+
 
 class LevellingCommand(Command):
     """
@@ -23,7 +25,7 @@ class LevellingCommand(Command):
         return True
 
 
-class SomaticCommand(Command):
+class PhysicalActionCommand(Command):
     """
     A command which requires the character to be able to move or act
     physically. These commands will fail if the character is unconscious,
@@ -39,5 +41,19 @@ class SomaticCommand(Command):
         :rtype: bool
         """
         #: :type: pathfinder.characters.Character
-        actor = self.actor  # Presumed to be a Character.
-        return not actor.has_any_condition(('unconscious', 'helpless'))
+        actor = self.actor
+        return not actor.has_condition(conditions.Incapable)
+
+
+class MovementActionCommand(Command):
+    """
+    A command which requires the ability to move and (probably) consumes a
+    movement action during a combat turn.
+    """
+
+    lock = locks.all_pass
+
+    def prepare(self):
+        #: :type: pathfinder.characters.Character
+        actor = self.actor
+        return not actor.has_condition(conditions.Immobilized)

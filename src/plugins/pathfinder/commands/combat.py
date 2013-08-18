@@ -2,9 +2,10 @@ from mudsling.commands import Command
 from mudsling import errors
 
 from pathfinder.parsers import match_combatant
+from pathfinder.commands import PhysicalActionCommand
 
 
-class FightCmd(Command):
+class FightCmd(PhysicalActionCommand):
     """
     fight <character>
 

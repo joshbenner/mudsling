@@ -110,12 +110,21 @@ class Character(CoreCharacter, Combatant):
 
         'level': 0,
 
+        # Ability-based modifiers for skill checks.
+        'all strength-based skill checks': 0,
+        'all dexterity-based skill checks': 0,
+        'all constitution-based skill checks': 0,
+        'all wisdom-based skill checks': 0,
+        'all intelligence-based skill checks': 0,
+        'all charisma-based skill checks': 0,
+
         # Modifiers might apply to all abilities or skills, so we use these
         # stats to capture that scenario.
         'all ability checks': 0,
         'all skill checks': 0,
         'all saves': 0,
         'all attacks': 0,
+        'all damage rolls': 0,
 
         'base attack bonus': 0,
         'initiative': Roll('dexterity modifier'),
@@ -134,6 +143,8 @@ class Character(CoreCharacter, Combatant):
         'armor dex limit': 99,  # todo: Retrieve this from armor.
         'armor class': Roll('10 + armor bonus + shield bonus'
                             '+ defensive dex mod + size modifier'),
+        'armor class against melee attacks': 0,
+        'armor class against ranged attacks': 0,
 
         'combat maneuver bonus': Roll('BAB + STR mod + special size mod'),
         'combat maneuver defense': Roll('10 + BAB + STR mod'
