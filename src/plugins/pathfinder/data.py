@@ -3,7 +3,7 @@ import inspect
 from mudsling.utils.sequence import CaselessDict
 from mudsling import errors
 
-from pathfinder.errors import DataNotFound
+import pathfinder.errors
 
 registry = CaselessDict()
 
@@ -14,7 +14,8 @@ def get(class_name, id):
     try:
         return registry[class_name][id]
     except KeyError:
-        raise DataNotFound("%s '%s' not found" % (class_name, id))
+        raise pathfinder.errors.DataNotFound("%s '%s' not found"
+                                             % (class_name, id))
 
 
 def add(class_name, obj):

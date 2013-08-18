@@ -1,12 +1,12 @@
 import sys
 import random
 
-from mudsling.storage import Persistent
+import mudsling.storage
 
-from pathfinder.objects import PathfinderObject
+import pathfinder.objects
 
 
-class Battle(Persistent):
+class Battle(mudsling.storage.Persistent):
     """Tracks the rounds and turns in a battle.
 
     Turn = An individual combatant's opportunity to act during combat.
@@ -143,7 +143,7 @@ class Battle(Persistent):
         return None
 
 
-class Combatant(PathfinderObject):
+class Combatant(pathfinder.objects.PathfinderObject):
     """
     Represents a battle participant.
 

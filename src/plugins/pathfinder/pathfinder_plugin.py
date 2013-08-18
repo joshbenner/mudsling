@@ -5,9 +5,9 @@ logger.info("Loading pathfinder...")
 import os
 
 import pathfinder
-from pathfinder import Character
-from pathfinder.extensibility import PathfinderPlugin
-from pathfinder.objects import Thing
+import pathfinder.extensibility
+import pathfinder.objects
+import pathfinder.characters
 import pathfinder.languages
 import pathfinder.races
 import pathfinder.skills  # Skills must come before feats.
@@ -17,7 +17,7 @@ import pathfinder.conditions
 import pathfinder.classes
 
 
-class PathfinderCorePlugin(PathfinderPlugin):
+class PathfinderCorePlugin(pathfinder.extensibility.PathfinderPlugin):
 
     def server_startup(self):
         if self.options is not None:
@@ -42,6 +42,6 @@ class PathfinderCorePlugin(PathfinderPlugin):
 
     def object_classes(self):
         return [
-            ('pathfinder.Thing', Thing),
-            ('pathfinder.Character', Character)
+            ('PF Thing', pathfinder.objects.Thing),
+            ('PF Character', pathfinder.characters.Character)
         ]

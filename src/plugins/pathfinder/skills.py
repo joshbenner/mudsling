@@ -1,7 +1,7 @@
-from .features import Feature
+import pathfinder.features
 
 
-class Skill(Feature):
+class Skill(pathfinder.features.Feature):
     """
     A skill.
 

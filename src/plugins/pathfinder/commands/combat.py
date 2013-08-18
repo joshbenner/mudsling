@@ -1,11 +1,10 @@
-from mudsling.commands import Command
-from mudsling import errors
+import mudsling.errors
 
-from pathfinder.parsers import match_combatant
-from pathfinder.commands import PhysicalActionCommand
+import pathfinder.parsers
+import pathfinder.commands
 
 
-class FightCmd(PhysicalActionCommand):
+class FightCmd(pathfinder.commands.PhysicalActionCommand):
     """
     fight <character>
 
@@ -14,7 +13,7 @@ class FightCmd(PhysicalActionCommand):
     aliases = ('fight',)
     syntax = '<character>'
     arg_parsers = {
-        'character': match_combatant
+        'character': pathfinder.parsers.match_combatant
     }
 
     def run(self, this, actor, args):
@@ -25,7 +24,8 @@ class FightCmd(PhysicalActionCommand):
         """
         target = args['character']
         if this.in_combat:
-            raise errors.CommandInvalid(msg="You are already fighting.")
+            raise mudsling.errors.CommandInvalid(
+                msg="You are already fighting.")
         if target.in_combat:
             this.join_battle(target.battle)
         else:

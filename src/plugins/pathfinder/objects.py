@@ -1,36 +1,38 @@
 from collections import OrderedDict
 import inspect
 
-from mudsling.objects import Object
-from mudsling.storage import ObjRef
-from mudsling.utils import units
-from mudsling.utils.measurements import Dimensions
+import mudsling.objects
+import mudsling.storage
+import mudsling.utils
+import mudsling.utils.measurements
 
-from mudslingcore.objects import Thing as CoreThing
+import mudslingcore.objects
 
 import pathfinder
-
-from .stats import HasStats
-from .events import Event
-from .features import HasFeatures
-from .sizes import size_categories
-from .modifiers import Modifier
-from .effects import Effect
-from .conditions import Condition
+import pathfinder.sizes
+import pathfinder.stats
+import pathfinder.events
+import pathfinder.features
+import pathfinder.modifiers
+import pathfinder.effects
+import pathfinder.conditions
 
 
 def is_pfobj(obj):
     return (isinstance(obj, PathfinderObject)
-            or (isinstance(obj, ObjRef) and obj.isa(PathfinderObject)))
+            or (isinstance(obj, mudsling.storage.ObjRef)
+                and obj.isa(PathfinderObject)))
 
 
-class PathfinderObject(Object, HasStats, HasFeatures):
+class PathfinderObject(mudsling.objects.Object,
+                       pathfinder.stats.HasStats,
+                       pathfinder.features.HasFeatures):
     _transient_vars = ['_stat_cache']
 
     cost = 0
-    weight = units.Quantity(0, 'gram')
+    weight = mudsling.utils.units.Quantity(0, 'gram')
     hardness = 0
-    dimensions = Dimensions()
+    dimensions = mudsling.utils.measurements.Dimensions()
     _size_category = None
     permanent_hit_points = 0
     damage = 0
@@ -81,13 +83,14 @@ class PathfinderObject(Object, HasStats, HasFeatures):
 
     @property
     def size_category(self):
-        return self._size_category or pathfinder.size(max(self.dimensions.all))
+        return (self._size_category
+                or pathfinder.sizes.size(max(self.dimensions.all)))
 
     @size_category.setter
     def size_category(self, val):
-        if val not in size_categories.values():
+        if val not in pathfinder.sizes.size_categories.values():
             raise ValueError("Invalid size category.")
-        default = pathfinder.size(max(self.dimensions.all))
+        default = pathfinder.sizes.size(max(self.dimensions.all))
         if val == default:
             try:
                 del self._size_category
@@ -106,7 +109,8 @@ class PathfinderObject(Object, HasStats, HasFeatures):
         @rtype: L{collections.OrderedDict}
         """
         stat, tags = self.resolve_stat_name(stat)
-        event = Event('stat mods', stat=stat, tags=tags, **kw)
+        event = pathfinder.events.Event('stat mods',
+                                        stat=stat, tags=tags, **kw)
         event.modifiers = OrderedDict()
         self.trigger_event(event)
         return event.modifiers
@@ -128,8 +132,8 @@ class PathfinderObject(Object, HasStats, HasFeatures):
         @type effect: L{pathfinder.effects.Effect}
             or L{pathfinder.effects.Modifier}
         """
-        if isinstance(effect, Modifier):
-            effect = Effect(effect, source)
+        if isinstance(effect, pathfinder.modifiers.Modifier):
+            effect = pathfinder.effects.Effect(effect, source)
         effect.apply_to(self.ref())
 
     def _apply_effect(self, effect):
@@ -174,7 +178,7 @@ class PathfinderObject(Object, HasStats, HasFeatures):
             condition = pathfinder.data.get('condition', condition)
         if inspect.isclass(condition):
             condition = condition(source=source)
-        if isinstance(condition, Condition):
+        if isinstance(condition, pathfinder.conditions.Condition):
             condition.apply_to(self)
         else:
             raise ValueError("Condition must be a string, condition class, or"
@@ -234,7 +238,7 @@ class PathfinderObject(Object, HasStats, HasFeatures):
         pass
 
 
-class Thing(CoreThing, PathfinderObject):
+class Thing(mudslingcore.objects.Thing, PathfinderObject):
     """
     Basic game world object that can interact with Pathfinder features.
     """

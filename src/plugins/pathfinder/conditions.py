@@ -1,10 +1,10 @@
-from mudsling.messages import Messages
+import mudsling.messages
 
-from .features import Feature
 from .modifiers import modifiers as mods
+import pathfinder.features
 
 
-class Condition(Feature):
+class Condition(pathfinder.features.Feature):
     """A condition is a state which affects an object or character.
 
     Conditions are instantiated upon association with an object.
@@ -12,7 +12,7 @@ class Condition(Feature):
     __slots__ = ('source',)
     feature_type = 'condition'
 
-    messages = Messages({
+    messages = mudsling.messages.Messages({
         'apply': {
             'subject': '{yYou are {m$feature{y.',
             '*': '$subject is {m$feature{n.',

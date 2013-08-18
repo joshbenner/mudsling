@@ -1,7 +1,7 @@
 import inspect
 from collections import OrderedDict
 
-from mudsling.storage import PersistentSlots
+import mudsling.storage
 
 
 class Event(object):
@@ -12,7 +12,7 @@ class Event(object):
         self.__dict__.update(kw)
 
 
-class EventResponder(PersistentSlots):
+class EventResponder(mudsling.storage.PersistentSlots):
     """
     Base class for objects that wish to be event responders.
     """

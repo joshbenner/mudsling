@@ -155,8 +155,10 @@ class ClassesCmd(Command):
     def run(self, this, actor, args):
         out = []
         for name, cls in registry.classes.classes.iteritems():
-            desc = self._class_desc(cls)
             pyname = '%s.%s' % (cls.__module__, cls.__name__)
+            if name == pyname:
+                continue  # Skip python name aliases.
+            desc = self._class_desc(cls)
             out.append("{c%s {n[{m%s{n]\n%s" % (name, pyname, desc))
         actor.msg('\n\n'.join(out))
 

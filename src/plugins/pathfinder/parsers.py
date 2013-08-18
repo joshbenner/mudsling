@@ -5,8 +5,7 @@ from mudsling import utils
 import mudsling.utils.string
 
 import pathfinder
-from pathfinder.characters import Character
-from pathfinder.feats import parse_feat
+from .characters import Character
 
 
 match_combatant = MatchObject(cls=Character, search_for='combatant')
@@ -92,7 +91,7 @@ class SkillStaticParser(StaticPFDataParser):
 class FeatStaticParser(StaticParser):
     @classmethod
     def parse(cls, input):
-        return parse_feat(input)
+        return pathfinder.parse_feat(input)
 
     @classmethod
     def unparse(cls, val, obj=None):

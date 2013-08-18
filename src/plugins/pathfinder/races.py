@@ -1,17 +1,16 @@
-import pathfinder
-from .features import CharacterFeature
-from .sizes import size_categories
-from .modifiers import modifiers, Modifier
-from .data import ForceSlotsMetaclass
+import pathfinder.characters
+import pathfinder.sizes
+import pathfinder.modifiers
+import pathfinder.data
 
 
-class Race(CharacterFeature):
+class Race(pathfinder.characters.CharacterFeature):
     """
     A race.
 
     Races should not be instantiated.
     """
-    __metaclass__ = ForceSlotsMetaclass
+    __metaclass__ = pathfinder.data.ForceSlotsMetaclass
     name = ''
     plural = ''
     size = None
@@ -28,7 +27,8 @@ class Race(CharacterFeature):
         mods = []
         for abil, val in cls.ability_modifiers.iteritems():
             bonus = pathfinder.format_modifier(val)
-            mods.append(Modifier(bonus + ' to ' + abil.capitalize()))
+            mods.append(pathfinder.modifiers.Modifier(
+                bonus + ' to ' + abil.capitalize()))
         mods.extend(cls.modifiers)
         for mod in mods:
             char.apply_effect(mod, source=cls)
@@ -44,13 +44,13 @@ class Race(CharacterFeature):
 class Dwarf(Race):
     name = 'Dwarf'
     plural = 'Dwarves'
-    size = size_categories['medium']
+    size = pathfinder.sizes.size_categories['medium']
     ability_modifiers = {
         'Constitution': 2,
         'Wisdom': 2,
         'Charisma': -2,
     }
-    modifiers = modifiers(
+    modifiers = pathfinder.modifiers.modifiers(
         'Grants Darkvision',
         '+4 dodge bonus to AC against giant subtype',
         '+2 racial bonus on Appraise skill checks',

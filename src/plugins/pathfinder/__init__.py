@@ -1,20 +1,17 @@
-# from collections import namedtuple
-# from collections import OrderedDict
-
+import re
 import os
-
 import logging
+
+import mudsling.errors
+
+#: :type: logging.Logger
 logger = logging.getLogger('pathfinder')
 
 import mudsling.config
 
-from mudslingcore.ui import ClassicUI
-ui = ClassicUI()
+import mudslingcore.ui
+ui = mudslingcore.ui.ClassicUI()
 
-# API-access imports: make important stuff easy to access.
-from .objects import Thing
-from .characters import Character
-from .sizes import size, size_categories
 from pathfinder import data
 
 config = mudsling.config.Config()
@@ -25,6 +22,8 @@ config = config['pathfinder']
 abilities = ['strength', 'dexterity', 'constitution', 'intelligence',
              'wisdom', 'charisma']
 abil_short = ['str', 'dex', 'con', 'int', 'wis', 'cha']
+
+feature_re = re.compile('^(?P<name>.*?)(?: +\((?P<subtype>.*)\))?$')
 
 # Styles for use with ui.conditional_style.
 bonus_style = (('<', 0, '{r'), ('>', 0, '{g'), ('=', 0, '{y'))
@@ -61,3 +60,15 @@ def format_range(low, high, force_range=False, color=False, style=bonus_style):
     else:
         low_ = low
     return "%s-%s" % (low_, high_)
+
+
+def parse_feat(name):
+    m = feature_re.match(name)
+    if not m:
+        raise mudsling.errors.FailedMatch('No such feat: %s' % name)
+    info = m.groupdict()
+    try:
+        feat = data.match(info['name'], types=('feat',))
+    except mudsling.errors.FailedMatch:
+        raise mudsling.errors.FailedMatch('No such feat: %s' % info['name'])
+    return feat, info['subtype']

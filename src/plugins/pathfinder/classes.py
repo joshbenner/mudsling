@@ -2,9 +2,8 @@ from collections import namedtuple
 
 from mudsling.utils.sequence import CaselessDict
 
-from .features import CharacterFeature
 from .modifiers import modifiers
-from pathfinder.characters import is_pfchar
+from .characters import is_pfchar, CharacterFeature
 from .feats import Feat
 
 

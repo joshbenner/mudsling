@@ -1,24 +1,9 @@
-from mudsling import errors
 from mudsling.utils.sequence import CaselessDict
 
-from .features import CharacterFeature
+import pathfinder.data
 from .modifiers import modifiers
-from .prerequisites import feature_re
+from .characters import CharacterFeature
 import pathfinder.errors as pferr
-
-import pathfinder
-
-
-def parse_feat(name):
-    m = feature_re.match(name)
-    if not m:
-        raise errors.FailedMatch('No such feat: %s' % name)
-    info = m.groupdict()
-    try:
-        feat = pathfinder.data.match(info['name'], types=('feat',))
-    except errors.FailedMatch:
-        raise errors.FailedMatch('No such feat: %s' % info['name'])
-    return feat, info['subtype']
 
 
 class Feat(CharacterFeature):

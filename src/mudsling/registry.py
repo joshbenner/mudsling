@@ -32,13 +32,15 @@ class ClassRegistry(object):
             if not isinstance(response, list):
                 continue
             try:
-                for name, cls in response:
-                    if name in self.classes:
-                        logging.info("Duplicate class name: %s" % name)
-                        replaced = self.classes[name]
-                        alt = replaced.__module__ + '.' + replaced.__name__
-                        self.classes[alt] = replaced
-                    self.classes[name] = cls
+                for alias, cls in response:
+                    names = (alias, '%s.%s' % (cls.__module__, cls.__name__))
+                    for name in names:
+                        if name in self.classes:
+                            logging.info("Duplicate class name: %s" % name)
+                            replaced = self.classes[name]
+                            alt = replaced.__module__ + '.' + replaced.__name__
+                            self.classes[alt] = replaced
+                        self.classes[name] = cls
             except TypeError:
                 err = "Invalid class registration from %s" % plugin.name
                 logging.error(err)

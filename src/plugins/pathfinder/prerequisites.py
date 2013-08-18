@@ -19,10 +19,11 @@ Examples:
 """
 import re
 
+from pathfinder import feature_re
+
 slot_re = re.compile(r'^(?P<type>.*) +feat +slot$')
 lvl_re = re.compile(r'^(?P<level>\d+)(?:st|th|rd)-level +(?P<class>.*)$')
 stat_re = re.compile(r'^(?P<stat>.*) +(?P<minimum>\d+)$')
-feature_re = re.compile('^(?P<name>.*?)(?: +\((?P<subtype>.*)\))?$')
 
 
 def check(prerequisites, char):

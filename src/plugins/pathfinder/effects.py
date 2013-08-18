@@ -5,8 +5,8 @@ from mudsling import errors
 import pathfinder
 from .events import EventResponder
 from .modifiers import Types as mod_types
-from .feats import parse_feat
 from .errors import DataNotFound
+from pathfinder import parse_feat
 
 time_units = {
     'second': 1,

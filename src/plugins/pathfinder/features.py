@@ -8,20 +8,20 @@ Features are also designed to respond to events on HasEvents objects.
 
 import inspect
 
-from mudsling.messages import HasMessages
-from mudsling.storage import ObjRef
-from mudsling.objects import Object
+import mudsling.messages
+import mudsling.storage
+import mudsling.objects
 
-from .events import EventResponder, HasEvents
-from .data import ForceSlotsMetaclass
+import pathfinder.events
+import pathfinder.data
 
 
-class FeatureMetaClass(ForceSlotsMetaclass):
+class FeatureMetaClass(pathfinder.data.ForceSlotsMetaclass):
     def __str__(cls):
         return cls.name if hasattr(cls, 'name') else repr(cls)
 
 
-class Feature(EventResponder, HasMessages):
+class Feature(pathfinder.events.EventResponder, mudsling.messages.HasMessages):
     __metaclass__ = FeatureMetaClass
 
     feature_type = 'feature'
@@ -49,28 +49,14 @@ class Feature(EventResponder, HasMessages):
         self._show_msg(obj, 'remove')
 
     def _show_msg(self, obj, msg):
-        if isinstance(obj, (ObjRef, Object)) and obj.isa(Object):
+        if (isinstance(obj, (mudsling.storage.ObjRef, mudsling.objects.Object))
+                and obj.isa(mudsling.objects.Object)):
             msg = self.get_message(msg, feature=self, subject=obj)
             if msg:
                 obj.emit(msg)
 
 
-class CharacterFeature(Feature):
-    feature_type = 'character feature'
-
-    def apply_to(self, obj):
-        from .characters import is_pfchar
-        if is_pfchar(obj):
-            for mod in self.modifiers:
-                obj.apply_effect(mod, source=self)
-
-    def remove_from(self, obj):
-        from .characters import is_pfchar
-        if is_pfchar(obj):
-            obj.remove_effects_by_source(self)
-
-
-class HasFeatures(HasEvents):
+class HasFeatures(pathfinder.events.HasEvents):
     _features = []
 
     def __init__(self, *a, **kw):

@@ -3,29 +3,45 @@ import re
 import random
 from collections import OrderedDict
 
-from mudslingcore.objects import Character as CoreCharacter
-
-from dice import Roll
 from mudsling.storage import ObjRef
 from mudsling.commands import all_commands
-from mudsling import errors
+import mudsling.errors
 
 from mudsling import utils
 import mudsling.utils.string
 
+import mudslingcore.objects
+
 import ictime
+from dice import Roll
 
 import pathfinder
 import pathfinder.prerequisites
-from .feats import parse_feat
-from .events import Event
-from .races import Race
-from .advancement import active_table
-from .combat import Combatant
-import pathfinder.errors as pferr
+import pathfinder.features
+import pathfinder.events
+import pathfinder.advancement
+import pathfinder.combat
+import pathfinder.errors
 
 
-class Character(CoreCharacter, Combatant):
+def is_pfchar(obj):
+    return (isinstance(obj, Character)
+            or (isinstance(obj, ObjRef) and obj.isa(Character)))
+
+
+class CharacterFeature(pathfinder.features.Feature):
+    feature_type = 'character feature'
+
+    def apply_to(self, obj):
+        if is_pfchar(obj):
+            super(CharacterFeature, self).apply_to(obj)
+
+    def remove_from(self, obj):
+        if is_pfchar(obj):
+            super(CharacterFeature, self).remove_from(obj)
+
+
+class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
     """
     A Pathfinder-enabled character/creature/etc.
     """
@@ -270,7 +286,7 @@ class Character(CoreCharacter, Combatant):
 
     @property
     def can_use_defensive_dex_bonus(self):
-        event = Event('allow defensive dex bonus')
+        event = pathfinder.events.Event('allow defensive dex bonus')
         return False not in self.trigger_event(event).values()
 
     def add_xp(self, xp, stealth=False, force=True):
@@ -290,7 +306,7 @@ class Character(CoreCharacter, Combatant):
     @property
     def current_xp_level(self):
         lvl = 0
-        for xp in active_table():
+        for xp in pathfinder.advancement.active_table():
             if self.xp >= xp:
                 lvl += 1
             else:
@@ -300,7 +316,7 @@ class Character(CoreCharacter, Combatant):
     @property
     def next_level_xp(self):
         current_lvl = self.current_xp_level
-        table = active_table()
+        table = pathfinder.advancement.active_table()
         if len(table) >= current_lvl:
             return table[current_lvl]
         else:
@@ -336,8 +352,12 @@ class Character(CoreCharacter, Combatant):
         self.set_stat(stat, existing + amount)
 
     def set_race(self, race):
-        if self.race is not None and issubclass(self.race, Race):
-            self.race.remove_from(self)
+        if self.race is not None:
+            try:
+                self.race.remove_from(self)
+            except AttributeError as e:
+                pathfinder.logger.error("Invalid race for %r: %r",
+                                        self, self.race, exc_info=True)
         self.race = race
         if race is not None:
             race.apply_to(self)
@@ -438,7 +458,7 @@ class Character(CoreCharacter, Combatant):
             for skill_name in class_.skills:
                 try:
                     skill = pathfinder.data.match(skill_name, types=('skill',))
-                except errors.MatchError:
+                except mudsling.errors.MatchError:
                     # Exclude broken skill name.
                     continue
                 if skills not in skills:
@@ -456,12 +476,12 @@ class Character(CoreCharacter, Combatant):
                 slot = compatible[0]
             else:
                 msg = "No feat slot available for %s" % feat_class.name
-                raise pferr.CharacterError(msg)
+                raise pathfinder.errors.CharacterError(msg)
         existing = self.get_feat(feat_class, subtype)
         if existing is not None:
             if source == 'slot' and 'slot' in existing.sources:
                 msg = "Feat can only occupy one feat slot."
-                raise pferr.CharacterError(msg)
+                raise pathfinder.errors.CharacterError(msg)
             existing.sources.append(source)
         else:
             feat = feat_class(subtype, source, slot)
@@ -553,7 +573,7 @@ class Character(CoreCharacter, Combatant):
         :param subtype: The subtype. Overrides subtype in feat name.
         """
         if isinstance(feat, basestring):
-            feat, subtype_ = parse_feat(feat)
+            feat, subtype_ = pathfinder.parse_feat(feat)
             if subtype is None and subtype_ is not None:
                 subtype = subtype_
         subtype = subtype.lower() if isinstance(subtype, basestring) else None
@@ -592,10 +612,12 @@ class Character(CoreCharacter, Combatant):
         self._check_attr('level_up_skills', {})
         skill_current = self.skills.get(skill, 0)
         if skill_current >= self.level:
-            raise pferr.SkillError("Cannot train skills above your level.")
+            raise pathfinder.errors.SkillError(
+                "Cannot train skills above your level.")
         if deduct_points:
             if self.skill_points < ranks:
-                raise pferr.SkillError("Insufficient skill points.")
+                raise pathfinder.errors.SkillError(
+                    "Insufficient skill points.")
             self.skill_points -= ranks
         self.skills[skill] = skill_current + ranks
         if level_up:
@@ -613,12 +635,13 @@ class Character(CoreCharacter, Combatant):
         self._check_attr('level_up_skills', {})
         skill_current = self.skills.get(skill, 0)
         if skill_current < ranks:
-            raise pferr.SkillError("No ranks of %s to remove." % skill.name)
+            raise pathfinder.errors.SkillError("No ranks of %s to remove."
+                                               % skill.name)
         if level_up:
             lvlup_current = self.level_up_skills.get(skill, 0)
             if lvlup_current < ranks:
                 msg = "Cannot remove skill ranks gained in a previous level."
-                raise pferr.SkillError(msg)
+                raise pathfinder.errors.SkillError(msg)
             self.level_up_skills[skill] = lvlup_current - ranks
             if not self.level_up_skills[skill]:
                 del self.level_up_skills[skill]
@@ -731,7 +754,7 @@ class Character(CoreCharacter, Combatant):
                   "{c", subject, "{y: ", fails)
 
     def spoken_languages(self):
-        e = Event('spoken languages')
+        e = pathfinder.events.Event('spoken languages')
         e.languages = []
         self.trigger_event(e)
         return e.languages
@@ -744,8 +767,3 @@ from .commands import character as character_commands
 from .commands import combat as combat_commands
 Character.private_commands = all_commands(character_commands, combat_commands)
 del character_commands, combat_commands
-
-
-def is_pfchar(obj):
-    return (isinstance(obj, Character)
-            or (isinstance(obj, ObjRef) and obj.isa(Character)))

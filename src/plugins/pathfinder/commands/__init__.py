@@ -1,17 +1,17 @@
-from mudsling.commands import Command
-from mudsling import locks
+import mudsling.locks
+import mudsling.commands
 
-from pathfinder import conditions
+import pathfinder.conditions
 
 
-class LevellingCommand(Command):
+class LevellingCommand(mudsling.commands.Command):
     """
     A command which can only be used while levelling up.
     """
 
     #: :type: pathfinder.characters.Character
     obj = None
-    lock = locks.all_pass
+    lock = mudsling.locks.all_pass
     not_levelling_msg = None
 
     def prepare(self):
@@ -25,14 +25,14 @@ class LevellingCommand(Command):
         return True
 
 
-class PhysicalActionCommand(Command):
+class PhysicalActionCommand(mudsling.commands.Command):
     """
     A command which requires the character to be able to move or act
     physically. These commands will fail if the character is unconscious,
     restrained, etc.
     """
 
-    lock = locks.all_pass
+    lock = mudsling.locks.all_pass
 
     def prepare(self):
         """
@@ -42,18 +42,18 @@ class PhysicalActionCommand(Command):
         """
         #: :type: pathfinder.characters.Character
         actor = self.actor
-        return not actor.has_condition(conditions.Incapable)
+        return not actor.has_condition(pathfinder.conditions.Incapable)
 
 
-class MovementActionCommand(Command):
+class MovementActionCommand(mudsling.commands.Command):
     """
     A command which requires the ability to move and (probably) consumes a
     movement action during a combat turn.
     """
 
-    lock = locks.all_pass
+    lock = mudsling.locks.all_pass
 
     def prepare(self):
         #: :type: pathfinder.characters.Character
         actor = self.actor
-        return not actor.has_condition(conditions.Immobilized)
+        return not actor.has_condition(pathfinder.conditions.Immobilized)

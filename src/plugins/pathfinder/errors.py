@@ -1,8 +1,8 @@
 
-from mudsling import errors
+import mudsling.errors
 
 
-class PathfinderError(errors.Error):
+class PathfinderError(mudsling.errors.Error):
     default_msg = ''
 
     def __init__(self, msg=''):
