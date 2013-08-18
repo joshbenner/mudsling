@@ -4,7 +4,7 @@ import pathfinder.parsers
 import pathfinder.commands
 
 
-class FightCmd(pathfinder.commands.PhysicalActionCommand):
+class FightCmd(pathfinder.commands.PhysicalCombatCommand):
     """
     fight <character>
 
@@ -26,7 +26,16 @@ class FightCmd(pathfinder.commands.PhysicalActionCommand):
         if this.in_combat:
             raise mudsling.errors.CommandInvalid(
                 msg="You are already fighting.")
+        this.combat_willing = True
         if target.in_combat:
             this.join_battle(target.battle)
         else:
             this.initiate_battle([target])
+
+
+class StandDownCmd(pathfinder.commands.CombatCommand):
+    """
+    standdown [:<emote>]
+
+    Signal willingness to cease fighting.
+    """

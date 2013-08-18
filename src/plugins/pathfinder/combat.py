@@ -90,7 +90,7 @@ class Battle(mudsling.storage.Persistent):
         if combatant not in self.combatants:
             self.combatants.append(combatant)
         combatant.battle = self
-        self.tell_combatants('{c', combatant, " {yjoins the battle.")
+        self.tell_combatants('{m', combatant, " {gjoins the battle.")
         if update_initiative:
             self.update_initiative()
 
@@ -108,11 +108,11 @@ class Battle(mudsling.storage.Persistent):
             if combatant.battle_initiative is None:
                 combatant.roll_initiative()
         cmp_roll = lambda c: c.battle_initiative[0]
-        cmp_init = lambda c: c.battle_initiative[1]
-        cmp_rand = lambda c: c.battle_initiative[2]
-        combatants = sorted(self.combatants, key=cmp_roll, reverse=True)
+        cmp_init = lambda c: c.battle_initiative[2]
+        cmp_rand = lambda c: c.battle_initiative[3]
+        combatants = sorted(self.combatants, key=cmp_rand)
         combatants = sorted(combatants, key=cmp_init, reverse=True)
-        self.combatants = sorted(combatants, key=cmp_rand)
+        self.combatants = sorted(combatants, key=cmp_roll, reverse=True)
         if current_combatant is not None:
             for i, combatant in enumerate(self.combatants):
                 if combatant == current_combatant:
@@ -149,11 +149,11 @@ class Battle(mudsling.storage.Persistent):
 
     def start_next_round(self):
         self.round += 1
-        self.tell_combatants('{yBeginning battle round {c%d{y.' % self.round)
-        self.set_active_combatant(self.combatants[0])
         if self.round == 1:
             for combatant in self.combatants:
                 combatant.add_condition(pathfinder.conditions.FlatFooted)
+        self.tell_combatants('{yBeginning battle round {c%d{y.' % self.round)
+        self.set_active_combatant(self.combatants[0])
 
 
 class Combatant(pathfinder.objects.PathfinderObject):
@@ -205,7 +205,14 @@ class Combatant(pathfinder.objects.PathfinderObject):
         :return: Tuple of the rolled initiative value and two tie-breakers.
         :rtype: tuple of int
         """
-        self.battle_initiative = (self.roll('1d20 + initiative'),
+        result, desc = self.roll('1d20 + initiative', desc=True)
+        self.battle_initiative = (result, desc,
                                   self.get_stat('initiative'),
                                   random.randint(0, sys.maxint))
+        try:
+            self.battle.tell_combatants('{m', self.ref(), "{n rolls {b", desc,
+                                        '{n = {c', result,
+                                        "{n for initiative.")
+        except AttributeError:
+            pathfinder.logger.warning("Initiative out of battle for %r", self)
         return self.battle_initiative

@@ -25,7 +25,14 @@ class LevellingCommand(mudsling.commands.Command):
         return True
 
 
-class PhysicalActionCommand(mudsling.commands.Command):
+class CombatCommand(mudsling.commands.Command):
+    """
+    A generic combat command.
+    """
+    action_type = 'standard'
+
+
+class PhysicalCombatCommand(mudsling.commands.Command):
     """
     A command which requires the character to be able to move or act
     physically. These commands will fail if the character is unconscious,
@@ -45,7 +52,7 @@ class PhysicalActionCommand(mudsling.commands.Command):
         return not actor.has_condition(pathfinder.conditions.Incapable)
 
 
-class MovementActionCommand(mudsling.commands.Command):
+class MovementCombatCommand(mudsling.commands.Command):
     """
     A command which requires the ability to move and (probably) consumes a
     movement action during a combat turn.

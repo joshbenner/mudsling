@@ -51,7 +51,7 @@ class Feature(pathfinder.events.EventResponder, mudsling.messages.HasMessages):
     def _show_msg(self, obj, msg):
         if (isinstance(obj, (mudsling.storage.ObjRef, mudsling.objects.Object))
                 and obj.isa(mudsling.objects.Object)):
-            msg = self.get_message(msg, feature=self, subject=obj)
+            msg = self.get_message(msg, feature=self, subject=obj.ref())
             if msg:
                 obj.emit(msg)
 

@@ -14,12 +14,12 @@ class Condition(pathfinder.features.Feature):
 
     messages = mudsling.messages.Messages({
         'apply': {
-            'subject': '{yYou are {m$feature{y.',
-            '*': '$subject is {m$feature{n.',
+            'subject': '{yYou are {r$feature{y.',
+            '*': '$subject is {r$feature{n.',
         },
         'remove': {
-            'subject': '{yYou are no longer $feature.',
-            '*': '$subject is no longer $feature.'
+            'subject': '{yYou are no longer {r$feature{y.',
+            '*': '$subject is no longer {r$feature{n.'
         }
     })
 

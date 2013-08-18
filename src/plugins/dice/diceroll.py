@@ -443,8 +443,11 @@ class DieRollNode(EvalNode):
         else:
             result = sum(rolls)
         if state.get('desc', False):
-            rollsdesc = '+'.join(state['rolldescs'][id].values())
-            rollsdesc += '=' + str(sum(result))
+            if len(state['rolldescs'][id]) > 1:
+                rollsdesc = '+'.join(state['rolldescs'][id].values()) + '='
+            else:
+                rollsdesc = ''
+            rollsdesc += str(sum(result))
             # Show runtime sides value.
             sides = (self.sides.eval(vars, state)[1]
                      if isinstance(self.sides, EvalNode) else str(self.sides))
