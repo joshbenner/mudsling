@@ -287,7 +287,7 @@ class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
     @property
     def can_use_defensive_dex_bonus(self):
         event = pathfinder.events.Event('allow defensive dex bonus')
-        return False not in self.trigger_event(event).values()
+        return False not in self.trigger_event(event).responses.values()
 
     def add_xp(self, xp, stealth=False, force=True):
         if self.level > self.frozen_level and not force:
@@ -754,9 +754,7 @@ class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
                   "{c", subject, "{y: ", fails)
 
     def spoken_languages(self):
-        e = pathfinder.events.Event('spoken languages')
-        e.languages = []
-        self.trigger_event(e)
+        e = self.trigger_event('spoken languages', languages=[])
         return e.languages
 
     def join_battle(self, battle):

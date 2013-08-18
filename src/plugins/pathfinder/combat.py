@@ -4,6 +4,7 @@ import random
 import mudsling.storage
 
 import pathfinder.objects
+import pathfinder.conditions
 
 
 class Battle(mudsling.storage.Persistent):
@@ -18,9 +19,13 @@ class Battle(mudsling.storage.Persistent):
     :ivar active_combatant_offset: The list offset of the combatant who is
         currently taking their turn.
     :type active_combatant_offset: int
+
+    :ivar round: The current round number.
+    :type round: int
     """
     combatants = None
     active_combatant_offset = None
+    round = 0
 
     def __init__(self, combatants=()):
         """
@@ -32,6 +37,7 @@ class Battle(mudsling.storage.Persistent):
         for combatant in combatants:
             self.add_combatant(combatant, update_initiative=False)
         self.update_initiative()
+        self.start_next_round()
 
     @property
     def active(self):
@@ -112,8 +118,6 @@ class Battle(mudsling.storage.Persistent):
                 if combatant == current_combatant:
                     self.active_combatant_offset = i
                     break
-        else:
-            self.set_active_combatant(self.combatants[0])
 
     def set_active_combatant(self, combatant):
         """Activate a specific combatant.
@@ -127,6 +131,7 @@ class Battle(mudsling.storage.Persistent):
         combatant = combatant.ref()
         for i in (i for i, c in enumerate(self.combatants) if c == combatant):
             self.active_combatant_offset = i
+            self.tell_combatants("{yIt is now {m", combatant, "'s{y turn.")
             return i
         return None
 
@@ -141,6 +146,14 @@ class Battle(mudsling.storage.Persistent):
             self.set_active_combatant(next_combatant)
             return self.active_combatant
         return None
+
+    def start_next_round(self):
+        self.round += 1
+        self.tell_combatants('{yBeginning battle round {c%d{y.' % self.round)
+        self.set_active_combatant(self.combatants[0])
+        if self.round == 1:
+            for combatant in self.combatants:
+                combatant.add_condition(pathfinder.conditions.FlatFooted)
 
 
 class Combatant(pathfinder.objects.PathfinderObject):

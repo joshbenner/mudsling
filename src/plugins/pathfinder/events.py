@@ -9,6 +9,9 @@ class Event(object):
 
     def __init__(self, name, **kw):
         self.name = name
+        self.set_params(**kw)
+
+    def set_params(self, **kw):
         self.__dict__.update(kw)
 
 
@@ -50,7 +53,10 @@ class HasEvents(object):
             # is harmless.
             pass
 
-    def trigger_event(self, event):
+    def trigger_event(self, event, **kw):
+        if isinstance(event, basestring):
+            event = Event(event)
+        event.set_params(**kw)
         event.obj = self
         responses = OrderedDict()
         for r in self.event_responders(event):
@@ -59,7 +65,8 @@ class HasEvents(object):
                 if (inspect.isfunction(d)
                         or (inspect.ismethod(d) and d.im_self is not None)):
                     responses[r] = d(event, responses)
-        return responses
+        event.responses = responses
+        return event
 
     def event_responders(self, event):
         raise NotImplementedError("'%s' does not implement event_responders()"

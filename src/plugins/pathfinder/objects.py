@@ -106,13 +106,11 @@ class PathfinderObject(mudsling.objects.Object,
 
     def get_stat_modifiers(self, stat, **kw):
         """
-        @rtype: L{collections.OrderedDict}
+        :rtype: collections.OrderedDict
         """
         stat, tags = self.resolve_stat_name(stat)
-        event = pathfinder.events.Event('stat mods',
-                                        stat=stat, tags=tags, **kw)
-        event.modifiers = OrderedDict()
-        self.trigger_event(event)
+        event = self.trigger_event('stat mods', stat=stat, tags=tags,
+                                   modifiers=OrderedDict(), **kw)
         return event.modifiers
 
     def get_stat_base(self, stat, resolved=False):
@@ -142,12 +140,14 @@ class PathfinderObject(mudsling.objects.Object,
         """
         self._check_attr('effects', [])
         self.effects.append(effect)
+        self.trigger_event('effect applied', effect=effect)
 
     def remove_effect(self, effect):
         self._check_attr('effects', [])
         if effect in self.effects:
             self.effects.remove(effect)
             effect.remove_from(self)
+            self.trigger_event('effect removed', effect=effect)
             return True
         return False
 
@@ -193,11 +193,13 @@ class PathfinderObject(mudsling.objects.Object,
         condition.remove_from(self)
         if condition in self.conditions:
             self.conditions.remove(condition)
+            self.trigger_event('condition removed', condition=condition)
 
-    def _apply_condition(self, condition):
+    def _add_condition(self, condition):
         self._check_attr('conditions', [])
         if condition not in self.conditions:
             self.conditions.append(condition)
+            self.trigger_event('condition added', condition=condition)
 
     def get_condition(self, condition, source=None):
         """Retrieve any instances of the condition specified.

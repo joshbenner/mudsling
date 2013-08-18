@@ -30,7 +30,7 @@ class Condition(pathfinder.features.Feature):
         from .objects import is_pfobj
         super(Condition, self).apply_to(obj)
         if is_pfobj(obj):
-            obj._apply_condition(self)
+            obj._add_condition(self)
 
 
 class Bleeding(Condition):
@@ -139,8 +139,9 @@ class Helpless(Condition):
     modifiers = mods(
         'Become Incapable',
         'Become Immobilized',
+        'Become Flat-Footed',
         '-4 to armor class against melee attacks',
-        '-10 to Dexterity'
+        '-10 to Dexterity'  # Compromise from rules.
     )
 
 
