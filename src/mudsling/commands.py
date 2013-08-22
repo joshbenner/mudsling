@@ -296,7 +296,17 @@ class Command(object):
         self.switches = dict_merge(self.switch_defaults, switches)
         self.parsed_args = self.parse_args(self.args, self.arg_parsers)
         if self.prepare():
+            self.before_run()
             self.run(self.obj, self.actor, self.parsed_args)
+            self.after_run()
+
+    def before_run(self):
+        """Commands can fire additional logic before running."""
+        pass
+
+    def after_run(self):
+        """Commands can fire additional logic after running."""
+        pass
 
     def parse_switches(self, switchstr):
         """

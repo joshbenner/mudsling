@@ -1,5 +1,6 @@
 import sys
 import random
+from collections import defaultdict
 
 import mudsling.storage
 
@@ -89,7 +90,7 @@ class Battle(mudsling.storage.Persistent):
         combatant = combatant.ref()
         if combatant not in self.combatants:
             self.combatants.append(combatant)
-        combatant.battle = self
+        combatant.battle_joined(self)
         self.tell_combatants('{m', combatant, " {gjoins the battle.")
         if update_initiative:
             self.update_initiative()
@@ -172,11 +173,20 @@ class Combatant(pathfinder.objects.PathfinderObject):
 
     :ivar combat_capable: If the combatant is capable of fighting.
     :type combat_capable: bool
+
+    :ivar combat_action_pool: A dict of action types and how many of them are
+        available to the combatant in a turn.
+    :type combat_action_pool: defaultdict
+
+    :ivar combat_actions_spent: A dict of action types and how many are spent.
+    :type combat_actions_spent: defaultdict
     """
     battle = None
     battle_initiative = None
     combat_willing = False
     combat_capable = True
+    combat_action_pool = None
+    combat_actions_spent = None
 
     stat_defaults = {
         'initiative': 0,
@@ -192,6 +202,11 @@ class Combatant(pathfinder.objects.PathfinderObject):
 
     def join_battle(self, battle):
         battle.add_combatant(self.ref())
+
+    def battle_joined(self, battle):
+        self.battle = battle
+        self.combat_action_pool = defaultdict(int, {'move': 1, 'standard': 1})
+        self.reset_combat_actions()
 
     def initiate_battle(self, other_combatants=()):
         combatants = [self.ref()]
@@ -216,3 +231,24 @@ class Combatant(pathfinder.objects.PathfinderObject):
         except AttributeError:
             pathfinder.logger.warning("Initiative out of battle for %r", self)
         return self.battle_initiative
+
+    def reset_combat_actions(self):
+        self.combat_actions_spent = defaultdict(int)
+
+    def total_combat_actions(self, action_type):
+        return self.combat_action_pool.get(action_type, 0)
+
+    def spent_combat_actions(self, action_type):
+        return self.combat_actions_spent.get(action_type, 0)
+
+    def remaining_combat_actions(self, action_type):
+        total = self.total_combat_actions(action_type)
+        spent = self.spent_combat_actions(action_type)
+        return total - spent
+
+    def consume_action(self, action_type, amount=1):
+        self.combat_actions_spent[action_type] += amount
+
+    def begin_battle_turn(self):
+        self.reset_combat_actions()
+        self.tell('{gBegin your turn!')

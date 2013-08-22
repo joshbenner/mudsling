@@ -28,8 +28,24 @@ class LevellingCommand(mudsling.commands.Command):
 class CombatCommand(mudsling.commands.Command):
     """
     A generic combat command.
+
+    Combat commands will automatically consume their actions. If the command
+    does not actually consume its costs (ie: an error, etc), then the command
+    should abort by raising an exception.
     """
-    action_type = 'standard'
+    action_cost = {}
+    events = ('combat command',)
+    lock = mudsling.locks.all_pass
+
+    def consume_actions(self):
+        """Consume the action cost of the command from the actor."""
+        #: :type: pathfinder.combat.Combatant
+        actor = self.actor
+        for action_type, cost in self.action_cost.iteritems():
+            actor.consume_action(action_type, cost)
+
+    def after_run(self):
+        self.consume_actions()
 
 
 class PhysicalCombatCommand(mudsling.commands.Command):
@@ -38,8 +54,7 @@ class PhysicalCombatCommand(mudsling.commands.Command):
     physically. These commands will fail if the character is unconscious,
     restrained, etc.
     """
-
-    lock = mudsling.locks.all_pass
+    events = ('combat command', 'physical action')
 
     def prepare(self):
         """
@@ -57,8 +72,7 @@ class MovementCombatCommand(mudsling.commands.Command):
     A command which requires the ability to move and (probably) consumes a
     movement action during a combat turn.
     """
-
-    lock = mudsling.locks.all_pass
+    events = ('combat command', 'movement action')
 
     def prepare(self):
         #: :type: pathfinder.characters.Character
