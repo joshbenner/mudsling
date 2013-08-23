@@ -12,7 +12,7 @@ import mudsling.utils.string
 from objsettings import ObjSetting, ConfigurableObject
 from mudslingcore import bans
 from mudslingcore.channels import ChannelUser
-from mudslingcore.genders import Neuter
+import mudslingcore.genders
 from mudslingcore import senses
 
 from mudslingcore import commands
@@ -143,10 +143,8 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser):
 
 
 class Character(BaseCharacter, DescribableObject, ConfigurableObject,
-                senses.SensingObject):
+                senses.SensingObject, mudslingcore.genders.HasGender):
     """Core character class."""
-
-    gender = Neuter
 
     import commands.admin.building as building_commands
     import commands.character as character_commands
