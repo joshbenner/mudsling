@@ -8,11 +8,13 @@ class ClassProperty(property):
 
 
 class AttributeAlias(object):
-    def __init__(self, original):
+    def __init__(self, original, obj=None):
         self.original = original
+        self.obj = obj
 
     def __get__(self, obj, objtype=None):
         # Works on instances AND classes.
+        obj = self.obj or obj
         if obj is not None:
             return getattr(obj, self.original)
         else:
@@ -20,10 +22,12 @@ class AttributeAlias(object):
 
     def __set__(self, obj, value):
         # Only works for instances!
+        obj = self.obj or obj
         return setattr(obj, self.original, value)
 
     def __delete__(self, obj):
         # Only works for instances!
+        obj = self.obj or obj
         delattr(obj, self.original)
 
 
