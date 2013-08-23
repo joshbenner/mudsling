@@ -1,9 +1,9 @@
 """
 Message formatting system.
 """
-import string
 import random
 import copy
+import re
 
 import zope.interface
 
@@ -18,6 +18,21 @@ class MessageParser(object):
     the same regex pattern. However, L{MessageParser} returns a list meant to
     be used with L{Dynamic Messages} rather than a substituted string.
     """
+    _meta_pattern = r"""
+    %(delim)s(?:
+      (?P<escaped>%(delim)s)      |   # Escape sequence of two delimiters
+      (?P<named>%(bare-id)s)      |   # delimiter and a Python identifier
+      {(?P<braced>%(brace-id)s)}  |   # delimiter and a braced identifier
+      (?P<invalid>)                   # Other ill-formed delimiter exprs
+    )
+    """
+    _pattern = _meta_pattern % {
+        'delim': r'\$',
+        'bare-id': '[_a-z][_a-z0-9]*',
+        'brace-id': '[^}]*'
+    }
+    _re = re.compile(_pattern, re.IGNORECASE | re.VERBOSE)
+
     @classmethod
     def parse(cls, tpl, **keywords):
         """
@@ -49,12 +64,7 @@ class MessageParser(object):
         if not tpl:  # Blank messages should yield nothing.
             return None
 
-        def subst(name):
-            if name in keywords:
-                return keywords[name]
-            return "${{{}}}".format(name)
-
-        parts = string.Template.pattern.split(tpl)
+        parts = cls._re.split(tpl)
         out = []
         i = 0
         nparts = len(parts)
@@ -68,15 +78,28 @@ class MessageParser(object):
                 if escaped is not None:
                     out.append('$')
                 elif named is not None:
-                    out.append(subst(named))
+                    out.append(cls.subst(named, keywords))
                 elif braced is not None:
-                    out.append(subst(braced))
+                    out.append(cls.subst(braced, keywords))
                 elif invalid is not None:
                     # todo: Raise error? Substitute something else?
                     out.append('$')
             i += 5
 
         return out
+
+    @classmethod
+    def subst(cls, name, keywords):
+        if name in keywords:
+            return keywords[name]
+        elif '.' in name:
+            name, _, attr = name.partition('.')
+            obj = keywords.get(name, None)
+            try:
+                return getattr(obj, attr)
+            except AttributeError:
+                pass
+        return "${{{}}}".format(name)
 
 
 class IHasMessages(zope.interface.Interface):
@@ -189,7 +212,10 @@ class Messages(object):
         @return: The message dictionary.
         @rtype: C{dict} or None
         """
-        msg = key if isinstance(key, dict) else self._get_message(key)
+        if isinstance(key, basestring):
+            msg = self._get_message(key)
+        else:
+            msg = key
 
         if msg is None:
             return None
