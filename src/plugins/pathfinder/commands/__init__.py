@@ -1,6 +1,11 @@
+import random
+
 import mudsling.locks
 import mudsling.commands
+import mudsling.utils.string
+import mudsling.messages
 
+import pathfinder
 import pathfinder.conditions
 
 
@@ -32,49 +37,98 @@ class CombatCommand(mudsling.commands.Command):
     Combat commands will automatically consume their actions. If the command
     does not actually consume its costs (ie: an error, etc), then the command
     should abort by raising an exception.
+
+    :cvar action_cost: Dict of action type keys and their corresponding costs.
+    :cvar events: The combat events that are fired after this command.
+    :cvar combat_only: Whether the command requires the actor to be in combat.
     """
+    #: :type: pathfinder.characters.Character
+    actor = None
     action_cost = {}
     events = ('combat command',)
+    combat_only = True
+    default_emotes = [
+        "uses a command that needs its default emotes configured."
+    ]
     lock = mudsling.locks.all_pass
+
+    @property
+    def emote_prefix(self):
+        try:
+            return self.aliases[0]
+        except KeyError:
+            return ''
 
     def consume_actions(self):
         """Consume the action cost of the command from the actor."""
-        #: :type: pathfinder.combat.Combatant
-        actor = self.actor
         for action_type, cost in self.action_cost.iteritems():
-            actor.consume_action(action_type, cost)
+            self.actor.consume_action(action_type, cost)
+
+    def fire_combat_events(self):
+        for event in self.events:
+            self.actor.trigger_event(event, cmd=self)
+
+    def check_action_pool(self):
+        """Make sure actor has sufficient actions to carry out command."""
+        for action_type, cost in self.action_cost.iteritems():
+            if self.actor.remaining_combat_actions(action_type) < cost:
+                return False
+
+    def before_run(self):
+        # Set this by default. Passive commands can un-do this in run().
+        self.actor.combat_willing = True
+        if self.combat_only and not self.actor.in_combat:
+            raise self._err("You are not engaged in combat.")
+        if not self.check_action_pool():
+            msg = '{rThe {c%s{r command requires %s.'
+            inf = mudsling.utils.string.inflection
+            points = mudsling.utils.string.english_list(
+                ["{y%d {m%s{r %s" % (c, t, inf.plural_noun('point', c))
+                 for t, c in self.action_cost.iteritems()]
+            )
+            self.actor.tell(msg % (self.aliases[0], points))
+            raise self._err("You lack the action points for this command.")
 
     def after_run(self):
         self.consume_actions()
+        self.fire_combat_events()
+        emote = self.args.get('emote', None)
+        if emote is None:
+            raw = random.choice(self.default_emotes)
+            emote = mudsling.messages.MessageParser.parse(
+                raw,
+                actor=self.actor.ref(),
+                **self.args
+            )
+        if emote:
+            prefix = '{m(%s){n ' % self.emote_prefix
+            self.actor.emote(emote, prefix=prefix)
 
 
-class PhysicalCombatCommand(mudsling.commands.Command):
+class PhysicalCombatCommand(CombatCommand):
     """
     A command which requires the character to be able to move or act
     physically. These commands will fail if the character is unconscious,
     restrained, etc.
     """
+    action_cost = {'standard': 1}
     events = ('combat command', 'physical action')
 
-    def prepare(self):
-        """
-        Make sure the character can physically complete this command.
-        :return: True if the character is physically capable.
-        :rtype: bool
-        """
-        #: :type: pathfinder.characters.Character
-        actor = self.actor
-        return not actor.has_condition(pathfinder.conditions.Incapable)
+    def before_run(self):
+        super(PhysicalCombatCommand, self).before_run()
+        if self.actor.has_condition(pathfinder.conditions.Incapable):
+            raise self._err("You are incapacitated!")
 
 
-class MovementCombatCommand(mudsling.commands.Command):
+class MovementCombatCommand(CombatCommand):
     """
     A command which requires the ability to move and (probably) consumes a
     movement action during a combat turn.
     """
+    action_cost = {'move': 1}
     events = ('combat command', 'movement action')
 
-    def prepare(self):
-        #: :type: pathfinder.characters.Character
-        actor = self.actor
-        return not actor.has_condition(pathfinder.conditions.Immobilized)
+    def before_run(self):
+        super(MovementCombatCommand, self).before_run()
+        if self.actor.has_condition(pathfinder.conditions.Immobilized):
+            raise self._err("You are immobilized!")
