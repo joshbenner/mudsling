@@ -100,6 +100,42 @@ class RenameCmd(Command):
         actor.msg("(previous names: {M%s{n)" % ', '.join(oldNames))
 
 
+class ChangeClassCmd(Command):
+    """
+    @chclass <object> to <class>
+    """
+    aliases = ('@chclass', '@change-class', '@chparent')
+    syntax = '<object> to <class>'
+    arg_parsers = {
+        'object': parsers.MatchObject(show=True)
+    }
+    lock = 'perm(create objects)'
+
+    def run(self, this, actor, args):
+        """
+        :type this: mudslingcore.objects.Player
+        :type actor: mudslingcore.objects.Player
+        :type args: dict
+        """
+        cls = registry.classes.get_class(args['class'])
+        if cls is None:
+            raise self._err("Unknown class: %s" % args['class'])
+        clsName = registry.classes.get_class_name(cls)
+        if not actor.superuser and not (issubclass(cls, LockableObject)
+                                        and cls.createLock.eval(cls, actor)):
+            msg = "{yYou do not have permission to create {c%s{y objects."
+            raise self._err(msg % clsName)
+        obj = args['object']
+        if obj._real_object().__class__ == cls:
+            raise self._err("%s is already a %s." % (obj, clsName))
+        try:
+            self.game.db.change_class(args['object'], cls)
+        except Exception as e:
+            raise self._err(e.message)
+        else:
+            actor.tell('{c', args['object'], '{g is now a {c', clsName, '{g.')
+
+
 class DeleteCmd(Command):
     """
     @delete <object>
@@ -160,7 +196,7 @@ class ClassesCmd(Command):
                 continue  # Skip python name aliases.
             desc = self._class_desc(cls)
             out.append("{c%s {n[{m%s{n]\n%s" % (name, pyname, desc))
-        actor.msg('\n\n'.join(out))
+        actor.msg('\n\n'.join(sorted(out)))
 
     def _class_desc(self, cls):
         """

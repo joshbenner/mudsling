@@ -198,8 +198,8 @@ class Exit(MessagedObject):
 
     def _invalid_enter_allowed(self, what, exit=None):
         """
-        This is used as the enter_allowed call in the event that the destination
-        is not a valid Room.
+        This is used as the enter_allowed call in the event that the
+        destination is not a valid Room.
         """
         what.msg("You cannot walk through an exit to nowhere!")
         return False
@@ -224,7 +224,8 @@ class Exit(MessagedObject):
         enter_allowed = (self.dest.enter_allowed
                          if self.dest is not None and self.dest.is_valid(Room)
                          else self._invalid_enter_allowed)
-        return leave_allowed(obj, self) and enter_allowed(obj, self)
+        me = self.ref()
+        return leave_allowed(obj, me) and enter_allowed(obj, me)
 
     def _move(self, obj):
         """

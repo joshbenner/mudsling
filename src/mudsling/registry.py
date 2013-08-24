@@ -58,14 +58,17 @@ class ClassRegistry(object):
     def get_class_name(self, cls):
         """
         Given a class, find the class registry name that corresponds to it.
-        @param cls: The class whose pretty name to retrieve.
-        @return: The pretty name of the class.
-        @rtype: str or None
+
+        :param cls: The class whose pretty name to retrieve.
+        :return: The pretty name of the class, or its python name if no pretty
+            name was found.
+        :rtype: str
         """
+        pyname = "%s.%s" % (cls.__module__, cls.__name__)
         for name, obj in self.classes.iteritems():
-            if obj == cls:
+            if obj == cls and name != pyname:
                 return name
-        return None
+        return pyname
 
 
 class PlayerRegistry(object):

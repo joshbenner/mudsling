@@ -1,5 +1,4 @@
 from collections import namedtuple
-import weakref
 import copy_reg
 import types
 import logging
@@ -18,47 +17,44 @@ copy_reg.pickle(types.MethodType, reduce_method)
 del reduce_method
 
 
-class ObjRef(namedtuple('ObjRef', 'id db')):
+class ObjRef(namedtuple('_ObjRef', 'id')):
     """
     Weak references don't pickle properly. So, we provide our own proxy class
     which uses our DB-based object IDs to provide de-normalized weak reference
-    powers. PersistentProxy objects can be passed around just as if they were
-    the objects to which they refer, but they can out-live the objects to which
+    powers. ObjRef objects can be passed around just as if they were the
+    objects to which they refer, but they can out-live the objects to which
     they refer and keep the reference count low.
-    """
-    obj = None
 
-    def __object(self):
-        if self.obj is None:
-            try:
-                #noinspection PyCallByClass
-                object.__setattr__(self, 'obj',
-                                   weakref.ref(self.db._get_object(self.id)))
-            except TypeError:
-                pass
-        return self.obj
+    We use a tuple so that it remains hashable. We use a namedtuple so it's
+    easier to interact with.
+    """
+    __slots__ = ()
+    db = None  # This dependency is injected immediately after the db loads.
+
+    # Temporary old-DB compatibility.
+    def __new__(cls, id, db=None):
+        return super(ObjRef, cls).__new__(cls, id)
 
     def _real_object(self):
-        ref = self.__object()
-        return ref() if ref is not None else None
+        return self.db._get_object(self.id)
 
     def __getattr__(self, name):
-        return getattr(self.__object()(), name)
+        return getattr(self._real_object(), name)
 
     def __setattr__(self, name, value):
-        object.__setattr__(self.__object()(), name, value)
+        object.__setattr__(self._real_object(), name, value)
 
     def __delattr__(self, name):
-        delattr(self.__object()(), name)
+        delattr(self._real_object(), name)
 
     def __str__(self):
-        return self.__object()().__str__()
+        return self._real_object().__str__()
 
     def __repr__(self):
         r = "#%d" % self.id
-        ref = self.__object()
+        ref = self._real_object()
         if ref is not None:
-            r += " (%s)" % str(ref())
+            r += " (%s)" % str(ref)
         else:
             r += " (invalid)"
         return r
@@ -78,7 +74,7 @@ class ObjRef(namedtuple('ObjRef', 'id db')):
         @rtype: bool
         """
         try:
-            o = self.__object()()
+            o = self._real_object()
             return isinstance(o, cls)
         except TypeError:
             return False
@@ -88,7 +84,7 @@ class ObjRef(namedtuple('ObjRef', 'id db')):
         Proxy version of Database.is_valid().
         """
         try:
-            return self.db.is_valid(self.__object()(), cls)
+            return self.db.is_valid(self._real_object(), cls)
         except TypeError:
             return False
 
@@ -210,6 +206,9 @@ class StoredObject(Persistent):
     def __str__(self):
         return str(self.obj_id)
 
+    def change_class(self, newclass, **kw):
+        return self.db.change_class(self, newclass, **kw)
+
     def python_class_name(self):
         return "%s.%s" % (self.__class__.__module__, self.__class__.__name__)
 
@@ -247,7 +246,7 @@ class StoredObject(Persistent):
         sure to introduce proxies as much as possible. We want to avoid storing
         objects directly.
         """
-        return ObjRef(id=self.obj_id, db=self.db)
+        return ObjRef(id=self.obj_id)
 
     @property
     def game(self):
@@ -421,7 +420,7 @@ class Database(Persistent):
             return None
 
     def get_ref(self, obj_id):
-        return ObjRef(id=obj_id, db=self)
+        return ObjRef(id=obj_id)
 
     def _allocate_obj_id(self):
         """
@@ -438,8 +437,28 @@ class Database(Persistent):
         if obj not in self.type_registry[cls]:
             self.type_registry[cls].append(obj.ref())
 
-    def register_object(self, obj):
-        obj.obj_id = self._allocate_obj_id()
+    def change_class(self, obj, newclass, **kw):
+        """
+        Change the class of the object.
+
+        This process will actually instantiate a new object of ``newclass`` and
+        copy the state from ``obj`` to the new object. Finally, the new object
+        will replace ``obj`` in the database.
+
+        :param obj: The object whose class to change.
+        :param newclass: The new parent class of the object.
+        :param kw: The keyword arguments to pass the the new object init.
+        """
+        obj = obj._real_object()
+        newobj = newclass(**kw)
+        newobj.__dict__.update(obj.__dict__)
+        self.unregister_object(obj)
+        self.register_object(newobj, force_id=obj.obj_id)
+        newobj.on_object_created()
+        return newobj.ref()
+
+    def register_object(self, obj, force_id=None):
+        obj.obj_id = force_id or self._allocate_obj_id()
         self.objects[obj.obj_id] = obj
         self._add_to_type_registry(obj)
 
