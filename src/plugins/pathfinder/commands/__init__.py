@@ -90,8 +90,9 @@ class CombatCommand(mudsling.commands.Command):
             raise self._err("You lack the action points for this command.")
 
     def after_run(self):
-        self.consume_actions()
-        self.fire_combat_events()
+        if self.actor.in_combat:
+            self.consume_actions()
+            self.fire_combat_events()
         emote = self.args.get('emote', None)
         if emote is None:
             raw = random.choice(self.default_emotes)

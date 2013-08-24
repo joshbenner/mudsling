@@ -76,6 +76,15 @@ class ApproachCmd(pathfinder.commands.MovementCombatCommand):
     aliases = ('approach',)
     syntax = '<area> [:<emote>]'
     action_cost = {'move': 1}
+    combat_only = False
     default_emotes = [
         'approaches $area.',
     ]
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.charactesr.Character
+        :type args: dict
+        """
+

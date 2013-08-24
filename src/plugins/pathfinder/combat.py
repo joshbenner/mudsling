@@ -3,9 +3,23 @@ import random
 from collections import defaultdict
 
 import mudsling.storage
+import mudsling.objects
 
 import pathfinder.objects
 import pathfinder.conditions
+import pathfinder.errors
+
+
+class MoveError(pathfinder.errors.PathfinderError):
+    pass
+
+
+class InvalidMove(MoveError):
+    pass
+
+
+class CannotMove(InvalidMove):
+    pass
 
 
 class Battle(mudsling.storage.Persistent):
@@ -180,6 +194,9 @@ class Combatant(pathfinder.objects.PathfinderObject):
 
     :ivar combat_actions_spent: A dict of action types and how many are spent.
     :type combat_actions_spent: defaultdict
+
+    :ivar combat_position: What the combatant is "near" in the room.
+    :type combat_position: mudsling.objects.Object or None
     """
     battle = None
     battle_initiative = None
@@ -187,6 +204,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
     combat_capable = True
     combat_action_pool = None
     combat_actions_spent = None
+    combat_position = None
 
     stat_defaults = {
         'initiative': 0,
@@ -252,3 +270,41 @@ class Combatant(pathfinder.objects.PathfinderObject):
     def begin_battle_turn(self):
         self.reset_combat_actions()
         self.tell('{gBegin your turn!')
+
+    def _combat_position_name(self, position):
+        if position is None:
+            return 'the open'
+        if (isinstance(position, mudsling.storage.ObjRef)
+                or isinstance(position, mudsling.objects.Object)):
+            return self.name_for(position)
+        return str(position)
+
+    def _combat_position_desc(self, position):
+        if position is None:
+            return 'in the open'
+        else:
+            return 'near %s' % self._combat_position_name(position)
+
+    def combat_move(self, where, stealth=False):
+        """
+        The combatant moves from one combat area to another.
+
+        :param where: Where to move to in the room.
+        :type where: mudsling.objects.Object or None
+
+        :param stealth: If true, then the movement does not generate an emit.
+        :type stealth: bool
+
+        :raises: CannotMove, InvalidMove
+        """
+        if self.has_condition(pathfinder.conditions.Immobilized):
+            raise CannotMove("You are immobilized")
+        prev = self.combat_position
+        if where == prev:
+            raise InvalidMove("You are already near %s"
+                              % self._combat_position_name(where))
+        self.combat_position = where
+        if not stealth:
+            from_ = self._combat_position_desc(prev)
+            to_ = self._combat_position_desc(where)
+            self.emit([self.ref(), ' moves from ', from_, ' to ', to_, '.'])

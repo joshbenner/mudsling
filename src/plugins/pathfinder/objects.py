@@ -3,15 +3,14 @@ import inspect
 
 import mudsling.objects
 import mudsling.storage
-import mudsling.utils
 import mudsling.utils.measurements
 
-import mudslingcore.objects
+import mudslingcore.objects as core_objects
+import mudslingcore.topography as core_topography
 
 import pathfinder
 import pathfinder.sizes
 import pathfinder.stats
-import pathfinder.events
 import pathfinder.features
 import pathfinder.modifiers
 import pathfinder.effects
@@ -240,7 +239,17 @@ class PathfinderObject(mudsling.objects.Object,
         pass
 
 
-class Thing(mudslingcore.objects.Thing, PathfinderObject):
+class Thing(core_objects.Thing, PathfinderObject):
     """
     Basic game world object that can interact with Pathfinder features.
     """
+
+
+class Room(core_topography.Room):
+    """
+    Pathfinder rooms have 'combat areas' which combatants can be 'near'.
+    """
+
+    def combat_areas(self):
+        areas = list(self.exits)
+        return areas

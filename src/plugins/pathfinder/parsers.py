@@ -1,17 +1,21 @@
-from mudsling.parsers import StaticParser, MatchDescendants, MatchObject
-from mudsling import errors
+import mudsling.parsers
+import mudsling.errors
+import mudsling.match
 
 from mudsling import utils
 import mudsling.utils.string
+
+import mudslingcore.topography
 
 import pathfinder
 from .characters import Character
 
 
-match_combatant = MatchObject(cls=Character, search_for='combatant')
+match_combatant = mudsling.parsers.MatchObject(cls=Character,
+                                               search_for='combatant')
 
 
-class AbilityNameStaticParser(StaticParser):
+class AbilityNameStaticParser(mudsling.parsers.StaticParser):
     """
     Parse full ability name or abbreviation into the full name.
     """
@@ -22,14 +26,14 @@ class AbilityNameStaticParser(StaticParser):
             return abil
         elif abil in pathfinder.abil_short:
             return pathfinder.abilities[pathfinder.abil_short.index(abil)]
-        raise errors.ParseError("No ability matching '%s'." % input)
+        raise mudsling.errors.ParseError("No ability matching '%s'." % input)
 
     @classmethod
     def unparse(cls, val, obj=None):
         return val
 
 
-class StaticPFDataParser(StaticParser):
+class StaticPFDataParser(mudsling.parsers.StaticParser):
     data_types = None
     search_for = 'item'
     exact = True
@@ -45,10 +49,10 @@ class StaticPFDataParser(StaticParser):
             obj = pathfinder.data.match(input, types=cls.data_types,
                                         exact=cls.exact,
                                         multiple=cls.show_multiple)
-        except errors.AmbiguousMatch as e:
+        except mudsling.errors.AmbiguousMatch as e:
             e.message = "Multiple %s match '%s'." % (cls.plural(), input)
             raise e
-        except errors.FailedMatch as e:
+        except mudsling.errors.FailedMatch as e:
             e.message = "No %s match '%s'." % (cls.plural(), input)
             raise e
 
@@ -57,14 +61,15 @@ class StaticPFDataParser(StaticParser):
                 msg = "Multiple %s match '%s': %s"
                 msg = msg % (cls.plural(), input,
                              utils.string.english_list(obj))
-                raise errors.AmbiguousMatch(msg=msg)
+                raise mudsling.errors.AmbiguousMatch(msg=msg)
             elif len(obj):
                 obj = obj[0]
             else:
                 obj = None
 
         if obj is None:
-            raise errors.ParseError("No %s '%s'." % (cls.search_for, input))
+            raise mudsling.errors.ParseError("No %s '%s'."
+                                             % (cls.search_for, input))
         return obj
 
     @classmethod
@@ -88,7 +93,7 @@ class SkillStaticParser(StaticPFDataParser):
     exact = False
 
 
-class FeatStaticParser(StaticParser):
+class FeatStaticParser(mudsling.parsers.StaticParser):
     @classmethod
     def parse(cls, input):
         return pathfinder.parse_feat(input)
@@ -102,7 +107,7 @@ class FeatStaticParser(StaticParser):
         return feat.name
 
 
-class MatchCharacter(MatchDescendants):
+class MatchCharacter(mudsling.parsers.MatchDescendants):
     def __init__(self, cls=Character, search_for='character', show=True):
         super(MatchCharacter, self).__init__(cls=cls,
                                              search_for=search_for,
@@ -112,3 +117,36 @@ class MatchCharacter(MatchDescendants):
         if input == 'me' and obj.isa(self.objClass):
             return [obj]
         return super(MatchCharacter, self)._match(obj, input)
+
+
+class MatchCombatArea(mudsling.parsers.Parser):
+    """
+    Parser to match a valid combat area in the combatant's location.
+    """
+    def parse(self, input, actor=None):
+        """
+        :param input: The input to parse.
+        :type input: str
+        :param actor: The actor performing the match.
+        :type actor: pathfinder.characters.Character
+        :return: The matched area or False.
+        """
+        if actor is None or not actor.has_location:
+            return False
+        #: :type: mudslingcore.topography.Room
+        room = actor.location
+        if not room.isa(mudslingcore.topography.Room):
+            return False
+        if input in ('open', 'the open', 'the clear', 'nothing'):
+            return None
+        exits = room.match_exits(input)
+        if len(exits) == 1:
+            return exits[0]
+        else:
+            msg = mudsling.match.match_failed(
+                matches=exits,
+                search=input,
+                search_for='area',
+                show=True
+            )
+            raise mudsling.errors.AmbiguousMatch(msg)
