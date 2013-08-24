@@ -272,7 +272,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
         self.tell('{gBegin your turn!')
 
     def _combat_position_name(self, position):
-        if position is None:
+        if position == self.location:
             return 'the open'
         if (isinstance(position, mudsling.storage.ObjRef)
                 or isinstance(position, mudsling.objects.Object)):
@@ -280,7 +280,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
         return str(position)
 
     def _combat_position_desc(self, position):
-        if position is None:
+        if position == self.location:
             return 'in the open'
         else:
             return 'near %s' % self._combat_position_name(position)
@@ -290,7 +290,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
         The combatant moves from one combat area to another.
 
         :param where: Where to move to in the room.
-        :type where: mudsling.objects.Object or None
+        :type where: mudsling.objects.Object
 
         :param stealth: If true, then the movement does not generate an emit.
         :type stealth: bool
@@ -303,6 +303,13 @@ class Combatant(pathfinder.objects.PathfinderObject):
         if where == prev:
             raise InvalidMove("You are already near %s"
                               % self._combat_position_name(where))
+        # If another combatant is "near" me, then change their combat position
+        # to be my previous position.
+        if self.has_location:
+            me = self.ref()
+            for who in self.location.contents:
+                if who.isa(Combatant) and who.combat_position == me:
+                    who.combat_move(prev, stealth=True)
         self.combat_position = where
         if not stealth:
             from_ = self._combat_position_desc(prev)

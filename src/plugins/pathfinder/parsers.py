@@ -129,6 +129,7 @@ class MatchCombatArea(mudsling.parsers.Parser):
         :type input: str
         :param actor: The actor performing the match.
         :type actor: pathfinder.characters.Character
+
         :return: The matched area or False.
         """
         if actor is None or not actor.has_location:
@@ -137,16 +138,4 @@ class MatchCombatArea(mudsling.parsers.Parser):
         room = actor.location
         if not room.isa(mudslingcore.topography.Room):
             return False
-        if input in ('open', 'the open', 'the clear', 'nothing'):
-            return None
-        exits = room.match_exits(input)
-        if len(exits) == 1:
-            return exits[0]
-        else:
-            msg = mudsling.match.match_failed(
-                matches=exits,
-                search=input,
-                search_for='area',
-                show=True
-            )
-            raise mudsling.errors.AmbiguousMatch(msg)
+        return room.match_combat_area(input)

@@ -1,5 +1,7 @@
 import pathfinder.parsers
 import pathfinder.commands
+import pathfinder.objects
+import pathfinder.combat
 
 
 class FightCmd(pathfinder.commands.PhysicalCombatCommand):
@@ -24,7 +26,7 @@ class FightCmd(pathfinder.commands.PhysicalCombatCommand):
     def run(self, this, actor, args):
         """
         :type this: pathfinder.characters.Character
-        :type actor: pathfinder.charactesr.Character
+        :type actor: pathfinder.characters.Character
         :type args: dict
         """
         target = args['character']
@@ -75,6 +77,9 @@ class ApproachCmd(pathfinder.commands.MovementCombatCommand):
     """
     aliases = ('approach',)
     syntax = '<area> [:<emote>]'
+    arg_parsers = {
+        'area': pathfinder.parsers.MatchCombatArea()
+    }
     action_cost = {'move': 1}
     combat_only = False
     default_emotes = [
@@ -84,7 +89,21 @@ class ApproachCmd(pathfinder.commands.MovementCombatCommand):
     def run(self, this, actor, args):
         """
         :type this: pathfinder.characters.Character
-        :type actor: pathfinder.charactesr.Character
+        :type actor: pathfinder.characters.Character
         :type args: dict
         """
-
+        #: :type: pathfinder.objects.Room
+        room = actor.location
+        if not self.game.db.is_valid(room, pathfinder.objects.Room):
+            raise self._err("Unable to maneuver here.")
+        position = actor.combat_position or room
+        adjacent = room.adjacent_combat_areas(position)
+        destination = args['area']
+        if destination not in adjacent:
+            raise self._err("%s is not adjacent to %s."
+                            % (destination, position))
+        try:
+            # Stealth move, because command will do its own emote.
+            actor.combat_move(destination, stealth=True)
+        except pathfinder.combat.InvalidMove as e:
+            self._err(e.message)

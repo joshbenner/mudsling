@@ -4,6 +4,8 @@ import inspect
 import mudsling.objects
 import mudsling.storage
 import mudsling.utils.measurements
+import mudsling.match
+import mudsling.errors
 
 import mudslingcore.objects as core_objects
 import mudslingcore.topography as core_topography
@@ -15,6 +17,7 @@ import pathfinder.features
 import pathfinder.modifiers
 import pathfinder.effects
 import pathfinder.conditions
+import pathfinder.combat
 
 
 def is_pfobj(obj):
@@ -250,6 +253,78 @@ class Room(core_topography.Room):
     Pathfinder rooms have 'combat areas' which combatants can be 'near'.
     """
 
-    def combat_areas(self):
+    def combat_areas(self, exclude_self=False):
+        """
+        Get a list of all combat areas in this room.
+
+        :return: List of all combat areas in room.
+        :rtype: list
+        """
         areas = list(self.exits)
+        areas.extend(c for c in self.contents
+                     if c.isa(pathfinder.combat.Combatant))
+        if not exclude_self:
+            areas.append(self.ref())
         return areas
+
+    def adjacent_combat_areas(self, area):
+        """
+        Get a list of adjacent combat areas. These represent the combat areas
+        that a combatant can move into with a single move action.
+
+        Adjacent areas include the 'open' area (the room itself) and any
+        combatants in the specified area.
+
+        :param area: The area whose adjacent areas to retriee.
+
+        :return: List of adjacent combat areas.
+        :rtype: list
+
+        :raises: ValueError
+            When the area is another combatant, and that combatant's position
+            is themself (which would result in infinite recursion).
+        """
+        if self.db.is_valid(area, pathfinder.combat.Combatant):
+            # If positioned near another combatant, adjacency is equivalent to
+            # the adjacency of that combatant.
+            if area.combat_position == area:
+                raise ValueError('Combatant %r is adjacent to self' % area)
+            return self.adjacent_combat_areas(area.combat_position)
+        adjacent = [c for c in self.contents
+                    if c.isa(pathfinder.combat.Combatant)
+                    and c.combat_position == area]
+        if area == self or area == self.ref():
+            # All exits are adjacent to the 'open' area.
+            adjacent.extend(self.exits)
+        else:
+            # The open area is adjacent to all areas.
+            adjacent.append(self.ref())
+        return adjacent
+
+    def match_combat_area(self, input):
+        """
+        Match a combat area.
+
+        :param input: The string used to match a combat area.
+        :type input: str
+
+        :return: A combat area if found.
+
+        :raises: AmbiguousMatch, FailedMatch
+        """
+        if input in ('open', 'the open', 'the clear', 'nothing'):
+            return self.ref()
+        matches = mudsling.match.match_objlist(
+            input,
+            self.combat_areas(exclude_self=True)
+        )
+        if len(matches) == 1:
+            return matches[0].ref()
+        else:
+            msg = mudsling.match.match_failed(matches, search=input,
+                                              search_for='combat area',
+                                              show=True)
+            if len(matches) > 1:
+                raise mudsling.errors.AmbiguousMatch(msg=msg)
+            else:
+                raise mudsling.errors.FailedMatch(msg=msg)
