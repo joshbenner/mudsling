@@ -1,3 +1,5 @@
+import mudsling.utils.string as string_utils
+
 import pathfinder.parsers
 import pathfinder.commands
 import pathfinder.objects
@@ -16,6 +18,7 @@ class FightCmd(pathfinder.commands.PhysicalCombatCommand):
         'character': pathfinder.parsers.match_combatant
     }
     combat_only = False
+    show_emote = False
     action_cost = {}  # Doesn't apply to this command.
 
     def before_run(self):
@@ -33,7 +36,10 @@ class FightCmd(pathfinder.commands.PhysicalCombatCommand):
         if target.in_combat:
             this.join_battle(target.battle)
         else:
-            this.initiate_battle([target])
+            try:
+                this.initiate_battle([target])
+            except pathfinder.combat.InvalidBattleLocation as e:
+                raise self._err(e.message)
 
 
 class StandDownCmd(pathfinder.commands.CombatCommand):
@@ -55,7 +61,7 @@ class StandDownCmd(pathfinder.commands.CombatCommand):
 
 class WithdrawCmd(pathfinder.commands.CombatCommand):
     """
-    withdraw [:<emote>]
+    withdraw <exit> [:<emote>]
 
     Attempts to withdraw from combat.
     """
@@ -76,7 +82,7 @@ class ApproachCmd(pathfinder.commands.MovementCombatCommand):
     and 'open' or 'nothing'.
     """
     aliases = ('approach',)
-    syntax = '<area> [:<emote>]'
+    syntax = '[<area> [:<emote>]]'
     arg_parsers = {
         'area': pathfinder.parsers.MatchCombatArea()
     }
@@ -94,14 +100,19 @@ class ApproachCmd(pathfinder.commands.MovementCombatCommand):
         """
         #: :type: pathfinder.objects.Room
         room = actor.location
-        if not self.game.db.is_valid(room, pathfinder.objects.Room):
-            raise self._err("Unable to maneuver here.")
         position = actor.combat_position or room
         adjacent = room.adjacent_combat_areas(position)
+        if 'area' not in args:
+            # Empty command, meant to see where combatant can move to.
+            areas = string_utils.english_list(["{c%s{n" % a for a in adjacent])
+            raise self._err("{nYou can approach: %s" % areas)
+        if not self.game.db.is_valid(room, pathfinder.combat.Battleground):
+            raise self._err("Unable to maneuver here.")
         destination = args['area']
         if destination not in adjacent:
-            raise self._err("%s is not adjacent to %s."
-                            % (destination, position))
+            destname = actor.combat_position_name(destination)
+            posname = actor.combat_position_name(position)
+            raise self._err("%s is not adjacent to %s." % (destname, posname))
         try:
             # Stealth move, because command will do its own emote.
             actor.combat_move(destination, stealth=True)

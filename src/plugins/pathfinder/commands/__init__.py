@@ -47,6 +47,7 @@ class CombatCommand(mudsling.commands.Command):
     action_cost = {}
     events = ('combat command',)
     combat_only = True
+    show_emote = True
     default_emotes = [
         "uses a command that needs its default emotes configured."
     ]
@@ -73,6 +74,7 @@ class CombatCommand(mudsling.commands.Command):
         for action_type, cost in self.action_cost.iteritems():
             if self.actor.remaining_combat_actions(action_type) < cost:
                 return False
+        return True
 
     def before_run(self):
         # Set this by default. Passive commands can un-do this in run().
@@ -93,17 +95,18 @@ class CombatCommand(mudsling.commands.Command):
         if self.actor.in_combat:
             self.consume_actions()
             self.fire_combat_events()
-        emote = self.args.get('emote', None)
-        if emote is None:
-            raw = random.choice(self.default_emotes)
-            emote = mudsling.messages.MessageParser.parse(
-                raw,
-                actor=self.actor.ref(),
-                **self.args
-            )
-        if emote:
-            prefix = '{m(%s){n ' % self.emote_prefix
-            self.actor.emote(emote, prefix=prefix)
+        if self.show_emote:
+            emote = self.args.get('emote', None)
+            if emote is None:
+                raw = random.choice(self.default_emotes)
+                emote = mudsling.messages.MessageParser.parse(
+                    raw,
+                    actor=self.actor.ref(),
+                    **self.args
+                )
+            if emote:
+                prefix = '{m(%s){n ' % self.emote_prefix
+                self.actor.emote(emote, prefix=prefix)
 
 
 class PhysicalCombatCommand(CombatCommand):

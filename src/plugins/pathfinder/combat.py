@@ -4,6 +4,8 @@ from collections import defaultdict
 
 import mudsling.storage
 import mudsling.objects
+import mudsling.match
+import mudsling.errors
 
 import pathfinder.objects
 import pathfinder.conditions
@@ -19,6 +21,10 @@ class InvalidMove(MoveError):
 
 
 class CannotMove(InvalidMove):
+    pass
+
+
+class InvalidBattleLocation(pathfinder.errors.PathfinderError):
     pass
 
 
@@ -82,6 +88,13 @@ class Battle(mudsling.storage.Persistent):
         else:
             next_offset = self.active_combatant_offset + 1
         return self.combatants[next_offset]
+
+    def msg_combatants(self, msg, flags=None):
+        """
+        Call .msg() on all combatants. Useful for sending message templates.
+        """
+        for combatant in self.combatants:
+            combatant.msg(msg, flags=flags)
 
     def tell_combatants(self, *parts):
         """Sends text to all combatants in this battle.
@@ -229,8 +242,18 @@ class Combatant(pathfinder.objects.PathfinderObject):
     def initiate_battle(self, other_combatants=()):
         combatants = [self.ref()]
         combatants.extend(other_combatants)
-        battle = Battle(combatants)
-        return battle
+        if (not self.db.is_valid(self.location, Battleground)
+                or not self.location.combat_allowed):
+            raise InvalidBattleLocation('You cannot fight here.')
+        room = self.location.ref()
+        battle = None
+        for who in [c for c in room.contents if c.isa(Combatant)]:
+            if who.in_combat:  # Found existing battle in the room -- join it!
+                battle = who.battle
+                for combatant in combatants:
+                    battle.add_combatant(combatant)
+                break
+        return battle or Battle(combatants)
 
     def roll_initiative(self):
         """Roll initiative for combat.
@@ -271,7 +294,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
         self.reset_combat_actions()
         self.tell('{gBegin your turn!')
 
-    def _combat_position_name(self, position):
+    def combat_position_name(self, position):
         if position == self.location:
             return 'the open'
         if (isinstance(position, mudsling.storage.ObjRef)
@@ -279,11 +302,11 @@ class Combatant(pathfinder.objects.PathfinderObject):
             return self.name_for(position)
         return str(position)
 
-    def _combat_position_desc(self, position):
+    def combat_position_desc(self, position):
         if position == self.location:
             return 'in the open'
         else:
-            return 'near %s' % self._combat_position_name(position)
+            return 'near %s' % self.combat_position_name(position)
 
     def combat_move(self, where, stealth=False):
         """
@@ -302,7 +325,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
         prev = self.combat_position
         if where == prev:
             raise InvalidMove("You are already near %s"
-                              % self._combat_position_name(where))
+                              % self.combat_position_name(where))
         # If another combatant is "near" me, then change their combat position
         # to be my previous position.
         if self.has_location:
@@ -312,6 +335,83 @@ class Combatant(pathfinder.objects.PathfinderObject):
                     who.combat_move(prev, stealth=True)
         self.combat_position = where
         if not stealth:
-            from_ = self._combat_position_desc(prev)
-            to_ = self._combat_position_desc(where)
+            from_ = self.combat_position_desc(prev)
+            to_ = self.combat_position_desc(where)
             self.emit([self.ref(), ' moves from ', from_, ' to ', to_, '.'])
+
+
+class Battleground(mudsling.objects.Object):
+    """
+    A location where battle can take place.
+    """
+    combat_allowed = True
+
+    def combat_areas(self, exclude_self=False):
+        """
+        Get a list of all combat areas in this room.
+
+        :return: List of all combat areas in room.
+        :rtype: list
+        """
+        areas = [c for c in self.contents if c.isa(Combatant)]
+        if not exclude_self:
+            areas.append(self.ref())
+        return areas
+
+    def adjacent_combat_areas(self, area):
+        """
+        Get a list of adjacent combat areas. These represent the combat areas
+        that a combatant can move into with a single move action.
+
+        Adjacent areas include the 'open' area (the room itself) and any
+        combatants in the specified area.
+
+        :param area: The area whose adjacent areas to retriee.
+
+        :return: List of adjacent combat areas.
+        :rtype: list
+
+        :raises: ValueError
+            When the area is another combatant, and that combatant's position
+            is themself (which would result in infinite recursion).
+        """
+        if self.db.is_valid(area, Combatant):
+            # If positioned near another combatant, adjacency is equivalent to
+            # the adjacency of that combatant.
+            if area.combat_position == area:
+                raise ValueError('Combatant %r is adjacent to self' % area)
+            return self.adjacent_combat_areas(area.combat_position)
+        adjacent = [c for c in self.contents
+                    if c.isa(Combatant) and c.combat_position == area]
+        if area not in (self, self.ref()):
+            # The open area is adjacent to all areas (except itself).
+            adjacent.append(self.ref())
+        return adjacent
+
+    def match_combat_area(self, input):
+        """
+        Match a combat area.
+
+        :param input: The string used to match a combat area.
+        :type input: str
+
+        :return: A combat area if found.
+
+        :raises: AmbiguousMatch, FailedMatch
+        """
+        if input in ('open', 'the open', 'the clear', 'nothing'):
+            return self.ref()
+        matches = mudsling.match.match_objlist(
+            input,
+            self.combat_areas(exclude_self=True)
+        )
+        if len(matches) == 1:
+            return matches[0].ref()
+        else:
+            msg = mudsling.match.match_failed(matches, search=input,
+                                              search_for='combat area',
+                                              show=True)
+            if len(matches) > 1:
+                raise mudsling.errors.AmbiguousMatch(msg=msg)
+            else:
+                raise mudsling.errors.FailedMatch(msg=msg)

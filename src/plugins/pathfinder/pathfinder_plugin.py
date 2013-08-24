@@ -15,6 +15,7 @@ import pathfinder.feats
 import pathfinder.special_abilities
 import pathfinder.conditions
 import pathfinder.classes
+import pathfinder.topography
 
 
 class PathfinderCorePlugin(pathfinder.extensibility.PathfinderPlugin):
@@ -43,5 +44,6 @@ class PathfinderCorePlugin(pathfinder.extensibility.PathfinderPlugin):
     def object_classes(self):
         return [
             ('PF Thing', pathfinder.objects.Thing),
-            ('PF Character', pathfinder.characters.Character)
+            ('PF Character', pathfinder.characters.Character),
+            ('PF Room', pathfinder.topography.Room)
         ]
