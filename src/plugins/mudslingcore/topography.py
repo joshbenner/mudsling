@@ -243,7 +243,7 @@ class Exit(MessagedObject):
             'source': self.source,
         }
         obj.emit(self.get_message('leave', **msg_keys))
-        obj.move_to(self.dest)
+        obj.move_to(self.dest, via=self.ref())
         if obj.has_location and obj.location == self.dest:
             obj.emit(self.get_message('arrive', **msg_keys))
 

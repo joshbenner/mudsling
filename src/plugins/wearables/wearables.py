@@ -180,7 +180,7 @@ class Wearable(Thing):
         if self.db.is_valid(prev, Object) and prev.has_location:
             self.emit_message('unwear', location=prev.location, actor=prev)
 
-    def before_object_moved(self, moving_from, moving_to, by=None):
+    def before_object_moved(self, moving_from, moving_to, by=None, via=None):
         self._check_wear_status()
         if self.is_worn:
             if by == self.worn_by:

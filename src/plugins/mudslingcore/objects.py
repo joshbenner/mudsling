@@ -216,7 +216,7 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject,
                                    self.ref(), self.ref(), True)
         return None
 
-    def after_object_moved(self, moved_from, moved_to, by=None):
+    def after_object_moved(self, moved_from, moved_to, by=None, via=None):
         if self.game.db.is_valid(moved_to, DescribableObject):
             cmd = self._look_cmd('look', 'look', '', self.game, self.ref(),
                                  self.ref())
