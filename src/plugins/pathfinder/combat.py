@@ -235,6 +235,9 @@ class Combatant(pathfinder.objects.PathfinderObject):
         battle.add_combatant(self.ref())
 
     def battle_joined(self, battle):
+        # Make sure each combatant has a valid combat position.
+        if self.combat_position not in self.location.combat_areas():
+            self.combat_move(self.location, stealth=True)
         self.battle = battle
         self.combat_action_pool = defaultdict(int, {'move': 1, 'standard': 1})
         self.reset_combat_actions()

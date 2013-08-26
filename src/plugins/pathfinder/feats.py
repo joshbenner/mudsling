@@ -762,8 +762,11 @@ class QuickDraw(Feat):
 class RapidReload(Feat):
     name = 'Rapid Reload'
     type = 'combat'
-    subtypes = ()  # todo: Dynamic list of reloadable weapon types.
     description = "Reload a weapon as a free action."
+
+    @classmethod
+    def subtypes(cls):
+        return {}  # todo: Dynamic list of reloadable weapon types.
 
 
 class SelfSufficient(Feat):
