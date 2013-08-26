@@ -38,7 +38,7 @@ class Config(ConfigParser.SafeConfigParser):
             modPath, varName = objPath.rsplit('.', 1)  # Can throw ValueError.
             obj = utils.modules.variable_from_module(modPath, varName)
         except:
-            raise ValueError("Invalid object path: %r", objPath)
+            raise ValueError("Invalid object path: %r" % objPath)
         return obj
 
     def getclass(self, section, option):

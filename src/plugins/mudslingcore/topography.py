@@ -25,11 +25,13 @@ class Room(DescribableObject, SensoryMedium):
     * Exits
     """
     desc = "A very nondescript room."
+    #: :type: list of Exit
     exits = []
     senses = {'hearing', 'vision'}
 
     def __init__(self, **kwargs):
         super(Room, self).__init__(**kwargs)
+        #: :type: list of Exit
         self.exits = []
 
     def match_exits(self, search, exactOnly=True):
@@ -41,6 +43,19 @@ class Room(DescribableObject, SensoryMedium):
         @param filterfunc: Callback used to filter the list of exits.
         """
         return filter(filterfunc, self.exits)
+
+    def exits_to(self, destination):
+        """
+        Find any exits leading to the specified destination.
+
+        :param destination: The destination the sought exit leads to.
+        :type destination: Room
+
+        :return: List of exits leading to the destination.
+        :rtype: list
+        """
+        destination = destination.ref()
+        return self.filter_exits(lambda e: e.dest == destination)
 
     def handle_unmatched_input_for(self, actor, raw):
         matches = self.match_exits(raw)
@@ -177,6 +192,20 @@ class Exit(MessagedObject):
             '*': "$actor has arrived."
         },
     })
+
+    @property
+    def counterpart(self):
+        """
+        Find an exit's counterpart in its destination.
+        :return: The corresponding exit back to this exit's source from this
+            exit's destination.
+        :rtype: Exit or None
+        """
+        if self.source.isa(Room) and self.dest.isa(Room):
+            counterparts = self.dest.exits_to(self.source)
+            if len(counterparts) > 0:
+                return counterparts[0]
+        return None
 
     def invoke(self, obj):
         """

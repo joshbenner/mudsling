@@ -5,6 +5,7 @@ from mudsling.commands import all_commands
 from mudsling.messages import Messages
 from mudsling import parsers
 from mudsling import locks
+from mudsling.config import config
 
 from mudsling import utils
 import mudsling.utils.string
@@ -167,12 +168,12 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject,
         ObjSetting(name='building.room_class',
                    type=type,
                    attr='building_room_class',
-                   default=Room,
+                   default=lambda o: config.getclass('Classes', 'room class'),
                    parser=parsers.ObjClassStaticParser),
         ObjSetting(name='building.exit_class',
                    type=type,
                    attr='building_exit_class',
-                   default=Exit,
+                   default=lambda o: config.getclass('Classes', 'exit class'),
                    parser=parsers.ObjClassStaticParser),
     }
     del Room, Exit

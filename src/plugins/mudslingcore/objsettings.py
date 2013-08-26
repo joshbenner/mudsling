@@ -115,7 +115,7 @@ class ObjSetting(object):
         else:
             if hasattr(obj, attr):
                 return getattr(obj, attr)
-        return self.default
+        return self.default(obj) if callable(self.default) else self.default
 
 
 class ConfigurableObject(Persistent):
