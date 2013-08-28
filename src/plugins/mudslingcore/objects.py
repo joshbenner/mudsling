@@ -242,7 +242,12 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject,
         self.tell('You say, "{g', speech.content, '{n".')
 
     def emote(self, pose, sep=' ', prefix=''):
-        self.emit([prefix, self.ref(), sep, pose])
+        msg = [prefix, self.ref(), sep]
+        if isinstance(pose, list):
+            msg.extend(pose)
+        else:
+            msg.append(pose)
+        self.emit(msg)
 
 
 class Thing(DescribableObject):

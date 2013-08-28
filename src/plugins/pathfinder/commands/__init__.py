@@ -102,7 +102,7 @@ class CombatCommand(mudsling.commands.Command):
                 emote = mudsling.messages.MessageParser.parse(
                     raw,
                     actor=self.actor.ref(),
-                    **self.args
+                    **self.parsed_args
                 )
             if emote:
                 prefix = '{m(%s){n ' % self.emote_prefix
