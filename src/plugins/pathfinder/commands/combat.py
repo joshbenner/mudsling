@@ -4,6 +4,7 @@ import pathfinder.parsers
 import pathfinder.commands
 import pathfinder.objects
 import pathfinder.combat
+import pathfinder.characters
 
 
 class FightCmd(pathfinder.commands.PhysicalCombatCommand):
@@ -33,6 +34,11 @@ class FightCmd(pathfinder.commands.PhysicalCombatCommand):
         :type args: dict
         """
         target = args['character']
+        if actor.frozen_level < 1:
+            raise self._err("You cannot fight until you complete chargen.")
+        if (target.isa(pathfinder.characters.Character)
+                and target.frozen_level < 1):
+            raise self._err("Target has not gone through chargen.")
         if target.in_combat:
             this.join_battle(target.battle)
         else:
