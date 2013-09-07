@@ -231,6 +231,10 @@ class Combatant(pathfinder.objects.PathfinderObject):
         """
         return self.battle.active if self.battle is not None else False
 
+    @property
+    def taking_turn(self):
+        return self.in_combat and self.battle.active_combatant == self
+
     def join_battle(self, battle):
         battle.add_combatant(self.ref())
 

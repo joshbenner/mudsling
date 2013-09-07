@@ -119,6 +119,10 @@ class ApproachCmd(pathfinder.commands.MovementCombatCommand):
         if not self.game.db.is_valid(room, pathfinder.combat.Battleground):
             raise self._err("Unable to maneuver here.")
         destination = args['area']
+        if (destination.isa(pathfinder.combat.Combatant)
+                and destination.combat_position == actor):
+            raise self._err("%s is already near you."
+                            % actor.name_for(destination))
         if destination not in adjacent:
             destname = actor.combat_position_name(destination)
             posname = actor.combat_position_name(position)

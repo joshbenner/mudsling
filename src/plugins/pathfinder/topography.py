@@ -48,8 +48,9 @@ class Room(mudslingcore.topography.Room, pathfinder.combat.Battleground):
         Return the contents of the room as seen by the passed object.
         """
         lines = []
-        combatants = self.combatants()
-        contents = [c for c in self.contents if c not in combatants]
+        combatants = [c for c in self.combatants() if c != obj]
+        contents = [c for c in self.contents
+                    if c not in combatants and c != obj]
         if combatants:
             lines.append('You see:')
             for combatant in combatants:
@@ -57,8 +58,6 @@ class Room(mudslingcore.topography.Room, pathfinder.combat.Battleground):
                 pos = combatant.combat_position_desc(combatant.combat_position)
                 status = '{rFIGHTING' if combatant.in_combat else ''
                 lines.append('  {m%s{n ({c%s{n) %s' % (name, pos, status))
-        if obj in contents:
-            contents.remove(obj)
         if contents:
             fmt = "{c%s{n"
             if self.game.db.is_valid(obj):
