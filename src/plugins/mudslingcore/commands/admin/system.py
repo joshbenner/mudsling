@@ -41,6 +41,21 @@ class ReloadCmd(Command):
         d.addCallback(self._do_reload)
 
 
+class ProfileCommandCmd(Command):
+    """
+    @profile-cmd <command>
+
+    Run a command as yourself and profile it.
+    """
+    aliases = ('@profile-cmd',)
+    syntax = '<command>'
+    lock = 'perm(eval code)'
+
+    def run(self, this, actor, args):
+        subcmd = "@profile me.process_input(%r)" % args['command']
+        actor.process_input(subcmd)
+
+
 class EvalCmd(Command):
     """
     @eval <python code>
@@ -48,7 +63,7 @@ class EvalCmd(Command):
     Execute arbitrary python code.
     """
 
-    aliases = ('@eval',)
+    aliases = ('@eval', '@profile')
     syntax = "<code>"
     lock = "perm(eval code)"
 
@@ -104,6 +119,7 @@ class EvalCmd(Command):
         actor.msg(inMsg, {'raw': True})
 
         mode = 'eval'
+        out = ''
         duration = compile_time = None
         #noinspection PyBroadException
         try:
@@ -116,12 +132,30 @@ class EvalCmd(Command):
                 compiled = compile(code, '', 'exec')
             compile_time = time.clock() - begin
 
-            begin = time.clock()
-            ret = eval(compiled, {}, available_vars)
-            duration = time.clock() - begin
+            if self.cmdstr == '@profile':
+                import cProfile as profile
+                import pstats
+                import cStringIO as io
+                profiler = profile.Profile()
+                begin = time.clock()
+                profiler.enable()
+                ret = profiler.runctx(compiled, {}, available_vars)
+                profiler.disable()
+                duration = time.clock() - begin
+                s = io.StringIO()
+                stats = pstats.Stats(profiler, stream=s)
+                stats.strip_dirs()
+                stats.sort_stats('time')
+                stats.print_stats()
+                out += s.getvalue() + '\n'
+                s.close()
+            else:
+                begin = time.clock()
+                ret = eval(compiled, {}, available_vars)
+                duration = time.clock() - begin
 
             if mode == 'eval':
-                out = "<<< %s" % repr(ret)
+                out += "<<< %s" % repr(ret)
                 if isinstance(ret, ObjRef):
                     if ret.is_valid():
                         name = "%s (%s)" % (ret.class_name(),
