@@ -97,17 +97,17 @@ class ObjRef(PersistentSlots):
     objects to which they refer, but they can out-live the objects to which
     they refer and keep the reference count low.
     """
-    __slots__ = ('__id',)
+    __slots__ = ('_id',)
     db = None  # This dependency is injected immediately after the db loads.
 
     @property
     def id(self):
-        return self.__id
+        return self._id
 
     def __new__(cls, id=0, db=None):
         """Compatibility with old namedtuple implementation"""
         obj = super(ObjRef, cls).__new__(cls)
-        obj.__id = id
+        obj._id = id
         return obj
 
     def __setstate__(self, state):
@@ -117,13 +117,13 @@ class ObjRef(PersistentSlots):
         return super(ObjRef, self).__setstate__(state)
 
     def _real_object(self):
-        return self.db._get_object(self.__id)
+        return self.db._get_object(self._id)
 
     def __getattr__(self, name):
         return getattr(self._real_object(), name)
 
     def __setattr__(self, name, value):
-        if name == '_ObjRef__id':
+        if name == '_id':
             obj = self
         else:
             obj = self._real_object()
@@ -136,7 +136,7 @@ class ObjRef(PersistentSlots):
         return str(self._real_object())
 
     def __repr__(self):
-        r = "#%d" % self.__id
+        r = "#%d" % self._id
         ref = self._real_object()
         if ref is not None:
             r += " (%s)" % str(ref)
@@ -145,11 +145,11 @@ class ObjRef(PersistentSlots):
         return r
 
     def __hash__(self):
-        return self.__id
+        return self._id
 
     def __cmp__(self, other):
         if isinstance(other, (ObjRef, StoredObject)):
-            return self.__id.__cmp__(other.obj_id)
+            return self._id.__cmp__(other.obj_id)
         raise TypeError("ObjRefs may only be compared with other ObjRefs or "
                         "StoredObjects")
 
