@@ -1,4 +1,3 @@
-from collections import namedtuple
 import copy_reg
 import types
 import logging
@@ -15,78 +14,6 @@ def reduce_method(m):
     return getattr, (m.__self__, m.__func__.__name__)
 copy_reg.pickle(types.MethodType, reduce_method)
 del reduce_method
-
-
-class ObjRef(namedtuple('_ObjRef', 'id')):
-    """
-    Weak references don't pickle properly. So, we provide our own proxy class
-    which uses our DB-based object IDs to provide de-normalized weak reference
-    powers. ObjRef objects can be passed around just as if they were the
-    objects to which they refer, but they can out-live the objects to which
-    they refer and keep the reference count low.
-
-    We use a tuple so that it remains hashable. We use a namedtuple so it's
-    easier to interact with.
-    """
-    __slots__ = ()
-    db = None  # This dependency is injected immediately after the db loads.
-
-    # Temporary old-DB compatibility.
-    def __new__(cls, id, db=None):
-        return super(ObjRef, cls).__new__(cls, id)
-
-    def _real_object(self):
-        return self.db._get_object(self.id)
-
-    def __getattr__(self, name):
-        return getattr(self._real_object(), name)
-
-    def __setattr__(self, name, value):
-        object.__setattr__(self._real_object(), name, value)
-
-    def __delattr__(self, name):
-        delattr(self._real_object(), name)
-
-    def __str__(self):
-        return self._real_object().__str__()
-
-    def __repr__(self):
-        r = "#%d" % self.id
-        ref = self._real_object()
-        if ref is not None:
-            r += " (%s)" % str(ref)
-        else:
-            r += " (invalid)"
-        return r
-
-    def __getstate__(self):
-        """
-        Do not pickle anything but tupley-stuff.
-        """
-        return False
-
-    def __setstate__(self, state):
-        pass
-
-    def isa(self, cls):
-        """
-        Proxy version of isinstance.
-        @rtype: bool
-        """
-        try:
-            o = self._real_object()
-            return isinstance(o, cls)
-        except TypeError:
-            return False
-
-    def is_valid(self, cls=None):
-        """
-        Proxy version of Database.is_valid().
-        """
-        try:
-            return self.db.is_valid(self._real_object(), cls)
-        except TypeError:
-            return False
 
 
 class PersistentSlots(object):
@@ -162,6 +89,91 @@ class Persistent(object):
         return state
 
 
+class ObjRef(PersistentSlots):
+    """
+    Weak references don't pickle properly. So, we provide our own proxy class
+    which uses our DB-based object IDs to provide de-normalized weak reference
+    powers. ObjRef objects can be passed around just as if they were the
+    objects to which they refer, but they can out-live the objects to which
+    they refer and keep the reference count low.
+    """
+    __slots__ = ('__id',)
+    db = None  # This dependency is injected immediately after the db loads.
+
+    @property
+    def id(self):
+        return self.__id
+
+    def __new__(cls, id, db=None):
+        """Compatibility with old namedtuple implementation"""
+        obj = super(ObjRef, cls).__new__(cls)
+        obj.__id = id
+        return obj
+
+    def __setstate__(self, state):
+        """Compatibility with old namedtuple implementation"""
+        if isinstance(state, bool) and not state:
+            return
+        return super(ObjRef, self).__setstate__(state)
+
+    def _real_object(self):
+        return self.db._get_object(self.__id)
+
+    def __getattr__(self, name):
+        return getattr(self._real_object(), name)
+
+    def __setattr__(self, name, value):
+        if name == '_ObjRef__id':
+            obj = self
+        else:
+            obj = self._real_object()
+        object.__setattr__(obj, name, value)
+
+    def __delattr__(self, name):
+        delattr(self._real_object(), name)
+
+    def __str__(self):
+        return str(self._real_object())
+
+    def __repr__(self):
+        r = "#%d" % self.__id
+        ref = self._real_object()
+        if ref is not None:
+            r += " (%s)" % str(ref)
+        else:
+            r += " (invalid)"
+        return r
+
+    def __hash__(self):
+        return self.__id
+
+    def __cmp__(self, other):
+        if isinstance(other, (ObjRef, StoredObject)):
+            return self.__id.__cmp__(other.obj_id)
+        raise TypeError("ObjRefs may only be compared with other ObjRefs or "
+                        "StoredObjects")
+
+    def isa(self, cls):
+        """
+        Proxy version of isinstance.
+        @rtype: bool
+        """
+        try:
+            o = self._real_object()
+            return isinstance(o, cls)
+        except TypeError:
+            return False
+
+    def is_valid(self, cls=None):
+        """
+        Proxy version of Database.is_valid().
+        """
+        try:
+            return self.db.is_valid(self._real_object(), cls)
+        except TypeError:
+            return False
+
+
 class StoredObject(Persistent):
     """
     Storage class for all game-world objects. This class has no location and no
@@ -205,6 +217,19 @@ class StoredObject(Persistent):
 
     def __str__(self):
         return str(self.obj_id)
+
+    def __hash__(self):
+        return self.obj_id
+
+    def __eq__(self, other):
+        if isinstance(other, (ObjRef, StoredObject)):
+            return other.obj_id == self.obj_id
+        return False
+
+    def __cmp__(self, other):
+        if isinstance(other, (ObjRef, StoredObject)):
+            return self.obj_id.__cmp__(other.obj_id)
+        raise TypeError("Cannot compare game objects with other types.")
 
     def change_class(self, newclass, **kw):
         return self.db.change_class(self, newclass, **kw)
