@@ -204,7 +204,7 @@ class NamedObject(LockableObject):
         self.set_aliases(names[1:])
         return oldNames
 
-    def names_for(self, obj, person='second'):
+    def names_for(self, obj):
         """
         Returns a list of names representing the passed object as known by
         self. Default implementation is to just return all aliases.
@@ -213,17 +213,12 @@ class NamedObject(LockableObject):
         @type obj: L{NamedObject} or L{ObjRef}
         @rtype: C{list}
         """
-        names = []
-        if obj == self:
-            if person == 'second':
-                names.append('You')
         try:
-            names.extend(obj.names)
+            return obj.names
         except (TypeError, AttributeError):
-            pass
-        return names
+            return []
 
-    def name_for(self, obj, person='second'):
+    def name_for(self, obj):
         """
         Returns a string representation of the given object as known by self.
 
@@ -233,7 +228,7 @@ class NamedObject(LockableObject):
         @return: String name of passed object as known by this object.
         @rtype: C{str}
         """
-        return (self.names_for(obj, person=person) or ["UNKNOWN"])[0]
+        return (self.names_for(obj) or ["UNKNOWN"])[0]
 
     def list_of_names(self, objs):
         """
@@ -404,7 +399,7 @@ class PossessableObject(MessagedObject):
             self.possessed_by.dispossess_object(self.ref())
         super(PossessableObject, self).on_object_deleted()
 
-    def name_for(self, obj, person='second'):
+    def name_for(self, obj):
         """
         Return the name for normal users, or the name and ObjID for privileged
         players possessing this object.
@@ -415,7 +410,7 @@ class PossessableObject(MessagedObject):
         @return: String name of passed object as known by this object.
         @rtype: C{str}
         """
-        name = super(PossessableObject, self).name_for(obj, person=person)
+        name = super(PossessableObject, self).name_for(obj)
         try:
             if self.player.has_perm("see object numbers"):
                 name += " (#%d)" % obj.obj_id
