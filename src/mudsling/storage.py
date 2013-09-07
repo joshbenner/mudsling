@@ -104,7 +104,7 @@ class ObjRef(PersistentSlots):
     def id(self):
         return self.__id
 
-    def __new__(cls, id, db=None):
+    def __new__(cls, id=0, db=None):
         """Compatibility with old namedtuple implementation"""
         obj = super(ObjRef, cls).__new__(cls)
         obj.__id = id
