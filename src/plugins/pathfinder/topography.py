@@ -1,3 +1,5 @@
+import mudsling.utils.string
+
 import mudslingcore.topography
 
 import pathfinder.combat
@@ -34,3 +36,41 @@ class Room(mudslingcore.topography.Room, pathfinder.combat.Battleground):
         if area == self or area == self.ref():
             adjacent.extend(self.exits)
         return adjacent
+
+    def combatants(self):
+        """
+        :rtype: list of pathfinder.combat.Combatant
+        """
+        return [c for c in self.contents if c.isa(pathfinder.combat.Combatant)]
+
+    def contents_as_seen_by(self, obj):
+        """
+        Return the contents of the room as seen by the passed object.
+        """
+        lines = []
+        combatants = self.combatants()
+        contents = [c for c in self.contents if c not in combatants]
+        if combatants:
+            lines.append('You see:')
+            for combatant in combatants:
+                name = obj.name_for(combatant)
+                pos = combatant.combat_position_desc(combatant.combat_position)
+                status = '{rFIGHTING' if combatant.in_combat else ''
+                lines.append('  {m%s{n ({c%s{n) %s' % (name, pos, status))
+        if obj in contents:
+            contents.remove(obj)
+        if contents:
+            fmt = "{c%s{n"
+            if self.game.db.is_valid(obj):
+                def name(o):
+                    return fmt % obj.name_for(o)
+            else:
+                def name(o):
+                    return fmt % o.name
+            names = mudsling.utils.string.english_list(map(name, contents))
+            if combatants:
+                lines.append('')
+                lines.append("You also see: %s" % names)
+            else:
+                lines.append("You see: %s" % names)
+        return '\n'.join(lines)

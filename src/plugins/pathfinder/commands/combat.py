@@ -1,4 +1,6 @@
 import mudsling.utils.string as string_utils
+import mudsling.commands
+import mudsling.locks
 
 import pathfinder.parsers
 import pathfinder.commands
@@ -104,11 +106,13 @@ class ApproachCmd(pathfinder.commands.MovementCombatCommand):
         :type actor: pathfinder.characters.Character
         :type args: dict
         """
-        #: :type: pathfinder.objects.Room
+        #: :type: pathfinder.topography.Room
         room = actor.location
         position = actor.combat_position or room
         adjacent = room.adjacent_combat_areas(position)
-        if 'area' not in args:
+        if actor in adjacent:
+            adjacent.remove(actor)
+        if 'area' not in args or args['area'] is None:
             # Empty command, meant to see where combatant can move to.
             areas = string_utils.english_list(["{c%s{n" % a for a in adjacent])
             raise self._err("{nYou can approach: %s" % areas)
@@ -124,3 +128,50 @@ class ApproachCmd(pathfinder.commands.MovementCombatCommand):
             actor.combat_move(destination, stealth=True)
         except pathfinder.combat.InvalidMove as e:
             self._err(e.message)
+
+
+class WhereAmICmd(mudsling.commands.Command):
+    """
+    whereami
+
+    Shortcut for *where am I*.
+    """
+    aliases = ('whereami',)
+    lock = mudsling.locks.all_pass
+
+    def run(self, this, actor, args):
+        actor.process_input('where am I')
+
+
+class WhereCmd(mudsling.commands.Command):
+    """
+    where am I
+    where is <combatant>
+
+    Display the combat position of yourself or another combatant.
+    """
+    aliases = ('where',)
+    syntax = (
+        'am I',
+        'is <combatant>'
+    )
+    arg_parsers = {
+        'combatant': pathfinder.parsers.match_combatant
+    }
+    lock = mudsling.locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        if 'combatant' in args:
+            who = args['combatant']
+            actor.tell('{m', args['combatant'], '{n is {c',
+                       actor.combat_position_desc(who.combat_position),
+                       '{n.')
+        else:
+            actor.tell('You are {c',
+                       actor.combat_position_desc(actor.combat_position),
+                       '{n.')
