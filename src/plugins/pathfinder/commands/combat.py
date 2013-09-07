@@ -131,7 +131,7 @@ class ApproachCmd(pathfinder.commands.MovementCombatCommand):
             # Stealth move, because command will do its own emote.
             actor.combat_move(destination, stealth=True)
         except pathfinder.combat.InvalidMove as e:
-            self._err(e.message)
+            raise self._err(e.message)
 
 
 class WhereAmICmd(mudsling.commands.Command):
@@ -179,3 +179,47 @@ class WhereCmd(mudsling.commands.Command):
             actor.tell('You are {c',
                        actor.combat_position_desc(actor.combat_position),
                        '{n.')
+
+
+class CombatCmd(mudsling.commands.Command):
+    """
+    +combat
+
+    Gives you information about the fight you are currently in.
+    """
+    aliases = ('+combat', '+battle')
+    lock = mudsling.locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        #: :type: pathfinder.topography.Room
+        room = actor.location
+        if not room.isa(pathfinder.combat.Battleground):
+            raise self._err("Combat does not work here.")
+        battle = room.battle
+        if battle is None:
+            raise self._err('No combat is taking place here.')
+        ui = pathfinder.ui
+        table = ui.Table([
+            ui.Column('Turn', 4, 'r'),
+            ui.Column('Combatant', 20, 'l'),
+            ui.Column('Init', 4, 'r'),
+            ui.Column('Conditions', '*', 'l', wrap=True)
+        ])
+        for i, combatant in enumerate(battle.combatants):
+            table.add_row([
+                '{y=>' if i == battle.active_combatant_offset else '',
+                actor.name_for(combatant),
+                combatant.battle_initiative[0],
+                mudsling.utils.string.english_list(combatant.conditions,
+                                                   nothingstr='')
+            ])
+        actor.msg(ui.report(
+            'Combat in %s' % actor.name_for(room),
+            table,
+            ' {yRound %d' % battle.round)
+        )

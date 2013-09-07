@@ -6,6 +6,7 @@ import mudsling.storage
 import mudsling.objects
 import mudsling.match
 import mudsling.errors
+import mudsling.utils.string
 
 import pathfinder.objects
 import pathfinder.conditions
@@ -57,7 +58,7 @@ class Battle(mudsling.storage.Persistent):
         self.combatants = [c.ref() for c in combatants]
         for combatant in combatants:
             self.add_combatant(combatant, update_initiative=False)
-        self.update_initiative()
+        self.update_initiative(force=True)
         self.start_next_round()
 
     @property
@@ -122,7 +123,7 @@ class Battle(mudsling.storage.Persistent):
         if update_initiative:
             self.update_initiative()
 
-    def update_initiative(self):
+    def update_initiative(self, force=False):
         """Cause any new combatants to roll initiative, and sort the combatants
         into their new combat order.
 
@@ -133,7 +134,7 @@ class Battle(mudsling.storage.Persistent):
         """
         current_combatant = self.active_combatant
         for combatant in self.combatants:
-            if combatant.battle_initiative is None:
+            if combatant.battle_initiative is None or force:
                 combatant.roll_initiative()
         cmp_roll = lambda c: c.battle_initiative[0]
         cmp_init = lambda c: c.battle_initiative[2]
@@ -159,7 +160,8 @@ class Battle(mudsling.storage.Persistent):
         combatant = combatant.ref()
         for i in (i for i, c in enumerate(self.combatants) if c == combatant):
             self.active_combatant_offset = i
-            self.tell_combatants("{yIt is now {m", combatant, "'s{y turn.")
+            self.active_combatant.begin_battle_turn()
+            self.tell_combatants("{yNow taking turn: {m", combatant)
             return i
         return None
 
@@ -177,9 +179,6 @@ class Battle(mudsling.storage.Persistent):
 
     def start_next_round(self):
         self.round += 1
-        if self.round == 1:
-            for combatant in self.combatants:
-                combatant.add_condition(pathfinder.conditions.FlatFooted)
         self.tell_combatants('{yBeginning battle round {c%d{y.' % self.round)
         self.set_active_combatant(self.combatants[0])
 
@@ -245,6 +244,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
         self.battle = battle
         self.combat_action_pool = defaultdict(int, {'move': 1, 'standard': 1})
         self.reset_combat_actions()
+        self.add_condition(pathfinder.conditions.FlatFooted, source=battle)
 
     def initiate_battle(self, other_combatants=()):
         combatants = [self.ref()]
@@ -273,6 +273,8 @@ class Combatant(pathfinder.objects.PathfinderObject):
                                   self.get_stat('initiative'),
                                   random.randint(0, sys.maxint))
         try:
+            inflect = mudsling.utils.string.inflection
+            inflect.v
             self.battle.tell_combatants('{m', self.ref(), "{n rolls {b", desc,
                                         '{n = {c', result,
                                         "{n for initiative.")
@@ -298,6 +300,11 @@ class Combatant(pathfinder.objects.PathfinderObject):
         self.combat_actions_spent[action_type] += amount
 
     def begin_battle_turn(self):
+        if self.has_condition(pathfinder.conditions.FlatFooted):
+            conditions = self.get_condition(pathfinder.conditions.FlatFooted,
+                                            source=self.battle)
+            if conditions:
+                self.remove_condition(conditions[0])
         self.reset_combat_actions()
         self.tell('{gBegin your turn!')
 
@@ -352,6 +359,17 @@ class Battleground(mudsling.objects.Object):
     A location where battle can take place.
     """
     combat_allowed = True
+
+    @property
+    def battle(self):
+        """The battle taking place here, if any.
+
+        :rtype: Battle or None
+        """
+        for combatant in self.combatants():
+            if combatant.in_combat:
+                return combatant.battle
+        return None
 
     def combat_areas(self, exclude_self=False):
         """

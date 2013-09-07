@@ -51,11 +51,18 @@ class Room(mudslingcore.topography.Room, pathfinder.combat.Battleground):
         combatants = [c for c in self.combatants() if c != obj]
         contents = [c for c in self.contents
                     if c not in combatants and c != obj]
+        if obj.isa(pathfinder.combat.Combatant):
+            desc = lambda c: obj.combat_position_desc(c.combat_position)
+        else:
+            desc = lambda c: ('in the open' if c.combat_position == self
+                              else "near %s" % obj.name_for(c.combat_position))
         if combatants:
             lines.append('You see:')
             for combatant in combatants:
                 name = obj.name_for(combatant)
-                pos = combatant.combat_position_desc(combatant.combat_position)
+                pos = desc(combatant)
+                if combatant.combat_position == obj:
+                    pos = '{r' + pos.upper()
                 status = '{rFIGHTING' if combatant.in_combat else ''
                 lines.append('  {m%s{n ({c%s{n) %s' % (name, pos, status))
         if contents:

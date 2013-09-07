@@ -205,7 +205,7 @@ class PathfinderObject(mudsling.objects.Object,
         """Retrieve any instances of the condition specified.
 
         :param condition: The condition name or class to look for.
-        :type condition: str or type
+        :type condition: str or pathfinder.conditions.Condition subclass
 
         :param source: Limit results to those with a specified source.
 
