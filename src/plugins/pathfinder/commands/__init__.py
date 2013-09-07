@@ -41,12 +41,15 @@ class CombatCommand(mudsling.commands.Command):
     :cvar action_cost: Dict of action type keys and their corresponding costs.
     :cvar events: The combat events that are fired after this command.
     :cvar combat_only: Whether the command requires the actor to be in combat.
+    :cvar turn_only: Whether the command may only be used in combat during your
+        turn.
     """
     #: :type: pathfinder.characters.Character
     actor = None
     action_cost = {}
     events = ('combat command',)
     combat_only = True
+    turn_only = True
     show_emote = True
     default_emotes = [
         "uses a command that needs its default emotes configured."
@@ -81,6 +84,9 @@ class CombatCommand(mudsling.commands.Command):
         self.actor.combat_willing = True
         if self.combat_only and not self.actor.in_combat:
             raise self._err("You are not engaged in combat.")
+        elif (self.actor.in_combat and self.turn_only
+              and not self.actor.taking_turn):
+            raise self._err("You can only do that on your turn.")
         if not self.check_action_pool():
             msg = '{rThe {c%s{r command requires %s.'
             inf = mudsling.utils.string.inflection
