@@ -273,8 +273,6 @@ class Combatant(pathfinder.objects.PathfinderObject):
                                   self.get_stat('initiative'),
                                   random.randint(0, sys.maxint))
         try:
-            inflect = mudsling.utils.string.inflection
-            inflect.v
             self.battle.tell_combatants('{m', self.ref(), "{n rolls {b", desc,
                                         '{n = {c', result,
                                         "{n for initiative.")
