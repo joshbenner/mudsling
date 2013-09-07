@@ -44,9 +44,9 @@ class SyntaxLiteral(SyntaxToken):
 
     def _expr(self, nextToken):
         if self.text in printables and self.text not in alphanums:
-            return Literal(self.text)
+            return CaselessLiteral(self.text)
         else:
-            return Keyword(self.text)
+            return CaselessKeyword(self.text)
 
 
 class SyntaxChoice(SyntaxToken):
