@@ -25,7 +25,7 @@ from pathfinder.parsers import AbilityNameStaticParser, RaceStaticParser
 from pathfinder.parsers import ClassStaticParser, SkillStaticParser
 from pathfinder.parsers import MatchCharacter, FeatStaticParser
 import pathfinder.errors as pferr
-from pathfinder.commands import LevellingCommand
+import pathfinder.commands
 
 
 class AbilitiesCmd(Command):
@@ -358,7 +358,7 @@ class LevelUpCmd(Command):
             this.add_level(class_, ability)
 
 
-class SkillUpCmd(LevellingCommand):
+class SkillUpCmd(pathfinder.commands.LevellingCommand):
     """
     +skill-up <skill>
 
@@ -383,7 +383,7 @@ class SkillUpCmd(LevellingCommand):
             actor.tell('{y', e.message)
 
 
-class SkillDownCmd(LevellingCommand):
+class SkillDownCmd(pathfinder.commands.LevellingCommand):
     """
     +skill-down <skill>
 
@@ -527,7 +527,7 @@ class AdminSkillsCmd(SkillsCmd):
         self._show_skill_table(self._skills(char), char, actor)
 
 
-class FeatAddCmd(LevellingCommand):
+class FeatAddCmd(pathfinder.commands.LevellingCommand):
     """
     +feat-add [<feat>]
 
@@ -568,7 +568,7 @@ class FeatAddCmd(LevellingCommand):
                     raise errors.CommandInvalid(msg=e.message)
 
 
-class FeatRemoveCmd(LevellingCommand):
+class FeatRemoveCmd(pathfinder.commands.LevellingCommand):
     """
     +feat-remove [<feat>]
 
@@ -626,7 +626,7 @@ class UndoLevelCmd(Command):
             actor.tell('{yYou are not in the process of levelling up!')
 
 
-class FinalizeCmd(LevellingCommand):
+class FinalizeCmd(pathfinder.commands.LevellingCommand):
     """
     +finalize[/confirm]
 
