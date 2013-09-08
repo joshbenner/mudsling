@@ -248,7 +248,7 @@ class Table(object):
 
         if isinstance(row, basestring):
             values = row
-        if isinstance(row, list) or isinstance(row, tuple):
+        elif isinstance(row, list) or isinstance(row, tuple):
             for i, v in enumerate(row):
                 values[i] = v
         elif isinstance(row, dict):
