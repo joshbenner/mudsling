@@ -223,3 +223,28 @@ class CombatCmd(mudsling.commands.Command):
             table,
             ' {yRound %d' % battle.round)
         )
+
+
+class ActionsCmd(pathfinder.commands.CombatCommand):
+    """
+    +actions
+
+    Display the remaining actions during your combat turn.
+    """
+    aliases = ('+actions', '+turn')
+    show_emote = False
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        lines = ['{gAction points remaining:']
+        for action_type in actor.combat_action_pool.iterkeys():
+            remaining = actor.remaining_combat_actions(action_type)
+            total = actor.total_combat_actions(action_type)
+            lines.append('  {m%s{n: {y%d / %d' % (action_type.capitalize(),
+                                                  remaining,
+                                                  total))
+        actor.msg('\n'.join(lines))
