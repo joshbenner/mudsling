@@ -25,7 +25,8 @@ class TasksCmd(Command):
         """
 
         format_next_run = lambda t: ('(paused)' if t is None
-                                     else ui.format_timestamp(t))
+                                     else ui.format_timestamp(t,
+                                                              format='short'))
 
         table = ui.Table(
             [
@@ -34,7 +35,8 @@ class TasksCmd(Command):
                 ui.Column("Interval", data_key='_interval', align='r',
                           cell_formatter=ui.format_dhms),
                 ui.Column("Last Run", data_key="last_run_time", align='l',
-                          cell_formatter=ui.format_timestamp),
+                          cell_formatter=ui.format_timestamp,
+                          formatter_args=('short',)),
                 ui.Column("Next Run", data_key="next_run_time", align='l',
                           cell_formatter=format_next_run),
             ]
