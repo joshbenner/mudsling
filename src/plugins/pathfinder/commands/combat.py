@@ -248,3 +248,21 @@ class ActionsCmd(pathfinder.commands.CombatCommand):
                                                   remaining,
                                                   total))
         actor.msg('\n'.join(lines))
+
+
+class EndTurnCmd(pathfinder.commands.CombatCommand):
+    """
+    endturn
+
+    Ends your combat turn, surrendering any remaining points.
+    """
+    aliases = ('endturn',)
+    show_emote = False
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        actor.end_battle_turn()

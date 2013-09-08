@@ -182,6 +182,17 @@ class Battle(mudsling.storage.Persistent):
         self.tell_combatants('{yBeginning battle round {c%d{y.' % self.round)
         self.set_active_combatant(self.combatants[0])
 
+    def turn_completed(self):
+        """
+        Called when current combatant has completed their turn.
+        """
+        self.tell_combatants('{m', self.active_combatant,
+                             '{y ends their turn.')
+        if self.active_combatant_offset == len(self.combatants) - 1:
+            self.start_next_round()
+        else:
+            self.activate_next_combatant()
+
 
 class Combatant(pathfinder.objects.PathfinderObject):
     """
@@ -298,6 +309,10 @@ class Combatant(pathfinder.objects.PathfinderObject):
         self.combat_actions_spent[action_type] += amount
 
     def begin_battle_turn(self):
+        """
+        This is called by the battle when the combatant should begin taking
+        its turn.
+        """
         if self.has_condition(pathfinder.conditions.FlatFooted):
             conditions = self.get_condition(pathfinder.conditions.FlatFooted,
                                             source=self.battle)
@@ -305,6 +320,14 @@ class Combatant(pathfinder.objects.PathfinderObject):
                 self.remove_condition(conditions[0])
         self.reset_combat_actions()
         self.tell('{gBegin your turn!')
+
+    def end_battle_turn(self):
+        """
+        This is called when the combatant has completed its turn and the battle
+        can progress to the next combatant.
+        """
+        if self.in_combat and self.battle.active_combatant == self:
+            self.battle.turn_completed()
 
     def combat_position_name(self, position):
         if position == self.location:
