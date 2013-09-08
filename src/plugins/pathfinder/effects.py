@@ -138,6 +138,9 @@ class Effect(EventResponder):
                 if event.damage_type == resist_type:
                     return value
         elif event.name == 'combat turn begin':
+            # Just in case DB had effects created on older code.
+            if not hasattr(self, 'elapsed_turns'):
+                self.elapsed_turns = 0
             # Effects that last a number of rounds expire just before the same
             # initiative count that they began on.
             self.elapsed_turns += 1
