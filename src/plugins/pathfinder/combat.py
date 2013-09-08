@@ -102,14 +102,18 @@ class Battle(mudsling.storage.Persistent):
         for combatant in self.combatants:
             combatant.msg(msg, flags=flags)
 
-    def tell_combatants(self, *parts):
+    def tell_combatants(self, *parts, **kw):
         """Sends text to all combatants in this battle.
 
         :param parts: The parts of the message in the same format passed to
             :method:`Combatant.tell`.
         :type parts: list
+
+        :param exclude: Which combatants to exclude from the message.
+        :type exclude: list or tuple or set
         """
-        for combatant in self.combatants:
+        exclude = kw.get('exclude', ())
+        for combatant in (c for c in self.combatants if c not in exclude):
             combatant.tell(*parts)
 
     def add_combatant(self, combatant, update_initiative=True):
@@ -167,7 +171,7 @@ class Battle(mudsling.storage.Persistent):
                     self.active_combatant_offset = i
                     break
 
-    def set_active_combatant(self, combatant):
+    def begin_combatant_turn(self, combatant):
         """Activate a specific combatant.
 
         :param combatant: The combatant to activate.
@@ -179,8 +183,9 @@ class Battle(mudsling.storage.Persistent):
         combatant = combatant.ref()
         for i in (i for i, c in enumerate(self.combatants) if c == combatant):
             self.active_combatant_offset = i
-            self.active_combatant.begin_battle_turn()
-            self.tell_combatants("{yNow taking turn: {m", combatant)
+            self.active_combatant.begin_battle_turn(round=self.round)
+            self.tell_combatants("{yNow taking turn: {m", combatant,
+                                 exclude=[combatant])
             return i
         return None
 
@@ -192,14 +197,14 @@ class Battle(mudsling.storage.Persistent):
         """
         next_combatant = self.next_combatant
         if next_combatant is not None:
-            self.set_active_combatant(next_combatant)
+            self.begin_combatant_turn(next_combatant)
             return self.active_combatant
         return None
 
     def start_next_round(self):
         self.round += 1
         self.tell_combatants('{yBeginning battle round {c%d{y.' % self.round)
-        self.set_active_combatant(self.combatants[0])
+        self.begin_combatant_turn(self.combatants[0])
 
     def turn_completed(self):
         """
@@ -207,6 +212,7 @@ class Battle(mudsling.storage.Persistent):
         """
         self.tell_combatants('{m', self.active_combatant,
                              '{y ends their turn.')
+        self.active_combatant.battle_turn_ended(round=self.round)
         if self.active_combatant_offset == len(self.combatants) - 1:
             if self.active:
                 self.start_next_round()
@@ -296,6 +302,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
             self.remove_conditions(source=battle)
             self.battle = None
             self.tell('{gYou have left the battle.')
+            self.trigger_event('battle left', battle=battle)
 
     def initiate_battle(self, other_combatants=()):
         combatants = [self.ref()]
@@ -347,8 +354,10 @@ class Combatant(pathfinder.objects.PathfinderObject):
 
     def consume_action(self, action_type, amount=1):
         self.combat_actions_spent[action_type] += amount
+        self.trigger_event('combat action spent', action_type=action_type,
+                           amount=amount)
 
-    def begin_battle_turn(self):
+    def begin_battle_turn(self, round=None):
         """
         This is called by the battle when the combatant should begin taking
         its turn.
@@ -358,6 +367,8 @@ class Combatant(pathfinder.objects.PathfinderObject):
                                    source=self.battle)
         self.reset_combat_actions()
         self.tell('{gBegin your turn!')
+        self.trigger_event('combat turn begin', round=round,
+                           battle=self.battle)
 
     def end_battle_turn(self):
         """
@@ -366,6 +377,12 @@ class Combatant(pathfinder.objects.PathfinderObject):
         """
         if self.in_combat and self.battle.active_combatant == self:
             self.battle.turn_completed()
+
+    def battle_turn_ended(self, round=None):
+        """
+        Called by battle when this combatant's turn has ended.
+        """
+        self.trigger_event('combat turn end', round=round, battle=self.battle)
 
     def combat_position_name(self, position):
         if position == self.location:
@@ -415,6 +432,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
             from_ = self.combat_position_desc(prev)
             to_ = self.combat_position_desc(where)
             self.emit([self.ref(), ' moves from ', from_, ' to ', to_, '.'])
+        self.trigger_event('combat move', previous=prev)
 
 
 class Battleground(mudsling.objects.Object):

@@ -22,7 +22,7 @@ class Effect(EventResponder):
     point in time.
     """
     __slots__ = ('modifier', 'source', 'start_time', 'expire_type', 'expire',
-                 'payload')
+                 'payload', 'elapsed_turns')
 
     def __init__(self, modifier, source=None, subject=None):
         """
@@ -30,6 +30,7 @@ class Effect(EventResponder):
         """
         self.modifier = modifier
         self.source = source
+        self.elapsed_turns = 0
         if subject is not None:
             self.apply_to(subject)
         else:
@@ -111,12 +112,12 @@ class Effect(EventResponder):
         """
         Determine if the effect still applies.
         """
-        if self.expire is not None and self.expire_type == 'time':
-            return time.time() < self.start_time + self.expire
-        # Non-expiring and turn-based expirations are always true until an
-        # event removes them. For turn-based expiration, the event is passing
-        # the subject's initiative position sufficient times.
-        return True
+        if self.expire is not None:
+            if self.expire_type == 'time':
+                return time.time() < self.start_time + self.expire
+            elif self.expire_type == 'turns':
+                return self.elapsed_turns >= self.expire
+        return True  # Non-expiring.
 
     def respond_to_event(self, event, responses):
         if event.name == 'stat mods':
@@ -136,3 +137,7 @@ class Effect(EventResponder):
                 value, resist_type = self.payload
                 if event.damage_type == resist_type:
                     return value
+        elif event.name == 'combat turn begin':
+            # Effects that last a number of rounds expire just before the same
+            # initiative count that they began on.
+            self.elapsed_turns += 1

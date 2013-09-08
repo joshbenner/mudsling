@@ -109,6 +109,11 @@ class PathfinderObject(mudsling.objects.Object,
         responders.extend(self.effects)
         return responders
 
+    def trigger_event(self, event, **kw):
+        event = super(PathfinderObject, self).trigger_event(event, **kw)
+        self.expire_effects()
+        return event
+
     def get_stat_modifiers(self, stat, **kw):
         """
         :rtype: collections.OrderedDict
@@ -169,6 +174,19 @@ class PathfinderObject(mudsling.objects.Object,
             if e.source == source:
                 remove.add(e)
         return self.remove_effects(remove)
+
+    def expire_effects(self):
+        """
+        Evaluates all current effects to determine if they should expire.
+        :return: List of expired effects.
+        :rtype: list of pathfinder.effects.Effect
+        """
+        expired = []
+        for effect in self.effects:
+            if not effect.still_applies():
+                expired.append(effect)
+                self.remove_effect(effect)
+        return expired
 
     def add_condition(self, condition, source=None):
         """Add the specified condition to the object.
