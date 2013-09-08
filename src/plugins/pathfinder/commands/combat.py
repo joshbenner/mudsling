@@ -21,6 +21,7 @@ class FightCmd(pathfinder.commands.PhysicalCombatCommand):
         'character': pathfinder.parsers.match_combatant
     }
     combat_only = False
+    turn_only = False  # Lets us show correct error when used in combat.
     show_emote = False
     action_cost = {}  # Doesn't apply to this command.
 
@@ -59,6 +60,7 @@ class StandDownCmd(pathfinder.commands.CombatCommand):
     aliases = ('standdown',)
     syntax = '[:<emote>]'
     action_cost = {'standard': 1}
+    aggressive = False
     default_emotes = [
         "remains passive, clearly willing to end the fight.",
     ]
@@ -76,6 +78,7 @@ class WithdrawCmd(pathfinder.commands.CombatCommand):
     aliases = ('withdraw',)
     syntax = '[:<emote>]'
     action_cost = {'standard': 1, 'move': 1}
+    aggressive = False
     default_emotes = [
         'attempts to withdraw from the fight.',
     ]
@@ -96,6 +99,7 @@ class ApproachCmd(pathfinder.commands.MovementCombatCommand):
     }
     action_cost = {'move': 1}
     combat_only = False
+    aggressive = False
     default_emotes = [
         'approaches $area.',
     ]
@@ -233,6 +237,7 @@ class ActionsCmd(pathfinder.commands.CombatCommand):
     """
     aliases = ('+actions', '+turn')
     show_emote = False
+    aggressive = False
 
     def run(self, this, actor, args):
         """
@@ -258,6 +263,7 @@ class EndTurnCmd(pathfinder.commands.CombatCommand):
     """
     aliases = ('endturn',)
     show_emote = False
+    aggressive = False
 
     def run(self, this, actor, args):
         """

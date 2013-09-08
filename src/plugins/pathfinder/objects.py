@@ -27,6 +27,10 @@ def is_pfobj(obj):
 class PathfinderObject(mudsling.objects.Object,
                        pathfinder.stats.HasStats,
                        pathfinder.features.HasFeatures):
+    """
+    :ivar conditions: The condition instances applied to this object.
+    :type conditions: list of pathfinder.conditions.Condition
+    """
     _transient_vars = ['_stat_cache']
 
     cost = 0
@@ -55,6 +59,7 @@ class PathfinderObject(mudsling.objects.Object,
         # noinspection PyArgumentList
         super(PathfinderObject, self).__init__(**kw)
         self.effects = []
+        #: :type: list of pathfinder.conditions.Condition
         self.conditions = []
 
     def _check_attr(self, attr, val):
@@ -195,13 +200,29 @@ class PathfinderObject(mudsling.objects.Object,
             self.conditions.remove(condition)
             self.trigger_event('condition removed', condition=condition)
 
+    def remove_conditions(self, condition=None, source=None):
+        """Remove all conditions matching the specified criteria.
+
+        :param condition: The condition type to remove. If None, remove all
+            from the specified source.
+        :param source: The source of the conditions to remove. If None, remove
+            all conditions of the specified type.
+
+        :returns: List of condition instances removed from object.
+        :rtype: list of pathfinder.conditions.Condition
+        """
+        conditions = self.get_conditions(condition, source)
+        for condition in conditions:
+            self.remove_condition(condition)
+        return conditions
+
     def _add_condition(self, condition):
         self._check_attr('conditions', [])
         if condition not in self.conditions:
             self.conditions.append(condition)
             self.trigger_event('condition added', condition=condition)
 
-    def get_condition(self, condition, source=None):
+    def get_conditions(self, condition=None, source=None):
         """Retrieve any instances of the condition specified.
 
         :param condition: The condition name or class to look for.
@@ -216,7 +237,7 @@ class PathfinderObject(mudsling.objects.Object,
         if isinstance(condition, basestring):
             condition = pathfinder.data.get('condition', condition)
         return [c for c in self.conditions
-                if c.__class__ == condition
+                if (condition is None or c.__class__ == condition)
                 and (source is None or source == c.source)]
 
     def has_condition(self, condition):
@@ -228,7 +249,7 @@ class PathfinderObject(mudsling.objects.Object,
         :return: Whether this object has the specified condition or not.
         :rtype: bool
         """
-        return len(self.get_condition(condition)) > 0
+        return len(self.get_conditions(condition)) > 0
 
     def has_any_condition(self, conditions):
         for condition in conditions:

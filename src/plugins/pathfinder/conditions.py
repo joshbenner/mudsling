@@ -39,6 +39,8 @@ class Bleeding(Condition):
 
 class Blind(Condition):
     name = 'Blind'
+    description = "Character cannot see, incurring penalties to AC and skill" \
+                  " checks using STR or DEX, and loses their DEX bonus to AC."
     modifiers = mods(
         '-2 to armor class',
         '-4 to all strength-based skill checks',
@@ -117,6 +119,10 @@ class Fatigued(Condition):
 
 class FlatFooted(Condition):
     name = 'Flat-Footed'
+    description = "The character is unable to react normally due to surprise"\
+                  " or warming up to the required activity level, losing"\
+                  " their DEX bonus to AC and CMD, and unable to make attacks"\
+                  " of opportunity."
 
     def respond_to_event(self, event, responses):
         if event.name == 'allow defensive dex bonus':

@@ -53,6 +53,9 @@ class Room(mudslingcore.topography.Room, pathfinder.combat.Battleground):
                     if c not in combatants and c != obj]
         if obj.isa(pathfinder.combat.Combatant):
             desc = lambda c: obj.combat_position_desc(c.combat_position)
+            lines.append('{gYou{n are {c%s{n.' % desc(obj))
+            if combatants or contents:
+                lines.append('')
         else:
             desc = lambda c: ('in the open' if c.combat_position == self
                               else "near %s" % obj.name_for(c.combat_position))

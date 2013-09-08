@@ -43,6 +43,8 @@ class CombatCommand(mudsling.commands.Command):
     :cvar combat_only: Whether the command requires the actor to be in combat.
     :cvar turn_only: Whether the command may only be used in combat during your
         turn.
+    :cvar aggressive: Aggressive commands flag the combatant as willing to
+        continue fighting.
     """
     #: :type: pathfinder.characters.Character
     actor = None
@@ -50,6 +52,7 @@ class CombatCommand(mudsling.commands.Command):
     events = ('combat command',)
     combat_only = True
     turn_only = True
+    aggressive = True
     show_emote = True
     default_emotes = [
         "uses a command that needs its default emotes configured."
@@ -80,8 +83,8 @@ class CombatCommand(mudsling.commands.Command):
         return True
 
     def before_run(self):
-        # Set this by default. Passive commands can un-do this in run().
-        self.actor.combat_willing = True
+        if self.aggressive:
+            self.actor.combat_willing = True
         if self.combat_only and not self.actor.in_combat:
             raise self._err("You are not engaged in combat.")
         elif (self.actor.in_combat and self.turn_only

@@ -25,7 +25,8 @@ from pathfinder.parsers import AbilityNameStaticParser, RaceStaticParser
 from pathfinder.parsers import ClassStaticParser, SkillStaticParser
 from pathfinder.parsers import MatchCharacter, FeatStaticParser
 import pathfinder.errors as pferr
-import pathfinder.commands
+
+view_charsheets = locks.Lock('perm(view character sheets)')
 
 
 class AbilitiesCmd(Command):
@@ -520,7 +521,7 @@ class AdminSkillsCmd(SkillsCmd):
         'character': MatchCharacter()
     }
     # Inherits all switch.
-    lock = locks.Lock('perm(view skills of others)')
+    lock = view_charsheets
 
     def run(self, this, actor, args):
         char = args['character']
@@ -823,7 +824,7 @@ class AdminCharsheetCmd(CharsheetCmd):
     arg_parsers = {
         'character': MatchCharacter()
     }
-    lock = locks.Lock('perm(view character sheets)')
+    lock = view_charsheets
 
     def run(self, this, actor, args):
         """
@@ -913,7 +914,7 @@ class AdminFeatsCmd(FeatsCmd):
     arg_parsers = {
         'character': MatchCharacter()
     }
-    lock = locks.Lock('perm(view feats of others)')
+    lock = view_charsheets
     switches = {}
 
     def run(self, this, actor, args):
@@ -975,3 +976,59 @@ class FeatCmd(Command):
         if len(mods) > 0:
             table.add_row(['Benefits', '\n'.join(map(str, mods))])
         actor.tell(table)
+
+
+class ConditionsCmd(Command):
+    """
+    +conditions
+
+    Display character's current conditions.
+    """
+    aliases = ('+conditions', '+cond')
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        self._show_conditions(actor, actor)
+
+    def _show_conditions(self, char, actor):
+        ui = pathfinder.ui
+        table = ui.Table([
+            ui.Column('Condition', width=15, align='l'),
+            ui.Column('Source', width=15, align='l'),
+            ui.Column('Description', width='*', align='l', wrap=True)
+        ])
+        if char.conditions:
+            for condition in char.conditions:
+                desc = [condition.description] if condition.description else []
+                desc.extend(map(str, condition.modifiers))
+                table.add_row([
+                    condition.name,
+                    str(condition.source),
+                    '\n'.join(desc)
+                ])
+        else:
+            table.add_row("No current conditions.")
+        title = "Conditions for %s" % actor.name_for(char)
+        actor.msg(ui.report(title, table))
+
+
+class AdminConditionsCmd(ConditionsCmd):
+    """
+    @conditions <character>
+
+    Display condition information for a specified character.
+    """
+    aliases = ('@conditions', '@cond')
+    syntax = '<character>'
+    arg_parsers = {
+        'character': MatchCharacter()
+    }
+    lock = view_charsheets
+
+    def run(self, this, actor, args):
+        self._show_conditions(args['character'], actor)

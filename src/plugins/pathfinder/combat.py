@@ -8,6 +8,8 @@ import mudsling.match
 import mudsling.errors
 import mudsling.utils.string
 
+import mudslingcore.topography
+
 import pathfinder.objects
 import pathfinder.conditions
 import pathfinder.errors
@@ -60,6 +62,9 @@ class Battle(mudsling.storage.Persistent):
             self.add_combatant(combatant, update_initiative=False)
         self.update_initiative(force=True)
         self.start_next_round()
+
+    def __str__(self):
+        return 'Combat'
 
     @property
     def active(self):
@@ -122,6 +127,20 @@ class Battle(mudsling.storage.Persistent):
         self.tell_combatants('{m', combatant, " {gjoins the battle.")
         if update_initiative:
             self.update_initiative()
+
+    def remove_combatant(self, combatant, end_battle=False):
+        combatant = combatant.ref()
+        if combatant in self.combatants:
+            if self.active_combatant == combatant and not end_battle:
+                self.turn_completed()
+            active = self.active_combatant
+            self.combatants.remove(combatant)
+            if len(self.combatants):
+                self.active_combatant_offset = self.combatants.index(active)
+            combatant.battle_left(self)
+            if not end_battle:
+                self.tell_combatants("{m", combatant,
+                                     " {yhas left the battle.")
 
     def update_initiative(self, force=False):
         """Cause any new combatants to roll initiative, and sort the combatants
@@ -189,9 +208,20 @@ class Battle(mudsling.storage.Persistent):
         self.tell_combatants('{m', self.active_combatant,
                              '{y ends their turn.')
         if self.active_combatant_offset == len(self.combatants) - 1:
-            self.start_next_round()
+            if self.active:
+                self.start_next_round()
+            else:
+                self.end_battle()
         else:
             self.activate_next_combatant()
+
+    def end_battle(self):
+        """
+        Called when the battle is no longer active at the end of a round.
+        """
+        self.tell_combatants("The {rBATTLE{n has {gENDED{n.")
+        for combatant in list(self.combatants):
+            self.remove_combatant(combatant, end_battle=True)
 
 
 class Combatant(pathfinder.objects.PathfinderObject):
@@ -239,7 +269,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
         :return: Whether or not the combatant is participating in a battle.
         :rtype: bool
         """
-        return self.battle.active if self.battle is not None else False
+        return isinstance(self.battle, Battle)
 
     @property
     def taking_turn(self):
@@ -256,6 +286,16 @@ class Combatant(pathfinder.objects.PathfinderObject):
         self.combat_action_pool = defaultdict(int, {'move': 1, 'standard': 1})
         self.reset_combat_actions()
         self.add_condition(pathfinder.conditions.FlatFooted, source=battle)
+
+    def leave_battle(self):
+        if self.battle is not None:
+            self.battle.remove_combatant(self.ref())
+
+    def battle_left(self, battle):
+        if self.battle == battle:
+            self.remove_conditions(source=battle)
+            self.battle = None
+            self.tell('{gYou have left the battle.')
 
     def initiate_battle(self, other_combatants=()):
         combatants = [self.ref()]
@@ -314,10 +354,8 @@ class Combatant(pathfinder.objects.PathfinderObject):
         its turn.
         """
         if self.has_condition(pathfinder.conditions.FlatFooted):
-            conditions = self.get_condition(pathfinder.conditions.FlatFooted,
-                                            source=self.battle)
-            if conditions:
-                self.remove_condition(conditions[0])
+            self.remove_conditions(pathfinder.conditions.FlatFooted,
+                                   source=self.battle)
         self.reset_combat_actions()
         self.tell('{gBegin your turn!')
 
@@ -331,11 +369,15 @@ class Combatant(pathfinder.objects.PathfinderObject):
 
     def combat_position_name(self, position):
         if position == self.location:
-            return 'the open'
-        if (isinstance(position, mudsling.storage.ObjRef)
+            name = 'the open'
+        elif (isinstance(position, mudsling.storage.ObjRef)
                 or isinstance(position, mudsling.objects.Object)):
-            return self.name_for(position)
-        return str(position)
+            name = self.name_for(position)
+            if position.isa(mudslingcore.topography.Exit):
+                name = "exit to %s" % name
+        else:
+            name = str(position)
+        return name
 
     def combat_position_desc(self, position):
         if position == self.location:
