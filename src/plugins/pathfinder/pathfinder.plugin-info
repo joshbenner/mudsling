@@ -3,4 +3,4 @@ description = Core functionalities of a Pathfinder implementation.
 author = Josh Benner
 version = 0.1
 module = pathfinder_plugin.py
-dependencies = mudslingcore, wearables, dice
+dependencies = mudslingcore, wearables, dice, icmoney

@@ -12,6 +12,8 @@ import mudsling.config
 import mudslingcore.ui
 ui = mudslingcore.ui.ClassicUI()
 
+import icmoney
+
 from pathfinder import data
 
 config = mudsling.config.Config()
@@ -27,6 +29,13 @@ feature_re = re.compile('^(?P<name>.*?)(?: +\((?P<subtype>.*)\))?$')
 
 # Styles for use with ui.conditional_style.
 bonus_style = (('<', 0, '{r'), ('>', 0, '{g'), ('=', 0, '{y'))
+
+
+# By declaring currencies, they are automatically registered.
+icmoney.Currency('pp', 'Platinum Piece', 10.0)
+icmoney.Currency('gp', 'Gold Piece', 1.0)
+icmoney.Currency('sp', 'Silver Piece', 0.1)
+icmoney.Currency('cp', 'Copper Piece', .001)
 
 
 class Damage(object):

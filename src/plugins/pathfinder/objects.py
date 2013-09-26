@@ -9,6 +9,8 @@ import mudsling.errors
 
 import mudslingcore.objects as core_objects
 
+from icmoney import Money
+
 import pathfinder
 import pathfinder.sizes
 import pathfinder.stats
@@ -283,3 +285,4 @@ class Thing(core_objects.Thing, PathfinderObject):
     """
     Basic game world object that can interact with Pathfinder features.
     """
+    base_price = Money(0, 'gp')

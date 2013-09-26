@@ -1,0 +1,5 @@
+name = Money
+description = Provides basic money and currency features.
+author = Josh Benner
+version = 0.1
+module = icmoney_plugin.py
