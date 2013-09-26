@@ -150,3 +150,23 @@ def split_quoted_words(text):
     lex.whitespace_split = True
     lex.commenters = ''
     return list(lex)
+
+
+def format_number(value, precision=None):
+    """
+    Format a number for printing with localized commas and optional precision.
+
+    This is slightly less efficient than doing the .format() call yourself, so
+    do not use if performance is critical.
+
+    :param value: The number to format.
+    :param precision: How many digits after the decimal to include.
+    :return:
+    """
+    if precision is None:
+        if isinstance(value, float):
+            precision = len(repr(value).split('.')[1])
+        else:
+            precision = 0
+    fmt = 'd' if precision == 0 else ('.%df' % precision)
+    return format(value, ',%s' % fmt)
