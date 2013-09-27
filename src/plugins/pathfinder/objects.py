@@ -35,7 +35,7 @@ class PathfinderObject(mudsling.objects.Object,
     """
     _transient_vars = ['_stat_cache']
 
-    cost = 0
+    cost = Money(0, 'gp')
     weight = mudsling.utils.units.Quantity(0, 'gram')
     hardness = 0
     dimensions = mudsling.utils.measurements.Dimensions()
@@ -285,4 +285,3 @@ class Thing(core_objects.Thing, PathfinderObject):
     """
     Basic game world object that can interact with Pathfinder features.
     """
-    base_price = Money(0, 'gp')
