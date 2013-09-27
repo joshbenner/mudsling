@@ -28,12 +28,14 @@ class Dimensions(namedtuple('Dimensions', 'l w h units')):
         return Quantity(getattr(self, dim), units or self.units)
 
     def to(self, unit):
-        dims = (self.l, self.w, self.h)
-        return tuple(self._as_quantity(d).ito(unit) for d in dims)
+        dims = ('l', 'w', 'h')
+        return Dimensions(*[self._as_quantity(d).ito(unit) for d in dims],
+                          units=unit)
 
     @property
     def volume(self):
-        return Quantity(self.l * self.w * self.h, self.units ** 3)
+        unit = units[self.units] if isinstance(self.units, str) else self.units
+        return Quantity(self.l * self.w * self.h, unit ** 3)
 
     @property
     def dimensionality(self):

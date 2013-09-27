@@ -18,6 +18,7 @@ import pathfinder.features
 import pathfinder.modifiers
 import pathfinder.effects
 import pathfinder.conditions
+import pathfinder.materials
 
 
 def is_pfobj(obj):
@@ -285,3 +286,60 @@ class Thing(core_objects.Thing, PathfinderObject):
     """
     Basic game world object that can interact with Pathfinder features.
     """
+
+
+class MaterialThing(Thing):
+    """
+    A Thing that is composed of materials, which determine its hitpoints and
+    hardness.
+    """
+    #: The composition of the object. Keys are materials, values are the
+    #: thickness in inches.
+    materials = {}
+
+    @property
+    def permanent_hit_points(self):
+        return int(max(1, sum(round(m.hp_per_inch * t, 0)
+                              for m, t in self.materials.iteritems())))
+
+    @property
+    def hardness(self):
+        return max(m.hardness for m, t in self.materials.iteritems() if t > 0)
+
+
+class MultipartThing(Thing):
+    """
+    A Thing which has several parts, each with its own composition.
+    """
+    #: Keys are part names, values are dicts of material and thickness.
+    parts = {}
+
+    @property
+    def permanent_hit_points(self):
+        hp = 0
+        for part in self.parts.itervalues():
+            hp += sum(round(m.hp_per_inch * t, 0) for m, t in part.iteritems())
+        return max(1, hp)
+
+    @property
+    def hardness(self):
+        hardness = []
+        for part in self.parts.itervalues():
+            hardness.extend(m.hardness for m, t in part.iteritems() if t > 0)
+        return max(hardness)
+
+
+class Part(mudsling.storage.PersistentSlots):
+    __slots__ = ('name', 'material', 'dimensions')
+
+    def __init__(self, name, material, dimensions):
+        self.name = name
+        if isinstance(material, pathfinder.materials.Material):
+            self.material = material
+        else:
+            self.material = pathfinder.materials.Material(str(material))
+        self.dimensions = dimensions
+
+    @property
+    def hp(self):
+        return self.material.hp_per_inch * self.thickness

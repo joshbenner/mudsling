@@ -1,21 +1,14 @@
-import dice
+import mudsling.utils.units as units
+from mudsling.utils.measurements import Dimensions as Dim
+
+from dice import Roll
 
 import pathfinder.objects
+from pathfinder.objects import Part
+import pathfinder.materials as materials
 
 
-# class Attack(object):
-#     __slots__ = ('damage_roll', 'dmg_type', 'nonlethal', 'threat', 'critical')
-#
-#     def __init__(self, damage_roll, dmg_type, nonlethal=False, threat=20,
-#                  critical=2):
-#         self.damage_roll = dice.Roll(damage_roll)
-#         self.dmg_type = dmg_type
-#         self.nonlethal = nonlethal
-#         self.threat = threat
-#         self.critical = critical
-
-
-class Weapon(pathfinder.objects.Thing):
+class Weapon(pathfinder.objects.MultipartThing):
     """
     A pathfinder weapon.
     """
@@ -23,37 +16,58 @@ class Weapon(pathfinder.objects.Thing):
     family = ''    # Sword, Knife, Bow, Handgun, Longarm, Shotgun, etc
     type = ''      # Shortsword, Light crossbow, Beretta 92FS, etc
 
-    damage = ''
-    damage_type = ''
+    weight = 1 * units.lb
+
+    damage_roll = Roll('1d2')
+    damage_type = 'bludgeoning'
     nonlethal = False
     threat = 20
     critical = 2
+    range_increment = None
 
-    #: Which of the weapon's attacks is its primary mode of attack.
-    primary_attack = ''
+    #: List of attacks this weapon is designed to work with (non-improvised).
+    #: :type: list of str
+    attacks = []
 
-    #: Dictionary of compatible attack types and their attack modifiers and
-    #: damage rolls. Many weapons have only one attack.
-    attacks = {}
+    def improvised_damage(self, attack_type):
+        """
+        Calculate the weapon damage roll this weapon does when used in an
+        improvised fashion (ie, throwing a melee weapon, or striking with a
+        ranged weapon).
+
+        :param attack_type: The type of attack to calculate.
+        :type attack_type: str
+
+        :return: The improvised damage roll.
+        :rtype: dice.Roll
+        """
+        if self.weight <= (3 * units.lbs):
+            roll = '1d4'
+        elif self.weight <= (6 * units.lbs):
+            roll = '1d6'
+        else:
+            roll = '1d8'
+        return Roll(roll)
 
 
 class MeleeWeapon(Weapon):
     category = 'Melee'
-    primary_attack = 'strike'
+    attacks = ['strike']
 
 
 class RangedWeapon(Weapon):
     category = 'Projectile'
-    primary_attack = 'shoot'
+    attacks = ['shoot']
+    range_increment = 10 * units.feet
 
 
 class Shortsword(MeleeWeapon):
     family = 'Sword'
     type = 'Shortsword'
-    damage = '1d6'
+    damage_roll = Roll('1d6')
     damage_type = 'piercing'
     threat = 19
-
-    # attacks = {
-    #     'strike': Attack('1d6', 'piercing', threat=19),
-    # }
+    parts = [
+        Part('Blade', 'steel', Dim(24, 3.5, 0.1, 'inches')),
+        Part('Hilt', 'wood', Dim(8, 1, 1, 'inches'))
+    ]
