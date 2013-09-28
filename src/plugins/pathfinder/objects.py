@@ -5,6 +5,7 @@ import mudsling.objects
 import mudsling.storage
 import mudsling.utils.units as units
 import mudsling.utils.measurements
+import mudsling.utils.object as obj_utils
 import mudsling.match
 import mudsling.errors
 
@@ -334,10 +335,8 @@ class MultipartThing(Thing):
         based on the hit points of its parts.
         :rtype: int
         """
-        hp = 0
-        for part in self.parts.itervalues():
-            hp += sum(m.hp_per_inch * t for m, t in part.iteritems())
-        return max(1, round(hp, 0))
+        hp = sum(p.max_hp for p in self.parts.itervalues())
+        return max(1, hp)
 
     @property
     def hardness(self):
@@ -345,12 +344,9 @@ class MultipartThing(Thing):
         The object has the hardness of its hardest part.
         :rtype: int
         """
-        hardness = []
-        for part in self.parts.itervalues():
-            hardness.extend(m.hardness for m, t in part.iteritems() if t > 0)
-        return max(hardness)
+        return max(p.hardness for p in self.parts.itervalues())
 
-    @property
+    @obj_utils.memoize_property
     def weight(self):
         """
         Dynamically calculate the weight of the multipart thing based on the
@@ -443,7 +439,7 @@ class Part(mudsling.storage.PersistentSlots):
             self.material = pathfinder.materials.Material(str(material))
         self.dimensions = dimensions
 
-    @property
+    @obj_utils.memoize_property
     def max_hp(self):
         """
         A part's maximum hit points are based on the material from which it is
@@ -456,7 +452,7 @@ class Part(mudsling.storage.PersistentSlots):
         _, thickness = self.dimensions.smallest_dimension()
         return self.material.hitpoints(thickness)
 
-    @property
+    @obj_utils.memoize_property
     def weight(self):
         """
         A part's weight is based on the density of the material from which it
@@ -466,3 +462,7 @@ class Part(mudsling.storage.PersistentSlots):
         :rtype: mudsling.utils.units._Quantity
         """
         return self.material.weight(self.dimensions)
+
+    @property
+    def hardness(self):
+        return self.material.hardness

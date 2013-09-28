@@ -1,4 +1,5 @@
 import inspect
+from functools import wraps
 
 
 # noinspection PyUnresolvedReferences,PyMethodOverriding
@@ -29,6 +30,48 @@ class AttributeAlias(object):
         # Only works for instances!
         obj = self.obj or obj
         delattr(obj, self.original)
+
+
+class memoize(object):
+    def __init__(self, cache=None, num_args=None):
+        """
+        Memoize the output of a function, optionally specifying an external
+        cache and a limited number of arguments to consider when caching.
+
+        :param cache: A dict-like object for storing the cache.
+        :param num_args: The number of arguments to consider when caching.
+
+        .. note:: ``num_args`` is not compatible with keyword arguments.
+        """
+        self.cache = cache if cache is not None else {}
+        self.num_args = num_args
+
+    def __call__(self, f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            if self.num_args is not None:
+                cache_key = str(args[:self.num_args])
+            else:
+                cache_key = repr(args) + repr(kwargs)
+            if cache_key in self.cache:
+                return self.cache[cache_key]
+            result = f(*args, **kwargs)
+            self.cache[cache_key] = result
+            return result
+        return wrapper
+
+
+class memoize_property(property):
+    def __init__(self, fget=None, fset=None, fdel=None, doc=None, cache=None):
+        super(memoize_property, self).__init__(fget, fset, fdel, doc)
+        self.cache = cache if cache is not None else {}
+
+    def __get__(self, obj, type=None):
+        if obj in self.cache:
+            return self.cache[obj]
+        result = super(memoize_property, self).__get__(obj, type)
+        self.cache[obj] = result
+        return result
 
 
 def filter_by_class(objects, cls):
