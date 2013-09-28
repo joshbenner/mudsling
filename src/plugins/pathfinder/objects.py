@@ -1,8 +1,10 @@
+import copy
 from collections import OrderedDict
 import inspect
 
 import mudsling.objects
 import mudsling.storage
+import mudsling.utils.units as units
 import mudsling.utils.measurements
 import mudsling.match
 import mudsling.errors
@@ -314,12 +316,16 @@ class MultipartThing(Thing):
     #: Keys are part names, values are dicts of material and thickness.
     parts = {}
 
+    def on_object_created(self):
+        super(MultipartThing, self).on_object_created()
+        self.parts = dict((n, copy.copy(p)) for n, p in self.parts.iteritems())
+
     @property
     def permanent_hit_points(self):
         hp = 0
         for part in self.parts.itervalues():
-            hp += sum(round(m.hp_per_inch * t, 0) for m, t in part.iteritems())
-        return max(1, hp)
+            hp += sum(m.hp_per_inch * t for m, t in part.iteritems())
+        return max(1, round(hp, 0))
 
     @property
     def hardness(self):
@@ -328,18 +334,61 @@ class MultipartThing(Thing):
             hardness.extend(m.hardness for m, t in part.iteritems() if t > 0)
         return max(hardness)
 
+    @property
+    def weight(self):
+        weight = 0 * units.lb
+        for part in self.parts.itervalues():
+            weight += part.weight
+        return weight
+
+    def part_ratios(self):
+        """
+        Return how much of the object each part comprises, based on surface
+        area.
+
+        :return: A dict of part ratios.
+        :rtype: dict
+        """
+        areas = dict((name, part.dimensions.surface_area)
+                     for name, part in self.parts.iteritems())
+        total = sum(areas.itervalues())
+        return dict((name, area / total) for name, area in areas)
+
 
 class Part(mudsling.storage.PersistentSlots):
-    __slots__ = ('name', 'material', 'dimensions')
+    __slots__ = ('name', 'material', 'dimensions', 'damage')
 
     def __init__(self, name, material, dimensions):
+        """
+        :type name: str
+        :type material: pathfinder.materials.Material or str
+        :type dimensions: mudsling.utils.measurements.Dimensions
+        """
         self.name = name
         if isinstance(material, pathfinder.materials.Material):
             self.material = material
         else:
             self.material = pathfinder.materials.Material(str(material))
         self.dimensions = dimensions
+        self.damage = 0
 
     @property
-    def hp(self):
-        return self.material.hp_per_inch * self.thickness
+    def max_hp(self):
+        _, val = self.dimensions.smallest_dimension()
+        return self.material.hp_per_inch * val.to('inch').magnitude
+
+    @property
+    def remaining_hp(self):
+        return max(0, self.max_hp - self.damage)
+
+    @property
+    def hp_ratio(self):
+        return self.remaining_hp / self.max_hp
+
+    @property
+    def hp_percent(self):
+        return self.hp_ratio * 100
+
+    @property
+    def weight(self):
+        return self.material.weight(self.dimensions)

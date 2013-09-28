@@ -5,7 +5,6 @@ from dice import Roll
 
 import pathfinder.objects
 from pathfinder.objects import Part
-import pathfinder.materials as materials
 
 
 class Weapon(pathfinder.objects.MultipartThing):
@@ -15,8 +14,6 @@ class Weapon(pathfinder.objects.MultipartThing):
     category = ''  # Melee, Projectile, etc
     family = ''    # Sword, Knife, Bow, Handgun, Longarm, Shotgun, etc
     type = ''      # Shortsword, Light crossbow, Beretta 92FS, etc
-
-    weight = 1 * units.lb
 
     damage_roll = Roll('1d2')
     damage_type = 'bludgeoning'
@@ -67,7 +64,8 @@ class Shortsword(MeleeWeapon):
     damage_roll = Roll('1d6')
     damage_type = 'piercing'
     threat = 19
-    parts = [
-        Part('Blade', 'steel', Dim(24, 3.5, 0.1, 'inches')),
-        Part('Hilt', 'wood', Dim(8, 1, 1, 'inches'))
-    ]
+    dimensions = Dim(32, 3.5, 1, 'inches')
+    parts = {
+        'blade': Part('Blade', 'steel', Dim(24, 3.5, 0.1, 'inches')),
+        'hilt': Part('Hilt', 'wood', Dim(8, 1, 1, 'inches'))
+    }

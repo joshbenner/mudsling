@@ -97,6 +97,8 @@ class UnitRegistry(pint.UnitRegistry):
          'nanometer'),
         ('week', 'day', 'hour', 'minute', 'second', 'millisecond',
          'microsecond', 'nanosecond'),
+        ('ton', 'pound', 'ounce'),
+        ('kilogram', 'gram')
     )
 
     # Override init so we can use our own Quantity which is smaller in memory

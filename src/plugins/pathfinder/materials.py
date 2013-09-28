@@ -13,18 +13,37 @@ class Material(object):
             material = materials[name]
         else:
             material = super(Material, cls).__new__(cls)
-            material.name = name
             materials[name] = material
-        if hardness is not None:
-            material.hardness = hardness
-        if hp_per_inch is not None:
-            material.hp_per_inch = hp_per_inch
-        if density is not None:
-            material.density = density
         return material
 
-#    def weight(self, dimensions):
+    def __init__(self, name, hardness=None, hp_per_inch=None, density=None):
+        if hardness is not None:
+            self.hardness = hardness
+        if hp_per_inch is not None:
+            self.hp_per_inch = hp_per_inch
+        if density is not None:
+            self.density = density
+        if not hasattr(self, 'name'):
+            self.name = name
 
+    def __str__(self):
+        return self.name
+
+    def weight(self, dimensions, unit='lbs', precision=3):
+        """
+        Given the dimensions of an object made from this material, how heavy
+        would it be?
+
+        :param dimensions: Dimensions of object.
+        :type dimensions: mudsling.utils.measurements.Dimensions
+        :param unit: The weight units to output.
+        :type unit: str or mudsling.utils.units._Quantity
+
+        :return: The weight of the object.
+        :rtype: mudsling.utils.units._Quantity
+        """
+        weight = dimensions.volume.to('m^3') * self.density.to('kg/m^3')
+        return weight.to(unit)
 
 
 mudsling.pickler.register_external_type(

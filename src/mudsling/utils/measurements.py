@@ -38,6 +38,15 @@ class Dimensions(namedtuple('Dimensions', 'l w h units')):
         return Quantity(self.l * self.w * self.h, unit ** 3)
 
     @property
+    def surface_area(self):
+        """
+        Simplistic surface area based only on rectangular prism representation
+        of the dimensions.
+        """
+        l, w, h = self.all
+        return 2 * l * w + 2 * w * h + 2 * l * h
+
+    @property
     def dimensionality(self):
         return units.parse_units(self.units)
 
@@ -61,3 +70,13 @@ class Dimensions(namedtuple('Dimensions', 'l w h units')):
                 if dim[0] not in kw:
                     kw[dim[0]] = getattr(self, dim).ito(new_units).magnitude
         return super(Dimensions, self)._replace(**kw)
+
+    def smallest_dimension(self):
+        smallest_dim = 'l'
+        smallest_val = self.l
+        for dim in ('w', 'h'):
+            val = getattr(self, dim)
+            if val < smallest_val:
+                smallest_dim = dim
+                smallest_val = val
+        return smallest_dim, smallest_val
