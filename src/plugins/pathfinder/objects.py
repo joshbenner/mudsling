@@ -1,4 +1,3 @@
-import copy
 from collections import OrderedDict
 import inspect
 
@@ -21,6 +20,13 @@ import pathfinder.modifiers
 import pathfinder.effects
 import pathfinder.conditions
 import pathfinder.materials
+
+
+class PartNotFoundError(mudsling.errors.Error):
+    """
+    Thrown when a specified part isn't found on a MultipartThing.
+    """
+    pass
 
 
 def is_pfobj(obj):
@@ -315,13 +321,19 @@ class MultipartThing(Thing):
     """
     #: Keys are part names, values are dicts of material and thickness.
     parts = {}
+    _part_damage = {}
 
     def on_object_created(self):
         super(MultipartThing, self).on_object_created()
-        self.parts = dict((n, copy.copy(p)) for n, p in self.parts.iteritems())
+        self._part_damage = {}
 
     @property
     def permanent_hit_points(self):
+        """
+        Dynamically calculate the permanent hit points of a multipart thing
+        based on the hit points of its parts.
+        :rtype: int
+        """
         hp = 0
         for part in self.parts.itervalues():
             hp += sum(m.hp_per_inch * t for m, t in part.iteritems())
@@ -329,6 +341,10 @@ class MultipartThing(Thing):
 
     @property
     def hardness(self):
+        """
+        The object has the hardness of its hardest part.
+        :rtype: int
+        """
         hardness = []
         for part in self.parts.itervalues():
             hardness.extend(m.hardness for m, t in part.iteritems() if t > 0)
@@ -336,12 +352,68 @@ class MultipartThing(Thing):
 
     @property
     def weight(self):
+        """
+        Dynamically calculate the weight of the multipart thing based on the
+        cumulative weight of all its parts.
+        :rtype: mudsling.utils.units._Quantity
+        """
         weight = 0 * units.lb
+        # pint Quantities don't seem to like sum().
         for part in self.parts.itervalues():
             weight += part.weight
         return weight
 
-    def part_ratios(self):
+    def get_part(self, id):
+        """
+        Returns a part object based on its ID.
+
+        :param id: The identifying key used for the part in this object's list
+            of parts.
+
+        :return: The part.
+        :rtype: Part
+
+        :raises: PartNotFoundError
+        """
+        if id in self.parts:
+            return self.parts[id]
+        raise PartNotFoundError("No such part: %s" % id)
+
+    def part_max_hp(self, id):
+        """
+        Obtain the maximum hit points of a part based on its ID.
+
+        :param id: The ID of the part on this object.
+
+        :return: The maximum possible HP of the part.
+        :rtype: int
+        """
+        return self.get_part(id).max_hp
+
+    def part_damage(self, id):
+        """
+        Obtain the amount of damage the identified part has suffered.
+
+        :param id: The ID of the part on this object.
+
+        :return: The points of damage suffered.
+        :rtype: int
+        """
+        damage = self._part_damage.get(id, 0)
+        return max(self.part_max_hp(id), damage)
+
+    def part_remaining_hp(self, id):
+        """
+        Obtain the hit points remaining on the part.
+
+        :param id: The ID of the part on this object.
+
+        :return: The number of hit points remaining.
+        :rtype: int
+        """
+        return self.part_max_hp(id) - self.part_damage(id)
+
+    def part_area_ratios(self):
         """
         Return how much of the object each part comprises, based on surface
         area.
@@ -356,7 +428,7 @@ class MultipartThing(Thing):
 
 
 class Part(mudsling.storage.PersistentSlots):
-    __slots__ = ('name', 'material', 'dimensions', 'damage')
+    __slots__ = ('name', 'material', 'dimensions')
 
     def __init__(self, name, material, dimensions):
         """
@@ -370,25 +442,27 @@ class Part(mudsling.storage.PersistentSlots):
         else:
             self.material = pathfinder.materials.Material(str(material))
         self.dimensions = dimensions
-        self.damage = 0
 
     @property
     def max_hp(self):
-        _, val = self.dimensions.smallest_dimension()
-        return self.material.hp_per_inch * val.to('inch').magnitude
+        """
+        A part's maximum hit points are based on the material from which it is
+        primarily made and its thickness, which is defined as the smallest
+        dimension.
 
-    @property
-    def remaining_hp(self):
-        return max(0, self.max_hp - self.damage)
-
-    @property
-    def hp_ratio(self):
-        return self.remaining_hp / self.max_hp
-
-    @property
-    def hp_percent(self):
-        return self.hp_ratio * 100
+        :return: The maximum hit points this part may have.
+        :rtype: int
+        """
+        _, thickness = self.dimensions.smallest_dimension()
+        return self.material.hitpoints(thickness)
 
     @property
     def weight(self):
+        """
+        A part's weight is based on the density of the material from which it
+        is primarily made.
+
+        :return: The part's weight.
+        :rtype: mudsling.utils.units._Quantity
+        """
         return self.material.weight(self.dimensions)

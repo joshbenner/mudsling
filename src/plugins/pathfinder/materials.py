@@ -9,6 +9,9 @@ class Material(object):
     __slots__ = ('name', 'hardness', 'hp_per_inch', 'density')
 
     def __new__(cls, name, hardness=None, hp_per_inch=None, density=None):
+        """
+        :rtype: Material
+        """
         if name in materials:
             material = materials[name]
         else:
@@ -44,6 +47,21 @@ class Material(object):
         """
         weight = dimensions.volume.to('m^3') * self.density.to('kg/m^3')
         return weight.to(unit)
+
+    def hitpoints(self, thickness):
+        """
+        Given the thickness of an object made from this material, how many
+        hitpoints does the object gain.
+
+        :param thickness: The thickness of the object, in inches.
+        :type thickness: int or float or mudsling.utils.units._Quantity
+
+        :return: The resulting hitpoints, rounded to nearest whole hit point.
+        :rtype: int
+        """
+        if isinstance(thickness, mudsling.utils.units._Quantity):
+            thickness = thickness.to('inch').magnitude
+        return round(self.hp_per_inch * thickness, 0)
 
 
 mudsling.pickler.register_external_type(
