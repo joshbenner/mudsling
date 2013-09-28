@@ -29,7 +29,7 @@ class Material(object):
     def __str__(self):
         return self.name
 
-    def weight(self, dimensions, unit='lbs', precision=3):
+    def weight(self, dimensions, unit='lbs'):
         """
         Given the dimensions of an object made from this material, how heavy
         would it be?
