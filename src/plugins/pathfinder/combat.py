@@ -417,7 +417,12 @@ class Combatant(pathfinder.objects.PathfinderObject):
         if self.has_condition(pathfinder.conditions.Immobilized):
             raise CannotMove("You are immobilized")
         prev = self.combat_position
-        if where == prev:
+        if prev is None:
+            # Broken combat position. Let's try to fix it. We will compromise
+            # by doing a move from/to same location, and skip the "you are
+            # already there" error.
+            prev = where
+        elif where == prev:
             raise InvalidMove("You are already near %s"
                               % self.combat_position_name(where))
         # If another combatant is "near" me, then change their combat position
@@ -425,7 +430,9 @@ class Combatant(pathfinder.objects.PathfinderObject):
         if self.has_location:
             me = self.ref()
             for who in self.location.contents:
-                if who.isa(Combatant) and who.combat_position == me:
+                if (who.isa(Combatant)
+                        and who.combat_position is not None
+                        and who.combat_position == me):
                     who.combat_move(prev, stealth=True)
         self.combat_position = where
         if not stealth:

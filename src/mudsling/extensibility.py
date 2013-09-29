@@ -35,16 +35,20 @@ class Plugin(object):
     options = None
     #: @type: mudsling.core.MUDSling
     game = None
+    #: :type: PluginManager
+    manager = None
 
-    def __init__(self, game, info):
+    def __init__(self, game, info, manager):
         """
         Initialize a new instance of a plugin using the info file data.
 
-        @type game: L{mudsling.core.MUDSling}
-        @type info: L{PluginInfo}
+        :type game: mudsling.core.MUDSling
+        :type info: PluginInfo
+        :type manager: PluginManager
         """
         self.game = game
         self.info = info
+        self.manager = manager
         if config.has_section(info.filesystem_name):
             self.options = config[info.filesystem_name]
 
@@ -251,7 +255,7 @@ class PluginManager(object):
             for val in [getattr(module, varname) for varname in dir(module)]:
                 if (inspect.isclass(val) and issubclass(val, Plugin)
                         and val.__module__ == module.__name__):
-                    plugins[machine_name] = val(self.game, info)
+                    plugins[machine_name] = val(self.game, info, self)
                     break
             if machine_name not in plugins:
                 raise PluginError("No plugin found in %s" % module_filepath)

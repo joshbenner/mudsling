@@ -19,11 +19,11 @@ class Room(mudslingcore.topography.Room, pathfinder.combat.Battleground):
     def after_content_added(self, what, previous_location, by=None, via=None):
         super(Room, self).after_content_added(what, previous_location, by, via)
         if what.isa(pathfinder.combat.Combatant):
-            if via.isa(mudslingcore.topography.Exit):
+            if via is not None and via.isa(mudslingcore.topography.Exit):
                 pos = via.counterpart or self.ref()
             else:
                 pos = self.ref()
-            if what.combat_position != pos:
+            if what.combat_position is None or what.combat_position != pos:
                 what.combat_move(pos, stealth=True)
 
     def combat_areas(self, exclude_self=False):
