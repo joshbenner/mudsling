@@ -61,7 +61,7 @@ class Material(object):
         """
         if isinstance(thickness, mudsling.utils.units.Quantity):
             thickness = thickness.to('inch').magnitude
-        return round(self.hp_per_inch * thickness, 0)
+        return int(round(self.hp_per_inch * thickness, 0))
 
 
 mudsling.pickler.register_external_type(
