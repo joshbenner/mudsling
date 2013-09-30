@@ -56,6 +56,32 @@ class Feature(pathfinder.events.EventResponder, mudsling.messages.HasMessages):
                 obj.emit(msg)
 
 
+class StaticFeature(pathfinder.events.EventResponder):
+    __slots__ = ()
+
+    feature_type = 'feature'
+    name = ''
+    description = ''
+    modifiers = []
+
+    @classmethod
+    def respond_to_event(cls, event, responses):
+        pass
+
+    @classmethod
+    def apply_to(cls, obj):
+        from .objects import is_pfobj
+        if is_pfobj(obj):
+            for mod in cls.modifiers:
+                obj.apply_effect(mod, source=cls)
+
+    @classmethod
+    def remove_from(cls, obj):
+        from .objects import is_pfobj
+        if is_pfobj(obj):
+            obj.remove_effects_by_source(cls)
+
+
 class HasFeatures(pathfinder.events.HasEvents):
     _features = []
 

@@ -1,12 +1,10 @@
 from flufl.enum import Enum
 
 import mudsling.utils.units as units
-from mudsling.utils.measurements import Dimensions as Dim
 
 from dice import Roll
 
-import pathfinder.objects
-from pathfinder.objects import Part
+from pathfinder.objects import MultipartThing, Equipment
 
 
 class Size(Enum):
@@ -21,7 +19,7 @@ class Encumbrance(Enum):
     TwoHanded = 3
 
 
-class Weapon(pathfinder.objects.MultipartThing):
+class Weapon(MultipartThing, Equipment):
     """
     A pathfinder weapon.
     """
@@ -44,12 +42,6 @@ class Weapon(pathfinder.objects.MultipartThing):
     #: List of attacks this weapon is designed to work with (non-improvised).
     #: :type: list of str
     attacks = []
-
-    #: Features granted to the character wielding this weapon.
-    wielder_features = []
-
-    #: Features of the weapon itself.
-    features = []
 
     def improvised_damage(self, attack_type):
         """
@@ -81,20 +73,3 @@ class RangedWeapon(Weapon):
     category = 'Projectile'
     attacks = ['shoot']
     range_increment = 10 * units.feet
-
-
-class Shortsword(MeleeWeapon):
-    family = 'Sword'
-    type = 'Shortsword'
-    proficiency = 'martial'
-    encumbrance = Encumbrance.Light
-
-    damage_roll = Roll('1d6')
-    damage_type = 'piercing'
-    threat = 19
-
-    dimensions = Dim(32, 3.5, 1, 'inches')
-    parts = {
-        'blade': Part('Blade', 'steel', Dim(24, 3.5, 0.1, 'inches')),
-        'hilt': Part('Hilt', 'wood', Dim(8, 1, 1, 'inches'))
-    }

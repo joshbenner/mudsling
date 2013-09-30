@@ -9,6 +9,7 @@ import pathfinder.special_abilities
 import pathfinder.conditions
 import pathfinder.classes
 import pathfinder.data
+import pathfinder.enhancements
 
 
 class PathfinderPlugin(mudsling.extensibility.GamePlugin):
@@ -27,7 +28,9 @@ class PathfinderPlugin(mudsling.extensibility.GamePlugin):
         'feats': pathfinder.feats.Feat,
         'special_abilities': pathfinder.special_abilities.SpecialAbility,
         'conditions': pathfinder.conditions.Condition,
-        'classes': pathfinder.classes.Class
+        'classes': pathfinder.classes.Class,
+        'weapon_enhancements': pathfinder.enhancements.WeaponEnhancement,
+        'armor_enhancements': pathfinder.enhancements.ArmorEnhancement
     }
 
     def pathfinder_data_path(self):

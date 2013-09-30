@@ -20,7 +20,7 @@ class Class(CharacterFeature):
     @classmethod
     def apply_level(cls, level, char):
         """
-        @type char: L{pathfinder.characters.Character}
+        :type char: pathfinder.characters.Character
         """
         next_lvl = cls.levels[level - 1]
         for special in next_lvl.special:
