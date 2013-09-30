@@ -345,15 +345,17 @@ class MultipartThing(Thing):
         super(MultipartThing, self).on_object_created()
         self._part_damage = {}
 
-    @property
+    @obj_utils.memoize_property
     def permanent_hit_points(self):
         """
         Dynamically calculate the permanent hit points of a multipart thing
         based on the hit points of its parts.
         :rtype: int
         """
-        hp = sum(p.max_hp for p in self.parts.itervalues())
-        return max(1, hp)
+        total_area = self.dimensions.surface_area
+        hp = sum(float(p.max_hp * p.dimensions.surface_area / total_area)
+                 for p in self.parts.itervalues())
+        return max(1, int(round(hp, 0)))
 
     @property
     def hardness(self):
@@ -464,7 +466,7 @@ class Part(mudsling.storage.PersistentSlots):
         dimension.
 
         :return: The maximum hit points this part may have.
-        :rtype: int
+        :rtype: int or float
         """
         _, thickness = self.dimensions.smallest_dimension()
         return self.material.hitpoints(thickness)

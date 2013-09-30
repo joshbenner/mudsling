@@ -64,6 +64,10 @@ class StaticFeature(pathfinder.events.EventResponder):
     description = ''
     modifiers = []
 
+    def __new__(cls, *a, **kw):
+        """Do not allow instances of this static class."""
+        return cls
+
     @classmethod
     def respond_to_event(cls, event, responses):
         pass

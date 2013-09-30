@@ -3,7 +3,7 @@ from mudsling.utils.measurements import Dimensions as Dim
 from dice import Roll
 
 from pathfinder.objects import Part
-from pathfinder.weapons import MeleeWeapon, Encumbrance
+from pathfinder.weapons import MeleeWeapon, Encumbrance, enhancement
 
 
 class Shortsword(MeleeWeapon):
@@ -16,8 +16,12 @@ class Shortsword(MeleeWeapon):
     damage_type = 'piercing'
     threat = 19
 
-    dimensions = Dim(32, 3.5, 1, 'inches')
+    dimensions = Dim(32, 3.5, 1.5, 'inches')
     parts = {
         'blade': Part('Blade', 'steel', Dim(24, 3.5, 0.1, 'inches')),
-        'hilt': Part('Hilt', 'wood', Dim(8, 1, 1, 'inches'))
+        'hilt': Part('Hilt', 'wood', Dim(8, 1.5, 1.5, 'inches'))
     }
+
+    enhancements = [
+        enhancement('Masterwork')
+    ]

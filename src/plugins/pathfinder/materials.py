@@ -57,11 +57,11 @@ class Material(object):
         :type thickness: int or float or mudsling.utils.units._Quantity
 
         :return: The resulting hitpoints, rounded to nearest whole hit point.
-        :rtype: int
+        :rtype: int or float
         """
         if isinstance(thickness, mudsling.utils.units.Quantity):
             thickness = thickness.to('inch').magnitude
-        return int(round(self.hp_per_inch * thickness, 0))
+        return self.hp_per_inch * thickness
 
 
 mudsling.pickler.register_external_type(

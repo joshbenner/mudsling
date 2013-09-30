@@ -5,6 +5,21 @@ import mudsling.utils.units as units
 from dice import Roll
 
 from pathfinder.objects import MultipartThing, Equipment
+import pathfinder.data
+
+
+def enhancement(name):
+    """
+    Convenience method to retrieve a weapon enhancement by name from the data
+    registry.
+
+    :param name: The name of the enhancement to retrieve.
+    :type name: str
+
+    :return: The enhancement class.
+    :rtype: pathfinder.enhancements.WeaponEnhancement
+    """
+    return pathfinder.data.get('WeaponEnhancement', name)
 
 
 class Size(Enum):
@@ -42,6 +57,16 @@ class Weapon(MultipartThing, Equipment):
     #: List of attacks this weapon is designed to work with (non-improvised).
     #: :type: list of str
     attacks = []
+
+    stat_defaults = {
+        'attack': Roll('0'),
+    }
+
+    def get_stat_base(self, stat, resolved=False):
+        stat = stat if resolved else self.resolve_stat_name(stat)[0]
+        if stat == 'damage':
+            return self.damage_roll
+        return super(Weapon, self).get_stat_base(stat, resolved=True)
 
     def improvised_damage(self, attack_type):
         """

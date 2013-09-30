@@ -47,7 +47,10 @@ class PathfinderPlugin(mudsling.extensibility.GamePlugin):
         modname = self.info.machine_name
         for submod, cls in self.data_mapping.iteritems():
             modpath = '%s.%s' % (modname, submod)
-            module = mudsling.utils.modules.mod_import(modpath)
+            try:
+                module = mudsling.utils.modules.mod_import(modpath)
+            except ImportError:
+                continue
             if module is None:
                 continue
             exclude = [cls]

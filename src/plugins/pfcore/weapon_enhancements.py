@@ -3,7 +3,7 @@ from pathfinder.modifiers import modifiers as mods
 
 
 class Masterwork(WeaponEnhancement):
-    name = 'Masterwork Weapon'
+    name = 'Masterwork'
     is_masterwork = True
     modifiers = mods(
         '+1 enhancement bonus to Attack'
