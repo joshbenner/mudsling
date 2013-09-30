@@ -1,8 +1,8 @@
-from .characters import CharacterFeature
+import pathfinder.characters
 import pathfinder.errors as pferr
 
 
-class Feat(CharacterFeature):
+class Feat(pathfinder.characters.CharacterFeature):
     """
     A feat.
 
@@ -82,6 +82,16 @@ class Feat(CharacterFeature):
             self.sources.append(source)
         if slot is not None and 'slot' not in self.sources:
             self.sources.append('slot')
+
+    def apply_to(self, obj):
+        super(Feat, self).apply_to(obj)
+        if pathfinder.characters.is_pfchar(obj):
+            obj.trigger_event('feat applied', feat=self)
+
+    def remove_from(self, obj):
+        super(Feat, self).remove_from(obj)
+        if pathfinder.characters.is_pfchar(obj):
+            obj.trigger_event('feat removed', feat=self)
 
     def __str__(self):
         if self.multiple:

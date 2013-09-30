@@ -53,7 +53,7 @@ class PathfinderObject(mudsling.objects.Object,
     permanent_hit_points = 0
     damage = 0
     effects = []
-    conditions = []
+    _conditions = []
     stat_aliases = {
         'hp': 'hit points',
         'thp': 'temporary hit points',
@@ -72,7 +72,7 @@ class PathfinderObject(mudsling.objects.Object,
         super(PathfinderObject, self).__init__(**kw)
         self.effects = []
         #: :type: list of pathfinder.conditions.Condition
-        self.conditions = []
+        self._conditions = []
 
     def _check_attr(self, attr, val):
         if attr not in self.__dict__:
@@ -81,6 +81,16 @@ class PathfinderObject(mudsling.objects.Object,
     @property
     def features(self):
         return list(self.conditions)
+
+    @property
+    def conditions(self):
+        """:rtype: list of pathfinder.conditions.Condition"""
+        if '__conditions' in self._stat_cache:
+            return self._stat_cache['__conditions']
+        event = self.trigger_event('conditions',
+                                   conditions=list(self._conditions))
+        self.cache_stat('__conditions', event.conditions)
+        return event.conditions
 
     @property
     def remaining_hp(self):
@@ -117,13 +127,20 @@ class PathfinderObject(mudsling.objects.Object,
             self._size_category = val
 
     def event_responders(self, event):
+        if '__event_responders' in self._stat_cache:
+            return self._stat_cache['__event_responders']
+        # Placeholder cache to avoid infinite recursion.
+        self.cache_stat('__event_responders', [])
         responders = super(PathfinderObject, self).event_responders(event)
         responders.extend(self.effects)
+        self.cache_stat('__event_responders', responders)
         return responders
 
     def trigger_event(self, event, **kw):
         event = super(PathfinderObject, self).trigger_event(event, **kw)
         self.expire_effects()
+        if event.name in ('condition applied', 'condition removed'):
+            self.clear_stat_cache()
         return event
 
     def get_stat_modifiers(self, stat, **kw):
@@ -201,13 +218,17 @@ class PathfinderObject(mudsling.objects.Object,
         return expired
 
     def add_condition(self, condition, source=None):
-        """Add the specified condition to the object.
+        """Add the specified condition to the object directly, so that it is
+        stored in the object's ._condition attribute.
+
+        This also "applies" the condition.
 
         :param condition: The condition, condition class, or condition name
             specifying the condition to add to the object.
         :type condition: pathfinder.conditions.Condition or str or type
 
         :param source: The cause of the condition.
+        :type source: any
         """
         if isinstance(condition, basestring):
             condition = pathfinder.data.get('condition', condition)
@@ -215,6 +236,9 @@ class PathfinderObject(mudsling.objects.Object,
             condition = condition(source=source)
         if isinstance(condition, pathfinder.conditions.Condition):
             condition.apply_to(self)
+            self._check_attr('_conditions', [])
+            if condition not in self._conditions:
+                self._conditions.append(condition)
         else:
             raise ValueError("Condition must be a string, condition class, or"
                              " condition instance")
@@ -226,9 +250,8 @@ class PathfinderObject(mudsling.objects.Object,
         :type condition: pathfinder.conditions.Condition
         """
         condition.remove_from(self)
-        if condition in self.conditions:
-            self.conditions.remove(condition)
-            self.trigger_event('condition removed', condition=condition)
+        if condition in self._conditions:
+            self._conditions.remove(condition)
 
     def remove_conditions(self, condition=None, source=None):
         """Remove all conditions matching the specified criteria.
@@ -246,12 +269,6 @@ class PathfinderObject(mudsling.objects.Object,
             self.remove_condition(condition)
         return conditions
 
-    def _add_condition(self, condition):
-        self._check_attr('conditions', [])
-        if condition not in self.conditions:
-            self.conditions.append(condition)
-            self.trigger_event('condition added', condition=condition)
-
     def get_conditions(self, condition=None, source=None):
         """Retrieve any instances of the condition specified.
 
@@ -266,7 +283,7 @@ class PathfinderObject(mudsling.objects.Object,
         """
         if isinstance(condition, basestring):
             condition = pathfinder.data.get('condition', condition)
-        return [c for c in self.conditions
+        return [c for c in self._conditions
                 if (condition is None or c.__class__ == condition)
                 and (source is None or source == c.source)]
 

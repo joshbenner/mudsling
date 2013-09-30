@@ -96,25 +96,27 @@ class HasStats(Persistent):
         return stats
 
     def get_stat(self, stat, resolved=False):
-        if '_stat_cache' not in self.__dict__:
-            self._stat_cache = {}
-        cache = self._stat_cache
         stat = stat if resolved else self.resolve_stat_name(stat)[0]
-        if stat in cache:
-            cached = cache[stat]
+        if stat in self._stat_cache:
+            cached = self._stat_cache[stat]
             if isinstance(cached, list):
                 return sum(map(self._eval_stat_part, cached))
             else:
                 return cached
         low, high = self.get_stat_limits(stat)
         if low == high:  # Only ever a single result.
-            cache[stat] = low
+            self.cache_stat(stat, low)
         else:
             # Cache the base and all modifiers in a single list to be summed.
             parts = [self.get_stat_base(stat)]
             parts.extend(self.get_stat_modifiers(stat).itervalues())
-            cache[stat] = parts
+            self.cache_stat(stat, parts)
         return self.get_stat(stat)  # Should get the cached results now.
+
+    def cache_stat(self, stat, value):
+        if '_stat_cache' not in self.__dict__:
+            self._stat_cache = {}
+        self._stat_cache[stat] = value
 
     def clear_stat_cache(self, key=None):
         if key is not None:

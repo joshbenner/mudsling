@@ -52,7 +52,7 @@ class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
     # key = level, value = list of (str activity, *value)
     level_history = {}
     favored_class_bonuses = []
-    feats = []
+    _feats = []
     skills = {}
     skill_points = 0
     level_up_skills = {}
@@ -245,12 +245,22 @@ class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
         return self.dimensions.height
 
     @property
+    def feats(self):
+        """:rtype: list of pathfinder.feats.Feat"""
+        if '__feats' in self._stat_cache:
+            return self._stat_cache['__feats']
+        event = self.trigger_event('feats', feats=list(self._feats))
+        self.cache_stat('__feats', event.feats)
+        return event.feats
+
+    @property
     def features(self):
         features = super(Character, self).features
         if self.race is not None:
             features.append(self.race)
         features.extend(c for c in self.classes.iterkeys())
         features.extend(self.feats)
+
         return features
 
     @property
@@ -288,6 +298,12 @@ class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
     def can_use_defensive_dex_bonus(self):
         event = pathfinder.events.Event('allow defensive dex bonus')
         return False not in self.trigger_event(event).responses.values()
+
+    def trigger_event(self, event, **kw):
+        event = super(Character, self).trigger_event(event, **kw)
+        if event.name in ('feat applied', 'feat removed'):
+            self.clear_stat_cache()
+        return event
 
     def add_xp(self, xp, stealth=False, force=True):
         if self.level > self.frozen_level and not force:
@@ -468,7 +484,7 @@ class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
         return skills
 
     def add_feat(self, feat_class, subtype=None, source=None, slot=None):
-        self._check_attr('feats', [])
+        self._check_attr('_feats', [])
         self._check_attr('level_up_feats', [])
         if source is 'slot' and slot is None:
             compatible = self.compatible_feat_slots(feat_class, subtype)
@@ -486,7 +502,7 @@ class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
         else:
             feat = feat_class(subtype, source, slot)
             feat.apply_to(self)
-            self.feats.append(feat)
+            self._feats.append(feat)
             if source == 'slot':
                 self.level_up_feats.append(feat)
             self.clear_stat_cache()
@@ -519,7 +535,7 @@ class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
         if feat.sources:  # Something still keeping feat around. Abort!
             return
         # Remove the feat that is no longer provided by anything.
-        self.feats.remove(feat)
+        self._feats.remove(feat)
         feat.remove_from(self)
         self.clear_stat_cache()
         self.tell("{yYou lose the {c", feat, "{y ", feat.feature_type, '.')
@@ -543,7 +559,7 @@ class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
         slots = {}
         for slot_type in self.feat_slots.iterkeys():
             slots[slot_type] = []
-        for feat in self.feats:
+        for feat in self._feats:
             if feat.slot is not None:
                 if feat.slot not in slots:
                     slots[feat.slot] = []

@@ -1,6 +1,7 @@
 import mudsling.messages
 
 import pathfinder.features
+import pathfinder.objects
 
 
 class Condition(pathfinder.features.Feature):
@@ -26,10 +27,14 @@ class Condition(pathfinder.features.Feature):
         self.source = source
 
     def apply_to(self, obj):
-        from .objects import is_pfobj
         super(Condition, self).apply_to(obj)
-        if is_pfobj(obj):
-            obj._add_condition(self)
+        if pathfinder.objects.is_pfobj(obj):
+            obj.trigger_event('condition applied', condition=self)
+
+    def remove_from(self, obj):
+        super(Condition, self).remove_from(obj)
+        if pathfinder.objects.is_pfobj(obj):
+            obj.trigger_event('condition removed', condition=self)
 
 
 class FlatFooted(Condition):

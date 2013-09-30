@@ -14,9 +14,22 @@ import mudsling.objects
 
 import pathfinder.events
 import pathfinder.data
+import pathfinder.modifiers
 
 
 class FeatureMetaClass(pathfinder.data.ForceSlotsMetaclass):
+    def __new__(mcs, name, bases, dict):
+        cls = super(FeatureMetaClass, mcs).__new__(mcs, name, bases, dict)
+        # Create modifier instances from strings, and make sure all the
+        # modifiers have this feature set as their source.
+        for i, mod in enumerate(cls.modifiers):
+            if isinstance(mod, basestring):
+                cls.modifiers[i] = pathfinder.modifiers.Modifier(mod,
+                                                                 source=cls)
+            elif isinstance(mod, pathfinder.modifiers.Modifier):
+                mod.source = cls
+        return cls
+
     def __str__(cls):
         return cls.name if hasattr(cls, 'name') else repr(cls)
 
