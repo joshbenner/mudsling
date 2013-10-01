@@ -21,7 +21,3 @@ class Shortsword(MeleeWeapon):
         'blade': Part('Blade', 'steel', Dim(24, 3.5, 0.1, 'inches')),
         'hilt': Part('Hilt', 'wood', Dim(8, 1.5, 1.5, 'inches'))
     }
-
-    enhancements = [
-        enhancement('Masterwork')
-    ]
