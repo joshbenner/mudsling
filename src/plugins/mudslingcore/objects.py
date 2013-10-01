@@ -117,6 +117,16 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser):
     del player_commands
     channels = {}
 
+    messages = Messages({
+        'teleport': {
+            'actor': "You teleported {c$obj{n to {g$where{n.",
+            'obj': "{c$actor{n teleported you to {g$where{n."
+        },
+        'teleport_failed': {
+            'actor': "You fail to teleport {c$obj{n to {y$where{n."
+        }
+    })
+
     def __init__(self, **kwargs):
         super(Player, self).__init__(**kwargs)
         self.channels = {}
@@ -190,7 +200,7 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject,
         'teleport_in': {
             'actor': "{bYou materialize in {c$dest{b.",
             '*': "{c$actor {bmaterializes."
-        }
+        },
     })
 
     def is_possessable_by(self, player):
@@ -285,7 +295,15 @@ class Thing(DescribableObject):
             'actor': "You hand $this to $recipient.",
             'recipient': "$actor hands you $this.",
             '*': "$actor hands $this to $recipient."
-        }
+        },
+        'teleport_out': {
+            'actor': "{bYou dematerialize.",
+            '*': "{c$actor {bvanishes."
+        },
+        'teleport_in': {
+            'actor': "{bYou materialize in {c$dest{b.",
+            '*': "{c$actor {bmaterializes."
+        },
     })
 
 

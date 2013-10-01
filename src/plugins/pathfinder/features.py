@@ -75,6 +75,8 @@ class StaticFeature(pathfinder.events.EventResponder):
     feature_type = 'feature'
     name = ''
     description = ''
+
+    #: :type: list of pathfinder.modifiers.Modifier
     modifiers = []
 
     def __new__(cls, *a, **kw):
