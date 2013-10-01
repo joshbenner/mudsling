@@ -21,12 +21,15 @@ class EventResponder(mudsling.storage.PersistentSlots):
     """
     __slots__ = ()
 
+    event_callbacks = {}
+
     def respond_to_event(self, event, responses):
         """
         A responder should add their response(s) to the responses dictionary.
         """
-        raise NotImplementedError("'%s' does not implement respond_to_event()"
-                                  % self.__class__.__name__)
+        if event.name in self.event_callbacks:
+            callback = self.event_callbacks[event.name]
+            getattr(self, callback)(event, responses)
 
     def delegate_event(self, event, responses, delegates):
         """

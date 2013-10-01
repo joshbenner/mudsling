@@ -273,3 +273,6 @@ class MoveCmd(Command):
             actor.tell("{yYou are not allowed to move {c", obj, "{y.")
             return
         misc.teleport_object(obj, where)
+        msg_key = 'teleport' if obj.location == where else 'teleport_failed'
+        actor.direct_message(msg_key, recipients=(actor, obj),
+                             actor=actor, obj=obj, where=where)

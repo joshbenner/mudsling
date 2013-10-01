@@ -27,6 +27,7 @@ class PathfinderCorePlugin(pathfinder.extensibility.PathfinderPlugin):
         pf_plugins = self.game.plugins.active_plugins('PathfinderPlugin')
         for plugin in pf_plugins:
             plugin.register_pathfinder_data()
+        pathfinder.data_loaded = True
 
     def pathfinder_data_path(self):
         """

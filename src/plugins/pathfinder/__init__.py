@@ -14,7 +14,13 @@ ui = mudslingcore.ui.ClassicUI()
 
 import icmoney
 
+# Other modules depend on this import.
 from pathfinder import data
+
+#: Indicates if all pathfinder-related data has been loaded. Once data loading
+#: is complete, some pieces of code will begin to attempt to access data, such
+#: as modifiers, which can be loaded before the data they depend on.
+data_loaded = False
 
 config = mudsling.config.Config()
 config.read(os.path.join(os.path.dirname(__file__), 'defaults.cfg'))

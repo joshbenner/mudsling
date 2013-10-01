@@ -14,6 +14,18 @@ class DataNotFound(PathfinderError):
     pass
 
 
+class DataNotReady(PathfinderError):
+    """
+    Thrown when an operation is attempted that requires the Pathfinder data to
+    be loaded when it is not yet all loaded.
+    """
+    pass
+
+
+class InvalidModifierType(PathfinderError):
+    pass
+
+
 class CharacterError(PathfinderError):
     pass
 

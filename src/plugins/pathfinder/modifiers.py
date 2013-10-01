@@ -1,6 +1,5 @@
 """
-Modifiers are value-changers for stats, ability-grants, etc. Modifiers are put
-to use as Effects, which are applied to PathfinderObjects.
+Modifiers are value-changers for stats, ability-grants, etc.
 
 BNF:
         name ::= <printables> (<printables> | " ")*
@@ -41,9 +40,13 @@ import logging
 from pyparsing import ParseException
 from flufl.enum import Enum
 
-from mudsling.storage import PersistentSlots
+import mudsling.utils.object as obj_utils
 
 import dice
+
+import pathfinder
+import pathfinder.errors
+import pathfinder.events
 
 logger = logging.getLogger('pathfinder')
 
@@ -113,19 +116,57 @@ def _grammar():
 grammar = _grammar()
 
 
-class Modifier(PersistentSlots):
+class Modifier(pathfinder.events.EventResponder):
     """
     Represents a modifier that can be provided by equipment, conditions, class
     features, etc (just about anything).
 
-    This class is a stored modifier, as opposed to an mod that is currently
-    applied to an object/character.
-    """
-    __slots__ = ('original', 'type', 'payload', 'expiration')
-    _transient_vars = ['payload', 'expiration', 'type']
+    Modifiers may be loaded/parsed before the data they reference is loaded.
+    For instance, when a race is loaded, it may reference special abilities
+    which have not yet been loaded. Therefore, we need to take a lazy approach
+    to fully-parsing the modifier to its final data.
 
-    def __init__(self, mod_str, parser=None):
+    Modifiers are intended to be static data, having only a single state which
+    represents the modifier expression. So, while a modifier, for instance, has
+    expiration data, that describes how long an effect applying the modifier
+    would last instead of the modifier tracking expiration itself.
+    """
+    __slots__ = ('original', 'type', 'source', 'payload_desc', 'expiration')
+    _transient_vars = ['payload_desc', 'expiration', 'type']
+
+    def __init__(self, mod_str, parser=None, source=None):
+        self.source = source
         self._parse_mod(mod_str, parser)
+
+    @obj_utils.memoize_property
+    def payload(self):
+        """
+        Try to resolve the payload to actual data. This may fail if all
+        pathfinder data is not yet loaded.
+
+        Some modifier instances will overwrite this property when the payload
+        is not dependent on loaded data and is calculated at parse time.
+
+        :raises: pathfinder.errors.DataNotReady
+        :raises: pathfinder.errors.InvalidModifierType
+
+        :rtype: any
+        """
+        if not pathfinder.data_loaded:
+            raise pathfinder.errors.DataNotReady()
+        if self.type == Types.grant:
+            feat_class, subtype = pathfinder.parse_feat(self.payload_desc)
+            return feat_class(subtype, source=self.source or self)
+        elif self.type == Types.condition:
+            return pathfinder.data.match(self.payload_desc,
+                                         types=('condition',))
+        elif self.type == Types.language:
+            return pathfinder.data.match(self.payload_desc,
+                                         types=('language',))
+        elif self.type in Types:  # Other types pass-thru the desc as value.
+            return self.payload_desc
+        else:
+            raise pathfinder.errors.InvalidModifierType()
 
     def _parse_mod(self, mod_str, parser=None):
         self.original = mod_str
@@ -133,23 +174,23 @@ class Modifier(PersistentSlots):
         parsed = parser.parseString(mod_str, True)
         if 'grant' in parsed:
             self.type = Types.grant
-            self.payload = parsed['grant'].strip().lower()
+            self.payload_desc = parsed['grant'].strip().lower()
         elif 'condition' in parsed:
             self.type = Types.condition
-            self.payload = parsed['condition'].strip().lower()
+            self.payload_desc = parsed['condition'].strip().lower()
         elif 'language' in parsed:
             self.type = Types.language
-            self.payload = parsed['language'].strip().lower()
+            self.payload_desc = parsed['language'].strip().lower()
         elif 'resist type' in parsed:
             self.type = Types.damage_resistance
             resist_type = parsed['resist type'].strip().lower()
             resist_value = int(parsed['resist value'].strip())
-            self.payload = (resist_value, resist_type)
+            self.payload_desc = (resist_value, resist_type)
         elif 'reduction type' in parsed:
             self.type = Types.damage_reduction
             reduction_type = parsed['reduction type'].strip().lower()
             reduction_value = int(parsed['reduction value'].strip())
-            self.payload = (reduction_value, reduction_type)
+            self.payload_desc = (reduction_value, reduction_type)
         else:
             self.type = Types.bonus
             roll = (dice.Roll(parsed['mod_val'][0]) if 'mod_val' in parsed
@@ -157,7 +198,7 @@ class Modifier(PersistentSlots):
             nature = parsed.get('nature', '').strip().lower() or None
             type = parsed.get('type', '').strip().lower() or None
             stat = parsed.get('stat', '').strip().lower() or None
-            self.payload = (roll, stat, type, nature)
+            self.payload_desc = (roll, stat, type, nature)
         self.expiration = None
         if 'until' in parsed:
             self.expiration = parsed['until'].strip().lower()
@@ -177,12 +218,65 @@ class Modifier(PersistentSlots):
         super(Modifier, self).__setstate__(state)
         self._parse_mod(self.original)
 
+    def event_stat_mods(self, event, responses):
+        if self.type == Types.bonus:
+            roll, stat, type, nature = self.payload
+            stat_name, tags = event.obj.resolve_stat_name(stat)
+            if event.stat == stat_name:
+                if event.tags == () or event.tags == tags:
+                    event.modifiers[self] = roll
 
-def modifiers(*a):
+    def event_feats(self, event, responses):
+        if self.type == Types.grant:
+            event.feats.append(self.payload)
+
+    def event_conditions(self, event, responses):
+        if self.type == Types.condition:
+            event.conditions.append(self.payload)
+
+    def event_spoken_languages(self, event, responses):
+        if self.type == Types.language:
+            event.languages.append(self.payload)
+
+    def event_damage_reduction(self, event, responses):
+        if self.type == Types.damage_reduction:
+            value, vulnerable_to = self.payload
+            if event.damage_type != vulnerable_to:
+                responses[self] = value
+
+    def event_damage_resistance(self, event, responses):
+        if self.type == Types.damage_resistance:
+            value, resist_type = self.payload
+            if event.damage_type == resist_type:
+                return value
+
+    event_callbacks = {
+        'stat mods': 'event_stat_mods',
+        'feats': 'event_feats',
+        'conditions': 'event_conditions',
+        'spoken languages': 'event_spoken_languages',
+        'damage reduction': 'event_damage_reduction',
+        'damage resistance': 'event_damage_resistance',
+    }
+
+
+def modifiers(*a, **kw):
+    """
+    Convenient way to define a list of modifiers.
+
+    :param a: A list of modifier strings.
+    :type a: list of str
+    :param source: The source to pass to all modifiers. Must use keyword.
+    :type source: any
+
+    :return: A list of modifier instances.
+    :rtype: list of Modifier
+    """
     mods = []
+    source = kw.get('source', None)
     for mod_str in a:
         try:
-            e = Modifier(mod_str)
+            e = Modifier(mod_str, source=source)
         except ParseException:
             logger.warning("Could not parse modifier: %s" % mod_str)
         else:

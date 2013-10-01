@@ -26,7 +26,8 @@ class PathfinderPlugin(mudsling.extensibility.GamePlugin):
         'races': pathfinder.races.Race,
         'skills': pathfinder.skills.Skill,
         'feats': pathfinder.feats.Feat,
-        'special_abilities': pathfinder.special_abilities.SpecialAbility,
+        # Special abilities occupy same namespace as Feats.
+        'special_abilities': pathfinder.special_abilities.Feat,
         'conditions': pathfinder.conditions.Condition,
         'classes': pathfinder.classes.Class,
         'weapon_enhancements': pathfinder.enhancements.WeaponEnhancement,

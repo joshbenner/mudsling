@@ -267,6 +267,29 @@ class MessagedObject(NamedObject):
 
         return None
 
+    def direct_message(self, key, recipients=(), **keywords):
+        """
+        Dispatch a templated message from this object to specific recipients.
+
+        :param key: The key identifying the message templatme to use.
+        :type key: str
+
+        :param recipients: An iterable of message recipients.
+        :type recipients: tuple or set or list or dict
+
+        :param keywords: The keywords to pass to .get_message().
+        :type keywords: dict
+        """
+        keywords['this'] = self.ref()
+        msg = self.get_message(key, **keywords)
+        if not isinstance(msg, dict):
+            msg = {'*': msg}
+        wild = msg.get('*', None)
+        for recipient in recipients:
+            message = msg[recipient] if recipient in msg else wild
+            if message is not None:
+                recipient.msg(message)
+
 
 class PossessableObject(MessagedObject):
     """
