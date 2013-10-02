@@ -95,7 +95,7 @@ class WearCmd(Command):
         @type actor: L{mudslingcore.objects.Character}
         @type args: C{dict}
         """
-        this._check_wear_status()
+        this.check_wear_status()
         if this.worn_by == actor:
             actor.tell('{yYou are already wearing {c', this, '{y.')
         elif this.worn_by is not None:
@@ -123,7 +123,7 @@ class UnwearCmd(Command):
         @type actor: L{mudslingcore.objects.Character}
         @type args: C{dict}
         """
-        this._check_wear_status()
+        this.check_wear_status()
         if this.worn_by != actor:
             actor.tell('{yYou are not wearing {c', this, '{y.')
         else:
@@ -151,7 +151,7 @@ class Wearable(Thing):
     def is_worn(self):
         return self.worn_by is not None
 
-    def _check_wear_status(self):
+    def check_wear_status(self):
         try:
             if self.ref() not in self.worn_by.wearing:
                 raise ValueError
@@ -181,7 +181,7 @@ class Wearable(Thing):
             self.emit_message('unwear', location=prev.location, actor=prev)
 
     def before_object_moved(self, moving_from, moving_to, by=None, via=None):
-        self._check_wear_status()
+        self.check_wear_status()
         if self.is_worn:
             if by == self.worn_by:
                 msg = "You must unwear %s before discarding it."
