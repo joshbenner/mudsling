@@ -25,7 +25,7 @@ class CommandSet(object):
     ancestor class, thereby hiding the ancestor's command and replacing it with
     the descendant's command.
 
-    @ivar commands: A map of key:command pairs.
+    :ivar commands: A map of key:command pairs.
     """
     commands = {}
 
@@ -33,12 +33,12 @@ class CommandSet(object):
         """
         Create a new command set.
 
-        @param commands: Iterable of command classes to initialize with.
-        @type commands: C{dict} or C{list} or C{tuple} or L{CommandSet}
+        :param commands: Iterable of command classes to initialize with.
+        :type commands: C{dict} or C{list} or C{tuple} or L{CommandSet}
 
-        @param container: An object whose members include command classes that
+        :param container: An object whose members include command classes that
             are to be added to this CommandSet's commands. Can be a module.
-        @type container: C{object}
+        :type container: C{object}
         """
         self.commands = {}
         if commands is not None:
@@ -52,8 +52,8 @@ class CommandSet(object):
 
         If a command with the same key is already in the set, it is replaced.
 
-        @param cmd: The command CLASS to add.
-        @type cmd: L{Command}
+        :param cmd: The command CLASS to add.
+        :type cmd: L{Command}
         """
         try:
             self.commands[cmd.key] = cmd
@@ -83,32 +83,32 @@ class Command(object):
     against input. Commands are only instantiated when they are run, so the
     command may feel free to use the command instance as it wishes.
 
-    @cvar lock: Object must satisfy lock to execute command.
-    @cvar aliases: Regular expressions that can match to trigger the command.
-    @cvar syntax: String representation of the command's syntax that is parse-
+    :cvar lock: Object must satisfy lock to execute command.
+    :cvar aliases: Regular expressions that can match to trigger the command.
+    :cvar syntax: String representation of the command's syntax that is parse-
         able by mudsling.utils.syntax.Syntax.
-    @cvar arg_parsers: Dictionary with keys matching args keys and values
+    :cvar arg_parsers: Dictionary with keys matching args keys and values
         giving hints about how the validator should parse the arg values. This
         is also used by the syntax matching phase for arguments that should
         resolve to the object providing the command ('this').
-    @cvar switch_parsers: Just like arg_parsers, but for switches.
-    @cvar switch_defaults: Default values for switches.
+    :cvar switch_parsers: Just like arg_parsers, but for switches.
+    :cvar switch_defaults: Default values for switches.
 
-    @ivar obj: The object hosting this command.
-    @ivar raw: The raw command-line input
-    @ivar cmdstr: The command part of the input string.
-    @ivar switchstr: The unparsed switch segment of the command.
-    @ivar argstr: The argument part of the input string.
-    @ivar argwords: A list of words (grouped by quotes) in the argstr.
-    @ivar args: The raw input for the arguments.
-    @ivar parsed_args: The fully-parsed values for the arguments.
-    @ivar switches: Parsed switches.
-    @ivar actor: The object responsible for the input leading to execution.
-    @ivar game: Handy reference to the game object.
+    :ivar obj: The object hosting this command.
+    :ivar raw: The raw command-line input
+    :ivar cmdstr: The command part of the input string.
+    :ivar switchstr: The unparsed switch segment of the command.
+    :ivar argstr: The argument part of the input string.
+    :ivar argwords: A list of words (grouped by quotes) in the argstr.
+    :ivar args: The raw input for the arguments.
+    :ivar parsed_args: The fully-parsed values for the arguments.
+    :ivar switches: Parsed switches.
+    :ivar actor: The object responsible for the input leading to execution.
+    :ivar game: Handy reference to the game object.
     """
     aliases = ()
     syntax = ""
-    #: @type: list
+    #: :type: list
     _syntax = None
 
     arg_parsers = {}
@@ -117,27 +117,27 @@ class Command(object):
 
     lock = locks.none_pass  # Commands are restricted by default.
 
-    #: @type: mudsling.objects.BaseObject
+    #: :type: mudsling.objects.BaseObject
     obj = None
 
-    #: @type: mudsling.objects.BaseObject
+    #: :type: mudsling.objects.BaseObject
     actor = None
 
-    #: @type: str
+    #: :type: str
     raw = None
     cmdstr = None
     switchstr = None
     argstr = None
 
-    #: @type: list
+    #: :type: list
     argwords = []
 
-    #: @type: dict
+    #: :type: dict
     args = {}
     parsed_args = {}
     switches = {}
 
-    #: @type: mudsling.core.MUDSling
+    #: :type: mudsling.core.MUDSling
     game = None
 
     @utils.object.ClassProperty
@@ -163,10 +163,10 @@ class Command(object):
         """
         Determine if an object is allowed to use this command.
 
-        @param actor: The object that wants to use this command.
-        @type actor: mudsling.objects.BaseObject
+        :param actor: The object that wants to use this command.
+        :type actor: mudsling.objects.BaseObject
 
-        @rtype: bool
+        :rtype: bool
         """
         if isinstance(cls.lock, basestring):
             cls.lock = locks.Lock(cls.lock)
@@ -177,10 +177,10 @@ class Command(object):
         """
         Determine if this command matches the command portion of the input.
 
-        @param cmdstr: The command part of the raw input.
-        @type cmdstr: str
+        :param cmdstr: The command part of the raw input.
+        :type cmdstr: str
 
-        @rtype: bool
+        :rtype: bool
         """
         return cmdstr.split('/')[0] in cls.aliases
 
@@ -204,8 +204,8 @@ class Command(object):
         """
         Return just the syntax portion of the command class's docstring.
 
-        @return: Syntax string
-        @rtype: str
+        :return: Syntax string
+        :rtype: str
         """
         trimmed = string.trim_docstring(cls.__doc__)
         syntax = []
@@ -218,26 +218,26 @@ class Command(object):
     def __init__(self, raw, cmdstr, argstr, game=None, obj=None, actor=None,
                  parse=False):
         """
-        @param raw: The raw input.
-        @type raw: str
+        :param raw: The raw input.
+        :type raw: str
 
-        @param cmdstr: The command part of the input.
-        @type cmdstr: str
+        :param cmdstr: The command part of the input.
+        :type cmdstr: str
 
-        @param argstr: The argument part of the input.
-        @type argstr: str
+        :param argstr: The argument part of the input.
+        :type argstr: str
 
-        @param game: Reference to the game instance.
-        @type game: mudsling.core.MUDSling
+        :param game: Reference to the game instance.
+        :type game: mudsling.core.MUDSling
 
-        @param obj: The object hosting the command.
-        @type obj: mudsling.objects.BaseObject or mudsling.storage.ObjRef
+        :param obj: The object hosting the command.
+        :type obj: mudsling.objects.BaseObject or mudsling.storage.ObjRef
 
-        @param actor: The object executing this command.
-        @type actor: mudsling.objects.BaseObject or mudsling.storage.ObjRef
+        :param actor: The object executing this command.
+        :type actor: mudsling.objects.BaseObject or mudsling.storage.ObjRef
 
-        @param parse: Whether or not to parse the syntax immediately.
-        @type parse: C{bool}
+        :param parse: Whether or not to parse the syntax immediately.
+        :type parse: C{bool}
         """
         self.raw = raw
         self.cmdstr, sep, self.switchstr = cmdstr.partition('/')
@@ -255,7 +255,7 @@ class Command(object):
     def match_syntax(self, argstr):
         """
         Determine if the input matches the command syntax.
-        @rtype: bool
+        :rtype: bool
         """
         if '_syntax' not in self.__class__.__dict__:
             self._compile_syntax()
@@ -313,8 +313,8 @@ class Command(object):
         Parses raw switch string into key/val string pairs. No value resolution
         beyond just getting the key and value strings is done.
 
-        @param switchstr: The raw switch string.
-        @rtype: C{dict}
+        :param switchstr: The raw switch string.
+        :rtype: C{dict}
         """
         switches = {}
         sp = self.switch_parsers
@@ -397,7 +397,7 @@ class Command(object):
         This is a handy place to do any complex (and possibly re-usable)
         custom parsing of the command input.
 
-        @rtype: bool
+        :rtype: bool
         """
         return True
 
@@ -417,7 +417,7 @@ class Command(object):
         of the command. Useful to output when a command is used incorrectly.
 
         The default implementation just outputs the command's syntax.
-        @return: str
+        :return: str
         """
         out = []
         for i, line in enumerate(self.__class__.get_syntax().splitlines()):
@@ -434,24 +434,24 @@ class Command(object):
         search for a single match has failed and return True if the search
         failed.
 
-        @see: L{mudsling.match.match_failed}
+        See: :func:`mudsling.match.match_failed`
 
-        @param matches: The result of the match search.
-        @type matches: list
+        :param matches: The result of the match search.
+        :type matches: list
 
-        @param search: The string used to search.
-        @type search: str
+        :param search: The string used to search.
+        :type search: str
 
-        @param search_for: A string describing what type of thing was being
+        :param search_for: A string describing what type of thing was being
             searched for. This should be the singular form of the word.
-        @type search_for: str
+        :type search_for: str
 
-        @param show: If true, will show the list of possible matches in the
+        :param show: If true, will show the list of possible matches in the
             case of an ambiguous match.
-        @type show: bool
+        :type show: bool
 
-        @return: True if the searched failed, False otherwise.
-        @rtype: bool
+        :return: True if the searched failed, False otherwise.
+        :rtype: bool
         """
         msg = match_failed(matches, search=search, search_for=search_for,
                            show=show)
@@ -487,7 +487,7 @@ class IHasCommands(zope.interface.Interface):
 def make_command_list(obj):
     """
     Return a list of command classes provided by an object (ie: a module).
-    @rtype: list
+    :rtype: list
     """
     commands = []
     for name in obj.__dict__:
@@ -502,7 +502,7 @@ def all_commands(*objects):
     """
     Takes objects (including modules), and pulls out all command classes
     provided in their members and flattens them into a single command list.
-    @rtype: list
+    :rtype: list
     """
     commands = []
     for o in objects:

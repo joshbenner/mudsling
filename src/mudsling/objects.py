@@ -26,16 +26,16 @@ class LockableObject(StoredObject):
     """
     Object that can have locks associated with it.
 
-    @cvar createLock: The lock that must be satisfied to create an instance.
+    :cvar createLock: The lock that must be satisfied to create an instance.
 
-    @ivar locks: The general lockset provided by the instance. Class values may
+    :ivar locks: The general lockset provided by the instance. Class values may
         be scanned by self.get_lock().
     """
 
-    #: @type: locks.Lock
+    #: :type: locks.Lock
     create_lock = locks.none_pass
 
-    #: @type: locks.LockSet
+    #: :type: locks.LockSet
     locks = locks.LockSet()
 
     def __init__(self, **kwargs):
@@ -54,7 +54,7 @@ class LockableObject(StoredObject):
         @param op: The operation (lock type) being checked.
         @type op: C{str}
 
-        @rtype: C{bool}
+        :rtype: C{bool}
         """
         if who.player is not None and who.player.superuser:
             return True
@@ -71,7 +71,7 @@ class LockableObject(StoredObject):
         @param lockType: The lock type to retrieve.
         @type lockType: C{str}
 
-        @rtype: L{mudsling.locks.Lock}
+        :rtype: L{mudsling.locks.Lock}
         """
         if (isinstance(self.locks, locks.LockSet)
                 and self.locks.has_type(lockType)):
@@ -100,7 +100,7 @@ class NamedObject(LockableObject):
     """
     An object with names and can discern the names of other NamedObjects.
 
-    @ivar _names: Tuple of all names this object is known by. First name is the
+    :ivar _names: Tuple of all names this object is known by. First name is the
         primary name.
     """
     _names = ()
@@ -116,7 +116,7 @@ class NamedObject(LockableObject):
     @property
     def name(self):
         """
-        @rtype: str
+        :rtype: str
         """
         return self._names[0]
 
@@ -132,7 +132,7 @@ class NamedObject(LockableObject):
     def nn(self):
         """
         Return the object's name and database ID.
-        @rtype: str
+        :rtype: str
         """
         return "%s (#%d)" % (self.name, self.obj_id)
 
@@ -145,8 +145,8 @@ class NamedObject(LockableObject):
         @param aliases: The new aliases. If None, do not change aliases.
         @param names: All names in one shot. If not None, other parameters are
             ignored and only this paramter is used.
-        @return: Old names tuple.
-        @rtype: C{tuple}
+        :return: Old names tuple.
+        :rtype: C{tuple}
         """
         oldNames = self._names
         newNames = list(oldNames)
@@ -175,7 +175,7 @@ class NamedObject(LockableObject):
         to attach other logic/actions to name changes.
 
         @param name: The new name.
-        @return: The old name.
+        :return: The old name.
         """
         oldNames = self._set_names(name=name)
         return oldNames[0] if oldNames else None
@@ -187,7 +187,7 @@ class NamedObject(LockableObject):
 
         @param aliases: The new aliases.
         @type aliases: C{list} or C{tuple}
-        @return: The old aliases.
+        :return: The old aliases.
         """
         return self._set_names(aliases=aliases)[1:]
 
@@ -197,7 +197,7 @@ class NamedObject(LockableObject):
         the first element is the name, and the other elements are the aliases.
 
         @param names: The new names to use.
-        @return: Old names.
+        :return: Old names.
         """
         oldNames = self.names
         self.set_name(names[0])
@@ -211,7 +211,7 @@ class NamedObject(LockableObject):
 
         @param obj: The object whose "known" names to retrieve.
         @type obj: L{NamedObject} or L{ObjRef}
-        @rtype: C{list}
+        :rtype: C{list}
         """
         try:
             return obj.names
@@ -225,15 +225,15 @@ class NamedObject(LockableObject):
         @param obj: The object to name.
         @type obj: L{NamedObject} or L{ObjRef}
 
-        @return: String name of passed object as known by this object.
-        @rtype: C{str}
+        :return: String name of passed object as known by this object.
+        :rtype: C{str}
         """
         return (self.names_for(obj) or ["UNKNOWN"])[0]
 
     def list_of_names(self, objs):
         """
         Return a list of names generated with self.name_for. Convenience.
-        @rtype: C{list}
+        :rtype: C{list}
         """
         return map(self.name_for, objs)
 
@@ -295,16 +295,16 @@ class PossessableObject(MessagedObject):
     """
     An object which can be possessed by a player.
 
-    @ivar possessed_by: The L{BasePlayer} who is currently possessing this obj.
-    @ivar possessable_by: List of players who can possess this object.
+    :ivar possessed_by: The L{BasePlayer} who is currently possessing this obj.
+    :ivar possessable_by: List of players who can possess this object.
     """
 
     _transient_vars = ['possessed_by']
 
-    #: @type: BasePlayer
+    #: :type: BasePlayer
     possessed_by = None
 
-    #: @type: list
+    #: :type: list
     possessable_by = []
 
     def __init__(self, **kwargs):
@@ -315,7 +315,7 @@ class PossessableObject(MessagedObject):
     def player(self):
         """
         Return ObjRef to the player object possessing this object.
-        @rtype: BasePlayer or ObjRef
+        :rtype: BasePlayer or ObjRef
         """
         if self.possessed_by is not None:
             return self.possessed_by.player
@@ -325,7 +325,7 @@ class PossessableObject(MessagedObject):
         """
         Returns True if the player can possess this object.
         @param player: The player.
-        @return: bool
+        :return: bool
         """
         return (player in self.possessable_by
                 or player.has_perm("possess anything"))
@@ -403,7 +403,7 @@ class PossessableObject(MessagedObject):
         @param parts: List of values to interpret into the message text.
         @type parts: list or str
 
-        @rtype: str
+        :rtype: str
         """
         if parts is None:
             return None
@@ -430,8 +430,8 @@ class PossessableObject(MessagedObject):
         @param obj: The object to name.
         @type obj: L{NamedObject} or L{ObjRef}
 
-        @return: String name of passed object as known by this object.
-        @rtype: C{str}
+        :return: String name of passed object as known by this object.
+        :rtype: C{str}
         """
         name = super(PossessableObject, self).name_for(obj)
         try:
@@ -448,18 +448,18 @@ class BaseObject(PossessableObject, Composed):
 
     Ideally, all other classes should not go any lower than this class.
 
-    @cvar private_commands: Private command classes for use by instances.
-    @cvar public_commands: Commands exposed to other objects by this class.
-    @cvar _commandCache: Cache of the compiled list of commands.
+    :cvar private_commands: Private command classes for use by instances.
+    :cvar public_commands: Commands exposed to other objects by this class.
+    :cvar _commandCache: Cache of the compiled list of commands.
 
-    @ivar owner: ObjRef() of the owner of the object (if any).
+    :ivar owner: ObjRef() of the owner of the object (if any).
     """
     zope.interface.implements(IInputProcessor, IHasCommands)
 
     # commands should never be set on instance, but... just in case.
     _transient_vars = ['commands', 'object_settings']
 
-    #: @type: StoredObject or ObjRef
+    #: :type: StoredObject or ObjRef
     owner = None
 
     # Implement IHasCommands.
@@ -479,7 +479,7 @@ class BaseObject(PossessableObject, Composed):
         """
         A matching utility. Essentially a duplicate of match_objlist(), but
         instead of just pulling aliases, it pulls namesFor().
-        @rtype: list
+        :rtype: list
         """
         strings = dict(zip(objlist, map(lambda o: self.names_for(o), objlist)))
         return match_stringlists(search, strings, exact=exactOnly, err=err)
@@ -495,7 +495,7 @@ class BaseObject(PossessableObject, Composed):
         @type cls: C{tuple} or C{type}
         @param err: If true, can raise search result errors.
 
-        @rtype: list
+        :rtype: list
         """
         candidate = None
         if search[0] == '#' and re.match(r"#\d+", search):
@@ -517,8 +517,8 @@ class BaseObject(PossessableObject, Composed):
 
         @param search: The string to match on.
         @param cls: The class whose descendants to search.
-        @return: A list of matches.
-        @rtype: list
+        :return: A list of matches.
+        :rtype: list
         """
         cls = cls or BaseObject
         return match_objlist(search, self.game.db.descendants(cls))
@@ -555,9 +555,9 @@ class BaseObject(PossessableObject, Composed):
         """
         Resolve the command to execute.
 
-        @param raw: The raw command input.
-        @return: An instantiated, ready-to-run command.
-        @rtype: L{mudsling.commands.Command} or None
+        :param raw: The raw command input.
+        :return: An instantiated, ready-to-run command.
+        :rtype: mudsling.commands.Command or None
         """
         cmd = self.preemptive_command_match(raw)
         if cmd is not None:
@@ -597,8 +597,8 @@ class BaseObject(PossessableObject, Composed):
         @param cmd_name: The name of the command being search for.
         @type cmd_name: C{str}
 
-        @return: A list of tuples of (object, command class).
-        @rtype: C{list}
+        :return: A list of tuples of (object, command class).
+        :rtype: C{list}
         """
         commands = []
         for obj in self.context:
@@ -615,7 +615,7 @@ class BaseObject(PossessableObject, Composed):
         ascending the MRO and adding commands from any L{IHasCommands} class.
 
         @param actor: The object that wishes to use a command.
-        @rtype: L{CommandSet}
+        :rtype: L{CommandSet}
         """
         if self.ref() == actor.ref():
             attr = 'private_commands'
@@ -656,8 +656,8 @@ class BaseObject(PossessableObject, Composed):
         @param raw: The raw input to handle
         @type raw: str
 
-        @return: None, a command class, or another value.
-        @rtype: type
+        :return: None, a command class, or another value.
+        :rtype: type
         """
         return None
 
@@ -669,8 +669,8 @@ class BaseObject(PossessableObject, Composed):
         @param raw: The raw input to handle
         @type raw: str
 
-        @return: A command *instance* or None.
-        @rtype: L{mudsling.commands.Command}
+        :return: A command *instance* or None.
+        :rtype: L{mudsling.commands.Command}
         """
         return None
 
@@ -678,7 +678,7 @@ class BaseObject(PossessableObject, Composed):
     def context(self):
         """
         The same as self._get_context(), but with duplicates removed.
-        @return:
+        :return:
         """
         return utils.sequence.unique(self._get_context())
 
@@ -687,7 +687,7 @@ class BaseObject(PossessableObject, Composed):
         Return a list of objects which will be checked, in order, for commands
         or object matches when parsing command arguments.
 
-        @rtype: list
+        :rtype: list
         """
         return [self.ref()]
 
@@ -755,7 +755,7 @@ class Object(BaseObject):
     def match_object(self, search, cls=None, err=False):
         """
         @type search: str
-        @rtype: list
+        :rtype: list
         """
         # Any match in parent bypasses further matching. This means, in theory,
         # that if parent matched something, something else that could match in
@@ -796,14 +796,14 @@ class Object(BaseObject):
     def has_location(self):
         """
         Returns true if the object is located somewhere valid.
-        @rtype: bool
+        :rtype: bool
         """
         return self.location is not None and self.location.is_valid(Object)
 
     def _get_context(self):
         """
         Add the object's location after self.
-        @rtype: list
+        :rtype: list
         """
         hosts = super(Object, self)._get_context()
         if self.location is not None:
@@ -830,8 +830,8 @@ class Object(BaseObject):
     def handle_unmatched_input_for(self, actor, raw):
         """
         Object may ask its container for last-try command matching.
-        @returns: Command *instance*.
-        @rtype: L{mudsling.commands.Command}
+        :returns: Command *instance*.
+        :rtype: L{mudsling.commands.Command}
         """
         return None
 
@@ -961,7 +961,7 @@ class Object(BaseObject):
         error should contain information explaining why.
         """
         this = self.ref()
-        #: @type: Object
+        #: :type: Object
         dest = dest.ref() if dest is not None else None
 
         if not this.is_valid():
@@ -1015,8 +1015,8 @@ class Object(BaseObject):
         @param exclude_invalid: If true, does not consider an invalid ObjRef to
             be a valid location, and will not include it in the list.
 
-        @return: List of nested locations, from deepest to shallowest.
-        @rtype: C{list}
+        :return: List of nested locations, from deepest to shallowest.
+        :rtype: C{list}
         """
         locations = []
         if (isinstance(self.location, ObjRef)
@@ -1048,8 +1048,8 @@ class Object(BaseObject):
         @param key: The key of the message to emit.
         @param keywords: The keywords for the template.
 
-        @return: List of objects notified.
-        @rtype: C{list}
+        :return: List of objects notified.
+        :rtype: C{list}
         """
         keywords['this'] = self.ref()
         location = location or self.location
@@ -1067,8 +1067,8 @@ class Object(BaseObject):
         @param exclude: List of objects to exclude from receiving the message.
         @type exclude: C{list} or C{None}
 
-        @return: List of objects that received some form of notice.
-        @rtype: C{list}
+        :return: List of objects that received some form of notice.
+        :rtype: C{list}
         """
         # Offers caller freedom of not having to check for None, which he might
         # get back from some message generation calls.
@@ -1107,28 +1107,28 @@ class BasePlayer(BaseObject):
     Players are essentially 'accounts' that are connected to sessions. They can
     then possess other objects (usually Characters).
 
-    @ivar password: The hash of the password used to login to this player.
-    @ivar _email: The player's email address.
-    @ivar session: The session object connected to this player.
-    @ivar default_object: The object this player will possess upon connecting.
-    @ivar __roles: The set of roles granted to this player.
+    :ivar password: The hash of the password used to login to this player.
+    :ivar _email: The player's email address.
+    :ivar session: The session object connected to this player.
+    :ivar default_object: The object this player will possess upon connecting.
+    :ivar __roles: The set of roles granted to this player.
     """
 
     _transient_vars = ['session', 'possessing']
     session = None
 
-    #: @type: Password
+    #: :type: Password
     password = None
 
-    #: @type: str
+    #: :type: str
     _email = ""
 
     superuser = False
 
-    #: @type: BaseObject
+    #: :type: BaseObject
     possessing = None
 
-    #: @type: BaseObject
+    #: :type: BaseObject
     default_object = None
 
     # Governed by ansi property
@@ -1153,7 +1153,7 @@ class BasePlayer(BaseObject):
     def valid_player_name(cls, name):
         """
         Validate the given player name.
-        @rtype: C{bool}
+        :rtype: C{bool}
         """
         return True if cls._valid_name_re.match(name) else False
 
@@ -1168,8 +1168,8 @@ class BasePlayer(BaseObject):
         @raise errors.DuplicatePlayerName: When player name is already used.
         @raise errors.InvalidEmail: When provided email is not valid.
 
-        @return: A new player.
-        @rtype: L{BasePlayer} or L{mudsling.storage.ObjRef}
+        :return: A new player.
+        :rtype: L{BasePlayer} or L{mudsling.storage.ObjRef}
         """
         names = kwargs.get('names', ())
         if not names:
@@ -1255,8 +1255,8 @@ class BasePlayer(BaseObject):
     @property
     def connected(self):
         """
-        @rtype: bool
-        @return: Whether or not player is connected.
+        :rtype: bool
+        :return: Whether or not player is connected.
         """
         return self.session is not None
 
@@ -1264,15 +1264,15 @@ class BasePlayer(BaseObject):
     def player(self):
         """
         A player is considered to be self-possessed.
-        @return: BasePlayer or ObjRef
+        :return: BasePlayer or ObjRef
         """
         return self.ref()
 
     @property
     def is_possessing(self):
         """
-        @rtype: bool
-        @return: Whether or not player is possessing an object.
+        :rtype: bool
+        :return: Whether or not player is possessing an object.
         """
         return self.possessing is not None
 
@@ -1536,7 +1536,7 @@ class BasePlayer(BaseObject):
     @property
     def ansi(self):
         """
-        @rtype: bool
+        :rtype: bool
         """
         return self._ansi
 
