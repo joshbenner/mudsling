@@ -12,10 +12,13 @@ import mudsling.config
 import mudslingcore.ui
 ui = mudslingcore.ui.ClassicUI()
 
+from dice import Roll
+
 import icmoney
 
 # Other modules depend on this import.
 from pathfinder import data
+from pathfinder import sizes
 
 #: Indicates if all pathfinder-related data has been loaded. Once data loading
 #: is complete, some pieces of code will begin to attempt to access data, such
@@ -42,6 +45,20 @@ icmoney.Currency('pp', 'Platinum Piece', 10.0)
 icmoney.Currency('gp', 'Gold Piece', 1.0)
 icmoney.Currency('sp', 'Silver Piece', 0.1)
 icmoney.Currency('cp', 'Copper Piece', .001)
+
+
+# Default damage rolls for objects ob various sizes.
+improvised_damage = {
+    sizes.Fine: Roll('0'),
+    sizes.Diminutive: Roll('1d1'),
+    sizes.Tiny: Roll('1d2'),
+    sizes.Small: Roll('1d4'),
+    sizes.Medium: Roll('1d8'),
+    sizes.Large: Roll('1d20'),
+    sizes.Huge: Roll('2d20'),
+    sizes.Gargantuan: Roll('4d20'),
+    sizes.Colossal: Roll('6d20')
+}
 
 
 class Damage(object):

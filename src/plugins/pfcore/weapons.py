@@ -2,19 +2,20 @@ from mudsling.utils.measurements import Dimensions as Dim
 
 from dice import Roll
 
-from pathfinder.objects import Part
-from pathfinder.weapons import MeleeWeapon, Encumbrance, enhancement
+from pathfinder.objects import Part, WieldType
+from pathfinder.weapons import MeleeWeapon
 
 
 class Shortsword(MeleeWeapon):
     family = 'Sword'
     type = 'Shortsword'
     proficiency = 'martial'
-    encumbrance = Encumbrance.Light
 
-    damage_roll = Roll('1d6')
+    wield_type = WieldType.Light
+
+    melee_damage = Roll('1d6')
     damage_type = 'piercing'
-    threat = 19
+    critical_threat = 19
 
     dimensions = Dim(32, 3.5, 1.5, 'inches')
     parts = {
