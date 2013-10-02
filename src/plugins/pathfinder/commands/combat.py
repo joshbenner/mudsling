@@ -272,3 +272,18 @@ class EndTurnCmd(pathfinder.commands.CombatCommand):
         :type args: dict
         """
         actor.end_battle_turn()
+
+
+class StrikeCmd(pathfinder.commands.CombatCommand):
+    """
+    strike[/unarmed][/nonlethal][/<type>] <target> [:<emote>]
+
+    Perform a melee attack against the target.
+    """
+    aliases = ('strike',)
+    syntax = "<target> [:<emote>]"
+    events = ('combat command', 'attack command', 'melee attack command')
+    default_emotes = [
+        "strikes $target."
+    ]
+    action_cost = {'attack': 1}
