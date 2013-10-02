@@ -44,17 +44,17 @@ class LockableObject(StoredObject):
 
     def allows(self, who, op):
         """
-        Determine if C{who} is allowed to perform C{op}. Superusers and objects
-        they possess skip the check entirely. If C{who} has C{control} access,
+        Determine if who is allowed to perform op. Superusers and objects
+        they possess skip the check entirely. If who has control access,
         then they are a superuser for this object.
 
         @param who: The object attempting the operation.
-        @type who: L{PossessableObject} or L{BasePlayer}
+        @type who: PossessableObject or BasePlayer
 
         @param op: The operation (lock type) being checked.
-        @type op: C{str}
+        @type op: str
 
-        :rtype: C{bool}
+        :rtype: bool
         """
         if who.player is not None and who.player.superuser:
             return True
@@ -69,9 +69,9 @@ class LockableObject(StoredObject):
         If no lock is found, then a Lock that always fails will be returned.
 
         @param lockType: The lock type to retrieve.
-        @type lockType: C{str}
+        @type lockType: str
 
-        :rtype: L{mudsling.locks.Lock}
+        :rtype: mudsling.locks.Lock
         """
         if (isinstance(self.locks, locks.LockSet)
                 and self.locks.has_type(lockType)):
@@ -88,7 +88,7 @@ class LockableObject(StoredObject):
 
         @param lock_type: The lock type to set.
         @param lock_expr: The lock expression to set.
-        @type lock_expr: C{basestring} or L{mudsling.locks.Lock}
+        @type lock_expr: basestring or mudsling.locks.Lock
         """
         if ('locks' not in self.__dict__
                 or not isinstance(self.locks, locks.LockSet)):
@@ -146,7 +146,7 @@ class NamedObject(LockableObject):
         @param names: All names in one shot. If not None, other parameters are
             ignored and only this paramter is used.
         :return: Old names tuple.
-        :rtype: C{tuple}
+        :rtype: tuple
         """
         oldNames = self._names
         newNames = list(oldNames)
@@ -186,7 +186,7 @@ class NamedObject(LockableObject):
         override to attach other logic/actions to alias changes.
 
         @param aliases: The new aliases.
-        @type aliases: C{list} or C{tuple}
+        @type aliases: list or tuple
         :return: The old aliases.
         """
         return self._set_names(aliases=aliases)[1:]
@@ -210,8 +210,8 @@ class NamedObject(LockableObject):
         self. Default implementation is to just return all aliases.
 
         @param obj: The object whose "known" names to retrieve.
-        @type obj: L{NamedObject} or L{ObjRef}
-        :rtype: C{list}
+        @type obj: NamedObject or ObjRef
+        :rtype: list
         """
         try:
             return obj.names
@@ -223,17 +223,17 @@ class NamedObject(LockableObject):
         Returns a string representation of the given object as known by self.
 
         @param obj: The object to name.
-        @type obj: L{NamedObject} or L{ObjRef}
+        @type obj: NamedObject or ObjRef
 
         :return: String name of passed object as known by this object.
-        :rtype: C{str}
+        :rtype: str
         """
         return (self.names_for(obj) or ["UNKNOWN"])[0]
 
     def list_of_names(self, objs):
         """
         Return a list of names generated with self.name_for. Convenience.
-        :rtype: C{list}
+        :rtype: list
         """
         return map(self.name_for, objs)
 
@@ -253,7 +253,7 @@ class MessagedObject(NamedObject):
         then ascend the MRO looking for a class providing the requested
         message template.
 
-        Implemented as part of L{IHasMessages}.
+        Implemented as part of IHasMessages.
         """
         msg = self.messages.get_message(key, **keywords)
         if msg is not None:
@@ -295,7 +295,7 @@ class PossessableObject(MessagedObject):
     """
     An object which can be possessed by a player.
 
-    :ivar possessed_by: The L{BasePlayer} who is currently possessing this obj.
+    :ivar possessed_by: The BasePlayer who is currently possessing this obj.
     :ivar possessable_by: List of players who can possess this object.
     """
 
@@ -385,7 +385,7 @@ class PossessableObject(MessagedObject):
         which are attached to it).
 
         @param text: The text to send to the object.
-        @type text: C{str} or C{list} or c{tuple}
+        @type text: str or list or tuple
 
         @param flags: Flags to modify how text is handled.
         """
@@ -428,10 +428,10 @@ class PossessableObject(MessagedObject):
         players possessing this object.
 
         @param obj: The object to name.
-        @type obj: L{NamedObject} or L{ObjRef}
+        @type obj: NamedObject or ObjRef
 
         :return: String name of passed object as known by this object.
-        :rtype: C{str}
+        :rtype: str
         """
         name = super(PossessableObject, self).name_for(obj)
         try:
@@ -492,7 +492,7 @@ class BaseObject(PossessableObject, Composed):
         @param search: The search string.
         @param cls: Limit potential matches to descendants of the given class
             or classes.
-        @type cls: C{tuple} or C{type}
+        @type cls: tuple or type
         @param err: If true, can raise search result errors.
 
         :rtype: list
@@ -537,7 +537,7 @@ class BaseObject(PossessableObject, Composed):
         The passedInput and err parameters help accommodate children overriding
         this method without having to jump through more hoops than needed.
 
-        Implemented as part of L{IInputProcessor}.
+        Implemented as part of IInputProcessor.
         """
         try:
             cmd = self.find_command(raw)
@@ -595,10 +595,10 @@ class BaseObject(PossessableObject, Composed):
         Match a command based on name (and access).
 
         @param cmd_name: The name of the command being search for.
-        @type cmd_name: C{str}
+        @type cmd_name: str
 
         :return: A list of tuples of (object, command class).
-        :rtype: C{list}
+        :rtype: list
         """
         commands = []
         for obj in self.context:
@@ -612,10 +612,10 @@ class BaseObject(PossessableObject, Composed):
 
         Returns contents of 'private_commands' if the actor is self, else it
         returns 'public_commands'. The full list of commands is built by
-        ascending the MRO and adding commands from any L{IHasCommands} class.
+        ascending the MRO and adding commands from any IHasCommands class.
 
         @param actor: The object that wishes to use a command.
-        :rtype: L{CommandSet}
+        :rtype: CommandSet
         """
         if self.ref() == actor.ref():
             attr = 'private_commands'
@@ -670,7 +670,7 @@ class BaseObject(PossessableObject, Composed):
         @type raw: str
 
         :return: A command *instance* or None.
-        :rtype: L{mudsling.commands.Command}
+        :rtype: mudsling.commands.Command
         """
         return None
 
@@ -760,7 +760,7 @@ class Object(BaseObject):
         # Any match in parent bypasses further matching. This means, in theory,
         # that if parent matched something, something else that could match in
         # contents or location will not match. Fortunately, all we match in
-        # L{BaseObject.match_object} is object literals and self, so this sould
+        # BaseObject.match_object is object literals and self, so this sould
         # not really be an issue.
         matches = super(Object, self).match_object(search, cls=cls)
         if not matches:
@@ -831,7 +831,7 @@ class Object(BaseObject):
         """
         Object may ask its container for last-try command matching.
         :returns: Command *instance*.
-        :rtype: L{mudsling.commands.Command}
+        :rtype: mudsling.commands.Command
         """
         return None
 
@@ -1016,7 +1016,7 @@ class Object(BaseObject):
             be a valid location, and will not include it in the list.
 
         :return: List of nested locations, from deepest to shallowest.
-        :rtype: C{list}
+        :rtype: list
         """
         locations = []
         if (isinstance(self.location, ObjRef)
@@ -1049,7 +1049,7 @@ class Object(BaseObject):
         @param keywords: The keywords for the template.
 
         :return: List of objects notified.
-        :rtype: C{list}
+        :rtype: list
         """
         keywords['this'] = self.ref()
         location = location or self.location
@@ -1061,14 +1061,14 @@ class Object(BaseObject):
         Send a message to the contents of this object.
 
         @param msg: The message to send. This can be a string, dynamic message
-            list, or a dict from L{MessagedObject.get_message}.
-        @type msg: C{str} or C{dict} or C{list}
+            list, or a dict from MessagedObject.get_message.
+        @type msg: str or dict or list
 
         @param exclude: List of objects to exclude from receiving the message.
-        @type exclude: C{list} or C{None}
+        @type exclude: list or None
 
         :return: List of objects that received some form of notice.
-        :rtype: C{list}
+        :rtype: list
         """
         # Offers caller freedom of not having to check for None, which he might
         # get back from some message generation calls.
@@ -1153,7 +1153,7 @@ class BasePlayer(BaseObject):
     def valid_player_name(cls, name):
         """
         Validate the given player name.
-        :rtype: C{bool}
+        :rtype: bool
         """
         return True if cls._valid_name_re.match(name) else False
 
@@ -1169,7 +1169,7 @@ class BasePlayer(BaseObject):
         @raise errors.InvalidEmail: When provided email is not valid.
 
         :return: A new player.
-        :rtype: L{BasePlayer} or L{mudsling.storage.ObjRef}
+        :rtype: BasePlayer or mudsling.storage.ObjRef
         """
         names = kwargs.get('names', ())
         if not names:

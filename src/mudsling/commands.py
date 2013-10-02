@@ -34,11 +34,11 @@ class CommandSet(object):
         Create a new command set.
 
         :param commands: Iterable of command classes to initialize with.
-        :type commands: C{dict} or C{list} or C{tuple} or L{CommandSet}
+        :type commands: dict or list or tuple or CommandSet
 
         :param container: An object whose members include command classes that
             are to be added to this CommandSet's commands. Can be a module.
-        :type container: C{object}
+        :type container: object
         """
         self.commands = {}
         if commands is not None:
@@ -53,7 +53,7 @@ class CommandSet(object):
         If a command with the same key is already in the set, it is replaced.
 
         :param cmd: The command CLASS to add.
-        :type cmd: L{Command}
+        :type cmd: Command
         """
         try:
             self.commands[cmd.key] = cmd
@@ -237,7 +237,7 @@ class Command(object):
         :type actor: mudsling.objects.BaseObject or mudsling.storage.ObjRef
 
         :param parse: Whether or not to parse the syntax immediately.
-        :type parse: C{bool}
+        :type parse: bool
         """
         self.raw = raw
         self.cmdstr, sep, self.switchstr = cmdstr.partition('/')
@@ -314,7 +314,7 @@ class Command(object):
         beyond just getting the key and value strings is done.
 
         :param switchstr: The raw switch string.
-        :rtype: C{dict}
+        :rtype: dict
         """
         switches = {}
         sp = self.switch_parsers
@@ -345,9 +345,9 @@ class Command(object):
         arg_parsers value options:
           - 'this': Actor object match for this arg yields the command's host
             object. This is handled during syntax parsing/matching.
-          - Subclass of L{mudsling.parsers.StaticParser}: Use a StaticParser
+          - Subclass of mudsling.parsers.StaticParser: Use a StaticParser
             class to translate the input to a value.
-          - Class descendant from L{StoredObject}: command will match object
+          - Class descendant from StoredObject: command will match object
             with actor and validate the result is an object instance descendant
             of the specified class.
           - callable: Passes user input to the callable and stores the result.
