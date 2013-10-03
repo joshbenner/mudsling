@@ -9,6 +9,7 @@ import mudsling.errors
 
 from mudsling import utils
 import mudsling.utils.string
+import mudsling.utils.sequence as seq_utils
 
 import mudslingcore.objects
 
@@ -829,6 +830,49 @@ class Character(mudslingcore.objects.Character,
         if region is not None:
             return layers[region]
         return layers
+
+    def covering_wearable(self, wearable=None):
+        """
+        Get a list of wearables covering the specified wearable.
+
+        :param wearable: The wearable for which to find covering wearables. If
+            no wearable is specified, then a dictionary of all wearables and the
+            other wearables covering them is returned instead.
+
+        :return: List of wearables covering the specified wearable, or a dict
+            whose keys are wearables, and values are a list of the wearables
+            covering the wearable in the key.
+        :rtype: list of pathfinder.equipment.WearableEquipment or dict
+        """
+        wearable = wearable.ref() if wearable is not None else None
+        covering = {}
+        for region, items in self.body_region_worn().iteritems():
+            last = len(items) - 1
+            for i, item in enumerate(items):
+                if item not in covering:
+                    covering[item] = []
+                if i < last and (wearable is None or wearable == item):
+                    covering[item].extend(items[i + 1:])
+        out = dict((k, seq_utils.unique(v)) for k, v in covering.iteritems())
+        if wearable is not None:
+            return out.get(wearable, [])
+        else:
+            return out
+
+    def visible_wearables(self, viewer):
+        """
+        Get a list of wearables on this character that are visible (exposed).
+
+        :return: List of wearables that are visible.
+        :rtype: list of wearables.Wearable
+        """
+        covering = self.covering_wearable()
+        visible = list(self.wearing)
+        for wearable in self.wearing:
+            if wearable in visible and len(covering.get(wearable, ())) > 0:
+                visible.remove(wearable)
+        return visible
+
 
 # Assign commands here to avoid circular import issues.
 from .commands import character as character_commands

@@ -3,6 +3,7 @@ import mudsling.utils.string as string_utils
 import wearables
 
 import pathfinder.objects
+import pathfinder.characters
 
 
 class Equipment(pathfinder.objects.Thing):
@@ -59,6 +60,8 @@ class WearableEquipment(wearables.Wearable, Equipment):
         :raises: wearables.CannotWearError
         """
         super(WearableEquipment, self).before_wear(wearer)
+        if not wearer.isa(pathfinder.characters.Character):
+            return
         problems = []
         layers = wearer.body_region_layers()
         for region in self.occupy_body_regions:
@@ -70,3 +73,23 @@ class WearableEquipment(wearables.Wearable, Equipment):
             reasons = string_utils.english_list(problems)
             msg = 'You cannot wear %s: %s' % (wearer.name_for(self), reasons)
             raise wearables.CannotWearError(msg)
+
+    def before_unwear(self, wearer):
+        """
+        Check to make sure the wearable is not covered by another article of
+        clothing.
+
+        :param wearer: The character wearing this equipment.
+        :type wearer: pathfinder.characters.Character
+
+        :raises: wearables.WearablesError
+        """
+        super(WearableEquipment, self).before_unwear(wearer)
+        if not wearer.isa(pathfinder.characters.Character):
+            return
+        covering = wearer.covering_wearable(self)
+        if len(covering):
+            names = [wearer.name_for(w) for w in covering]
+            msg = "Cannot unwear %s because it is covered by: %s"
+            msg %= (wearer.name_for(self), string_utils.english_list(names))
+            raise wearables.WearablesError(msg)

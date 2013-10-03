@@ -29,11 +29,33 @@ class NotWearingError(WearablesError):
     pass
 
 
+class WearingCmd(Command):
+    """
+    wearing
+
+    Display a list of wearables currently being worn.
+    """
+    aliases = ('wearing',)
+    lock = 'can_wear_wearables()'
+
+    def run(self, this, actor, args):
+        """
+        :type this: Wearer
+        :type actor: Wearer
+        :type args: dict
+        """
+        wearing = ['  {c%s' % actor.name_for(w) for w in actor.wearing]
+        if not wearing:
+            wearing = '{ynothing'
+        actor.tell('You are wearing: \n', '\n'.join(wearing))
+
+
 class Wearer(mudslingcore.objects.DescribableObject):
     """
     Provides object with tracking of what is worn.
     """
     wearing = []
+    private_commands = [WearingCmd]
 
     def on_object_created(self):
         super(Wearer, self).on_object_created()
@@ -52,10 +74,14 @@ class Wearer(mudslingcore.objects.DescribableObject):
 
     def describe_to(self, viewer):
         desc = super(Wearer, self).describe_to(viewer)
-        if not self.wearing:
+        visible = self.visible_wearables(viewer)
+        if not visible:
             return desc
-        names = map(lambda n: '{C%s{n' % n, viewer.list_of_names(self.wearing))
+        names = map(lambda n: '{C%s{n' % n, viewer.list_of_names(visible))
         return desc + '\nWearing: ' + utils.string.english_list(names)
+
+    def visible_wearables(self, viewer):
+        return self.wearing
 
     def wear(self, wearable):
         wearable = wearable.ref()
