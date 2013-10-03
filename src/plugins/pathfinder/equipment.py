@@ -1,3 +1,5 @@
+import mudsling.utils.string as string_utils
+
 import wearables
 
 import pathfinder.objects
@@ -20,12 +22,22 @@ class Equipment(pathfinder.objects.Thing):
         return features
 
 
+class WearableEquipmentMetaClass(type):
+    def __new__(mcs, name, parents, attr):
+        """Make sure the body regions are lower case!"""
+        regions = attr.get('occupy_body_regions', ())
+        attr['occupy_body_regions'] = tuple(r.lower() for r in regions)
+        return super(WearableEquipmentMetaClass, mcs).__new__(mcs, name,
+                                                              parents, attr)
+
+
 class WearableEquipment(wearables.Wearable, Equipment):
     """
     Equipment that can be worn, such as armor, clothing, etc.
 
     .. todo:: Pockets, equipment slots, etc.
     """
+    __metaclass__ = WearableEquipmentMetaClass
 
     #: The thickness of the layer.
     layer_value = 1
@@ -33,15 +45,28 @@ class WearableEquipment(wearables.Wearable, Equipment):
     #: How many layers fit under this item.
     max_sublayers = 1
 
-    #: The equipment slots this item occupies.
-    occupy_slots = ()
+    #: The body regions this item occupies.
+    occupy_body_regions = ()
 
     def before_wear(self, wearer):
         """
-        Check to make sure the wearer has the require slots and not too many
+        Check to make sure the wearer has the required slots and not too many
         layers.
 
         :param wearer: The character to wear the equipment.
         :type wearer: pathfinder.characters.Character
+
+        :raises: wearables.CannotWearError
         """
-        raise NotImplemented
+        super(WearableEquipment, self).before_wear(wearer)
+        problems = []
+        layers = wearer.body_region_layers()
+        for region in self.occupy_body_regions:
+            if region not in wearer.body_regions:
+                problems.append('no %s.' % region)
+            elif layers[region] > self.max_sublayers:
+                problems.append('too many layers on %s.' % region)
+        if len(problems):
+            reasons = string_utils.english_list(problems)
+            msg = 'You cannot wear %s: %s' % (wearer.name_for(self), reasons)
+            raise wearables.CannotWearError(msg)

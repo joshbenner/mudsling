@@ -69,7 +69,6 @@ class Wearer(mudslingcore.objects.DescribableObject):
         if wearable in self.wearing:
             wearable.before_unwear(self)
             self.wearing.remove(wearable)
-        if not wearable.is_worn_by(self):
             wearable.on_unwear()
 
 
@@ -88,9 +87,9 @@ class WearCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{Wearable}
-        @type actor: L{mudslingcore.objects.Character}
-        @type args: C{dict}
+        :type this: Wearable
+        :type actor: Wearer
+        :type args: dict
         """
         this.check_wear_status()
         try:
@@ -126,9 +125,9 @@ class UnwearCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{Wearable}
-        @type actor: L{mudslingcore.objects.Character}
-        @type args: C{dict}
+        :type this: Wearable
+        :type actor: Wearer
+        :type args: dict
         """
         this.check_wear_status()
         try:
@@ -164,16 +163,17 @@ class Wearable(mudslingcore.objects.Thing):
         return self.worn_by is not None
 
     def check_wear_status(self):
+        this = self.ref()
         try:
-            if self.ref() not in self.worn_by.wearing:
+            if this not in self.worn_by.wearing:
                 raise ValueError
             if self.worn_by is not None and self.location != self.worn_by:
                 raise ValueError
         except (AttributeError, ValueError):
             wearer = self.worn_by
             self.worn_by = None
-            if self.ref() in wearer.wearing:
-                wearer.wearing.remove(self.ref())
+            if self.db.is_valid(wearer, Wearer) and this in wearer.wearing:
+                wearer.wearing.remove(this)
 
     def is_worn_by(self, wearer):
         return wearer.ref() == self.worn_by.ref()

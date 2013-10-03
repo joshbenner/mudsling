@@ -13,7 +13,10 @@ import mudsling.utils.string
 import mudslingcore.objects
 
 import ictime
+
 from dice import Roll
+
+import wearables
 
 import pathfinder
 import pathfinder.prerequisites
@@ -22,6 +25,7 @@ import pathfinder.events
 import pathfinder.advancement
 import pathfinder.combat
 import pathfinder.errors
+import pathfinder.equipment
 
 
 def is_pfchar(obj):
@@ -41,7 +45,9 @@ class CharacterFeature(pathfinder.features.Feature):
             super(CharacterFeature, self).remove_from(obj)
 
 
-class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
+class Character(mudslingcore.objects.Character,
+                wearables.Wearer,
+                pathfinder.combat.Combatant):
     """
     A Pathfinder-enabled character/creature/etc.
     """
@@ -785,24 +791,44 @@ class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
         Get the objects occupying each body region.
 
         :param region: Optional region whose wearables to return.
+        :type region: str or None
+
         :return: A list of a single region's wearables, or a dictionary of
             every region and their corresponding wearables.
         :rtype: list or dict of list of wearables.Wearable
         """
-        raise NotImplemented
+        region = region.lower() if isinstance(region, str) else None
+        eq = pathfinder.equipment.WearableEquipment
+        in_reg = lambda w, r: w.isa(eq) and r in w.occupy_body_regions
+        worn = {}
+        for br in self.body_regions:
+            if region is None or region == br:
+                worn[br] = [i for i in self.wearing if in_reg(i, br)]
+        if region is not None:
+            return worn.get(region, [])
+        return worn
 
     def body_region_layers(self, region=None):
         """
         Get the number of layers being worn on a specific body region.
 
         :param region: Optional body region to get the layer value for.
-        :type region: str
+        :type region: str or None
 
         :return: The layer value for a given region, or a dictionary of all
             regions and how many layers are on each.
         :rtype: float or list of wearables.Wearable
         """
-        raise NotImplemented
+        region = region.lower() if isinstance(region, str) else None
+        worn = self.body_region_worn(region)
+        if region is not None:
+            worn = {region: worn}
+        layers = {}
+        for r, items in worn.iteritems():
+            layers[r] = sum(w.layer_value for w in items)
+        if region is not None:
+            return layers[region]
+        return layers
 
 # Assign commands here to avoid circular import issues.
 from .commands import character as character_commands
