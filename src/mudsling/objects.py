@@ -636,7 +636,7 @@ class BaseObject(PossessableObject, Composed):
             # Copy -- see below.
             cls._command_cache[attr] = CommandSet(commands)
 
-        # Offer Features and Components the chance to add commands. This is why
+        # Offer Mixins and Components the chance to add commands. This is why
         # we make copies of the CommandSet above -- these extra commands can
         # change, so we don't want them to participate in the command cache.
         # Expects lists of command classes from each extension.

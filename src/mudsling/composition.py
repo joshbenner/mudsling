@@ -5,9 +5,9 @@ Decorators are classes that extend the functionality of other classes or even
 instances.
 
 Decorators can be easily added to and removed from classes and instances. They
-are useful when host objects offer decorators opportunities to extend
-their functionality, such as invoking hooks on decorators or collecting
-decorator data (ie: decorator-provided commands).
+are useful when host objects offer mixins opportunities to extend
+their functionality, such as invoking hooks on mixins or collecting
+mixin data (ie: mixin-provided commands).
 
 Decorators can also transparently provide new attributes and methods to classes
 and instances they decorate. They are essentially modular plugins for classes
@@ -34,31 +34,31 @@ def is_hook(func):
             and getattr(func, 'is_hook', False))
 
 
-class Decorator(object):
+class Mixin(object):
     """
-    Decorators are classes that provide attributes and methods to be accessible
+    Mixins are classes that provide attributes and methods to be accessible
     by instances they are associated with (at class or instance level).
 
-    Decorators are not supposed to be instanced, because their attributes are
+    Mixins are not supposed to be instanced, because their attributes are
     transparently proxied to be accessible by instances that have access to
     them.
 
-    Example: If you learn math, that becomes a decorator of your person. You do
+    Example: If you learn math, that becomes a mixins of your person. You do
     not possess an instance of math, but rather math knowledge is now a part of
     your mind, its processes are available to you, and it stores information in
     you, such as which concepts you understand, a running tab when counting,
     and so on.
 
-    You may write a Decorator largely like you would write a parent class, but
+    You may write a Mixin largely like you would write a parent class, but
     there are some notable differences:
-    * _init_decorator is called during Decorated initialization.
+    * _init_mixin is called during HasMixins initialization.
     * Special attribute methods like __getattr__ are never called.
     * Decorators are not in the instance MRO, and are not searched by super().
-    * Decorator methods may not use super(). If decorators use inheritance, you
+    * Mixin methods may not use super(). If mixins use inheritance, you
         must use composed parent calls instead: parentClass.same_method(*args)
     """
     @classmethod
-    def _decorator_attr(cls, name, owner):
+    def _mixin_attr(cls, name, owner):
         if name.startswith('__'):  # Hide magic attributes.
             raise AttributeError
         val = getattr(cls, name)
@@ -76,100 +76,100 @@ class Decorator(object):
             return True
         return False
 
-    def _init_decorator(self, *a, **kw):
+    def _init_mixin(self, *a, **kw):
         # Stop init here. Decorators should be last parents.
         pass
 
 
-class Decorated(object):
+class HasMixins(object):
     """
-    An object with decorators.
+    An object with mixins.
 
-    Decorators are collected from the instance, and all classes in the MRO of
+    Mixins are collected from the instance, and all classes in the MRO of
     the instance.
     """
-    _decorators = []
+    _mixins = []
 
     @classmethod
-    def _init_class_decorators(cls):
-        if '_decorators' not in cls.__dict__:
-            cls._decorators = []
+    def _init_class_mixins(cls):
+        if '_mixins' not in cls.__dict__:
+            cls._mixins = []
 
     @classmethod
-    def add_class_decorator(cls, decorator):
-        cls._init_class_decorators()
-        cls._decorators.append(decorator)
+    def add_class_mixin(cls, mixin):
+        cls._init_class_mixins()
+        cls._mixins.append(mixin)
 
     @classmethod
-    def remove_class_decorator(cls, decorator):
-        cls._init_class_decorators()
-        if decorator in cls._decorators:
-            cls._decorators.remove(decorator)
+    def remove_class_mixin(cls, mixin):
+        cls._init_class_mixins()
+        if mixin in cls._mixins:
+            cls._mixins.remove(mixin)
 
     @classmethod
-    def get_class_decorators(cls, parent=Decorator):
-        decs = []
+    def get_class_mixins(cls, parent=Mixin):
+        mixins = []
         for c in cls.__mro__:
-            if issubclass(c, Decorated) and '_decorators' in c.__dict__:
-                decs.extend(f for f in c._decorators if issubclass(f, parent)
-                            and not f in decs)
-        return decs
+            if issubclass(c, HasMixins) and '_mixins' in c.__dict__:
+                mixins.extend(f for f in c._mixins if issubclass(f, parent)
+                              and not f in mixins)
+        return mixins
 
     def __init__(self, *args, **kwargs):
-        self._decorators = []
-        for dec in self._decorators:
+        self._mixins = []
+        for dec in self.mixins:
             if '__init__' in dec.__dict__:
                 dec.__init__.im_func(self, *args, **kwargs)
-        super(Decorated, self).__init__(*args, **kwargs)
+        super(HasMixins, self).__init__(*args, **kwargs)
 
     @property
-    def decorators(self):
-        return self.get_decorators()
+    def mixins(self):
+        return self.get_mixins()
 
-    def add_decorator(self, decorator):
-        if decorator in self._decorators:
+    def add_mixin(self, mixin):
+        if mixin in self._mixins:
             return
-        self._decorators.append(decorator)
+        self._mixins.append(mixin)
 
-    def remove_decorator(self, decorator):
-        if decorator in self._decorators:
-            self._decorators.remove(decorator)
+    def remove_mixin(self, mixin):
+        if mixin in self._mixins:
+            self._mixins.remove(mixin)
 
-    def has_decorator(self, decorator):
-        return decorator in self.decorators
+    def has_mixin(self, mixin):
+        return mixin in self.mixins
 
     def __getattr__(self, name):
-        for decorator in (f for f in self.decorators if hasattr(f, name)):
-            return decorator._decorator_attr(name, self)
+        for mixin in (f for f in self.mixins if hasattr(f, name)):
+            return mixin._mixin_attr(name, self)
         clsname = self.__class__.__name__
         msg = "'%s' object has no attribute '%s'" % (clsname, name)
         raise AttributeError(msg)
 
-    def get_decorators(self, parent=Decorator):
+    def get_mixins(self, parent=Mixin):
         """
-        Get a list of decorators associated with this instance.
+        Get a list of mixins associated with this instance.
 
-        @param parent: An optional parent class by which to filter decorators.
+        :param parent: An optional parent class by which to filter mixins.
 
-        @rtype: C{list}
+        :rtype: list
         """
-        decorators = filter(lambda f: issubclass(f, parent),
-                            getattr(self, '_decorators', []))
-        decorators.extend(self.__class__.get_class_decorators(parent=parent))
-        return decorators
+        mixins = filter(lambda f: issubclass(f, parent),
+                        getattr(self, '_mixins', []))
+        mixins.extend(self.__class__.get_class_mixins(parent=parent))
+        return mixins
 
-    def decorator_hook_implementations(self, hook, parent=Decorator):
+    def mixin_hook_implementations(self, hook, parent=Mixin):
         impl = OrderedDict()
-        for decorator in self.get_decorators(parent=parent):
-            if decorator.implements_hook(hook):
-                func = getattr(decorator, hook)
+        for mixin in self.get_mixins(parent=parent):
+            if mixin.implements_hook(hook):
+                func = getattr(mixin, hook)
                 bind = func.im_self or self
-                impl[decorator] = types.MethodType(func.im_func, bind)
+                impl[mixin] = types.MethodType(func.im_func, bind)
         return impl
 
-    def invoke_decorator_hook(self, hook, *a, **kw):
-        parent = kw.get('parent', Decorator)
-        impl = self.decorator_hook_implementations(hook, parent=parent)
+    def invoke_mixin_hook(self, hook, *a, **kw):
+        parent = kw.get('parent', Mixin)
+        impl = self.mixin_hook_implementations(hook, parent=parent)
         return OrderedDict([(f, h(*a, **kw)) for f, h in impl.iteritems()])
 
 
@@ -237,16 +237,16 @@ class Componentized(object):
         return OrderedDict([(c, h(*a, **kw)) for c, h in impl])
 
 
-class Composed(Decorated, Componentized):
+class Composed(HasMixins, Componentized):
     """
     A class unifying the Decorators and Components.
     """
     def hook_implementations(self, hook):
-        impl = self.decorator_hook_implementations(hook)
+        impl = self.mixin_hook_implementations(hook)
         impl.update(self.component_hook_implementations(hook))
         return impl
 
     def invoke_hook(self, hook, *a, **kw):
-        results = self.invoke_decorator_hook(hook, *a, **kw)
+        results = self.invoke_mixin_hook(hook, *a, **kw)
         results.update(self.invoke_component_hook(hook, *a, **kw))
         return results
