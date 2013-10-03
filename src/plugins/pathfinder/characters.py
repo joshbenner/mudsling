@@ -45,6 +45,10 @@ class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
     """
     A Pathfinder-enabled character/creature/etc.
     """
+    body_regions = ('head', 'face', 'neck', 'chest', 'abdomen', 'back',
+                    'left arm', 'right arm', 'left hand', 'right hand',
+                    'waist', 'left leg', 'right leg', 'left foot',
+                    'right foot')
     frozen_level = 0
     xp = 0
     race = None
@@ -775,6 +779,30 @@ class Character(mudslingcore.objects.Character, pathfinder.combat.Combatant):
 
     def join_battle(self, battle):
         battle.add_combatant(self.ref())
+
+    def body_region_worn(self, region=None):
+        """
+        Get the objects occupying each body region.
+
+        :param region: Optional region whose wearables to return.
+        :return: A list of a single region's wearables, or a dictionary of
+            every region and their corresponding wearables.
+        :rtype: list or dict of list of wearables.Wearable
+        """
+        raise NotImplemented
+
+    def body_region_layers(self, region=None):
+        """
+        Get the number of layers being worn on a specific body region.
+
+        :param region: Optional body region to get the layer value for.
+        :type region: str
+
+        :return: The layer value for a given region, or a dictionary of all
+            regions and how many layers are on each.
+        :rtype: float or list of wearables.Wearable
+        """
+        raise NotImplemented
 
 # Assign commands here to avoid circular import issues.
 from .commands import character as character_commands

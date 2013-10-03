@@ -1,6 +1,7 @@
 from dice import Roll
 
-from pathfinder.objects import MultipartThing, Equipment, attack
+from pathfinder.objects import MultipartThing, attack
+import pathfinder.equipment
 import pathfinder.data
 
 
@@ -18,7 +19,7 @@ def enhancement(name):
     return pathfinder.data.get('WeaponEnhancement', name)
 
 
-class Weapon(MultipartThing, Equipment):
+class Weapon(MultipartThing, pathfinder.equipment.Equipment):
     """
     A pathfinder weapon.
     """

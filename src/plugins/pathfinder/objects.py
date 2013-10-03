@@ -424,23 +424,6 @@ class Thing(core_objects.Thing, PathfinderObject):
         raise NotImplemented
 
 
-class Equipment(Thing):
-    """
-    Equipment is any thing which has a purpose and was probably crafted. The
-    major difference is that equipment can have enhancements, whereas normal
-    Things cannot.
-    """
-    #: Enhancements are feature instances that modify the object in some way.
-    #: They can respond to events, such as stat modification.
-    enhancements = []
-
-    @property
-    def features(self):
-        features = list(self.enhancements)
-        features.extend(super(Thing, self).features)
-        return features
-
-
 class MaterialThing(Thing):
     """
     A Thing that is composed of materials, which determine its hitpoints and
