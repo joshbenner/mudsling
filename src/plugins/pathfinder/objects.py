@@ -18,7 +18,7 @@ from icmoney import Money
 from dice import Roll
 
 import pathfinder
-import pathfinder.sizes
+import pathfinder.characters
 import pathfinder.stats
 import pathfinder.features
 import pathfinder.modifiers
@@ -139,6 +139,14 @@ class PathfinderObject(mudsling.objects.Object,
                 pass  # It's not there, don't worry.
         else:
             self._size_category = val
+
+    @property
+    def in_hand(self):
+        """
+        Returns True if the object is being held in a character's hands.
+        :rtype: bool
+        """
+        return self.db.is_valid(self.location, pathfinder.characters.Character)
 
     def event_responders(self, event):
         if '__event_responders' in self._stat_cache:

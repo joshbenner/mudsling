@@ -32,7 +32,7 @@ class WearableEquipmentMetaClass(type):
                                                               parents, attr)
 
 
-class WearableEquipment(wearables.Wearable, Equipment):
+class WearableEquipment(Equipment, wearables.Wearable):
     """
     Equipment that can be worn, such as armor, clothing, etc.
 
@@ -48,6 +48,10 @@ class WearableEquipment(wearables.Wearable, Equipment):
 
     #: The body regions this item occupies.
     occupy_body_regions = ()
+
+    @property
+    def in_hand(self):
+        return super(WearableEquipment, self).in_hand and not self.is_worn
 
     def before_wear(self, wearer):
         """

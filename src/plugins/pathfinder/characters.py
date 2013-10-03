@@ -27,6 +27,7 @@ import pathfinder.advancement
 import pathfinder.combat
 import pathfinder.errors
 import pathfinder.equipment
+import pathfinder.objects
 
 
 def is_pfchar(obj):
@@ -56,6 +57,8 @@ class Character(mudslingcore.objects.Character,
                     'left arm', 'right arm', 'left hand', 'right hand',
                     'waist', 'left leg', 'right leg', 'left foot',
                     'right foot')
+    primary_hand = 'right hand'
+    off_hand = 'left hand'
     frozen_level = 0
     xp = 0
     race = None
@@ -872,6 +875,19 @@ class Character(mudslingcore.objects.Character,
             if wearable in visible and len(covering.get(wearable, ())) > 0:
                 visible.remove(wearable)
         return visible
+
+    def held_in_hands(self):
+        """
+        Returns a list of objects being held in the character's hands.
+        :rtype: list
+        """
+        def is_held(obj):
+            if obj.isa(pathfinder.objects.PathfinderObject) and not obj.in_hand:
+                return False
+            elif obj in self.wearing:
+                return False
+            return True
+        return filter(is_held, self.contents)
 
 
 # Assign commands here to avoid circular import issues.
