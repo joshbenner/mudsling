@@ -100,9 +100,16 @@ class WearCmd(Command):
             actor.wear(this)
         except AlreadyWearingError:
             actor.tell('{yYou are already wearing {c', this, '{y.')
-        except CannotWearError:
-            if this.worn_by is not None:
+        except CannotWearError as e:
+            if e.message:
+                actor.tell(e.message)
+            elif this.worn_by is not None:
                 actor.tell('{c', this, ' {yis worn by {c', this.worn_by, '{y.')
+            else:
+                actor.tell('{yYou cannot wear {c', this, '{y.')
+        except WearablesError as e:
+            if e.message:
+                actor.tell(e.message)
             else:
                 actor.tell('{yYou cannot wear {c', this, '{y.')
 
@@ -131,6 +138,12 @@ class UnwearCmd(Command):
             actor.unwear(this)
         except NotWearingError:
             actor.tell('{yYou are not wearing {c', this, '{y.')
+        except WearablesError as e:
+            if e.message:
+                actor.tell(e.message)
+            else:
+                actor.tell('{yYou cannot unwear {c', this, '{y.')
+
 
 
 class Wearable(Thing):
