@@ -66,9 +66,9 @@ class WearableEquipment(wearables.Wearable, Equipment):
         layers = wearer.body_region_layers()
         for region in self.occupy_body_regions:
             if region not in wearer.body_regions:
-                problems.append('no %s.' % region)
+                problems.append('no %s' % region)
             elif layers[region] > self.max_sublayers:
-                problems.append('too many layers on %s.' % region)
+                problems.append('too many layers on %s' % region)
         if len(problems):
             reasons = string_utils.english_list(problems)
             msg = 'You cannot wear %s: %s' % (wearer.name_for(self), reasons)

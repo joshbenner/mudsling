@@ -859,7 +859,7 @@ class Character(mudslingcore.objects.Character,
         else:
             return out
 
-    def visible_wearables(self, viewer):
+    def visible_wearables(self, viewer=None):
         """
         Get a list of wearables on this character that are visible (exposed).
 

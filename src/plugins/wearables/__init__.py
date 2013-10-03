@@ -80,7 +80,7 @@ class Wearer(mudslingcore.objects.DescribableObject):
         names = map(lambda n: '{C%s{n' % n, viewer.list_of_names(visible))
         return desc + '\nWearing: ' + utils.string.english_list(names)
 
-    def visible_wearables(self, viewer):
+    def visible_wearables(self, viewer=None):
         return self.wearing
 
     def wear(self, wearable):
