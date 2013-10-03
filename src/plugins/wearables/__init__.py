@@ -15,6 +15,22 @@ def can_wear_wearables(who):
     return who.isa(HasMixins) and WearingMixin in who.mixins
 
 
+class WearablesError(errors.Error):
+    pass
+
+
+class CannotWearError(WearablesError):
+    pass
+
+
+class AlreadyWearingError(CannotWearError):
+    pass
+
+
+class NotWearingError(WearablesError):
+    pass
+
+
 class WearingMixin(Mixin):
     """
     Provides object with tracking of what is worn.
@@ -46,6 +62,7 @@ class WearingMixin(Mixin):
 
     def wear(self, wearable):
         wearable = wearable.ref()
+        wearable.before_wear(self)
         wearable.move_to(self)
         self.wearing.append(wearable)
         wearable.on_wear(self)
@@ -53,8 +70,9 @@ class WearingMixin(Mixin):
     def unwear(self, wearable):
         wearable = wearable.ref()
         if wearable in self.wearing:
+            wearable.before_unwear(self)
             self.wearing.remove(wearable)
-        if wearable.is_worn_by(self):
+        if not wearable.is_worn_by(self):
             wearable.on_unwear()
 
 
@@ -78,12 +96,15 @@ class WearCmd(Command):
         @type args: C{dict}
         """
         this.check_wear_status()
-        if this.worn_by == actor:
-            actor.tell('{yYou are already wearing {c', this, '{y.')
-        elif this.worn_by is not None:
-            actor.tell('{c', this, ' {yis worn by {c', this.worn_by, '{y.')
-        else:
+        try:
             actor.wear(this)
+        except AlreadyWearingError:
+            actor.tell('{yYou are already wearing {c', this, '{y.')
+        except CannotWearError:
+            if this.worn_by is not None:
+                actor.tell('{c', this, ' {yis worn by {c', this.worn_by, '{y.')
+            else:
+                actor.tell('{yYou cannot wear {c', this, '{y.')
 
 
 class UnwearCmd(Command):
@@ -106,10 +127,10 @@ class UnwearCmd(Command):
         @type args: C{dict}
         """
         this.check_wear_status()
-        if this.worn_by != actor:
-            actor.tell('{yYou are not wearing {c', this, '{y.')
-        else:
+        try:
             actor.unwear(this)
+        except NotWearingError:
+            actor.tell('{yYou are not wearing {c', this, '{y.')
 
 
 class Wearable(Thing):
@@ -148,6 +169,13 @@ class Wearable(Thing):
     def is_worn_by(self, wearer):
         return wearer.ref() == self.worn_by.ref()
 
+    def before_wear(self, wearer):
+        wearer = wearer.ref()
+        if self.worn_by == wearer:
+            raise AlreadyWearingError()
+        elif self.is_worn:
+            raise CannotWearError()
+
     def on_wear(self, wearer):
         """
         Called after a wearable has been worn by a wearer.
@@ -155,6 +183,10 @@ class Wearable(Thing):
         self.worn_by = wearer.ref()
         if wearer.isa(Object) and wearer.has_location:
             self.emit_message('wear', location=wearer.location, actor=wearer)
+
+    def before_unwear(self, wearer):
+        if self.worn_by != wearer.ref():
+            raise NotWearingError()
 
     def on_unwear(self):
         prev = self.worn_by
