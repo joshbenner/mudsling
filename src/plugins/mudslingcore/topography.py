@@ -125,8 +125,8 @@ class Room(DescribableObject, SensoryMedium):
         @param exit: The exit that was removed.
         """
 
-    def desc_title(self, obj):
-        return '{y' + super(Room, self).desc_title(obj)
+    def desc_title(self, viewer):
+        return '{y' + super(Room, self).desc_title(viewer)
 
     def as_seen_by(self, obj):
         desc = super(Room, self).as_seen_by(obj)

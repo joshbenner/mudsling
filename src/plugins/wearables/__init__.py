@@ -1,5 +1,3 @@
-
-from mudsling.composition import hook, Mixin, HasMixins
 from mudsling.commands import Command
 from mudsling.messages import Messages
 from mudsling.objects import Object
@@ -8,11 +6,11 @@ from mudsling import errors
 from mudsling import utils
 import mudsling.utils.string
 
-from mudslingcore.objects import Thing
+import mudslingcore.objects
 
 
 def can_wear_wearables(who):
-    return who.isa(HasMixins) and WearingMixin in who.mixins
+    return who.isa(Wearer)
 
 
 class WearablesError(errors.Error):
@@ -31,20 +29,19 @@ class NotWearingError(WearablesError):
     pass
 
 
-class WearingMixin(Mixin):
+class Wearer(mudslingcore.objects.DescribableObject):
     """
     Provides object with tracking of what is worn.
     """
     wearing = []
 
-    def __init__(self, *a, **kw):
+    def on_object_created(self):
+        super(Wearer, self).on_object_created()
         self._init_wearing()
-        super(WearingMixin, self).__init__(*a, **kw)
 
     def _init_wearing(self):
         self.wearing = []
 
-    @hook
     def server_started(self):
         """
         If this feature is added to a class that already has instances, we want
@@ -53,8 +50,8 @@ class WearingMixin(Mixin):
         if 'wearing' not in self.__dict__:
             self._init_wearing()
 
-    @hook
-    def desc_mod(self, desc, viewer):
+    def describe_to(self, viewer):
+        desc = super(Wearer, self).describe_to(viewer)
         if not self.wearing:
             return desc
         names = map(lambda n: '{C%s{n' % n, viewer.list_of_names(self.wearing))
@@ -145,8 +142,7 @@ class UnwearCmd(Command):
                 actor.tell('{yYou cannot unwear {c', this, '{y.')
 
 
-
-class Wearable(Thing):
+class Wearable(mudslingcore.objects.Thing):
     """
     A generic wearable object.
     """

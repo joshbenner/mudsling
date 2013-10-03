@@ -28,15 +28,10 @@ class DescribableObject(Object):
     """
     An object that has a description and can be seen.
 
-    @ivar desc: The description of the object.
-    @type desc: C{str}
-
-    @ivar desc_mods: List of objects that may modify the object's description.
-        Modifiers must implement L{IDescModifier}.
-    @type desc_mods: C{list}
+    :ivar desc: The description of the object.
+    :type desc: str
     """
     desc = ""
-    desc_mods = []
 
     def __init__(self, **kwargs):
         self.desc_mods = []
@@ -48,10 +43,10 @@ class DescribableObject(Object):
         object. Calling this method implies that the object actually looked at
         this object. If you need just the string, use as_seen_by().
 
-        @param obj: The object looking at this object.
+        :param obj: The object looking at this object.
 
-        @return: String describing this to the looking object.
-        @rtype: str
+        :return: String describing this to the looking object.
+        :rtype: str
         """
         return self.as_seen_by(obj)
 
@@ -62,30 +57,24 @@ class DescribableObject(Object):
         actually took place, so consider whether you should be calling this or
         seen_by().
 
-        @param obj: The object that would be looking.
-        @return: What the object would see.
-        @rtype: str
+        :param obj: The object that would be looking.
+        :return: What the object would see.
+        :rtype: str
         """
         return "%s\n%s" % (self.desc_title(obj), self.describe_to(obj))
 
-    def desc_title(self, obj):
+    def desc_title(self, viewer):
         """
         Return the title to show before the description as seen by the passed
         object.
         """
-        return obj.name_for(self) if obj is not None else self.name
+        return viewer.name_for(self) if viewer is not None else self.name
 
-    def describe_to(self, obj):
+    def describe_to(self, viewer):
         """
         Return the string describing this object to the passed object.
         """
-        desc = self.desc if self.desc else "You see nothing special."
-        for impl in self.hook_implementations('desc_mod').itervalues():
-            try:
-                desc = impl(desc, viewer=obj)
-            except:
-                logging.exception('Error with desc modifier')
-        return desc
+        return self.desc if self.desc else "You see nothing special."
 
     def contents_visible_to(self, obj):
         """
@@ -206,14 +195,14 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject,
     def is_possessable_by(self, player):
         """
         Core characters are ONLY possessable by players!
-        @rtype: bool
+        :rtype: bool
         """
         return player.is_valid(Player)
 
     @property
     def player(self):
         """
-        @rtype: L{Player} or C{None}
+        :rtype: Player or None
         """
         player = super(Character, self).player
         return player if player.is_valid(Player) else None
@@ -355,8 +344,8 @@ class Container(Thing):
 
         Will emit the 'open' message with opened_by as the actor if specified.
 
-        @param opened_by: The object responsible for opening the container.
-        @type opened_by: L{mudsling.objects.Object}
+        :param opened_by: The object responsible for opening the container.
+        :type opened_by: mudsling.objects.Object
         """
         if not self._opened:
             self._opened = True
@@ -369,8 +358,8 @@ class Container(Thing):
         """
         Closes the container. Emits message if `closed_by` is specified.
 
-        @param closed_by: The object responsible for closing the container.
-        @type closed_by: L{mudsling.objects.Object}
+        :param closed_by: The object responsible for closing the container.
+        :type closed_by: mudsling.objects.Object
         """
         if self._opened:
             self._opened = False
@@ -379,8 +368,8 @@ class Container(Thing):
             else:
                 self.emit([self.ref(), ' closes.'])
 
-    def desc_title(self, obj):
-        name = super(Container, self).desc_title(obj)
+    def desc_title(self, viewer):
+        name = super(Container, self).desc_title(viewer)
         if self._opened:
             name += ' {g(open)'
         else:
@@ -393,9 +382,9 @@ class Container(Thing):
         else:
             return []
 
-    def describe_to(self, obj):
-        desc = [super(Container, self).describe_to(obj)]
+    def describe_to(self, viewer):
+        desc = [super(Container, self).describe_to(viewer)]
         if self._opened:
             desc.append('Contents:')
-            desc.append(self.contents_as_seen_by(obj))
+            desc.append(self.contents_as_seen_by(viewer))
         return '\n'.join(desc)
