@@ -803,7 +803,7 @@ class Character(mudslingcore.objects.Character,
         """
         region = region.lower() if isinstance(region, str) else None
         eq = pathfinder.equipment.WearableEquipment
-        in_reg = lambda w, r: w.isa(eq) and r in w.occupy_body_regions
+        in_reg = lambda w, r: w.isa(eq) and r in w.body_regions
         worn = {}
         for br in self.body_regions:
             if region is None or region == br:

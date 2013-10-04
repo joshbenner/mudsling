@@ -26,8 +26,8 @@ class Equipment(pathfinder.objects.Thing):
 class WearableEquipmentMetaClass(type):
     def __new__(mcs, name, parents, attr):
         """Make sure the body regions are lower case!"""
-        regions = attr.get('occupy_body_regions', ())
-        attr['occupy_body_regions'] = tuple(r.lower() for r in regions)
+        regions = attr.get('body_regions', ())
+        attr['body_regions'] = tuple(r.lower() for r in regions)
         return super(WearableEquipmentMetaClass, mcs).__new__(mcs, name,
                                                               parents, attr)
 
@@ -47,7 +47,7 @@ class WearableEquipment(Equipment, wearables.Wearable):
     max_sublayers = 1
 
     #: The body regions this item occupies.
-    occupy_body_regions = ()
+    body_regions = ()
 
     @property
     def in_hand(self):
@@ -68,7 +68,7 @@ class WearableEquipment(Equipment, wearables.Wearable):
             return
         problems = []
         layers = wearer.body_region_layers()
-        for region in self.occupy_body_regions:
+        for region in self.body_regions:
             if region not in wearer.body_regions:
                 problems.append('no %s' % region)
             elif layers[region] > self.max_sublayers:
