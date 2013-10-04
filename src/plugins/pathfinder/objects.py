@@ -93,6 +93,20 @@ class PathfinderObject(mudsling.objects.Object,
             setattr(self, attr, val)
 
     @property
+    def volume(self):
+        """
+        The volume of the object, based on its dimensions. If the object's
+        dimensions yield zero volume, then a generalized volume based on the
+        size category is used.
+
+        :rtype: mudsling.utils.units._Quantity
+        """
+        vol = self.dimensions.volume
+        if not vol:
+            vol = pathfinder.sizes.volume(self.size_category)
+        return vol
+
+    @property
     def features(self):
         return list(self.conditions)
 

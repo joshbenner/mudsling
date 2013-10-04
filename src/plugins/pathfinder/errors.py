@@ -39,3 +39,11 @@ class InvalidSubtype(PathfinderError):
         super(InvalidSubtype, self).__init__(msg)
         self.feat_class = feat_class
         self.subtype = subtype
+
+
+class InvalidContent(mudsling.errors.MoveDenied):
+    pass
+
+
+class DoesNotFit(mudsling.errors.MoveDenied):
+    pass

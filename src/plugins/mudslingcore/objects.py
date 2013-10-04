@@ -329,10 +329,11 @@ class Container(Thing):
         }
     })
     _opened = False
+    can_close = True
 
     @property
     def opened(self):
-        return self._opened
+        return self._opened if self.can_close else True
 
     @property
     def closed(self):

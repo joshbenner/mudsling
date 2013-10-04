@@ -1,5 +1,5 @@
 """
-Commands for L{mudslingcore.objects.Container}.
+Commands for mudslingcore.objects.Container.
 """
 from mudsling import locks, errors
 from mudsling.commands import Command
@@ -24,10 +24,11 @@ class PutCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.objects.Container}
-        @type actor: L{mudslingcore.objects.Object}
-        @type args: C{dict}
+        :type this: mudslingcore.objects.Container
+        :type actor: mudslingcore.objects.Object
+        :type args: dict
         """
+        #: :type: mudslingcore.objects.Object
         thing = args['thing']
         if this.location not in (actor, actor.location):
             actor.tell("You can't get at ", this, ".")
@@ -37,7 +38,7 @@ class PutCmd(Command):
             actor.tell(this, " is closed.")
         else:
             try:
-                thing.move_to(this)
+                thing.move_to(this, by=actor)
             except errors.MoveError as e:
                 if e.message:
                     actor.tell('{r', e.message)
@@ -69,10 +70,11 @@ class TakeCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.objects.Container}
-        @type actor: L{mudslingcore.objects.Object}
-        @type args: C{dict}
+        :type this: mudslingcore.objects.Container
+        :type actor: mudslingcore.objects.Object
+        :type args: dict
         """
+        #: :type: mudslingcore.objects.Object
         thing = args['thing']
         if this.location not in (actor, actor.location):
             actor.tell("You are too far away.")
@@ -84,7 +86,7 @@ class TakeCmd(Command):
                     thing.move_to(actor)
                 except errors.MoveDenied as e:
                     if e.denied_by == actor:
-                        thing.move_to(actor.location)
+                        thing.move_to(actor.location, by=actor)
                         actor.tell('You cannot hold ', thing,
                                    ', and it tumbles to the ground.')
             except errors.MoveError as e:
@@ -110,11 +112,13 @@ class OpenCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.objects.Container}
-        @type actor: L{mudslingcore.objects.Object}
-        @type args: C{dict}
+        :type this: mudslingcore.objects.Container
+        :type actor: mudslingcore.objects.Object
+        :type args: dict
         """
-        if this.location not in (actor, actor.location):
+        if not this.can_close:
+            actor.tell(this, ' does not open or close.')
+        elif this.location not in (actor, actor.location):
             actor.tell('You are too far away.')
         elif this.opened:
             actor.tell(this, ' is already opened.')
@@ -137,11 +141,13 @@ class CloseCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.objects.Container}
-        @type actor: L{mudslingcore.objects.Object}
-        @type args: C{dict}
+        :type this: mudslingcore.objects.Container
+        :type actor: mudslingcore.objects.Object
+        :type args: dict
         """
-        if this.location not in (actor, actor.location):
+        if not this.can_close:
+            actor.tell(this, ' does not open or close.')
+        elif this.location not in (actor, actor.location):
             actor.tell('You are too far away.')
         elif not this.opened:
             actor.tell(this, ' is already opened.')

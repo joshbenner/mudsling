@@ -3,6 +3,22 @@ from collections import OrderedDict
 from mudsling.utils import units
 
 
+def volume(size, num_items=1, out_unit='foot^3'):
+    """
+    Given a size category, calculate how much relative storage "volume" an
+    object of that size occupies.
+
+    :param size: The size category whose volume to determine.
+    :param num_items: The number of items in that size category to multiply the
+        value by.
+
+    :return: The rough volume required to store an item of the specified size.
+    :rtype: mudsling.utils.units._Quantity
+    """
+    volume = (size.length[1] ** 3).to(out_unit)
+    return volume * num_items
+
+
 class SizeCategory(object):
     name = ''
     delta = 0  # Used to measure relative size categories.

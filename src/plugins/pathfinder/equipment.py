@@ -1,12 +1,17 @@
+import mudsling.objects
 import mudsling.utils.string as string_utils
+import mudsling.utils.units as units
+
+import mudslingcore.objects
 
 import wearables
 
 import pathfinder.objects
 import pathfinder.characters
+import pathfinder.errors
 
 
-class Equipment(pathfinder.objects.Thing):
+class Equipment(pathfinder.objects.Thing, mudslingcore.objects.Container):
     """
     Equipment is any thing which has a purpose and was probably crafted. The
     major difference is that equipment can have enhancements, whereas normal
@@ -16,11 +21,60 @@ class Equipment(pathfinder.objects.Thing):
     #: They can respond to events, such as stat modification.
     enhancements = []
 
+    #: The volume of carrying capacity in this piece of equipment.
+    #: For convenience, see pathfinder.sizes.volume() for setting this value.
+    #: :type: mudsling.utils.units._Quantity
+    cargo_capacity = 0 * units.foot ** 3
+
+    #: By default, equipment does not have a sealing mechanism.
+    can_close = False
+
     @property
-    def features(self):
-        features = list(self.enhancements)
-        features.extend(super(Equipment, self).features)
-        return features
+    def used_cargo_capacity(self):
+        """
+        Return the cumulative volume occupied by the current contents of the
+        equipment.
+        :rtype: mudsling.utils.units._Quantity
+        """
+        volume = 0 * units.foot ** 3
+        for o in self.contents:
+            if pathfinder.objects.is_pfobj(o):
+                # noinspection PyUnresolvedReferences
+                volume += o.volume
+        return volume
+
+    @property
+    def available_cargo_capacity(self):
+        """
+        How much volume is available for storage.
+        :rtype: mudsling.utils.units._Quantity
+        """
+        return self.cargo_capacity - self.used_cargo_capacity
+
+    def before_content_added(self, what, previous_location, by=None, via=None):
+        """
+        :type what: pathfinder.objects.PathfinderObject
+        """
+        super(Equipment, self).before_content_added(what, previous_location,
+                                                    by, via)
+        err = None
+        msg = ''
+        if not pathfinder.objects.is_pfobj(what):
+            err = pathfinder.errors.InvalidContent
+            if by.isa(mudsling.objects.Object):
+                msg = "%s cannot be in %s" % (by.name_for(what),
+                                              by.name_for(self))
+            else:
+                msg = "Incompatible object"
+        if self.available_cargo_capacity < what.volume:
+            err = pathfinder.errors.DoesNotFit
+            if by.isa(mudsling.objects.Object):
+                msg = "%s does not fit in %s" % (by.name_for(what),
+                                                 by.name_for(self))
+            else:
+                msg = "Does not fit"
+        if err is not None:
+            raise err(what, previous_location, self.ref(), self.ref(), msg=msg)
 
 
 class WearableEquipmentMetaClass(type):
