@@ -9,7 +9,7 @@ from mudsling.utils import string
 from mudsling.utils.syntax2 import Syntax, SyntaxParseError
 from mudsling.utils.sequence import dict_merge
 from mudsling import parsers
-from mudsling.errors import CommandInvalid
+import mudsling.errors
 from mudsling import locks
 
 from mudsling import utils
@@ -271,8 +271,16 @@ class Command(object):
             for argName, valid in self.arg_parsers.iteritems():
                 if valid == 'this':
                     matches = self.actor.match_object(parsed[argName])
-                    if len(matches) != 1 or matches[0] != self.obj:
+                    if self.obj not in matches:
                         return False
+                    elif len(matches) > 1:
+                        msg = match_failed(matches, search=parsed[argName],
+                                           show=True)
+                        raise mudsling.errors.AmbiguousMatch(
+                            msg=msg,
+                            query=parsed[argName],
+                            matches=matches
+                        )
             return True
         return False
 
@@ -324,7 +332,8 @@ class Command(object):
                 continue
             key, sep, val = switch.partition('=')
             if key not in sp and key not in defaults:
-                raise CommandInvalid(msg="Unknown switch: %s" % key)
+                raise mudsling.errors.CommandInvalid(
+                    msg="Unknown switch: %s" % key)
             if val == '':  # Set switch to true if it is present without val.
                 if key in sp and issubclass(sp[key], parsers.BoolStaticParser):
                     val = sp[key].true_vals[0]
@@ -360,7 +369,10 @@ class Command(object):
         """
         parsed = dict(args)
         for argName, valid in arg_parsers.iteritems():
-            if argName not in args or valid == 'this' or args[argName] is None:
+            if valid == 'this':
+                # This is matched during an earlier phase.
+                parsed[argName] = self.obj
+            if argName not in args or args[argName] is None:
                 continue
             elif isinstance(valid, parsers.Parser):
                 parsed[argName] = valid.parse(args[argName], actor=self.actor)
@@ -466,7 +478,7 @@ class Command(object):
         Example:
             raise self._err("That makes no sense!")
         """
-        return CommandInvalid(cmdline=self.raw, msg=msg)
+        return mudsling.errors.CommandInvalid(cmdline=self.raw, msg=msg)
 
 
 class IHasCommands(zope.interface.Interface):

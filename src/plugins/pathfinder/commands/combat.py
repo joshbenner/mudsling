@@ -1,4 +1,4 @@
-import mudsling.utils.string as string_utils
+import mudsling.utils.string as str_utils
 import mudsling.commands
 import mudsling.locks
 
@@ -118,7 +118,7 @@ class ApproachCmd(pathfinder.commands.MovementCombatCommand):
             adjacent.remove(actor)
         if 'area' not in args or args['area'] is None:
             # Empty command, meant to see where combatant can move to.
-            areas = string_utils.english_list(["{c%s{n" % a for a in adjacent])
+            areas = str_utils.english_list(["{c%s{n" % a for a in adjacent])
             raise self._err("{nYou can approach: %s" % areas)
         if not self.game.db.is_valid(room, pathfinder.combat.Battleground):
             raise self._err("Unable to maneuver here.")
@@ -272,6 +272,36 @@ class EndTurnCmd(pathfinder.commands.CombatCommand):
         :type args: dict
         """
         actor.end_battle_turn()
+
+
+class WieldingCmd(mudsling.commands.Command):
+    """
+    wielding
+
+    Display a list of items you are wielding.
+    """
+    aliases = ('wielding',)
+    lock = mudsling.locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        wielding = actor.wielded_weapons
+        if not wielding:
+            actor.tell('{yYou are not wielding anything.')
+        else:
+            primary_hand = actor.primary_hand
+            msg = ['You are wielding:']
+            for weapon in wielding:
+                hands = actor.hands_wielding(weapon)
+                primary = (primary_hand in hands)
+                primary = '{g(primary)' if primary else '{y(off-hand)'
+                hands = str_utils.english_list(hands)
+                msg.extend(['\n  {y', weapon, '{n in ', hands, ' ', primary])
+            actor.tell(*msg)
 
 
 class StrikeCmd(pathfinder.commands.CombatCommand):

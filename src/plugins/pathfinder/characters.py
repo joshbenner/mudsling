@@ -3,12 +3,14 @@ import re
 import random
 from collections import OrderedDict
 
+import flufl.enum
+
 from mudsling.storage import ObjRef
 from mudsling.commands import all_commands
+from mudsling.messages import Messages
 import mudsling.errors
 
-from mudsling import utils
-import mudsling.utils.string
+import mudsling.utils.string as str_utils
 import mudsling.utils.sequence as seq_utils
 
 import mudslingcore.objects
@@ -35,6 +37,11 @@ def is_pfchar(obj):
             or (isinstance(obj, ObjRef) and obj.isa(Character)))
 
 
+class Hand(flufl.enum.IntEnum):
+    primary = 0
+    off = 1
+
+
 class CharacterFeature(pathfinder.features.Feature):
     feature_type = 'character feature'
 
@@ -53,12 +60,29 @@ class Character(mudslingcore.objects.Character,
     """
     A Pathfinder-enabled character/creature/etc.
     """
+    messages = Messages({
+        'wield': {
+            'actor': 'You wield $obj in your $hands.',
+            '*': '$actor wields $obj in ${actor.his_her} $hands.'
+        },
+        'unwield': {
+            'actor': 'You stop wielding $obj.',
+            '*': '$actor stops wielding $obj.'
+        }
+    })
+
     body_regions = ('head', 'face', 'neck', 'chest', 'abdomen', 'back',
                     'left arm', 'right arm', 'left hand', 'right hand',
                     'waist', 'left leg', 'right leg', 'left foot',
                     'right foot')
-    primary_hand = 'right hand'
-    off_hand = 'left hand'
+    #: Mapping of regions that can wield weapons to what they are wielding. The
+    #: order is important, as the first item is the primary hand, and the rest
+    #: are off-hands.
+    #: :type: OrderedDict of pathfinder.objects.Thing
+    hands = OrderedDict({
+        'right hand': None,
+        'left hand': None
+    })
     frozen_level = 0
     xp = 0
     race = None
@@ -234,6 +258,17 @@ class Character(mudslingcore.objects.Character,
 
     # Used to identify class level stats for isolating base stat value.
     _class_lvl_re = re.compile('(.*) +levels?', re.I)
+
+    def describe_to(self, viewer):
+        desc = super(Character, self).describe_to(viewer)
+        wielding = self.wielded_weapons
+        if wielding:
+            desc += '\nWielding:'
+            for weapon in wielding:
+                hands = str_utils.english_list(self.hands_wielding(weapon))
+                desc += '\n  {y' + viewer.name_for(weapon)
+                desc += ' {nin ' + hands
+        return desc
 
     @property
     def age(self):
@@ -779,7 +814,7 @@ class Character(mudslingcore.objects.Character,
         return pathfinder.prerequisites.check(prerequisites, self)
 
     def tell_prerequisite_failures(self, failures, subject):
-        fails = utils.string.english_list(["{r%s{n" % f for f in failures])
+        fails = str_utils.english_list(["{r%s{n" % f for f in failures])
         self.tell("{yYou do not meet these requirements for "
                   "{c", subject, "{y: ", fails)
 
@@ -876,18 +911,103 @@ class Character(mudslingcore.objects.Character,
                 visible.remove(wearable)
         return visible
 
-    def held_in_hands(self):
+    @property
+    def wielded_weapons(self):
+        return seq_utils.unique(o for o in self.hands.itervalues()
+                                if o is not None)
+
+    @property
+    def primary_hand(self):
+        hands = self.hands.keys()
+        return hands[0] if hands else None
+
+    def is_wielding_obj(self, obj):
         """
-        Returns a list of objects being held in the character's hands.
-        :rtype: list
+        Determine if the specified object is currently wielded by this char.
+
+        :param obj: The object to inquire about.
+        :rtype: bool
         """
-        def is_held(obj):
-            if obj.isa(pathfinder.objects.PathfinderObject) and not obj.in_hand:
-                return False
-            elif obj in self.wearing:
-                return False
-            return True
-        return filter(is_held, self.contents)
+        return obj.ref() in self.wielded_weapons
+
+    def hands_wielding(self, obj):
+        """
+        Obtain a list of the hands that participating in wielding the specified
+        object.
+
+        :param obj: The object being wielded.
+        :rtype: tuple of str
+
+        :raises: pathfinder.errors.NotWielding
+        """
+        obj = obj.ref()
+        if not self.is_wielding_obj(obj):
+            raise pathfinder.errors.NotWielding(obj=obj)
+        return tuple(h for h, o in self.hands.iteritems() if o == obj)
+
+    def wield(self, obj, hands=None, stealth=False):
+        """
+        Wield specified object in the optionally specified body region (which
+        must be either .primary_hand or .off_hand.
+
+        :param obj: The object to wield. Must be a pathfinder.objects.Thing.
+        :type obj: pathfinder.objects.Thing
+
+        :param hands: The wielding regions to wield the object in. If None, then
+            select the first available wielding regions.
+        :type hands: None or str or list of str or tuple of str
+
+        :raises: pathfinder.errors.ObjectNotwieldable
+        :raises: pathfinder.errors.InsufficientFreeHands
+        :raises: pathfinder.errors.HandNotAvailable
+        """
+        obj = obj.ref()
+        if not obj.isa(pathfinder.objects.Thing):
+            raise pathfinder.errors.ObjectNotWieldable()
+        if isinstance(hands, str):
+            hands = [hands]
+        # Some weapons require two hands.
+        WieldType = pathfinder.objects.WieldType
+        req_len = 2 if obj.wield_type == WieldType.TwoHanded else 1
+        if hands is None:
+            hands = [None] * req_len
+        else:
+            assert isinstance(hands, (list, tuple))
+            # Pad out the list to the required number of hands.
+            hands = (list(hands) + [None] * (req_len - len(hands)))
+        # Limit to required number of hands.
+        hands = hands[:req_len]
+        # Fill out any empty hand assignments.
+        for wield_region, wielded in self.hands.iteritems():
+            if wielded is None:
+                hands[hands.index(None)] = wield_region
+                if None not in hands:
+                    break
+        if None in hands:
+            raise pathfinder.errors.InsufficientFreeHands()
+        for hand in hands:
+            if self.hands[hand] is not None:
+                raise pathfinder.errors.HandNotAvailable(hand=hand)
+        if 'hands' not in self.__dict__:
+            self.hands = OrderedDict(self.hands)
+        for hand in hands:
+            self.hands[hand] = obj
+        if not stealth:
+            self.emit_message('wield', actor=self.ref(), obj=obj,
+                              hands=str_utils.english_list(hands))
+
+    def unwield(self, obj, stealth=False):
+        """
+        Stop wielding the specified object.
+
+        :param obj: The object to stop wielding.
+        :type obj: pathfinder.objects.Thing
+        """
+        obj = obj.ref()
+        for hand in self.hands_wielding(obj):
+            self.hands[hand] = None
+        if not stealth:
+            self.emit_message('unwield', actor=self.ref(), obj=obj)
 
 
 # Assign commands here to avoid circular import issues.

@@ -10,6 +10,7 @@ import mudsling.utils.measurements
 import mudsling.utils.object as obj_utils
 import mudsling.match
 import mudsling.errors
+import mudsling.commands
 
 import mudslingcore.objects as core_objects
 
@@ -18,13 +19,14 @@ from icmoney import Money
 from dice import Roll
 
 import pathfinder
-import pathfinder.characters
 import pathfinder.stats
 import pathfinder.features
 import pathfinder.modifiers
 import pathfinder.effects
 import pathfinder.conditions
 import pathfinder.materials
+
+import pathfinder.commands.thing
 
 
 class PartNotFoundError(mudsling.errors.Error):
@@ -139,14 +141,6 @@ class PathfinderObject(mudsling.objects.Object,
                 pass  # It's not there, don't worry.
         else:
             self._size_category = val
-
-    @property
-    def in_hand(self):
-        """
-        Returns True if the object is being held in a character's hands.
-        :rtype: bool
-        """
-        return self.db.is_valid(self.location, pathfinder.characters.Character)
 
     def event_responders(self, event):
         if '__event_responders' in self._stat_cache:
@@ -334,7 +328,7 @@ def attack(attack_type, name=None, improvised=False, default=False):
     """
     Decorator to esignate a method as an attack callback of a specific type.
 
-    :param attack_type: The type of this attack: strike, shoot, throw, etc.
+    :param attack_type: The type of this attack -- strike, shoot, throw, etc.
     :type attack_type: str
     :param name: The special name (if any) of this attack.
     :type name: str
@@ -380,6 +374,7 @@ class Thing(core_objects.Thing, PathfinderObject):
     Basic game world object that can interact with Pathfinder features. Things
     may be used as improvised weapons.
     """
+    public_commands = mudsling.commands.all_commands(pathfinder.commands.thing)
 
     #: The object is designed to be used by creatures of this size.
     user_size = pathfinder.sizes.Medium
