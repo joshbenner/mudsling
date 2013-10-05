@@ -103,10 +103,6 @@ class WearableEquipment(Equipment, wearables.Wearable):
     #: The body regions this item occupies.
     body_regions = ()
 
-    @property
-    def in_hand(self):
-        return super(WearableEquipment, self).in_hand and not self.is_worn
-
     def before_wear(self, wearer):
         """
         Check to make sure the wearer has the required slots and not too many

@@ -100,6 +100,11 @@ class CommandInvalid(CommandError):
         self.message = msg or "Command Invalid."
 
 
+class SilentError(CommandError):
+    """A command error which does not generate a message to the user."""
+    pass
+
+
 class ParseError(Error):
     """
     Something couldn't be parsed. Probably user input!

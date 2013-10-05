@@ -1482,6 +1482,9 @@ class BasePlayer(BaseObject):
                 self.possessing.process_input(raw)
         except errors.CommandInvalid as e:
             self.msg("{r" + e.message)
+        except errors.SilentError:
+            # Silently do nothing.
+            pass
         except (errors.MatchError, errors.ParseError, errors.MoveError) as e:
             self.msg("{y%s" % e.message)
         except NotImplementedError as e:

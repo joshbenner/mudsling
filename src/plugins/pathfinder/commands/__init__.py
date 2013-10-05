@@ -77,9 +77,10 @@ class CombatCommand(mudsling.commands.Command):
 
     def check_action_pool(self):
         """Make sure actor has sufficient actions to carry out command."""
-        for action_type, cost in self.action_cost.iteritems():
-            if self.actor.remaining_combat_actions(action_type) < cost:
-                return False
+        if self.actor.in_combat:
+            for action_type, cost in self.action_cost.iteritems():
+                if self.actor.remaining_combat_actions(action_type) < cost:
+                    return False
         return True
 
     def before_run(self):
