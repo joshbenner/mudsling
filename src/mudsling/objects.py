@@ -1,5 +1,6 @@
 import inspect
 import re
+from collections import OrderedDict
 
 import zope.interface
 
@@ -480,7 +481,9 @@ class BaseObject(PossessableObject):
         instead of just pulling aliases, it pulls namesFor().
         :rtype: list
         """
-        strings = dict(zip(objlist, map(lambda o: self.names_for(o), objlist)))
+        # Use OrderedDict to preserve order of options. This is important
+        # because the search string might use ordinals to avoid ambiguity.
+        strings = OrderedDict(zip(objlist, map(self.names_for, objlist)))
         return match_stringlists(search, strings, exact=exactOnly, err=err)
 
     def match_object(self, search, cls=None, err=False):

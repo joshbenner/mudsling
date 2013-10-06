@@ -16,6 +16,7 @@ class TakeThingCmd(Command):
     Picks up an object in the location with you and moves it to your inventory.
     """
     aliases = ('take', 'get', 'pickup')
+    key = 'take thing'
     syntax = "<obj>"
     arg_parsers = {
         'obj': 'this',
