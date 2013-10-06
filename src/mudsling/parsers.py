@@ -208,7 +208,8 @@ class MatchObject(Parser):
                 matches=m,
                 search=input,
                 search_for=self.search_for,
-                show=self.show
+                show=self.show,
+                names=actor.name_for if actor is not None else str
             )
             err = errors.AmbiguousMatch(msg) if m else errors.FailedMatch(msg)
             if self.err:

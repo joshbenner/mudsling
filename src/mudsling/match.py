@@ -3,18 +3,19 @@ Various functions and utilities for matching game-world objects.
 """
 import re
 
-from mudsling.errors import AmbiguousMatch, FailedMatch
-from mudsling.utils import string
-from mudsling.utils.string import ansi
-from mudsling.utils.string import inflection
+from mudsling.errors import MatchError, AmbiguousMatch, FailedMatch
+import mudsling.utils.string as str_utils
+import mudsling.utils.string.ansi as ansi
 
 ordinal_words = ('first', 'second', 'third', 'fourth', 'fifth', 'sixth',
                  'seventh', 'eighth', 'ninth', 'tenth')
-ordinal_regex = "^(" + '|'.join(ordinal_words) + ")(.*)$"
+ordinal_pattern = r"^(?:(?P<word>" + '|'.join(ordinal_words) + ")"
+ordinal_pattern += r"|(?:(?P<num>\d+)(?:st|nd|rd|th))) +(?P<subject>.+)$"
+ordinal_re = re.compile(ordinal_pattern, re.I)
 
 
 def match_stringlists(search, stringlists, exact=False, err=False,
-                      case_sensitive=False):
+                      case_sensitive=False, ordinal=True):
     """
     Match a search query against a dictionary of string lists. The result list
     will include keys from the dictionary which match the search.
@@ -39,6 +40,10 @@ def match_stringlists(search, stringlists, exact=False, err=False,
     """
     # Lower-case search for case insensitivity.
     srch = ansi.strip_ansi(search if case_sensitive else search.lower())
+    if ordinal:
+        ord, srch = parse_ordinal(srch)
+    else:
+        ord = 1
     exact_matches = []
     partial = []
 
@@ -59,13 +64,25 @@ def match_stringlists(search, stringlists, exact=False, err=False,
 
     result = exact_matches or partial
 
+    if ordinal and ord is not None and ord > 0:
+        result = result[ord - 1:ord]
+
     if err and len(result) != 1:
         if len(result) > 1:
             raise AmbiguousMatch(query=search, matches=result)
         else:
-            raise FailedMatch(query=search)
-    else:
-        return result
+            if ordinal:
+                try:  # Try without parsing the ordinal?
+                    result = match_stringlists(search, stringlists,
+                                               exact=exact,
+                                               err=err,
+                                               case_sensitive=case_sensitive,
+                                               ordinal=False)
+                except MatchError:
+                    raise FailedMatch(query=search)
+            else:
+                raise FailedMatch(query=search)
+    return result
 
 
 def match_objlist(search, objlist, varname="names", exact=False, err=False):
@@ -86,57 +103,36 @@ def match_objlist(search, objlist, varname="names", exact=False, err=False):
     return match_stringlists(search, strings, exact=exact, err=err)
 
 
-def match_nth(nth, search, objlist, varname="names"):
-    raise NotImplemented
-
-
-def parse_ordinal(string):
+def parse_ordinal(text):
     """
     Parses an ordinal reference at the beginning of the string, returning the
-    corresponding integer and the rest of the string. Returns None on failure.
+    corresponding integer and the rest of the string. If no ordinal was used,
+    then None is passed instead.
 
-    :param string: String to parse.
+    :param text: String to parse.
+    :type text: str
 
+    :returns: A tuple containing the ordinal delta and the rest of the string.
     :rtype: tuple
     """
-    match = re.match(r"^(\d+)(?:st|nd|rd|th)(.*)$", string)
+    match = ordinal_re.match(text)
     if match:
-        return int(match.group(1)), match.group(2).strip()
-
-    match = re.match(ordinal_regex, string)
-    if match and match.group(1) in ordinal_words:
-        val = ordinal_words.index(match.group(1)) + 1
-        return val, match.group(2).strip()
-
-    return None
-
-
-def match(search, objlist, varname="names"):
-    """
-    Attempt various types of matching using other functions found in match
-    module.
-
-    :param search: The string to search for among the objects.
-    :param objlist: The objects to search.
-    :param varname: The name of the instance variable containing the string(s)
-        to search against.
-
-    :rtype: list
-    """
-    matches = match_objlist(search, objlist, varname)
-    if matches:
-        return matches
-
-    parsed = parse_ordinal(search)
-    if parsed is not None:
-        matches = match_nth(*parsed, objlist=objlist, varname=varname)
-        if matches:
-            return matches
-
-    return []
+        groups = match.groupdict()
+        subject = groups['subject']
+        try:
+            if groups['num'] is not None:
+                delta = int(groups['num'])
+            else:
+                delta = ordinal_words.index(groups['word'].lower()) + 1
+        except ValueError:
+            delta = None
+    else:
+        delta = None
+        subject = text
+    return delta, subject
 
 
-def match_failed(matches, search=None, search_for=None, show=False):
+def match_failed(matches, search=None, search_for=None, show=False, names=str):
     """
     Utility method to handled failed matches. Will return a message if a
     search for a single match has failed and return False if the search
@@ -156,6 +152,9 @@ def match_failed(matches, search=None, search_for=None, show=False):
         case of an ambiguous match.
     :type show: bool
 
+    :param names: A function to use to convert match objects to string names.
+    :type names: function
+
     :return: Message if match failed, or False if match did not fail.
     :rtype: str or bool
     """
@@ -165,16 +164,17 @@ def match_failed(matches, search=None, search_for=None, show=False):
         if search is not None:
             if search_for is not None:
                 msg = ("Multiple %s match '%s'"
-                       % (inflection.plural(search_for), search))
+                       % (str_utils.inflection.plural(search_for), search))
             else:
                 msg = "Multiple matches for '%s'" % search
         else:
             if search_for is not None:
-                msg = "Multiple %s found" % inflection.plural(search_for)
+                msg = "Multiple %s found"
+                msg %= str_utils.inflection.plural(search_for)
             else:
                 msg = "Multiple matches"
         if show:
-            msg += ': ' + string.english_list(matches)
+            msg += ': ' + str_utils.english_list(matches, formatter=names)
         else:
             msg += '.'
     else:
@@ -185,7 +185,8 @@ def match_failed(matches, search=None, search_for=None, show=False):
                 msg = "No '%s' was found." % search
         else:
             if search_for is not None:
-                msg = "No matching %s found." % inflection.plural(search_for)
+                msg = "No matching %s found."
+                msg %= str_utils.inflection.plural(search_for)
             else:
                 msg = "No match found."
     return msg
