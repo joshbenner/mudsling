@@ -274,8 +274,12 @@ class Command(object):
                     if self.obj not in matches:
                         return False
                     elif len(matches) > 1:
-                        msg = match_failed(matches, search=parsed[argName],
-                                           show=True)
+                        msg = "Multiple matches for '%s': %s"
+                        msg %= (parsed[argName],
+                                string.english_list(
+                                    matches,
+                                    formatter=lambda o: self.actor.name_for(o)
+                                ))
                         raise mudsling.errors.AmbiguousMatch(
                             msg=msg,
                             query=parsed[argName],

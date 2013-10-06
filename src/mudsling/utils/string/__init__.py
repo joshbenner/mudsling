@@ -54,7 +54,7 @@ def trim_docstring(docstring):
 
 
 def english_list(things, nothingstr="nothing", andstr=" and ", commastr=", ",
-                 finalcommastr=","):
+                 finalcommastr=",", formatter=str):
     """
     Returns a string containing an english-style list, separating items with
     a command and using a command with and before the final item.
@@ -67,7 +67,7 @@ def english_list(things, nothingstr="nothing", andstr=" and ", commastr=", ",
 
     @rtype: str
     """
-    things = map(str, things)
+    things = map(formatter, things)
     if not things:
         return nothingstr
     if len(things) == 1:
