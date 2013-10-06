@@ -371,10 +371,11 @@ class Container(Thing):
 
     def desc_title(self, viewer):
         name = super(Container, self).desc_title(viewer)
-        if self._opened:
-            name += ' {g(open)'
-        else:
-            name += ' {y(closed)'
+        if self.can_close:
+            if self._opened:
+                name += ' {g(open)'
+            else:
+                name += ' {y(closed)'
         return name
 
     def contents_visible_to(self, obj):
