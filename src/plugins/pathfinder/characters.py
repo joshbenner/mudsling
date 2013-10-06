@@ -953,8 +953,8 @@ class Character(mudslingcore.objects.Character,
         :param obj: The object to wield. Must be a pathfinder.objects.Thing.
         :type obj: pathfinder.objects.Thing
 
-        :param hands: The wielding regions to wield the object in. If None, then
-            select the first available wielding regions.
+        :param hands: The wielding regions to wield the object in. If None,
+            then select the first available wielding regions.
         :type hands: None or str or list of str or tuple of str
 
         :raises: pathfinder.errors.ObjectNotwieldable
@@ -964,6 +964,9 @@ class Character(mudslingcore.objects.Character,
         obj = obj.ref()
         if not obj.isa(pathfinder.objects.Thing):
             raise pathfinder.errors.ObjectNotWieldable()
+        elif obj not in self.contents:
+            msg = 'You must be holding an object to wield it.'
+            raise pathfinder.errors.ObjectNotWieldable(msg)
         if isinstance(hands, str):
             hands = [hands]
         # Some weapons require two hands.

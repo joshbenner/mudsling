@@ -39,3 +39,34 @@ class WieldCmd(pathfinder.commands.CombatCommand):
             else:
                 actor.tell('{rCannot wield ', this, '.')
             raise mudsling.errors.SilentError()
+
+
+class UnwieldCmd(pathfinder.commands.CombatCommand):
+    """
+    unwield <object>
+
+    Stop wielding an object.
+    """
+    aliases = ('unwield',)
+    syntax = '<object>'
+    arg_parsers = {
+        'object': 'this'
+    }
+    action_cost = {'move': 1}
+    combat_only = False
+    aggressive = False
+    default_emotes = [
+        'stops wielding $object.'
+    ]
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.objects.Thing
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        try:
+            actor.unwield(this, stealth=True)
+        except pathfinder.errors.NotWielding:
+            msg = 'You are not wielding %s.' % actor.name_for(this)
+            raise mudsling.errors.CommandInvalid(msg=msg)
