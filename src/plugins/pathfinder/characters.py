@@ -3,8 +3,6 @@ import re
 import random
 from collections import OrderedDict
 
-import flufl.enum
-
 from mudsling.storage import ObjRef
 from mudsling.commands import all_commands
 from mudsling.messages import Messages
@@ -35,11 +33,6 @@ import pathfinder.objects
 def is_pfchar(obj):
     return (isinstance(obj, Character)
             or (isinstance(obj, ObjRef) and obj.isa(Character)))
-
-
-class Hand(flufl.enum.IntEnum):
-    primary = 0
-    off = 1
 
 
 class CharacterFeature(pathfinder.features.Feature):
