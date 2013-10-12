@@ -783,12 +783,12 @@ class CharsheetCmd(Command):
         l = " {{mRef{{n {ref:<2}  {{rMelee{{n {melee:<+3}  {{yCMD{{n {cmd:<+3}"
         l2 = l.format(
             ref=char.reflex,
-            melee=char.get_stat('melee attack'),
+            melee=char.get_stat('melee attack bonus'),
             cmd=char.cmd
         )
         l3 = "{{mWill{{n {will:<2} {{rRanged{{n {ranged:<+3}".format(
             will=char.will,
-            ranged=char.get_stat('ranged attack')
+            ranged=char.get_stat('ranged attack bonus')
         )
         return l1, l2, l3
 

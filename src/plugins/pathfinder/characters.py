@@ -195,25 +195,17 @@ class Character(mudslingcore.objects.Character,
         'intelligence': 0,
         'charisma': 0,
 
+        # The ability checks can be modified separately from the base stat or
+        # their modifiers.
+        'strength check': Roll('1d20 + strength modifier'),
+        'dexterity check': Roll('1d20 + dexterity modifier'),
+        'constitution check': Roll('1d20 + constitution modifier'),
+        'wisdom check': Roll('1d20 + wisdom modifier'),
+        'intelligence check': Roll('1d20 + intelligence modifier'),
+        'charisma check': Roll('1d20 + charisma modifier'),
+
         'level': 0,
 
-        # Ability-based modifiers for skill checks.
-        'all strength-based skill checks': 0,
-        'all dexterity-based skill checks': 0,
-        'all constitution-based skill checks': 0,
-        'all wisdom-based skill checks': 0,
-        'all intelligence-based skill checks': 0,
-        'all charisma-based skill checks': 0,
-
-        # Modifiers might apply to all abilities or skills, so we use these
-        # stats to capture that scenario.
-        'all ability checks': 0,
-        'all skill checks': 0,
-        'all saves': 0,
-        'all attacks': 0,
-        'all damage rolls': 0,
-
-        'base attack bonus': 0,
         'initiative': Roll('dexterity modifier'),
         'shield bonus': 0,
         'armor bonus': 0,
@@ -238,13 +230,27 @@ class Character(mudslingcore.objects.Character,
                                         '+ defensive dex mod'
                                         '+ special size mod'),
 
-        'melee attack': Roll('BAB + STR mod + size mod'),
-        'ranged attack': Roll('BAB + DEX mod + size mod'),
-        # These can be separately modified, so they are not aliases.
-        'melee touch': Roll('melee attack'),
-        'ranged touch': Roll('ranged attack'),
+        # These are the fundamental attack bonuses. Actual attacks will use the
+        # rolls specified below.
+        'base attack bonus': 0,
+        'melee attack bonus': Roll('BAB + STR mod + size mod'),
+        'ranged attack bonus': Roll('BAB + DEX mod + size mod'),
+
+        # These can be separately modified, so they are not aliases. These are
+        # what should be used by attack commands to perform rolls.
+        'melee attack': Roll('1d20 + melee attack bonus'),
+        'ranged attack': Roll('1d20 + ranged attack bonus'),
+        'melee touch attack': Roll('melee attack'),
+        'ranged touch attack': Roll('ranged attack'),
         'unarmed strike': Roll('melee attack'),
-        'lethal unarmed strike': Roll('unarmed strike - 4')
+        'lethal unarmed strike': Roll('unarmed strike - 4'),
+
+        # These stats are what is actually used when attempting a save, as
+        # opposed to the base stat itself. As such, the save can be modified
+        # without modifying anything else that may use the base stat.
+        'fortitude save': Roll('1d20 + fortitude'),
+        'reflex save': Roll('1d20 + reflex'),
+        'will save': Roll('1d20 + will'),
     }
     # Map attributes to stats.
     stat_attributes = {
@@ -863,6 +869,24 @@ class Character(mudslingcore.objects.Character,
                         return levels
                 return 0
             return super(Character, self).get_stat_base(stat, resolved=True)
+
+    def get_stat_modifiers(self, stat, **kw):
+        mods = super(Character, self).get_stat_modifiers(stat, **kw)
+        resolved, tags = self.resolve_stat_name(stat)
+        if resolved in pathfinder.data.registry['skill']:
+            mods.update(self.get_stat_modifiers('all skill checks'))
+            #: :type: pathfinder.skills.Skill
+            skill = pathfinder.data.registry['skill'][resolved]
+            modstat = 'all %s-based skill checks'
+            modstat %= self.resolve_stat_name(skill.ability)[0]
+            mods.update(self.get_stat_modifiers(modstat, **kw))
+        elif 'check' in tags and resolved in pathfinder.abilities:
+            mods.update(self.get_stat_modifiers('all %s checks' % resolved))
+        elif resolved in ('melee attack bonus', 'ranged attack bonus'):
+            mods.update(self.get_stat_modifiers('all attacks'))
+        elif resolved in ('fortitude', 'reflex', 'will'):
+            mods.update(self.get_stat_modifiers('all saves'))
+        return mods
 
     def check_prerequisites(self, prerequisites):
         return pathfinder.prerequisites.check(prerequisites, self)
