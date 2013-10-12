@@ -2,7 +2,7 @@ from mudsling.utils.measurements import Dimensions as Dim
 
 from dice import Roll
 
-from pathfinder.objects import Part
+from pathfinder.things import Part
 from pathfinder.weapons import MeleeWeapon
 from pathfinder.combat import WieldType
 

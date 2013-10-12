@@ -1,9 +1,9 @@
 from dice import Roll
 
-from pathfinder.objects import MultipartThing
 import pathfinder.equipment
 import pathfinder.data
 from pathfinder.combat import attack
+from pathfinder.things import MultipartThing
 
 
 def enhancement(name):

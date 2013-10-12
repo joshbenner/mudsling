@@ -1,4 +1,6 @@
 import logging
+from pathfinder.things import Thing
+
 logger = logging.getLogger('pathfinder')
 logger.info("Loading pathfinder...")
 
@@ -37,7 +39,7 @@ class PathfinderCorePlugin(pathfinder.extensibility.PathfinderPlugin):
 
     def object_classes(self):
         return [
-            ('PF Thing', pathfinder.objects.Thing),
+            ('PF Thing', Thing),
             ('PF Character', pathfinder.characters.Character),
             ('PF Room', pathfinder.topography.Room)
         ]

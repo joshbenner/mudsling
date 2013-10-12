@@ -80,3 +80,10 @@ class NotWielding(PathfinderError):
     def __init__(self, msg='', obj=None):
         self.obj = obj
         super(NotWielding, self).__init__(msg=msg)
+
+
+class PartNotFoundError(mudsling.errors.Error):
+    """
+    Thrown when a specified part isn't found on a MultipartThing.
+    """
+    pass

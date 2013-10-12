@@ -26,7 +26,7 @@ class WieldCmd(pathfinder.commands.CombatCommand):
 
     def run(self, this, actor, args):
         """
-        :type this: pathfinder.objects.Thing
+        :type this: pathfinder.things.Thing
         :type actor: pathfinder.characters.Character
         :type args: dict
         """
@@ -61,7 +61,7 @@ class UnwieldCmd(pathfinder.commands.CombatCommand):
 
     def run(self, this, actor, args):
         """
-        :type this: pathfinder.objects.Thing
+        :type this: pathfinder.things.Thing
         :type actor: pathfinder.characters.Character
         :type args: dict
         """

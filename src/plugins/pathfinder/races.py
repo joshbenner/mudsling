@@ -10,13 +10,16 @@ class Race(pathfinder.characters.CharacterFeature):
 
     Races should not be instantiated.
     """
-    __metaclass__ = pathfinder.data.ForceSlotsMetaclass
     name = ''
     plural = ''
     size = None
     ability_modifiers = {}
     modifiers = []
     genders = ('male', 'female')
+
+    @classmethod
+    def respond_to_event(cls, event, responses):
+        return cls.class_respond_to_event(event, responses)
 
     @classmethod
     def apply_to(cls, char):

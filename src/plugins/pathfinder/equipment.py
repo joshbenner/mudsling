@@ -3,6 +3,7 @@ import mudsling.utils.string as string_utils
 import mudsling.utils.units as units
 
 import mudslingcore.objects
+from pathfinder.things import Thing
 
 import wearables
 
@@ -11,7 +12,7 @@ import pathfinder.characters
 import pathfinder.errors
 
 
-class Equipment(pathfinder.objects.Thing, mudslingcore.objects.Container):
+class Equipment(Thing, mudslingcore.objects.Container):
     """
     Equipment is any thing which has a purpose and was probably crafted. The
     major difference is that equipment can have enhancements, whereas normal

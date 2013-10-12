@@ -27,7 +27,7 @@ import pathfinder.advancement
 import pathfinder.combat
 import pathfinder.errors
 import pathfinder.equipment
-import pathfinder.objects
+import pathfinder.things
 
 
 def is_pfchar(obj):
@@ -330,10 +330,10 @@ class Character(mudslingcore.objects.Character,
     def feats(self):
         """:rtype: list of pathfinder.feats.Feat"""
         if '__feats' in self._stat_cache:
-            return self._stat_cache['__feats']
+            return list(self._stat_cache['__feats'])
         event = self.trigger_event('feats', feats=list(self._feats))
         self.cache_stat('__feats', event.feats)
-        return event.feats
+        return list(event.feats)
 
     @property
     def features(self):
@@ -995,7 +995,7 @@ class Character(mudslingcore.objects.Character,
         must be either .primary_hand or .off_hand.
 
         :param obj: The object to wield. Must be a pathfinder.objects.Thing.
-        :type obj: pathfinder.objects.Thing
+        :type obj: pathfinder.things.Thing
 
         :param hands: The wielding regions to wield the object in. If None,
             then select the first available wielding regions.
@@ -1006,7 +1006,7 @@ class Character(mudslingcore.objects.Character,
         :raises: pathfinder.errors.HandNotAvailable
         """
         obj = obj.ref()
-        if not obj.isa(pathfinder.objects.Thing):
+        if not obj.isa(pathfinder.things.Thing):
             raise pathfinder.errors.ObjectNotWieldable()
         elif obj not in self.contents:
             msg = 'You must be holding an object to wield it.'
@@ -1051,7 +1051,7 @@ class Character(mudslingcore.objects.Character,
         Stop wielding the specified object.
 
         :param obj: The object to stop wielding.
-        :type obj: pathfinder.objects.Thing
+        :type obj: pathfinder.things.Thing
         """
         obj = obj.ref()
         for hand in self.hands_wielding(obj):

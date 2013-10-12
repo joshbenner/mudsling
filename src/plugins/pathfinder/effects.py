@@ -49,12 +49,20 @@ class Effect(pathfinder.events.EventResponder):
     def payload_needs_to_be_applied(self):
         return self.type in (mod_types.grant, mod_types.condition)
 
+    @property
+    def expires(self):
+        """
+        :return: True if the effect has an expiration.
+        :rtype: bool
+        """
+        return self.modifier.expiration is not None
+
     def apply_to(self, subject):
         """
         :type subject: pathfinder.objects.PathfinderObject
         """
         self.start_time = time.time()
-        if self.modifier.expiration is not None:
+        if self.expires:
             duration_roll, duration_unit = self.modifier.expiration
             val = subject.roll(duration_roll)
             if duration_unit in time_units:
