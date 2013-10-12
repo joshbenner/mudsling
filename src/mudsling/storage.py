@@ -382,15 +382,21 @@ class Database(Persistent):
     filepath = ''
 
     @classmethod
-    def load(cls, filepath):
+    def load(cls, filepath, game):
         if os.path.exists(filepath):
             logging.info("Loading database from %s" % filepath)
-            db = pickler.load(filepath)
+            db = cls._load(filepath)
         else:
             logging.info("Initializing new database at %s" % filepath)
             db = cls(filepath)
         db.filepath = filepath
+        ObjRef.db = db
+        db.on_loaded(game)
         return db
+
+    @classmethod
+    def _load(cls, filepath):
+        return pickler.load(filepath)
 
     def __init__(self, filepath):
         """

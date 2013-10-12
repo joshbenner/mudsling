@@ -152,9 +152,7 @@ class MUDSling(MultiService):
     def load_database(self):
         dbfilename = config.get('Main', 'db file')
         self.db_file_path = os.path.join(self.game_dir, dbfilename)
-        self.db = Database.load(self.db_file_path)
-        ObjRef.db = self.db
-        self.db.on_loaded(self)
+        self.db = Database.load(self.db_file_path, self)
         # Build the player registry.
         registry.players.register_players(self.db.descendants(BasePlayer))
 
