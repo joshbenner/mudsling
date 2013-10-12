@@ -571,7 +571,8 @@ class VariableNode(EvalNode):
             value, desc = value.eval(vars, state)
 
         if state.get('desc', False):
-            desc = "%s(%s)" % (self.name, desc or value)
+            if not desc:
+                desc = "%s(%s)" % (self.name, value)
         else:
             desc = ''
         return value, desc

@@ -12,6 +12,7 @@ import mudsling.commands
 from icmoney import Money
 
 import pathfinder
+import pathfinder.events
 import pathfinder.stats
 import pathfinder.features
 import pathfinder.modifiers
@@ -81,6 +82,41 @@ class PathfinderObject(mudsling.objects.Object,
             vol = pathfinder.sizes.volume(self.size_category)
         return vol
 
+    _dependent_data = {
+        'effects': {
+            'process': '_process_effects',
+            'start': lambda o: list(o._effects),
+            'cache': '__effects'
+        },
+        'conditions': {
+            'process': '_process_features',
+            'start': lambda o: list(o._conditions),
+            'cache': '__conditions'
+        }
+    }
+
+    def _process_effects(self, effects, data):
+        """
+        Effects can provide a wide range of additional data, and this method
+        may need to be overridden in child implementations to facilitate other
+        data effects can handle for child types.
+        """
+        event = pathfinder.events.Event('conditions')
+        event.conditions = []
+        for effect in effects:
+            effect.respond_to_event(event, None)
+        data['conditions'].extend(event.conditions)
+
+    def _process_features(self, feature, data):
+        """
+        Features provide effects.
+        """
+        event = pathfinder.events.Event('permanent effects')
+        event.effects = []
+        for feature in feature:
+            feature.respond_to_event(event, None)
+        data['effects'].extend(event.effects)
+
     @property
     def features(self):
         return self.conditions
@@ -90,20 +126,16 @@ class PathfinderObject(mudsling.objects.Object,
         """:rtype: list of pathfinder.conditions.Condition"""
         if '__conditions' in self._stat_cache:
             return list(self._stat_cache['__conditions'])
-        event = self.trigger_event('conditions',
-                                   conditions=list(self._conditions))
-        self.cache_stat('__conditions', event.conditions)
-        return list(event.conditions)
-    
+        self._build_dependent_data()
+        return self.conditions
+
     @property
     def effects(self):
         """:rtype: list of pathfinder.effects.Effect"""
         if '__effects' in self._stat_cache:
             return list(self._stat_cache['__effects'])
-        event = self.trigger_event('permanent effects', effects=[])
-        event.effects.extend(self._effects)
-        self.cache_stat('__effects', event.effects)
-        return list(event.effects)
+        self._build_dependent_data()
+        return self.effects
 
     @property
     def remaining_hp(self):
@@ -140,13 +172,8 @@ class PathfinderObject(mudsling.objects.Object,
             self._size_category = val
 
     def event_responders(self, event):
-        if '__event_responders' in self._stat_cache:
-            return self._stat_cache['__event_responders']
-        # Placeholder cache to avoid infinite recursion.
-        self.cache_stat('__event_responders', [])
         responders = super(PathfinderObject, self).event_responders(event)
         responders.extend(self.effects)
-        self.cache_stat('__event_responders', responders)
         return responders
 
     def trigger_event(self, event, **kw):
@@ -176,38 +203,6 @@ class PathfinderObject(mudsling.objects.Object,
         else:
             return super(PathfinderObject, self).get_stat_base(stat,
                                                                resolved=True)
-
-    def roll(self, roll, desc=False, state=None, tags=(), **vars):
-        """
-        If tags are specified for the roll, then event responders are offered
-        an opportunity to modify the roll.
-
-        :param roll: The roll expression to evaluate.
-        :type roll: basestring or dice.Roll
-
-        :param desc: Whether or not to include the details of how the result
-            was calculated. Useful to show to users.
-        :type desc: bool
-
-        :param state: The state dictionary to pass to the roll. Useful when
-            complex information needs to be passed into or out of the roll.
-        :type state: dict or None
-
-        :param tags: The tags identifying the nature of the roll.
-        :type tags: tuple
-
-        :param vars: Variables to make available to the roll expression.
-        :type vars: dict
-
-        :return: A tuple of result value and description (if desc enabled), or
-            just the result value.
-        :rtype: tuple or int or float
-        """
-        if len(tags):
-            self.trigger_event('alter roll', roll=roll, desc=desc, state=state,
-                               vars=vars, tags=tags)
-        return super(PathfinderObject, self).roll(roll, desc=desc, state=state,
-                                                  **vars)
 
     def apply_effect(self, effect, source=None):
         """

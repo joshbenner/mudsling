@@ -16,7 +16,14 @@ def resolve_roll_var(name, vars, state):
     :return: Tuple of value and roll description. Description can be None.
     """
     try:
-        return state['stat object'].get_stat(name.replace('_', ' ')), None
+        #: :type: HasStats
+        obj = state['stat object']
+        result = obj.get_stat(name.replace('_', ' '), desc=state['desc'])
+        if state['desc']:
+            result, desc = result
+        else:
+            desc = None
+        return result, desc
     except KeyError:
         raise NameError("Variable '%s' not found" % name)
 
@@ -30,6 +37,29 @@ class HasStats(Persistent):
     stat_attributes = {}
     stat_aliases = {}
     _stat_cache = {}
+
+    _dependent_data = {}
+
+    # TODO: Should probably live somewhere else.
+    def _build_dependent_data(self):
+        """
+        Utility method for building interdependent sets of data.
+        """
+        meta = self._dependent_data
+        done = dict(zip(meta.keys(), (False,) * len(meta)))
+        count = dict(zip(meta.keys(), (0,) * len(meta)))
+        data = dict((k, meta[k]['start'](self)) for k in meta.iterkeys())
+        while not all(done.itervalues()):
+            for name, info in meta.iteritems():
+                if len(data[name]) > count[name]:
+                    func = getattr(self, info['process'])
+                    func(data[name][count[name]:], data)
+                    count[name] = len(data[name])
+                else:
+                    done[name] = True
+        for name, info in meta.iteritems():
+            if 'cache' in info:
+                self.cache_stat(info['cache'], data[name])
 
     @classmethod
     def _stats_mro(cls):
@@ -95,23 +125,36 @@ class HasStats(Persistent):
                 stats.update(cls.stat_defaults.iterkeys())
         return stats
 
-    def get_stat(self, stat, resolved=False):
+    def get_stat(self, stat, resolved=False, desc=False):
         stat = stat if resolved else self.resolve_stat_name(stat)[0]
         if stat in self._stat_cache:
             cached = self._stat_cache[stat]
             if isinstance(cached, list):
-                return sum(map(self._eval_stat_part, cached))
+                if not desc:
+                    return sum(map(self._eval_stat_part, cached))
+                else:
+                    results = []
+                    desc_parts = []
+                    for part in cached:
+                        r, d = self._eval_stat_part(part, desc=True)
+                        results.append(r)
+                        desc_parts.append(d)
+                    return sum(results), ' + '.join(desc_parts)
+            elif desc:
+                return cached, "%s(%s)" % (stat, cached)
             else:
                 return cached
-        low, high = self.get_stat_limits(stat)
-        if low == high:  # Only ever a single result.
-            self.cache_stat(stat, low)
-        else:
-            # Cache the base and all modifiers in a single list to be summed.
-            parts = [self.get_stat_base(stat)]
-            parts.extend(self.get_stat_modifiers(stat).itervalues())
-            self.cache_stat(stat, parts)
-        return self.get_stat(stat)  # Should get the cached results now.
+        # low, high = self.get_stat_limits(stat)
+        # if low == high:  # Only ever a single result.
+        #     self.cache_stat(stat, low)
+        # else:
+        # Cache the base and all modifiers in a single list to be summed.
+        parts = [(stat, self.get_stat_base(stat))]
+        #parts.extend(self.get_stat_modifiers(stat).itervalues())
+        parts.extend((str(source), mod) for source, mod
+                     in self.get_stat_modifiers(stat).iteritems())
+        self.cache_stat(stat, parts)
+        return self.get_stat(stat, desc=desc)
 
     def cache_stat(self, stat, value):
         if '_stat_cache' not in self.__dict__:
@@ -144,16 +187,24 @@ class HasStats(Persistent):
         cache[key] = (low, high)
         return low, high
 
-    def _eval_stat_part(self, part, limits=False):
-        if part is None:
-            return (0, 0) if limits else 0
-        elif isinstance(part, basestring):
+    def _eval_stat_part(self, part, limits=False, desc=False):
+        name = '?'
+        if isinstance(part, tuple):
+            name, part = part
+        if isinstance(part, basestring):
             roll = dice.Roll(part)
         elif isinstance(part, dice.Roll):
             roll = part
         else:
-            return (part, part) if limits else part
-        return self.roll_limits(roll) if limits else self.roll(roll)
+            if part is None:
+                part = 0
+            if limits:
+                return part, part
+            elif desc:
+                return part, '%s(%s)' % (name, part)
+            else:
+                return part
+        return self.roll_limits(roll) if limits else self.roll(roll, desc=desc)
 
     def roll(self, roll, desc=False, state=None, **vars):
         """Calculate the results of rolls and stats.

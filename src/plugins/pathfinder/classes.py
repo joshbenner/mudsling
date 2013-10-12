@@ -52,6 +52,10 @@ class Class(CharacterFeature):
     def undo_level_skillpoints(cls, char, level, points):
         char.lose_skill_points(points)
 
+    @classmethod
+    def respond_to_event(cls, event, responses):
+        return cls.class_respond_to_event(event, responses)
+
 
 class GainFeat(CharacterFeature):
     name = "Feat"

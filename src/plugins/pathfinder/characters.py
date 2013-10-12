@@ -326,21 +326,39 @@ class Character(mudslingcore.objects.Character,
     def height(self):
         return self.dimensions.height
 
+    _dependent_data = dict(pathfinder.combat.Combatant._dependent_data)
+    _dependent_data['feats'] = {
+        'process': '_process_features',
+        'start': lambda o: list(o._feats),
+        'cache': '__feats'
+    }
+    _dependent_data['static feat providers'] = {
+        'process': '_process_features',
+        'start': lambda o: seq_utils.flatten((o.classes.keys(), o.race))
+    }
+
+    def _process_effects(self, effects, data):
+        super(Character, self)._process_effects(effects, data)
+        event = pathfinder.events.Event('feats')
+        event.feats = []
+        for provider in effects:
+            provider.respond_to_event(event, None)
+        data['feats'].extend(event.feats)
+
     @property
     def feats(self):
         """:rtype: list of pathfinder.feats.Feat"""
         if '__feats' in self._stat_cache:
             return list(self._stat_cache['__feats'])
-        event = self.trigger_event('feats', feats=list(self._feats))
-        self.cache_stat('__feats', event.feats)
-        return list(event.feats)
+        self._build_dependent_data()
+        return self.feats
 
     @property
     def features(self):
         features = super(Character, self).features
         if self.race is not None:
             features.append(self.race)
-        features.extend(c for c in self.classes.iterkeys())
+        features.extend(self.classes.iterkeys())
         features.extend(self.feats)
 
         return features
@@ -348,7 +366,7 @@ class Character(mudslingcore.objects.Character,
     @property
     def classes(self):
         if '__classes' in self._stat_cache:
-            return self._stat_cache['__classes']
+            return dict(self._stat_cache['__classes'])
         classes = {}
         for lvl in self.levels:
             if lvl not in classes:
@@ -357,7 +375,7 @@ class Character(mudslingcore.objects.Character,
                 classes[lvl] += 1
         self._check_attr('_stat_cache', {})
         self._stat_cache['__classes'] = classes
-        return classes
+        return dict(classes)
 
     @property
     def favored_classes(self):
@@ -1081,7 +1099,7 @@ class Character(mudslingcore.objects.Character,
         :param target:
         :return:
         """
-        result, desc = self.roll(roll, desc=True, tags=('attack roll',))
+        result, desc = self.roll(roll, desc=True)
         #if result >=
 
 
