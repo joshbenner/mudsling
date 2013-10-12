@@ -4,6 +4,8 @@ from mudsling.storage import Persistent
 
 import dice
 
+import pathfinder.modifiers
+
 
 def resolve_roll_var(name, vars, state):
     """
@@ -151,10 +153,17 @@ class HasStats(Persistent):
         # Cache the base and all modifiers in a single list to be summed.
         parts = [(stat, self.get_stat_base(stat))]
         #parts.extend(self.get_stat_modifiers(stat).itervalues())
-        parts.extend((str(source), mod) for source, mod
+        parts.extend((self._part_name(source), mod) for source, mod
                      in self.get_stat_modifiers(stat).iteritems())
         self.cache_stat(stat, parts)
         return self.get_stat(stat, desc=desc)
+
+    def _part_name(self, source):
+        if (isinstance(source, pathfinder.modifiers.Modifier)
+                and source.source is not None):
+            return str(source.source)
+        else:
+            return str(source)
 
     def cache_stat(self, stat, value):
         if '_stat_cache' not in self.__dict__:
@@ -204,7 +213,13 @@ class HasStats(Persistent):
                 return part, '%s(%s)' % (name, part)
             else:
                 return part
-        return self.roll_limits(roll) if limits else self.roll(roll, desc=desc)
+        if limits:
+            return self.roll_limits(roll)
+        elif desc:
+            result, desc = self.roll(roll, desc=True)
+            return result, '%s(%s)' % (name, desc)
+        else:
+            return self.roll(roll)
 
     def roll(self, roll, desc=False, state=None, **vars):
         """Calculate the results of rolls and stats.
