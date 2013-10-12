@@ -9,11 +9,11 @@ def resolve_roll_var(name, vars, state):
     """
     Implementation of dynamic variable name handling for diceroll evaluation.
 
-    @param name: The variable name being sought.
-    @param vars: The other variables participating in the roll evaluation.
-    @param state: The roll evaluation state.
+    :param name: The variable name being sought.
+    :param vars: The other variables participating in the roll evaluation.
+    :param state: The roll evaluation state.
 
-    @return: Tuple of value and roll description. Description can be None.
+    :return: Tuple of value and roll description. Description can be None.
     """
     try:
         return state['stat object'].get_stat(name.replace('_', ' ')), None
@@ -75,17 +75,17 @@ class HasStats(Persistent):
 
         Default implementation returns no modifiers. Children should override.
 
-        @return: Ordered collection of keys describing the source of the
+        :return: Ordered collection of keys describing the source of the
             modifier, and values representing value modifiers for the stat.
             Modifiers may be static values or rolls/expressions.
-        @rtype: L{collections.OrderedDict}
+        :rtype: collections.OrderedDict
         """
         return OrderedDict()
 
     def get_all_stat_names(self):
         """
         Retrieve a set of all stat names.
-        @rtype: C{set}
+        :rtype: set
         """
         stats = set()
         if 'stats' in self.__dict__:
