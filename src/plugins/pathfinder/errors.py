@@ -59,6 +59,10 @@ class ObjectNotWieldable(CannotWield):
     default_msg = "Object not wieldable"
 
 
+class AlreadyWielding(CannotWield):
+    default_msg = "Object already wielded"
+
+
 class InsufficientFreeHands(CannotWield):
     default_msg = "Insufficient free hands to wield object"
 

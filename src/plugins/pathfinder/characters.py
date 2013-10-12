@@ -960,6 +960,9 @@ class Character(mudslingcore.objects.Character,
         elif obj not in self.contents:
             msg = 'You must be holding an object to wield it.'
             raise pathfinder.errors.ObjectNotWieldable(msg)
+        elif obj in self.wielded_weapons:
+            msg = 'You are already wielding %s.' % self.name_for(obj)
+            raise pathfinder.errors.AlreadyWielding(msg)
         if isinstance(hands, str):
             hands = [hands]
         # Some weapons require two hands.
