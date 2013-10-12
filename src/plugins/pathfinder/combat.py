@@ -1,18 +1,25 @@
 import sys
 import random
+import inspect
 from collections import defaultdict
+
+from flufl.enum import IntEnum
 
 import mudsling.storage
 import mudsling.objects
 import mudsling.match
 import mudsling.errors
 import mudsling.utils.string
+import mudsling.utils.units as units
 
 import mudslingcore.topography
+
+from dice import Roll
 
 import pathfinder.objects
 import pathfinder.conditions
 import pathfinder.errors
+import pathfinder.stats
 
 
 class MoveError(pathfinder.errors.PathfinderError):
@@ -264,6 +271,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
     combat_action_pool = None
     combat_actions_spent = None
     combat_position = None
+    num_attacks = 1
 
     stat_defaults = {
         'initiative': 0,
@@ -289,7 +297,8 @@ class Combatant(pathfinder.objects.PathfinderObject):
         if self.combat_position not in self.location.combat_areas():
             self.combat_move(self.location, stealth=True)
         self.battle = battle
-        self.combat_action_pool = defaultdict(int, {'move': 1, 'standard': 1})
+        self.combat_action_pool = defaultdict(int,
+                                              self.full_combat_action_pool())
         self.reset_combat_actions()
         self.add_condition(pathfinder.conditions.FlatFooted, source=battle)
 
@@ -338,6 +347,9 @@ class Combatant(pathfinder.objects.PathfinderObject):
             pathfinder.logger.warning("Initiative out of battle for %r", self)
         return self.battle_initiative
 
+    def full_combat_action_pool(self):
+        return {'move': 1, 'standard': 1, 'attack': self.num_attacks}
+
     def reset_combat_actions(self):
         self.combat_actions_spent = defaultdict(int)
 
@@ -353,6 +365,12 @@ class Combatant(pathfinder.objects.PathfinderObject):
         return total - spent
 
     def consume_action(self, action_type, amount=1):
+        if action_type == 'free':
+            return
+        if action_type == 'attack':
+            if self.spent_combat_actions('standard') == 0:
+                # All attacks in a turn consume a single standard action.
+                self.consume_action('standard')
         self.combat_actions_spent[action_type] += amount
         self.trigger_event('combat action spent', action_type=action_type,
                            amount=amount)
@@ -440,6 +458,104 @@ class Combatant(pathfinder.objects.PathfinderObject):
             to_ = self.combat_position_desc(where)
             self.emit([self.ref(), ' moves from ', from_, ' to ', to_, '.'])
         self.trigger_event('combat move', previous=prev)
+
+
+def attack(attack_type, name=None, improvised=False, default=False):
+    """
+    Decorator to esignate a method as an attack callback of a specific type.
+
+    :param attack_type: The type of this attack -- strike, shoot, throw, etc.
+    :type attack_type: str
+    :param name: The special name (if any) of this attack.
+    :type name: str
+    :param improvised: Whether or not this attack is improvised.
+    :type improvised: bool
+    :param default: Whether this attack is the default attack of its type.
+    :type default: bool
+
+    :return: A function to wrap a method.
+    """
+    def decorate(f):
+        f.attack_info = AttackInfo(attack_type, name, improvised, default,
+                                   f.__name__)
+        return f
+    return decorate
+
+
+class AttackInfo(object):
+    """
+    A simple data class whose instances decorate methods to describe attacks.
+
+    **See:** :func:`attack` decorator
+    """
+    __slots__ = ('type', 'name', 'improvised', 'default', 'callback')
+
+    def __init__(self, attack_type, name=None, improvised=False, default=False,
+                 callback=None):
+        self.type = str(attack_type)
+        self.name = str(name) if name is not None else self.type
+        self.improvised = bool(improvised)
+        self.default = bool(default)
+        self.callback = callback
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return 'Attack: %s (%s)' % (self.name, self.type)
+
+
+class WieldType(IntEnum):
+    """
+    Objects are designed to be held a certain way. This is a combination of the
+    object's weight, design, purpose, etc.
+    """
+    Light = 0
+    OneHanded = 1
+    TwoHanded = 2
+
+
+class Weapon(pathfinder.stats.HasStats):
+    """
+    A very generic concept of a weapon. This is a superclass of equipment
+    weapons (and things that can be weapons in general). This class is a mixin
+    to be added to subclasses to enable them to be used as weapons.
+    """
+
+    damage_type = 'bludgeoning'
+    nonlethal = False
+    critical_threat = 20
+    critical_multiplier = 2
+    range_increment = 10 * units.feet
+
+    stat_defaults = {
+        'attack modifier': Roll('0'),
+    }
+
+    #: The object is designed to be used by creatures of this size.
+    user_size = pathfinder.sizes.Medium
+
+    #: The weapon is designed to be held in this manner.
+    wield_type = WieldType.OneHanded
+
+    @staticmethod
+    def __attack_filter(method):
+        return inspect.ismethod(method) and 'attack_info' in method.__dict__
+
+    def attacks(self, attack_type=None):
+        """
+        Get a list of attack types this object is compatible with.
+
+        :param attack_type: Optional filter to limit the returned attack info
+            to attacks of a specific type.
+        :type attack_type: str
+
+        :return: A list of attacks provided by the object.
+        :rtype: list of dict
+        """
+        callbacks = inspect.getmembers(self, predicate=self.__attack_filter)
+        return [f[1].attack_info for f in callbacks
+                if attack_type is None or f[1].attack_info.type == attack_type]
 
 
 class Battleground(mudsling.objects.Object):

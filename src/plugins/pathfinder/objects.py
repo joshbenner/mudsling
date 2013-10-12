@@ -16,8 +16,6 @@ import mudslingcore.objects as core_objects
 
 from icmoney import Money
 
-from dice import Roll
-
 import pathfinder
 import pathfinder.stats
 import pathfinder.features
@@ -25,6 +23,7 @@ import pathfinder.modifiers
 import pathfinder.effects
 import pathfinder.conditions
 import pathfinder.materials
+import pathfinder.combat
 
 import pathfinder.commands.thing
 
@@ -40,16 +39,6 @@ def is_pfobj(obj):
     return (isinstance(obj, PathfinderObject)
             or (isinstance(obj, mudsling.storage.ObjRef)
                 and obj.isa(PathfinderObject)))
-
-
-class WieldType(Enum):
-    """
-    Objects are designed to be held a certain way. This is a combination of the
-    object's weight, design, purpose, etc.
-    """
-    Light = 1
-    OneHanded = 2
-    TwoHanded = 3
 
 
 class PathfinderObject(mudsling.objects.Object,
@@ -193,6 +182,38 @@ class PathfinderObject(mudsling.objects.Object,
         else:
             return super(PathfinderObject, self).get_stat_base(stat,
                                                                resolved=True)
+
+    def roll(self, roll, desc=False, state=None, tags=(), **vars):
+        """
+        If tags are specified for the roll, then event responders are offered
+        an opportunity to modify the roll.
+
+        :param roll: The roll expression to evaluate.
+        :type roll: basestring or dice.Roll
+
+        :param desc: Whether or not to include the details of how the result
+            was calculated. Useful to show to users.
+        :type desc: bool
+
+        :param state: The state dictionary to pass to the roll. Useful when
+            complex information needs to be passed into or out of the roll.
+        :type state: dict or None
+
+        :param tags: The tags identifying the nature of the roll.
+        :type tags: tuple
+
+        :param vars: Variables to make available to the roll expression.
+        :type vars: dict
+
+        :return: A tuple of result value and description (if desc enabled), or
+            just the result value.
+        :rtype: tuple or int or float
+        """
+        if len(tags):
+            self.trigger_event('alter roll', roll=roll, desc=desc, state=state,
+                               vars=vars, tags=tags)
+        return super(PathfinderObject, self).roll(roll, desc=desc, state=state,
+                                                  **vars)
 
     def apply_effect(self, effect, source=None):
         """
@@ -338,52 +359,7 @@ class PathfinderObject(mudsling.objects.Object,
         pass
 
 
-def attack(attack_type, name=None, improvised=False, default=False):
-    """
-    Decorator to esignate a method as an attack callback of a specific type.
-
-    :param attack_type: The type of this attack -- strike, shoot, throw, etc.
-    :type attack_type: str
-    :param name: The special name (if any) of this attack.
-    :type name: str
-    :param improvised: Whether or not this attack is improvised.
-    :type improvised: bool
-    :param default: Whether this attack is the default attack of its type.
-    :type default: bool
-
-    :return: A function to wrap a method.
-    """
-    def decorate(f):
-        f.attack_info = AttackInfo(attack_type, name, improvised, default,
-                                   f.__name__)
-        return f
-    return decorate
-
-
-class AttackInfo(object):
-    """
-    A simple data class whose instances decorate methods to describe attacks.
-
-    **See:** :func:`attack` decorator
-    """
-    __slots__ = ('type', 'name', 'improvised', 'default', 'callback')
-
-    def __init__(self, attack_type, name=None, improvised=False, default=False,
-                 callback=None):
-        self.type = str(attack_type)
-        self.name = str(name) if name is not None else self.type
-        self.improvised = bool(improvised)
-        self.default = bool(default)
-        self.callback = callback
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return 'Attack: %s (%s)' % (self.name, self.type)
-
-
-class Thing(core_objects.Thing, PathfinderObject):
+class Thing(core_objects.Thing, PathfinderObject, pathfinder.combat.Weapon):
     """
     Basic game world object that can interact with Pathfinder features. Things
     may be used as improvised weapons.
@@ -393,52 +369,20 @@ class Thing(core_objects.Thing, PathfinderObject):
     #: The object is designed to be used by creatures of this size.
     user_size = pathfinder.sizes.Medium
 
-    #: The object is designed to be held in this manner.
-    wield_type = WieldType.OneHanded
+    @pathfinder.combat.attack('strike', improvised=True)
+    def improvised_melee_attack(self, actor, target):
+        raise NotImplemented
 
-    # Weapon stats.
-    damage_type = 'bludgeoning'
-    nonlethal = False
-    critical_threat = 20
-    critical_multiplier = 2
-    range_increment = 10 * units.feet
-
-    stat_defaults = {
-        'attack modifier': Roll('0'),
-    }
+    @pathfinder.combat.attack('throw', improvised=True)
+    def improvised_ranged_attack(self, actor, target):
+        raise NotImplemented
 
     def get_stat_base(self, stat, resolved=False):
         stat = stat if resolved else self.resolve_stat_name(stat)[0]
         if stat in ('improvised melee damage', 'improvised ranged damage'):
+            # Improvised damage is based on the size category of the object.
             return pathfinder.improvised_damage[self.size_category]
         return super(Thing, self).get_stat_base(stat, resolved=True)
-
-    @staticmethod
-    def __attack_filter(method):
-        return inspect.ismethod(method) and 'attack_info' in method.__dict__
-
-    def attacks(self, attack_type=None):
-        """
-        Get a list of attack types this object is compatible with.
-
-        :param attack_type: Optional filter to limit the returned attack info to
-            attacks of a specific type.
-        :type attack_type: str
-
-        :return: A list of attacks provided by the object.
-        :rtype: list of dict
-        """
-        callbacks = inspect.getmembers(self, predicate=self.__attack_filter)
-        return [f[1].attack_info for f in callbacks
-                if attack_type is None or f[1].attack_info.type == attack_type]
-
-    @attack('strike', improvised=True)
-    def improvised_melee_attack(self, actor, target):
-        raise NotImplemented
-
-    @attack('throw', improvised=True)
-    def improvised_ranged_attack(self, actor, target):
-        raise NotImplemented
 
 
 class MaterialThing(Thing):

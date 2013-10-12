@@ -848,6 +848,10 @@ class Roll(SlotPickleMixin):
         maxroll = self._eval(vars, state)[0]
         return minroll, maxroll
 
+    def update(self, expr, parser=None, vars=None):
+        self._parse(expr, parser)
+        self.vars.update(vars)
+
     def __repr__(self):
         return "Roll(%r)" % self.raw
 

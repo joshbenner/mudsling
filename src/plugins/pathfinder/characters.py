@@ -47,6 +47,45 @@ class CharacterFeature(pathfinder.features.Feature):
             super(CharacterFeature, self).remove_from(obj)
 
 
+class UnarmedWeapon(pathfinder.combat.Weapon):
+    """
+    A special weapon that is instantiated when needed for a specific character.
+
+    The unarmed weapon takes most of its stats from the character it is
+    instantiated for.
+    """
+    nonlethal = True
+    wield_type = pathfinder.combat.WieldType.Light
+
+    def __init__(self, char):
+        """
+        :type char: Character
+        """
+        self.char = char
+
+    @property
+    def damage_type(self):
+        return self.char.unarmed_damage_type
+
+    @property
+    def critical_threat(self):
+        return self.char.unarmed_critical_threat
+
+    @property
+    def critical_multiplier(self):
+        return self.char.unarmed_critical_multiplier
+
+    @property
+    def user_size(self):
+        return self.char.size_category
+
+    @pathfinder.combat.attack('strike', default=True)
+    def unarmed_strike(self, actor, target):
+        attack_roll = ('unarmed strike' if self.nonlethal
+                       else 'lethal unarmed strike')
+        attack = self.char.do_attack_roll(attack_roll)
+
+
 class Character(mudslingcore.objects.Character,
                 wearables.Wearer,
                 pathfinder.combat.Combatant):
@@ -76,6 +115,7 @@ class Character(mudslingcore.objects.Character,
         'right hand': None,
         'left hand': None
     })
+    unarmed_damage_type = 'bludgeoning'
     frozen_level = 0
     xp = 0
     race = None
@@ -343,7 +383,10 @@ class Character(mudslingcore.objects.Character,
 
     def trigger_event(self, event, **kw):
         event = super(Character, self).trigger_event(event, **kw)
-        if event.name in ('feat applied', 'feat removed'):
+        if event.name == 'alter roll' and 'attack roll' in kw['tags']:
+            mods = self.get_stat_modifiers('all attacks')
+            raise NotImplemented
+        elif event.name in ('feat applied', 'feat removed'):
             self.clear_stat_cache()
         return event
 
@@ -818,6 +861,14 @@ class Character(mudslingcore.objects.Character,
     def join_battle(self, battle):
         battle.add_combatant(self.ref())
 
+    @property
+    def num_attacks(self):
+        """
+        The number of attacks this character can perform per turn.
+        :rtype: int
+        """
+        return 1 + math.trunc((self.bab - 1) / 5)
+
     def body_region_worn(self, region=None):
         """
         Get the objects occupying each body region.
@@ -966,7 +1017,7 @@ class Character(mudslingcore.objects.Character,
         if isinstance(hands, str):
             hands = [hands]
         # Some weapons require two hands.
-        WieldType = pathfinder.objects.WieldType
+        WieldType = pathfinder.combat.WieldType
         req_len = 2 if obj.wield_type == WieldType.TwoHanded else 1
         if hands is None:
             hands = [None] * req_len
@@ -1007,6 +1058,31 @@ class Character(mudslingcore.objects.Character,
             self.hands[hand] = None
         if not stealth:
             self.emit_message('unwield', actor=self.ref(), obj=obj)
+
+    @property
+    def unarmed_critical_threat(self):
+        event = self.trigger_event('unarmed critical threat')
+        return min(20, *event.responses.values())
+
+    @property
+    def unarmed_critical_multiplier(self):
+        event = self.trigger_event('unarmed critical multiplier')
+        return max(2, *event.responses.values())
+
+    @property
+    def unarmed_weapon(self):
+        return UnarmedWeapon(self)
+
+    def do_attack_roll(self, roll, target):
+        """
+        Perform an attack roll against a target.
+
+        :param roll:
+        :param target:
+        :return:
+        """
+        result, desc = self.roll(roll, desc=True, tags=('attack roll',))
+        #if result >=
 
 
 # Assign commands here to avoid circular import issues.

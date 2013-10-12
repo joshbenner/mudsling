@@ -306,14 +306,25 @@ class WieldingCmd(mudsling.commands.Command):
 
 class StrikeCmd(pathfinder.commands.CombatCommand):
     """
-    strike[/unarmed][/nonlethal][/<type>] <target> [:<emote>]
+    strike[/unarmed][/nonlethal] <target> [:<emote>]
 
     Perform a melee attack against the target.
     """
     aliases = ('strike',)
     syntax = "<target> [:<emote>]"
+    arg_parsers = {
+        'target': pathfinder.parsers.match_combatant
+    }
     events = ('combat command', 'attack command', 'melee attack command')
     default_emotes = [
         "strikes $target."
     ]
     action_cost = {'attack': 1}
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+

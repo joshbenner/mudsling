@@ -28,10 +28,12 @@ class Race(pathfinder.characters.CharacterFeature):
         for abil, val in cls.ability_modifiers.iteritems():
             bonus = pathfinder.format_modifier(val)
             mods.append(pathfinder.modifiers.Modifier(
-                bonus + ' to ' + abil.capitalize()))
+                bonus + ' to ' + abil.capitalize(),
+                source=cls
+            ))
         mods.extend(cls.modifiers)
         for mod in mods:
-            char.apply_effect(mod, source=cls)
+            char.apply_effect(mod)
 
     @classmethod
     def remove_from(cls, char):

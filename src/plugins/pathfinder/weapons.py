@@ -1,8 +1,9 @@
 from dice import Roll
 
-from pathfinder.objects import MultipartThing, attack
+from pathfinder.objects import MultipartThing
 import pathfinder.equipment
 import pathfinder.data
+from pathfinder.combat import attack
 
 
 def enhancement(name):
@@ -49,7 +50,9 @@ class MeleeWeapon(Weapon):
         raise NotImplemented
 
     def improvised_melee_attack(self, actor, target):
-        """Override without @attack to disable improvised attack from parent."""
+        """
+        Override without @attack to disable improvised attack from parent.
+        """
         pass
 
 

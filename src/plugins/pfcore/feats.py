@@ -849,8 +849,12 @@ class WeaponFinesse(Feat):
     type = 'combat'
     description = "Use DEX instead of STR on attack rolls with light weapons."
     modifiers = modifiers(
-        "+max(STR mod, DEX mod) - STR mod to melee damage modifier"
+        #"+max(STR mod, DEX mod) - STR mod to melee damage modifier"
     )
+
+    def respond_to_event(self, event, responses):
+        # todo: Modify modifier for light weapons.
+        pass
 
 
 class WeaponFocus(Feat):
