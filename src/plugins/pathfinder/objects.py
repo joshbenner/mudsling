@@ -68,6 +68,13 @@ class PathfinderObject(mudsling.objects.Object,
         if attr not in self.__dict__:
             setattr(self, attr, val)
 
+    def rpg_notice(self, *parts):
+        """
+        Notify the room of RPG information.
+        """
+        # todo: Only show this to people who want it.
+        self.emit(('{m%%: {n',) + parts)
+
     @property
     def volume(self):
         """
@@ -107,13 +114,13 @@ class PathfinderObject(mudsling.objects.Object,
             effect.respond_to_event(event, None)
         data['conditions'].extend(event.conditions)
 
-    def _process_features(self, feature, data):
+    def _process_features(self, features, data):
         """
         Features provide effects.
         """
         event = pathfinder.events.Event('permanent effects')
         event.effects = []
-        for feature in feature:
+        for feature in [f for f in features if f is not None]:
             feature.respond_to_event(event, None)
         data['effects'].extend(event.effects)
 

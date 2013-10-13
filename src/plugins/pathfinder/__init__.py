@@ -39,6 +39,28 @@ feature_re = re.compile('^(?P<name>.*?)(?: +\((?P<subtype>.*)\))?$')
 # Styles for use with ui.conditional_style.
 bonus_style = (('<', 0, '{r'), ('>', 0, '{g'), ('=', 0, '{y'))
 
+# Simple roll cache.
+_rolls = {
+    '1d20': Roll('1d20')
+}
+
+
+def roll(expr, desc=False):
+    """
+    Convenience die roller. Supports no variables -- only for straight dice.
+    Will cache the roll objects to make subsequent rolls of same type more
+    efficient.
+
+    :param expr: The roll to cast.
+    :type expr: str
+
+    :return: Tuple containing the roll result and the optional description.
+    :rtype: int or float or tuple
+    """
+    if expr not in _rolls:
+        _rolls[expr] = Roll(expr)
+    return _rolls[expr].eval(desc=desc)
+
 
 # By declaring currencies, they are automatically registered.
 icmoney.Currency('pp', 'Platinum Piece', 10.0)

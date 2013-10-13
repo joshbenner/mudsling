@@ -130,6 +130,7 @@ class DefaultLoginScreen(LoginScreenPlugin):
                                         makeChar=True)
         except Exception as e:
             session.send_output(e.message)
+            logging.exception("Failed to complete registration")
         else:
             session.send_output("Account '%s' has been created!" % player.name)
             self.doConnect(session, args=(player.name, password))

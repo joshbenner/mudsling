@@ -186,6 +186,10 @@ class Character(mudslingcore.objects.Character,
         'fort': 'fortitude', 'ref': 'reflex',
         'cmb': 'combat maneuver bonus',
         'cmd': 'combat maneuver defense',
+
+        # The aliases keep attack type stat resolution consistent.
+        'unarmed attack': 'unarmed strike',
+        'lethal unarmed attack': 'lethal unarmed strike',
     }
     stat_defaults = {
         'strength': 0,
@@ -197,12 +201,12 @@ class Character(mudslingcore.objects.Character,
 
         # The ability checks can be modified separately from the base stat or
         # their modifiers.
-        'strength check': Roll('1d20 + strength modifier'),
-        'dexterity check': Roll('1d20 + dexterity modifier'),
-        'constitution check': Roll('1d20 + constitution modifier'),
-        'wisdom check': Roll('1d20 + wisdom modifier'),
-        'intelligence check': Roll('1d20 + intelligence modifier'),
-        'charisma check': Roll('1d20 + charisma modifier'),
+        'strength check': Roll('strength modifier'),
+        'dexterity check': Roll('dexterity modifier'),
+        'constitution check': Roll('constitution modifier'),
+        'wisdom check': Roll('wisdom modifier'),
+        'intelligence check': Roll('intelligence modifier'),
+        'charisma check': Roll('charisma modifier'),
 
         'level': 0,
 
@@ -233,24 +237,12 @@ class Character(mudslingcore.objects.Character,
         # These are the fundamental attack bonuses. Actual attacks will use the
         # rolls specified below.
         'base attack bonus': 0,
-        'melee attack bonus': Roll('BAB + STR mod + size mod'),
-        'ranged attack bonus': Roll('BAB + DEX mod + size mod'),
-
-        # These can be separately modified, so they are not aliases. These are
-        # what should be used by attack commands to perform rolls.
-        'melee attack': Roll('1d20 + melee attack bonus'),
-        'ranged attack': Roll('1d20 + ranged attack bonus'),
+        'melee attack': Roll('BAB + STR mod + size mod'),
+        'ranged attack': Roll('BAB + DEX mod + size mod'),
         'melee touch attack': Roll('melee attack'),
         'ranged touch attack': Roll('ranged attack'),
         'unarmed strike': Roll('melee attack'),
         'lethal unarmed strike': Roll('unarmed strike - 4'),
-
-        # These stats are what is actually used when attempting a save, as
-        # opposed to the base stat itself. As such, the save can be modified
-        # without modifying anything else that may use the base stat.
-        'fortitude save': Roll('1d20 + fortitude'),
-        'reflex save': Roll('1d20 + reflex'),
-        'will save': Roll('1d20 + will'),
     }
     # Map attributes to stats.
     stat_attributes = {
@@ -882,7 +874,7 @@ class Character(mudslingcore.objects.Character,
             mods.update(self.get_stat_modifiers(modstat, **kw))
         elif 'check' in tags and resolved in pathfinder.abilities:
             mods.update(self.get_stat_modifiers('all %s checks' % resolved))
-        elif resolved in ('melee attack bonus', 'ranged attack bonus'):
+        elif resolved in ('melee attack', 'ranged attack'):
             mods.update(self.get_stat_modifiers('all attacks'))
         elif resolved in ('fortitude', 'reflex', 'will'):
             mods.update(self.get_stat_modifiers('all saves'))
@@ -1115,16 +1107,23 @@ class Character(mudslingcore.objects.Character,
     def unarmed_weapon(self):
         return UnarmedWeapon(self)
 
-    def do_attack_roll(self, roll, target):
+    def do_attack_roll(self, target, attack_type='melee'):
         """
         Perform an attack roll against a target.
 
-        :param roll:
-        :param target:
-        :return:
+        :param target: The target of the attack. Determines target number, etc.
+        :param attack_type: The type of attack. Determines which bonuses are
+            applied to the roll.
+        :return: Tuple of (Hit?, natural roll, total roll, roll desc)
+        :rtype: tuple
         """
-        result, desc = self.roll(roll, desc=True)
-        #if result >=
+        attack_bonus_stat = '%s attack' % attack_type
+        die, diedesc = pathfinder.roll('1d20', desc=True)
+        bonus, bonusdesc = self.get_stat(attack_bonus_stat, desc=True)
+        result = die + bonus
+        desc = '%s + %s' % (diedesc, bonusdesc)
+        hit = die == 20 or result >= target.armor_class
+        return hit, die, result, desc
 
 
 # Assign commands here to avoid circular import issues.

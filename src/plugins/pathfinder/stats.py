@@ -1,3 +1,4 @@
+import sys
 from collections import OrderedDict
 
 from mudsling.storage import Persistent
@@ -294,7 +295,8 @@ class HasStats(Persistent):
                 return super(HasStats, self).__getattr__(item)
             except AttributeError as e:
                 if '__getattr__' in e.message:
-                    raise AttributeError("'%s' object has no attribute '%s'"
-                                         % (self.__class__.__name__, item))
+                    msg = "'%s' object has no attribute '%s'"
+                    msg %= (self.__class__.__name__, item)
+                    raise AttributeError(msg), None, sys.exc_info()[2]
                 else:
                     raise
