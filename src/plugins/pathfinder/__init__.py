@@ -62,6 +62,14 @@ def roll(expr, desc=False):
     return _rolls[expr].eval(desc=desc)
 
 
+def succeeds(natural, total, target_number, always_succeeds=20):
+    """
+    Convenience function to evaluate if a roll succeeded.
+    """
+    return ((always_succeeds and natural >= always_succeeds)
+            or total >= target_number)
+
+
 # By declaring currencies, they are automatically registered.
 icmoney.Currency('pp', 'Platinum Piece', 10.0)
 icmoney.Currency('gp', 'Gold Piece', 1.0)
@@ -89,11 +97,13 @@ class Damage(object):
 
     Damage objects are short-lived only! Do not store damage objects.
     """
-    __slots__ = ('type', 'points', 'nonlethal')
+    __slots__ = ('types', 'points', 'nonlethal')
 
-    def __init__(self, points, type, nonlethal=False):
+    def __init__(self, points, types, nonlethal=False):
         self.points = points
-        self.type = type
+        if isinstance(types, (list, tuple, set)):
+            self.types = tuple(types)
+        self.types = (str(types),)
         self.nonlethal = nonlethal
 
 

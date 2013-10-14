@@ -75,6 +75,39 @@ class PathfinderObject(mudsling.objects.Object,
         # todo: Only show this to people who want it.
         self.emit(('{m%%: {n',) + parts)
 
+    def roll_with_mod(self, roll, mod_stat, desc=False, extra_mods=None):
+        """
+        Convenience method to perform a basic roll and add a modifier stat.
+
+        :param roll: The roll to perform. Must be a simple roll.
+        :type roll: str
+        :param mod_stat: The stat to use as the roll's modifier.
+        :type mod_stat: str
+        :param desc: Whether to return the roll description.
+        :type desc: bool
+        :param extra_mods: Dictionary of additional modifiers whose keys are
+            the desc name used if a desc is generated.
+        :type extra_mods: dict
+
+        :return: Tuple of natural roll, total, and the desc (or None).
+        :rtype: tuple
+        """
+        full_desc = None
+        natural = pathfinder.roll(roll, desc=desc)
+        mod = self.get_stat(mod_stat, desc=desc)
+        if desc:
+            natural, roll_desc = natural
+            mod, mod_desc = mod
+            full_desc = '%s + %s' % (roll_desc, mod_desc)
+        total = natural + mod
+        if extra_mods is not None:
+            for name, extra_mod in extra_mods.iteritems():
+                total += extra_mod
+            if desc:
+                full_desc += ' + ' + ' + '.join('%s(%s)' % (n, m)
+                                                for n, m in extra_mods)
+        return natural, natural + mod, full_desc
+
     @property
     def volume(self):
         """

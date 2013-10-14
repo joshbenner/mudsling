@@ -41,6 +41,12 @@ class Weapon(MultipartThing, pathfinder.equipment.Equipment):
             return self.ranged_damage
         return super(Weapon, self).get_stat_default(stat, True)
 
+    def roll_melee_damage(self, char):
+        """
+        Helper for roll_damage.
+        """
+        return char.roll('')
+
 
 class MeleeWeapon(Weapon):
     category = 'Melee'

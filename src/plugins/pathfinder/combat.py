@@ -557,6 +557,16 @@ class Weapon(pathfinder.stats.HasStats):
         return [f[1].attack_info for f in callbacks
                 if attack_type is None or f[1].attack_info.type == attack_type]
 
+    def roll_damage(self, char, attack_type, crit=False):
+        """
+        Determine how much damage a melee weapon inflicts.
+        """
+        func = getattr(self, 'roll_%s_damage' % attack_type.lower())
+        dmg = func(char)
+        if crit:
+            dmg *= self.critical_multiplier
+        return dmg
+
 
 class Battleground(mudsling.objects.Object):
     """

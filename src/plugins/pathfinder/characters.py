@@ -81,9 +81,11 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
 
     @pathfinder.combat.attack('strike', default=True)
     def unarmed_strike(self, actor, target):
-        attack_roll = ('unarmed strike' if self.nonlethal
-                       else 'lethal unarmed strike')
-        attack = self.char.do_attack_roll(attack_roll)
+        hit, crit = self.char.do_attack_roll(target,
+                                             attack_type='unarmed strike',
+                                             weapon=self)
+        #if hit:
+
 
 
 class Character(mudslingcore.objects.Character,
@@ -1107,23 +1109,45 @@ class Character(mudslingcore.objects.Character,
     def unarmed_weapon(self):
         return UnarmedWeapon(self)
 
-    def do_attack_roll(self, target, attack_type='melee'):
+    def do_attack_roll(self, target, attack_type, weapon, stealth=False):
         """
         Perform an attack roll against a target.
 
         :param target: The target of the attack. Determines target number, etc.
         :param attack_type: The type of attack. Determines which bonuses are
             applied to the roll.
-        :return: Tuple of (Hit?, natural roll, total roll, roll desc)
-        :rtype: tuple
+        :param weapon: The weapon being used to perform the attack. Determines
+            the critical threat range, attack bonuses, etc.
+        :type weapon: pathfinder.combat.Weapon
+        :param stealth: Whether or not to hide the RPG notice output.
+        :type stealth: bool
+
+        :return: Tuple of whether the attack hits, and if the attack is a crit.
+        :rtype: tuple of bool
         """
-        attack_bonus_stat = '%s attack' % attack_type
-        die, diedesc = pathfinder.roll('1d20', desc=True)
-        bonus, bonusdesc = self.get_stat(attack_bonus_stat, desc=True)
-        result = die + bonus
-        desc = '%s + %s' % (diedesc, bonusdesc)
-        hit = die == 20 or result >= target.armor_class
-        return hit, die, result, desc
+        atk_mod_stat = '%s attack' % attack_type
+        extra = {'weapon attack modifier': weapon.get_stat('attack modifier')}
+        natural, total, roll_desc = self.roll_with_mod('1d20',
+                                                       atk_mod_stat,
+                                                       desc=True,
+                                                       extra_mods=extra)
+        hit = pathfinder.succeeds(natural, total, target.armor_class)
+        notice = [self, attack_type, ' attack on ', target, ': ', roll_desc,
+                  ' vs AC ', target.armor_class, ': ',
+                  'HIT' if hit else 'MISS']
+        critical = False
+        if hit and natural >= weapon.critical_threat:
+            # Critical threat. Roll against target AC again to confirm.
+            conf = self.roll_with_mod('1d20', atk_mod_stat, desc=True,
+                                      extra_mods=extra)
+            conf_natural, conf_total, conf_desc = conf
+            if pathfinder.succeeds(conf_natural, conf_total,
+                                   target.armor_class):
+                critical = True
+                notice.append(' (CRITICAL)')
+        if not stealth:
+            self.rpg_notice(*notice)
+        return hit, critical
 
 
 # Assign commands here to avoid circular import issues.
