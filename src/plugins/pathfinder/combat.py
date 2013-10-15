@@ -607,15 +607,38 @@ class Weapon(pathfinder.stats.HasStats):
         return [f[1].attack_info for f in callbacks
                 if attack_type is None or f[1].attack_info.type == attack_type]
 
-    def roll_damage(self, char, attack_type, crit=False, desc=False):
+    def roll_damage(self, char, attack_type, crit=False, bonus=None,
+                    extra=None, desc=False):
         """
-        Determine how much damage a melee weapon inflicts.
+        Determine how much damage this weapon inflicts this time.
+
+        :param char: The character rolling the damage.
+        :param attack_type: The type of attack whose damage to roll.
+        :param crit: Whether the attack is a critical hit.
+        :param bonus: Additional damage that is multiplied by a critical hit.
+        :param extra: Extra damage that is NOT multiplied by a critical hit.
+        :param desc: Whether to generate the damage roll description.
         """
         fname = 'roll_%s_damage' % attack_type.replace(' ', '_').lower()
         func = getattr(self, fname)
         dmg = func(char, desc=desc)
+        if bonus:
+            bonus_points = char.roll(bonus, desc=desc)
+            if desc:
+                bonus_points, bonus_desc = bonus_points
+                dmg.desc += ' + ' + bonus_desc
+            dmg.points += bonus_points
         if crit:
-            dmg *= self.critical_multiplier
+            dmg.points *= self.critical_multiplier
+            if desc:
+                dmg.desc = ('(%s) * CRIT(%s)'
+                            % (dmg.desc, self.critical_multiplier))
+        if extra:
+            extra_points = char.roll(extra, desc=desc)
+            if desc:
+                extra_points, extra_desc = extra_points
+                dmg.desc += ' + ' + extra_desc
+            dmg.points += extra_points
         return dmg
 
 

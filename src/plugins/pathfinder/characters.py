@@ -92,14 +92,18 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
     def user_size(self):
         return self.char.size_category
 
+    def roll_unarmed_strike_damage(self, char, desc=False):
+        return self.damage[self.user_size].roll(char, desc=desc)
+
     @pathfinder.combat.attack('strike', default=True)
     def unarmed_strike(self, actor, target):
         hit, crit = self.char.do_attack_roll(target,
                                              attack_type='unarmed strike',
                                              weapon=self)
         if hit:
-            dmg, desc = self.damage[self.user_size].roll(self.char, desc=True)
-            self.char.rpg_notice('  Unarmed Strike Damage: ', desc)
+            dmg = self.roll_damage(self.char, 'unarmed strike', crit=crit,
+                                   desc=True)
+            self.char.rpg_notice('  Unarmed Strike Damage: ', dmg.desc)
 
 
 class Character(mudslingcore.objects.Character,
