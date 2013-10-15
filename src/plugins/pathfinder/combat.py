@@ -515,6 +515,58 @@ class WieldType(IntEnum):
     TwoHanded = 2
 
 
+class DamageRoll(mudsling.storage.PersistentSlots):
+    """
+    A roll to calculate damage.
+    """
+    __slots__ = ('types', 'points_roll', 'nonlethal')
+
+    def __init__(self, points_roll, types='general', nonlethal=False):
+        if isinstance(points_roll, Roll):
+            self.points_roll = points_roll
+        else:
+            self.points_roll = Roll(str(points_roll))
+        if isinstance(types, (list, tuple, set)):
+            self.types = tuple(types)
+        else:
+            self.types = (str(types),)
+        self.nonlethal = nonlethal
+
+    def roll(self, pfobj, desc=False):
+        """
+        Roll the damage, as performed by a given PF object.
+
+        :param pfobj: The object responsible for the damage. Usually the
+            character involved.
+        :param desc: Whether or not to get a roll description.
+        :rtype: Damage
+        """
+        rolldesc = None
+        result = pfobj.roll(self.points_roll, desc=desc)
+        if desc:
+            result, rolldesc = result
+        return Damage(result, self.types, self.nonlethal, desc=rolldesc)
+
+
+no_damage = DamageRoll(0)
+
+
+class Damage(mudsling.storage.PersistentSlots):
+    """
+    A number of hit points of damage with associate damage types.
+    """
+    __slots__ = ('points', 'types', 'nonlethal', 'desc')
+
+    def __init__(self, points, types='general', nonlethal=False, desc=None):
+        if isinstance(types, (list, tuple, set)):
+            self.types = tuple(types)
+        else:
+            self.types = (str(types),)
+        self.points = int(points)
+        self.nonlethal = nonlethal
+        self.desc = None
+
+
 class Weapon(pathfinder.stats.HasStats):
     """
     A very generic concept of a weapon. This is a superclass of equipment
@@ -522,8 +574,6 @@ class Weapon(pathfinder.stats.HasStats):
     to be added to subclasses to enable them to be used as weapons.
     """
 
-    damage_type = 'bludgeoning'
-    nonlethal = False
     critical_threat = 20
     critical_multiplier = 2
     range_increment = 10 * units.feet
@@ -557,12 +607,13 @@ class Weapon(pathfinder.stats.HasStats):
         return [f[1].attack_info for f in callbacks
                 if attack_type is None or f[1].attack_info.type == attack_type]
 
-    def roll_damage(self, char, attack_type, crit=False):
+    def roll_damage(self, char, attack_type, crit=False, desc=False):
         """
         Determine how much damage a melee weapon inflicts.
         """
-        func = getattr(self, 'roll_%s_damage' % attack_type.lower())
-        dmg = func(char)
+        fname = 'roll_%s_damage' % attack_type.replace(' ', '_').lower()
+        func = getattr(self, fname)
+        dmg = func(char, desc=desc)
         if crit:
             dmg *= self.critical_multiplier
         return dmg

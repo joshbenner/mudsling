@@ -3,6 +3,7 @@ import os
 import logging
 
 import mudsling.errors
+import mudsling.storage
 
 #: :type: logging.Logger
 logger = logging.getLogger('pathfinder')
@@ -89,22 +90,6 @@ improvised_damage = {
     sizes.Gargantuan: Roll('4d20'),
     sizes.Colossal: Roll('6d20')
 }
-
-
-class Damage(object):
-    """
-    Represents the damage done in an instance of damage being done.
-
-    Damage objects are short-lived only! Do not store damage objects.
-    """
-    __slots__ = ('types', 'points', 'nonlethal')
-
-    def __init__(self, points, types, nonlethal=False):
-        self.points = points
-        if isinstance(types, (list, tuple, set)):
-            self.types = tuple(types)
-        self.types = (str(types),)
-        self.nonlethal = nonlethal
 
 
 def format_modifier(mod, color=False, style=bonus_style):

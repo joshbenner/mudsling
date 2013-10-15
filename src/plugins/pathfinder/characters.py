@@ -28,6 +28,7 @@ import pathfinder.combat
 import pathfinder.errors
 import pathfinder.equipment
 import pathfinder.things
+import pathfinder.sizes as sizes
 
 
 def is_pfchar(obj):
@@ -54,8 +55,20 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
     The unarmed weapon takes most of its stats from the character it is
     instantiated for.
     """
-    nonlethal = True
     wield_type = pathfinder.combat.WieldType.Light
+    dmg_roll = pathfinder.combat.DamageRoll
+    damage = {
+        sizes.Fine: pathfinder.combat.no_damage,
+        sizes.Diminutive: pathfinder.combat.no_damage,
+        sizes.Tiny: dmg_roll(1, 'bludgeoning', True),
+        sizes.Small: dmg_roll('1d2 + STR mod', 'bludgeoning', True),
+        sizes.Medium: dmg_roll('1d3 + STR mod', 'bludgeoning', True),
+        sizes.Large: dmg_roll('1d4 + STR mod', 'bludgeoning', True),
+        sizes.Huge: dmg_roll('1d8 + STR mod', 'bludgeoning', True),
+        sizes.Gargantuan: dmg_roll('2d8 + STR mod', 'bludgeoning', True),
+        sizes.Colossal: dmg_roll('4d8 + STR mod', 'bludgeoning', True)
+    }
+    del dmg_roll
 
     def __init__(self, char):
         """
@@ -84,8 +97,9 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
         hit, crit = self.char.do_attack_roll(target,
                                              attack_type='unarmed strike',
                                              weapon=self)
-        #if hit:
-
+        if hit:
+            dmg, desc = self.damage[self.user_size].roll(self.char, desc=True)
+            self.char.rpg_notice('  Unarmed Strike Damage: ', desc)
 
 
 class Character(mudslingcore.objects.Character,

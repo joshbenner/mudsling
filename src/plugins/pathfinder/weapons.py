@@ -1,8 +1,6 @@
-from dice import Roll
-
 import pathfinder.equipment
 import pathfinder.data
-from pathfinder.combat import attack
+from pathfinder.combat import attack, DamageRoll
 from pathfinder.things import MultipartThing
 
 
@@ -30,26 +28,10 @@ class Weapon(MultipartThing, pathfinder.equipment.Equipment):
     family = ''    # Sword, Knife, Bow, Handgun, Longarm, Shotgun, etc
     type = ''      # Shortsword, Light crossbow, Beretta 92FS, etc
 
-    melee_damage = Roll('0')
-    ranged_damage = Roll('0')
-
-    def get_stat_default(self, stat, resolved=False):
-        stat = stat if resolved else self.resolve_stat_name(stat)
-        if stat == 'melee damage':
-            return self.melee_damage
-        elif stat == 'ranged damage':
-            return self.ranged_damage
-        return super(Weapon, self).get_stat_default(stat, True)
-
-    def roll_melee_damage(self, char):
-        """
-        Helper for roll_damage.
-        """
-        return char.roll('')
-
 
 class MeleeWeapon(Weapon):
     category = 'Melee'
+    melee_damage = DamageRoll(0)
 
     @attack('strike', default=True)
     def melee_attack(self, actor, target):
@@ -61,10 +43,17 @@ class MeleeWeapon(Weapon):
         """
         pass
 
+    def roll_melee_damage(self, char, desc=False):
+        return self.melee_damage.roll(char, desc=desc)
+
 
 class RangedWeapon(Weapon):
     category = 'Projectile'
+    ranged_damage = DamageRoll(0)
 
     @attack('shoot', default=True)
     def ranged_attack(self, actor, target):
         raise NotImplemented
+
+    def roll_ranged_damage(self, char, desc=False):
+        return self.ranged_damage.roll(char, desc=desc)
