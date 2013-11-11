@@ -97,13 +97,13 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
 
     @pathfinder.combat.attack('strike', default=True)
     def unarmed_strike(self, actor, target):
-        hit, crit = self.char.do_attack_roll(target,
-                                             attack_type='unarmed strike',
-                                             weapon=self)
+        hit, crit = actor.do_attack_roll(target,
+                                         attack_type='unarmed strike',
+                                         weapon=self)
         if hit:
-            dmg = self.roll_damage(self.char, 'unarmed strike', crit=crit,
+            dmg = self.roll_damage(actor, 'unarmed strike', crit=crit,
                                    desc=True)
-            self.char.rpg_notice('  Unarmed Strike Damage: ', dmg.desc)
+            actor.rpg_notice('  Unarmed Strike Damage: ', dmg.desc)
 
 
 class Character(mudslingcore.objects.Character,
@@ -912,6 +912,44 @@ class Character(mudslingcore.objects.Character,
         e = self.trigger_event('spoken languages', languages=[])
         return e.languages
 
+    def auto_level(self):
+        """
+        Automatically level up.
+        """
+        if not self.current_xp_level > self.level:
+            return False
+        if self.frozen_level < 1:
+            self.process_input("+abilities random")
+            self.process_input("+race %s" % random.choice(
+                pathfinder.data.registry['race'].values()).name)
+            self.process_input("+age 20 years")
+            self.process_input("+gender %s" % random.choice(self.race.genders))
+            self.process_input("+height 6'")
+            self.process_input("+weight 150 lbs")
+            char_class = random.choice(
+                pathfinder.data.registry['class'].values())
+        else:
+            char_class = self.classes[0]
+        abil = random.choice(pathfinder.abilities)
+        if self.current_xp_level % 4 == 0:
+            self.process_input("+level-up %s +%s" % (char_class.name, abil))
+        else:
+            self.process_input("+level-up %s" % char_class.name)
+        class_skills = self.class_skills()
+        skill_pool = list(class_skills)
+        skill_pool.extend(pathfinder.data.registry['skill'].itervalues())
+        tries = 0
+        while self.skill_points:
+            skill = random.choice(skill_pool)
+            try:
+                self.add_skill_rank(skill)
+            except pathfinder.errors.SkillError:
+                tries += 1
+                if tries >= 3:
+                    break
+        # todo: feats
+        self.process_input("+finalize/confirm")
+
     def join_battle(self, battle):
         battle.add_combatant(self.ref())
 
@@ -1145,10 +1183,11 @@ class Character(mudslingcore.objects.Character,
         """
         atk_mod_stat = '%s attack' % attack_type
         extra = {'weapon attack modifier': weapon.get_stat('attack modifier')}
-        natural, total, roll_desc = self.roll_with_mod('1d20',
-                                                       atk_mod_stat,
-                                                       desc=True,
-                                                       extra_mods=extra)
+        attack_roll = lambda: self.roll_with_mod('1d20',
+                                                 atk_mod_stat,
+                                                 desc=True,
+                                                 extra_mods=extra)
+        natural, total, roll_desc = attack_roll()
         hit = pathfinder.succeeds(natural, total, target.armor_class)
         notice = [self, attack_type, ' attack on ', target, ': ', roll_desc,
                   ' vs AC ', target.armor_class, ': ',
@@ -1156,9 +1195,7 @@ class Character(mudslingcore.objects.Character,
         critical = False
         if hit and natural >= weapon.critical_threat:
             # Critical threat. Roll against target AC again to confirm.
-            conf = self.roll_with_mod('1d20', atk_mod_stat, desc=True,
-                                      extra_mods=extra)
-            conf_natural, conf_total, conf_desc = conf
+            conf_natural, conf_total, conf_desc = attack_roll()
             if pathfinder.succeeds(conf_natural, conf_total,
                                    target.armor_class):
                 critical = True

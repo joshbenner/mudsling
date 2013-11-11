@@ -553,7 +553,7 @@ no_damage = DamageRoll(0)
 
 class Damage(mudsling.storage.PersistentSlots):
     """
-    A number of hit points of damage with associate damage types.
+    A number of hit points of damage with one or more associated damage types.
     """
     __slots__ = ('points', 'types', 'nonlethal', 'desc')
 
@@ -564,7 +564,7 @@ class Damage(mudsling.storage.PersistentSlots):
             self.types = (str(types),)
         self.points = int(points)
         self.nonlethal = nonlethal
-        self.desc = None
+        self.desc = desc
 
 
 class Weapon(pathfinder.stats.HasStats):
