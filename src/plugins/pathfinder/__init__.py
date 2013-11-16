@@ -120,6 +120,7 @@ _rolls = {
     '1d20': Roll('1d20')
 }
 
+
 def _cached_roll(expr):
     """
     Retrieved a cached roll object, creating it if necessary.
