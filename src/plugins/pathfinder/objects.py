@@ -252,7 +252,8 @@ class PathfinderObject(mudsling.objects.Object,
     def trigger_event(self, event, **kw):
         event = super(PathfinderObject, self).trigger_event(event, **kw)
         self.expire_effects()
-        if event.name in ('condition applied', 'condition removed'):
+        if event.name in ('condition applied', 'condition removed',
+                          'effect applied', 'effect removed'):
             self.clear_stat_cache()
         return event
 
@@ -416,11 +417,71 @@ class PathfinderObject(mudsling.objects.Object,
                 return True
         return False
 
-    def take_damage(self, damage):
+    def _resist_or_reduct(self, type, damage_type):
+        damage_types = pathfinder.damage.parse_damage_types(damage_type)
+        options = []
+        for damage_type in damage_types:
+            event = self.trigger_event(type, damage_type=damage_type)
+            applies = [v for v in event.responses.itervalues() if v is not None]
+            # Take the best resistance to a single damage type.
+            if len(applies):
+                options.append(max(applies))
+        # If any of the damage ignores the resist/reduct, it all gets through.
+        if len(options) < len(damage_types):
+            return None
+        # Use the least effective resist/reduct across multiple damage types.
+        return min(options)
+
+    def damage_reduction(self, type):
+        """
+        Determine the damage reduction that applies to damage of a certain
+        type.
+
+        :param type: The damage type(s).
+        :return: A tuple listing the modifier that grants the reduction and the
+            value of that reduction.
+        :rtype: int or None
+        """
+        return self._resist_or_reduct('damage reduction', type)
+
+    def damage_resistance(self, type):
+        """
+        Determine the damage resistance that applies to damage of a certain
+        type.
+
+        :param type: The damage type(s).
+        :return: A tuple listing the modifier that grants the resistance and the
+            value of that resistance.
+        :rtype: int or None
+        """
+        return self._resist_or_reduct('damage resistance', type)
+
+    def take_damage(self, damages):
         """
         Deal damage to the object.
 
-        :param damage: The damage inflicted to the object.
-        :type damage: pathfinder.combat.Damage
+        :param damages: The damages inflicted to the object.
+        :type damages: (list or tuple or set) of pathfinder.damage.Damage
         """
+        if isinstance(damages, pathfinder.damage.Damage):
+            damages = (damages,)
+        for dmg in damages:
+            self._take_damage(dmg)
 
+    def _take_damage(self, damage):
+        """
+        Low-level method to inflict damage. Should only be called by
+        take_damage().
+
+        :param damage: The damage being inflicted.
+        :type damage: pathfinder.damage.Damage
+        """
+        # Reduction.
+        reduction = self.damage_reduction(damage.types)
+        resistance = self.damage_resistance(damage.types)
+        points = damage.points - reduction - resistance
+        if damage.nonlethal:
+            if not self.nonlethal_immunity:
+                self.nonlethal_damage += damage.points
+        else:
+            self.damage += points

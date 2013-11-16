@@ -47,6 +47,7 @@ import dice
 import pathfinder
 import pathfinder.errors
 import pathfinder.events
+import pathfinder.damage
 
 logger = logging.getLogger('pathfinder')
 
@@ -96,7 +97,7 @@ def _grammar():
     lang = Suppress(CK("speak") | CK("speaks"))
     lang += WordStart() + lastitem.setResultsName("language")
 
-    damagetype = Word(alphas, alphas + ' ')
+    damagetype = Word(alphas)
     damageval = Word(nums)
     gain = CK("gain") | CK("gains")
     resist = Optional(CK("can") | gain)
@@ -104,7 +105,7 @@ def _grammar():
     resist += damagetype.setResultsName("resist type")
     resist += damageval.setResultsName("resist value")
 
-    reduct = gain + CL("DR")
+    reduct = Optional(gain) + CL("DR")
     reduct += damageval.setResultsName("reduction value")
     reduct += L('/') + (damagetype | L('-')).setResultsName("reduction type")
 
@@ -183,12 +184,14 @@ class Modifier(pathfinder.events.EventResponder):
             self.payload_desc = parsed['language'].strip().lower()
         elif 'resist type' in parsed:
             self.type = Types.damage_resistance
-            resist_type = parsed['resist type'].strip().lower()
+            resist_type = pathfinder.damage.match_type(
+                parsed['resist type'].strip())
             resist_value = int(parsed['resist value'].strip())
             self.payload_desc = (resist_value, resist_type)
         elif 'reduction type' in parsed:
             self.type = Types.damage_reduction
-            reduction_type = parsed['reduction type'].strip().lower()
+            reduction_type = pathfinder.damage.match_type(
+                parsed['reduction type'].strip())
             reduction_value = int(parsed['reduction value'].strip())
             self.payload_desc = (reduction_value, reduction_type)
         else:
@@ -248,7 +251,7 @@ class Modifier(pathfinder.events.EventResponder):
         if self.type == Types.damage_resistance:
             value, resist_type = self.payload
             if event.damage_type == resist_type:
-                return value
+                responses[self] = value
 
     event_callbacks = {
         'stat mods': 'event_stat_mods',
