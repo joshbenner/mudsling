@@ -832,8 +832,10 @@ class Roll(SlotPickleMixin):
             return repr(self.parsed) == repr(other.parsed)
         return False
 
-    def eval(self, desc=False, **vars):
-        result, d = self._eval(vars, {'desc': desc})
+    def eval(self, state=None, desc=False, **vars):
+        state = state if state is not None else {}
+        state['desc'] = desc
+        result, d = self._eval(vars, state)
         if isinstance(result, list):
             result = sum(result)
         return (result, d) if desc else result
@@ -854,6 +856,14 @@ class Roll(SlotPickleMixin):
         state['maxroll'] = True
         maxroll = self._eval(vars, state)[0]
         return minroll, maxroll
+
+    @property
+    def min(self):
+        return self.limits()[0]
+
+    @property
+    def max(self):
+        return self.limits()[1]
 
     def update(self, expr, parser=None, vars=None):
         self._parse(expr, parser)

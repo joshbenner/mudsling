@@ -82,6 +82,13 @@ class NotWielding(PathfinderError):
         super(NotWielding, self).__init__(msg=msg)
 
 
+class NoSuchAttack(PathfinderError):
+    """
+    Thrown when attempting an attack with a weapon that does not support it.
+    """
+    pass
+
+
 class PartNotFoundError(mudsling.errors.Error):
     """
     Thrown when a specified part isn't found on a MultipartThing.

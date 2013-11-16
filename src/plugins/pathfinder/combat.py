@@ -347,6 +347,47 @@ class Combatant(pathfinder.objects.PathfinderObject):
             pathfinder.logger.warning("Initiative out of battle for %r", self)
         return self.battle_initiative
 
+    def roll_attack(self, target, attack_type, weapon, stealth=False):
+        """
+        Perform an attack roll against a target.
+
+        :param target: The target of the attack. Determines target number, etc.
+        :param attack_type: The type of attack. Determines which bonuses are
+            applied to the roll.
+        :param weapon: The weapon being used to perform the attack. Determines
+            the critical threat range, attack bonuses, etc.
+        :type weapon: pathfinder.combat.Weapon
+        :param stealth: Whether or not to hide the RPG notice output.
+        :type stealth: bool
+
+        :return: Tuple of whether the attack hits, and if the attack is a crit.
+        :rtype: tuple of bool
+        """
+        mods = {'attack modifier': '%s attack' % attack_type,
+                'weapon attack modifier': weapon.get_stat('attack modifier')}
+        attack_roll = lambda: self.d20_roll(mods=mods, vs=target.armor_class)
+        attack = attack_roll()
+        desc = attack.success_desc(win='{gHIT', fail='{rMISS', vs_name='AC')
+        notice = [self, ' ', ('action', attack_type), ' vs ', target, ': ',
+                  ('roll', desc)]
+        critical = threat = False
+        crit_notice = ()
+        if attack.success and attack.natural >= weapon.critical_threat:
+            threat = True
+            # Critical threat. Roll against target AC again to confirm.
+            confirm = attack_roll()
+            confirm_desc = confirm.success_desc(win='{gCONFIRMED',
+                                                fail='{rFAIL', vs_name='AC')
+            crit_notice = ['  ', ('action', 'Confirm critical: '),
+                           ('roll', confirm_desc)]
+            if confirm.success:
+                critical = True
+        if not stealth:
+            self.rpg_notice(*notice)
+            if threat:
+                self.rpg_notice(*crit_notice)
+        return attack.success, critical
+
     def full_combat_action_pool(self):
         return {'move': 1, 'standard': 1, 'attack': self.num_attacks}
 
@@ -493,7 +534,7 @@ class AttackInfo(object):
     def __init__(self, attack_type, name=None, improvised=False, default=False,
                  callback=None):
         self.type = str(attack_type)
-        self.name = str(name) if name is not None else self.type
+        self.name = (str(name) if name is not None else self.type).lower()
         self.improvised = bool(improvised)
         self.default = bool(default)
         self.callback = callback
@@ -521,7 +562,7 @@ class DamageRoll(mudsling.storage.PersistentSlots):
     """
     __slots__ = ('types', 'points_roll', 'nonlethal')
 
-    def __init__(self, points_roll, types='general', nonlethal=False):
+    def __init__(self, points_roll, types='general'):
         if isinstance(points_roll, Roll):
             self.points_roll = points_roll
         else:
@@ -530,14 +571,14 @@ class DamageRoll(mudsling.storage.PersistentSlots):
             self.types = tuple(types)
         else:
             self.types = (str(types),)
-        self.nonlethal = nonlethal
 
-    def roll(self, pfobj, desc=False):
+    def roll(self, pfobj, nonlethal=False, desc=False):
         """
         Roll the damage, as performed by a given PF object.
 
         :param pfobj: The object responsible for the damage. Usually the
             character involved.
+        :param nonlethal: If the damage is non-lethal.
         :param desc: Whether or not to get a roll description.
         :rtype: Damage
         """
@@ -545,7 +586,7 @@ class DamageRoll(mudsling.storage.PersistentSlots):
         result = pfobj.roll(self.points_roll, desc=desc)
         if desc:
             result, rolldesc = result
-        return Damage(result, self.types, self.nonlethal, desc=rolldesc)
+        return Damage(max(1, result), self.types, nonlethal, desc=rolldesc)
 
 
 no_damage = DamageRoll(0)
@@ -566,6 +607,13 @@ class Damage(mudsling.storage.PersistentSlots):
         self.nonlethal = nonlethal
         self.desc = desc
 
+    @property
+    def full_desc(self):
+        types = ', '.join(self.types)
+        if self.nonlethal:
+            types += ' (nonlethal)'
+        return "%s = %s %s" % (self.desc, self.points, types)
+
 
 class Weapon(pathfinder.stats.HasStats):
     """
@@ -577,6 +625,7 @@ class Weapon(pathfinder.stats.HasStats):
     critical_threat = 20
     critical_multiplier = 2
     range_increment = 10 * units.feet
+    nonlethal = False
 
     stat_defaults = {
         'attack modifier': Roll('0'),
@@ -601,14 +650,33 @@ class Weapon(pathfinder.stats.HasStats):
         :type attack_type: str
 
         :return: A list of attacks provided by the object.
-        :rtype: list of dict
+        :rtype: list of AttackInfo
         """
         callbacks = inspect.getmembers(self, predicate=self.__attack_filter)
         return [f[1].attack_info for f in callbacks
                 if attack_type is None or f[1].attack_info.type == attack_type]
 
+    def get_attack(self, attack_type=None, name=None):
+        attacks = self.attacks(attack_type)
+        if name is None:
+            for attack in attacks:
+                if attack.default:
+                    return attack
+        else:
+            name = name.lower()
+            for attack in attacks:
+                if name == attack.name:
+                    return attack
+        raise pathfinder.errors.NoSuchAttack()
+
+    def do_attack(self, actor, target, attack_type=None, name=None,
+                  nonlethal=None):
+        attack = self.get_attack(attack_type, name)
+        attack_func = getattr(self, attack.callback)
+        attack_func(actor, target, nonlethal=nonlethal)
+
     def roll_damage(self, char, attack_type, crit=False, bonus=None,
-                    extra=None, desc=False):
+                    extra=None, nonlethal=None, desc=False):
         """
         Determine how much damage this weapon inflicts this time.
 
@@ -617,11 +685,13 @@ class Weapon(pathfinder.stats.HasStats):
         :param crit: Whether the attack is a critical hit.
         :param bonus: Additional damage that is multiplied by a critical hit.
         :param extra: Extra damage that is NOT multiplied by a critical hit.
+        :param nonlethal: The lethality of the damage. If None, use default.
         :param desc: Whether to generate the damage roll description.
         """
+        nonlethal = nonlethal if nonlethal is not None else self.nonlethal
         fname = 'roll_%s_damage' % attack_type.replace(' ', '_').lower()
         func = getattr(self, fname)
-        dmg = func(char, desc=desc)
+        dmg = func(char, nonlethal=nonlethal, desc=desc)
         if bonus:
             bonus_points = char.roll(bonus, desc=desc)
             if desc:

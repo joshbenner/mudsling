@@ -60,13 +60,13 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
     damage = {
         sizes.Fine: pathfinder.combat.no_damage,
         sizes.Diminutive: pathfinder.combat.no_damage,
-        sizes.Tiny: dmg_roll(1, 'bludgeoning', True),
-        sizes.Small: dmg_roll('1d2 + STR mod', 'bludgeoning', True),
-        sizes.Medium: dmg_roll('1d3 + STR mod', 'bludgeoning', True),
-        sizes.Large: dmg_roll('1d4 + STR mod', 'bludgeoning', True),
-        sizes.Huge: dmg_roll('1d8 + STR mod', 'bludgeoning', True),
-        sizes.Gargantuan: dmg_roll('2d8 + STR mod', 'bludgeoning', True),
-        sizes.Colossal: dmg_roll('4d8 + STR mod', 'bludgeoning', True)
+        sizes.Tiny: dmg_roll(1, 'bludgeoning'),
+        sizes.Small: dmg_roll('1d2 + STR mod', 'bludgeoning'),
+        sizes.Medium: dmg_roll('1d3 + STR mod', 'bludgeoning'),
+        sizes.Large: dmg_roll('1d4 + STR mod', 'bludgeoning'),
+        sizes.Huge: dmg_roll('1d8 + STR mod', 'bludgeoning'),
+        sizes.Gargantuan: dmg_roll('2d8 + STR mod', 'bludgeoning'),
+        sizes.Colossal: dmg_roll('4d8 + STR mod', 'bludgeoning')
     }
     del dmg_roll
 
@@ -92,18 +92,22 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
     def user_size(self):
         return self.char.size_category
 
-    def roll_unarmed_strike_damage(self, char, desc=False):
-        return self.damage[self.user_size].roll(char, desc=desc)
+    def roll_unarmed_strike_damage(self, char, nonlethal, desc=False):
+        return self.damage[self.user_size].roll(char, nonlethal=nonlethal,
+                                                desc=desc)
 
     @pathfinder.combat.attack('strike', default=True)
-    def unarmed_strike(self, actor, target):
-        hit, crit = actor.do_attack_roll(target,
-                                         attack_type='unarmed strike',
-                                         weapon=self)
+    def unarmed_strike(self, actor, target, nonlethal=None):
+        hit, crit = actor.roll_attack(target,
+                                      attack_type='unarmed strike',
+                                      weapon=self)
         if hit:
+            if nonlethal is None:
+                nonlethal = True
             dmg = self.roll_damage(actor, 'unarmed strike', crit=crit,
-                                   desc=True)
-            actor.rpg_notice('  Unarmed Strike Damage: ', dmg.desc)
+                                   nonlethal=nonlethal, desc=True)
+            actor.rpg_notice(('action', '  Unarmed Strike Damage: '),
+                             ('roll', dmg.full_desc))
 
 
 class Character(mudslingcore.objects.Character,
@@ -210,6 +214,8 @@ class Character(mudslingcore.objects.Character,
         # The aliases keep attack type stat resolution consistent.
         'unarmed attack': 'unarmed strike',
         'lethal unarmed attack': 'lethal unarmed strike',
+        'unarmed strike attack': 'unarmed strike',
+        'lethal unarmed strike attack': 'lethal unarmed strike',
     }
     stat_defaults = {
         'strength': 0,
@@ -492,7 +498,7 @@ class Character(mudslingcore.objects.Character,
         if self.race is not None:
             try:
                 self.race.remove_from(self)
-            except AttributeError as e:
+            except AttributeError:
                 pathfinder.logger.error("Invalid race for %r: %r",
                                         self, self.race, exc_info=True)
         self.race = race
@@ -1154,55 +1160,18 @@ class Character(mudslingcore.objects.Character,
     @property
     def unarmed_critical_threat(self):
         event = self.trigger_event('unarmed critical threat')
-        return min(20, *event.responses.values())
+        return min(20, 20, *[v for v in event.responses.itervalues()
+                             if v is not None])
 
     @property
     def unarmed_critical_multiplier(self):
         event = self.trigger_event('unarmed critical multiplier')
-        return max(2, *event.responses.values())
+        return max(2, 2, *[v for v in event.responses.itervalues()
+                           if v is not None])
 
     @property
     def unarmed_weapon(self):
         return UnarmedWeapon(self)
-
-    def do_attack_roll(self, target, attack_type, weapon, stealth=False):
-        """
-        Perform an attack roll against a target.
-
-        :param target: The target of the attack. Determines target number, etc.
-        :param attack_type: The type of attack. Determines which bonuses are
-            applied to the roll.
-        :param weapon: The weapon being used to perform the attack. Determines
-            the critical threat range, attack bonuses, etc.
-        :type weapon: pathfinder.combat.Weapon
-        :param stealth: Whether or not to hide the RPG notice output.
-        :type stealth: bool
-
-        :return: Tuple of whether the attack hits, and if the attack is a crit.
-        :rtype: tuple of bool
-        """
-        atk_mod_stat = '%s attack' % attack_type
-        extra = {'weapon attack modifier': weapon.get_stat('attack modifier')}
-        attack_roll = lambda: self.roll_with_mod('1d20',
-                                                 atk_mod_stat,
-                                                 desc=True,
-                                                 extra_mods=extra)
-        natural, total, roll_desc = attack_roll()
-        hit = pathfinder.succeeds(natural, total, target.armor_class)
-        notice = [self, attack_type, ' attack on ', target, ': ', roll_desc,
-                  ' vs AC ', target.armor_class, ': ',
-                  'HIT' if hit else 'MISS']
-        critical = False
-        if hit and natural >= weapon.critical_threat:
-            # Critical threat. Roll against target AC again to confirm.
-            conf_natural, conf_total, conf_desc = attack_roll()
-            if pathfinder.succeeds(conf_natural, conf_total,
-                                   target.armor_class):
-                critical = True
-                notice.append(' (CRITICAL)')
-        if not stealth:
-            self.rpg_notice(*notice)
-        return hit, critical
 
 
 # Assign commands here to avoid circular import issues.

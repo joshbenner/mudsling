@@ -1,6 +1,7 @@
 import mudsling.utils.string as str_utils
 import mudsling.commands
 import mudsling.locks
+import mudsling.parsers
 
 import pathfinder.parsers
 import pathfinder.commands
@@ -315,6 +316,14 @@ class StrikeCmd(pathfinder.commands.CombatCommand):
     arg_parsers = {
         'target': pathfinder.parsers.match_combatant
     }
+    switch_parsers = {
+        'unarmed': mudsling.parsers.BoolStaticParser,
+        'nonlethal': mudsling.parsers.BoolStaticParser
+    }
+    # switch_defaults = {
+    #     'unarmed': False,
+    #     'nonlethal': False
+    # }
     events = ('combat command', 'attack command', 'melee attack command')
     default_emotes = [
         "strikes $target."
@@ -327,4 +336,13 @@ class StrikeCmd(pathfinder.commands.CombatCommand):
         :type actor: pathfinder.characters.Character
         :type args: dict
         """
-
+        wielded = this.wielded_weapons
+        if 'unarmed' in self.switches:
+            unarmed = True
+        else:
+            unarmed = len(wielded) < 1
+        nonlethal = ('nonlethal' in self.switches) or None
+        #: :type: pathfinder.combat.Weapon
+        weapon = actor.unarmed_weapon if unarmed else wielded[0]
+        weapon.do_attack(actor, args['target'], attack_type='strike',
+                         nonlethal=nonlethal)

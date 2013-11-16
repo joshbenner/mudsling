@@ -10,6 +10,7 @@ import mudsling.errors
 import mudsling.commands
 
 from icmoney import Money
+import dice
 
 import pathfinder
 import pathfinder.events
@@ -71,42 +72,66 @@ class PathfinderObject(mudsling.objects.Object,
     def rpg_notice(self, *parts):
         """
         Notify the room of RPG information.
+
+        **Coloring:**
+
+            :Prefix: magenta
+            :Character names: cyan
+            :Actions: yellow
+            :Rolls: magenta
         """
         # todo: Only show this to people who want it.
-        self.emit(('{m%%: {n',) + parts)
+        if not isinstance(parts, list):
+            parts = list(parts)
+        newparts = ['{y%%: {n']
+        for i, part in enumerate(parts):
+            color = '{n'
+            if is_pfobj(part):
+                color = '{c'
+            elif isinstance(part, dice.Roll):
+                color = '{m'
+            elif isinstance(part, tuple):
+                part_type, part = part
+                if part_type == 'action':
+                    color = '{y'
+                elif part_type == 'roll':
+                    color = '{m'
+            newparts.extend((color, part))
+        self.emit(newparts)
 
-    def roll_with_mod(self, roll, mod_stat, desc=False, extra_mods=None):
+    def pf_roll(self, roll, mods=None, state=None, **vars):
         """
-        Convenience method to perform a basic roll and add a modifier stat.
+        Perform a Pathfinder roll by this object.
 
-        :param roll: The roll to perform. Must be a simple roll.
+        See :class:`pathfinder.PathfinderRoll`.
+
+        :param roll: The base roll to perform. Usually only a diespec.
         :type roll: str
-        :param mod_stat: The stat to use as the roll's modifier.
-        :type mod_stat: str
-        :param desc: Whether to return the roll description.
-        :type desc: bool
-        :param extra_mods: Dictionary of additional modifiers whose keys are
-            the desc name used if a desc is generated.
-        :type extra_mods: dict
 
-        :return: Tuple of natural roll, total, and the desc (or None).
-        :rtype: tuple
+        :param mods: Any modifiers to apply to the roll.
+        :type mods: None or dict
+
+        :param state: The roll expression state to begin with.
+        :type state: None or dict
+
+        :param vars: Any variables to inject into the roll expression.
+        :type vars: dict
+
+        :return: The roll result.
+        :rtype: pathfinder.RollResult
         """
-        full_desc = None
-        natural = pathfinder.roll(roll, desc=desc)
-        mod = self.get_stat(mod_stat, desc=desc)
-        if desc:
-            natural, roll_desc = natural
-            mod, mod_desc = mod
-            full_desc = '%s + %s' % (roll_desc, mod_desc)
-        total = natural + mod
-        if extra_mods is not None:
-            for name, extra_mod in extra_mods.iteritems():
-                total += extra_mod
-            if desc:
-                full_desc += ' + ' + ' + '.join('%s(%s)' % (n, m)
-                                                for n, m in extra_mods)
-        return natural, natural + mod, full_desc
+        state = state if state is not None else {}
+        vars['__var'] = pathfinder.stats.resolve_roll_var
+        state['stat object'] = self
+        return pathfinder.RollResult(roll, mods, state, **vars)
+
+    def d20_roll(self, mods=None, state=None, **vars):
+        """
+        Convenience method to perform a 1d20 roll.
+
+        :rtype: pathfinder.RollResult
+        """
+        return self.pf_roll('1d20', mods=mods, state=state, **vars)
 
     @property
     def volume(self):
