@@ -546,33 +546,39 @@ class VariableNode(EvalNode):
     """
     A variable EvalNode. Simply accesses the value passed in by the caller.
     """
-    __slots__ = ('name',)
+    __slots__ = ('name', 'original')
 
     def __init__(self, tok):
-        self.name = tok[0].strip().lower()
+        self.original = tok[0].strip()
+        self.name = self.original.lower()
 
     def eval(self, vars, state):
+        need_desc = state.get('desc', False)
         if self.name in vars:
-            value = vars[self.name]
+            expr = vars[self.name]
             desc = None
         elif '__var' in vars:
-            value, desc = vars['__var'](self.name, vars, state)
+            expr, desc = vars['__var'](self.original, vars, state)
         else:
             raise NameError("Variable '%s' not found" % self.name)
 
-        if isinstance(value, EvalNode):
-            value, desc = value.eval(vars, state)
-        elif isinstance(value, Roll):
-            value, desc = value._eval(vars, state)
-        elif isinstance(value, RollResult):
-            value = value.result
+        if isinstance(expr, EvalNode):
+            value, desc = expr.eval(vars, state)
+        elif isinstance(expr, Roll):
+            value, desc = expr._eval(vars, state)
+            if need_desc and isinstance(expr.parsed, BinaryOpNode):
+                desc += ' = %s' % value
+        elif isinstance(expr, RollResult):
+            value = expr.result
             desc = str(value)
-        elif isinstance(value, DynamicVariable):
-            value, desc = value.eval(vars, state)
+        elif isinstance(expr, DynamicVariable):
+            value, desc = expr.eval(vars, state)
+        else:
+            value = expr
 
-        if state.get('desc', False):
+        if need_desc:
             if not desc:
-                desc = "%s(%s)" % (self.name, value)
+                desc = "%s(%s)" % (self.original, value)
         else:
             desc = ''
         return value, desc

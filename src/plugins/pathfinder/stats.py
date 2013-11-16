@@ -129,6 +129,7 @@ class HasStats(Persistent):
         return stats
 
     def get_stat(self, stat, resolved=False, desc=False):
+        original = stat
         stat = stat if resolved else self.resolve_stat_name(stat)[0]
         if stat in self._stat_cache:
             cached = self._stat_cache[stat]
@@ -142,9 +143,13 @@ class HasStats(Persistent):
                         r, d = self._eval_stat_part(part, desc=True)
                         results.append(r)
                         desc_parts.append(d)
-                    return sum(results), ' + '.join(desc_parts)
+                    result = sum(results)
+                    desc = ' + '.join(desc_parts)
+                    if len(desc_parts) > 1:
+                        desc = "%s = %s" % (desc, result)
+                    return result, desc
             elif desc:
-                return cached, "%s(%s)" % (stat, cached)
+                return cached, "%s(%s)" % (original, cached)
             else:
                 return cached
         # low, high = self.get_stat_limits(stat)
@@ -152,7 +157,7 @@ class HasStats(Persistent):
         #     self.cache_stat(stat, low)
         # else:
         # Cache the base and all modifiers in a single list to be summed.
-        parts = [(stat, self.get_stat_base(stat))]
+        parts = [(original, self.get_stat_base(stat))]
         #parts.extend(self.get_stat_modifiers(stat).itervalues())
         parts.extend((self._part_name(source), mod) for source, mod
                      in self.get_stat_modifiers(stat).iteritems())
@@ -218,7 +223,11 @@ class HasStats(Persistent):
             return self.roll_limits(roll)
         elif desc:
             result, desc = self.roll(roll, desc=True)
-            return result, '%s(%s)' % (name, desc)
+            if isinstance(roll.parsed, dice.VariableNode):
+                desc = desc[len(roll.parsed.name) + 1:-1]
+            elif isinstance(roll.parsed, dice.BinaryOpNode):
+                desc += ' = %s' % result
+            return result, "%s(%s)" % (name, desc)
         else:
             return self.roll(roll)
 
