@@ -374,14 +374,17 @@ class Combatant(pathfinder.objects.PathfinderObject):
         crit_notice = ()
         if attack.success and attack.natural >= weapon.critical_threat:
             threat = True
-            # Critical threat. Roll against target AC again to confirm.
-            confirm = attack_roll()
-            confirm_desc = confirm.success_desc(win='{gCONFIRMED',
-                                                fail='{rFAIL', vs_name='AC')
-            crit_notice = ['  ', ('action', 'Confirm critical: '),
-                           ('roll', confirm_desc)]
-            if confirm.success:
-                critical = True
+            if target.critical_immunity:
+                crit_notice = ['  ', ('action', '(critical immunity)')]
+            else:
+                # Critical threat. Roll against target AC again to confirm.
+                confirm = attack_roll()
+                confirm_desc = confirm.success_desc(win='{gCONFIRMED',
+                                                    fail='{rFAIL', vs_name='AC')
+                crit_notice = ['  ', ('action', 'Confirm critical: '),
+                               ('roll', confirm_desc)]
+                if confirm.success:
+                    critical = True
         if not stealth:
             self.rpg_notice(*notice)
             if threat:
@@ -556,77 +559,6 @@ class WieldType(IntEnum):
     TwoHanded = 2
 
 
-class DamageRoll(mudsling.storage.PersistentSlots):
-    """
-    A roll to calculate damage.
-    """
-    __slots__ = ('types', 'points_roll', 'nonlethal')
-
-    def __init__(self, points_roll, types='general'):
-        if isinstance(points_roll, Roll):
-            self.points_roll = points_roll
-        else:
-            self.points_roll = Roll(str(points_roll))
-        if isinstance(types, (list, tuple, set)):
-            self.types = tuple(types)
-        else:
-            self.types = (str(types),)
-
-    def roll(self, pfobj, nonlethal=False, desc=False):
-        """
-        Roll the damage, as performed by a given PF object.
-
-        :param pfobj: The object responsible for the damage. Usually the
-            character involved.
-        :param nonlethal: If the damage is non-lethal.
-        :param desc: Whether or not to get a roll description.
-        :rtype: Damage
-        """
-        rolldesc = None
-        result = pfobj.roll(self.points_roll, desc=desc)
-        if desc:
-            result, rolldesc = result
-        if result < 1:
-            nonlethal = True
-            result = 1
-        return Damage(result, self.types, nonlethal, desc=rolldesc)
-
-
-no_damage = DamageRoll(0)
-
-
-class Damage(mudsling.storage.PersistentSlots):
-    """
-    A number of hit points of damage with one or more associated damage types.
-    """
-    __slots__ = ('points', 'types', 'nonlethal', 'desc')
-
-    def __init__(self, points, types='general', nonlethal=False, desc=None):
-        if isinstance(types, (list, tuple, set)):
-            self.types = tuple(types)
-        elif isinstance(types, str):
-            self.types = tuple(types.split(','))
-        else:
-            self.types = (str(types),)
-        self.types = map(str.strip, self.types)
-        self.points = int(points)
-        self.nonlethal = nonlethal
-        self.desc = desc
-
-    @property
-    def full_desc(self):
-        return "%s = %s" % (self.desc, self)
-
-    def __str__(self):
-        types = ', '.join(self.types)
-        if self.nonlethal:
-            types += ' (nonlethal)'
-        return "%s %s" % (self.points, types)
-
-    def __repr__(self):
-        return 'Damage: %s' % self
-
-
 class Weapon(pathfinder.stats.HasStats):
     """
     A very generic concept of a weapon. This is a superclass of equipment
@@ -685,9 +617,12 @@ class Weapon(pathfinder.stats.HasStats):
                   nonlethal=None):
         attack = self.get_attack(attack_type, name)
         attack_func = getattr(self, attack.callback)
-        dmg = attack_func(actor, target, nonlethal=nonlethal)
-        if dmg is not None:
-            actor.rpg_notice(('action', '  Damage: '), dmg)
+        damages = attack_func(actor, target, nonlethal=nonlethal)
+        if len(damages) > 0:
+            notice = [('action', '  Damage: '), damages[0]]
+            for dmg in damages[1:]:
+                notice.extend((', ', dmg))
+            actor.rpg_notice(*notice)
 
     def roll_damage(self, char, attack_type, crit=False, bonus=None,
                     extra=None, nonlethal=None, desc=False):

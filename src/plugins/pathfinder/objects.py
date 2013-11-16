@@ -19,7 +19,7 @@ import pathfinder.features
 import pathfinder.modifiers
 import pathfinder.effects
 import pathfinder.conditions
-import pathfinder.combat
+import pathfinder.damage
 
 
 def is_pfobj(obj):
@@ -44,8 +44,11 @@ class PathfinderObject(mudsling.objects.Object,
     _size_category = None
     permanent_hit_points = 0
     damage = 0
+    nonlethal_damage = 0
     _effects = []
     _conditions = []
+    nonlethal_immunity = True
+    critical_immunity = True
     stat_aliases = {
         'hp': 'hit points',
         'thp': 'temporary hit points',
@@ -91,7 +94,7 @@ class PathfinderObject(mudsling.objects.Object,
                 color = '{c'
             elif isinstance(part, dice.Roll):
                 color = '{m'
-            elif isinstance(part, pathfinder.combat.Damage):
+            elif isinstance(part, pathfinder.damage.Damage):
                 color = '{m'
                 part = part.full_desc
                 part = part.replace(' = ', ' {n={y ')
@@ -414,4 +417,10 @@ class PathfinderObject(mudsling.objects.Object,
         return False
 
     def take_damage(self, damage):
-        pass
+        """
+        Deal damage to the object.
+
+        :param damage: The damage inflicted to the object.
+        :type damage: pathfinder.combat.Damage
+        """
+

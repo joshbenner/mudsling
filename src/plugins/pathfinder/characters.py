@@ -25,6 +25,8 @@ import pathfinder.features
 import pathfinder.events
 import pathfinder.advancement
 import pathfinder.combat
+import pathfinder.damage
+import pathfinder.damage_types
 import pathfinder.errors
 import pathfinder.equipment
 import pathfinder.things
@@ -56,19 +58,20 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
     instantiated for.
     """
     wield_type = pathfinder.combat.WieldType.Light
-    dmg_roll = pathfinder.combat.DamageRoll
+    dmg_roll = pathfinder.damage.DamageRoll
+    b = pathfinder.damage_types.Bludgeoning
     damage = {
-        sizes.Fine: pathfinder.combat.no_damage,
-        sizes.Diminutive: pathfinder.combat.no_damage,
-        sizes.Tiny: dmg_roll(1, 'bludgeoning'),
-        sizes.Small: dmg_roll('1d2 + STR mod', 'bludgeoning'),
-        sizes.Medium: dmg_roll('1d3 + STR mod', 'bludgeoning'),
-        sizes.Large: dmg_roll('1d4 + STR mod', 'bludgeoning'),
-        sizes.Huge: dmg_roll('1d8 + STR mod', 'bludgeoning'),
-        sizes.Gargantuan: dmg_roll('2d8 + STR mod', 'bludgeoning'),
-        sizes.Colossal: dmg_roll('4d8 + STR mod', 'bludgeoning')
+        sizes.Fine: pathfinder.damage.no_damage,
+        sizes.Diminutive: pathfinder.damage.no_damage,
+        sizes.Tiny: dmg_roll(1, b),
+        sizes.Small: dmg_roll('1d2 + STR mod', b),
+        sizes.Medium: dmg_roll('1d3 + STR mod', b),
+        sizes.Large: dmg_roll('1d4 + STR mod', b),
+        sizes.Huge: dmg_roll('1d8 + STR mod', b),
+        sizes.Gargantuan: dmg_roll('2d8 + STR mod', b),
+        sizes.Colossal: dmg_roll('4d8 + STR mod', b)
     }
-    del dmg_roll
+    del dmg_roll, b
 
     def __init__(self, char):
         """
@@ -93,8 +96,8 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
         return self.char.size_category
 
     def roll_unarmed_strike_damage(self, char, nonlethal, desc=False):
-        return self.damage[self.user_size].roll(char, nonlethal=nonlethal,
-                                                desc=desc)
+        return (self.damage[self.user_size].roll(char, nonlethal=nonlethal,
+                                                 desc=desc),)
 
     @pathfinder.combat.attack('strike', default=True)
     def unarmed_strike(self, actor, target, nonlethal=None):
@@ -107,7 +110,7 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
             return self.roll_damage(actor, 'unarmed strike', crit=crit,
                                     nonlethal=nonlethal, desc=True)
         else:
-            return None
+            return ()
 
 
 class Character(mudslingcore.objects.Character,

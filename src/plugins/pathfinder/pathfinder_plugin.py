@@ -8,7 +8,6 @@ import os
 
 import pathfinder
 import pathfinder.extensibility
-import pathfinder.objects
 import pathfinder.characters
 import pathfinder.topography
 

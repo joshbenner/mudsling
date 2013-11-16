@@ -1,6 +1,7 @@
 import mudsling.extensibility
 import mudsling.utils.modules
 
+import pathfinder.damage
 import pathfinder.languages
 import pathfinder.races
 import pathfinder.skills  # Skills must come before feats.
@@ -22,6 +23,7 @@ class PathfinderPlugin(mudsling.extensibility.GamePlugin):
     #: The submodule names mapped to the class whose children are registered in
     #: the pathfinder database.
     data_mapping = {
+        'damage_types': pathfinder.damage.DamageType,
         'languages': pathfinder.languages.Language,
         'races': pathfinder.races.Race,
         'skills': pathfinder.skills.Skill,
