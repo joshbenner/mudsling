@@ -586,7 +586,10 @@ class DamageRoll(mudsling.storage.PersistentSlots):
         result = pfobj.roll(self.points_roll, desc=desc)
         if desc:
             result, rolldesc = result
-        return Damage(max(1, result), self.types, nonlethal, desc=rolldesc)
+        if result < 1:
+            nonlethal = True
+            result = 1
+        return Damage(result, self.types, nonlethal, desc=rolldesc)
 
 
 no_damage = DamageRoll(0)
@@ -601,18 +604,27 @@ class Damage(mudsling.storage.PersistentSlots):
     def __init__(self, points, types='general', nonlethal=False, desc=None):
         if isinstance(types, (list, tuple, set)):
             self.types = tuple(types)
+        elif isinstance(types, str):
+            self.types = tuple(types.split(','))
         else:
             self.types = (str(types),)
+        self.types = map(str.strip, self.types)
         self.points = int(points)
         self.nonlethal = nonlethal
         self.desc = desc
 
     @property
     def full_desc(self):
+        return "%s = %s" % (self.desc, self)
+
+    def __str__(self):
         types = ', '.join(self.types)
         if self.nonlethal:
             types += ' (nonlethal)'
-        return "%s = %s %s" % (self.desc, self.points, types)
+        return "%s %s" % (self.points, types)
+
+    def __repr__(self):
+        return 'Damage: %s' % self
 
 
 class Weapon(pathfinder.stats.HasStats):
