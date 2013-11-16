@@ -673,7 +673,9 @@ class Weapon(pathfinder.stats.HasStats):
                   nonlethal=None):
         attack = self.get_attack(attack_type, name)
         attack_func = getattr(self, attack.callback)
-        attack_func(actor, target, nonlethal=nonlethal)
+        dmg = attack_func(actor, target, nonlethal=nonlethal)
+        if dmg is not None:
+            actor.rpg_notice(('action', '  Damage: '), dmg)
 
     def roll_damage(self, char, attack_type, crit=False, bonus=None,
                     extra=None, nonlethal=None, desc=False):

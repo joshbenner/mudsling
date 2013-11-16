@@ -104,10 +104,10 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
         if hit:
             if nonlethal is None:
                 nonlethal = True
-            dmg = self.roll_damage(actor, 'unarmed strike', crit=crit,
-                                   nonlethal=nonlethal, desc=True)
-            actor.rpg_notice(('action', '  Unarmed Strike Damage: '),
-                             ('roll', dmg.full_desc))
+            return self.roll_damage(actor, 'unarmed strike', crit=crit,
+                                    nonlethal=nonlethal, desc=True)
+        else:
+            return None
 
 
 class Character(mudslingcore.objects.Character,

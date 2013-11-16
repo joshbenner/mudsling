@@ -320,13 +320,9 @@ class StrikeCmd(pathfinder.commands.CombatCommand):
         'unarmed': mudsling.parsers.BoolStaticParser,
         'nonlethal': mudsling.parsers.BoolStaticParser
     }
-    # switch_defaults = {
-    #     'unarmed': False,
-    #     'nonlethal': False
-    # }
     events = ('combat command', 'attack command', 'melee attack command')
     default_emotes = [
-        "strikes $target."
+        "attempts to strike $target."
     ]
     action_cost = {'attack': 1}
 
@@ -344,5 +340,6 @@ class StrikeCmd(pathfinder.commands.CombatCommand):
         nonlethal = ('nonlethal' in self.switches) or None
         #: :type: pathfinder.combat.Weapon
         weapon = actor.unarmed_weapon if unarmed else wielded[0]
+        self.display_emote()  # Show it before the actual attack.
         weapon.do_attack(actor, args['target'], attack_type='strike',
                          nonlethal=nonlethal)

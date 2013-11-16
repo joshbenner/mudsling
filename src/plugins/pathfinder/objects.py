@@ -19,6 +19,7 @@ import pathfinder.features
 import pathfinder.modifiers
 import pathfinder.effects
 import pathfinder.conditions
+import pathfinder.combat
 
 
 def is_pfobj(obj):
@@ -90,6 +91,10 @@ class PathfinderObject(mudsling.objects.Object,
                 color = '{c'
             elif isinstance(part, dice.Roll):
                 color = '{m'
+            elif isinstance(part, pathfinder.combat.Damage):
+                color = '{m'
+                part = part.full_desc
+                part = part.replace(' = ', ' {n={y ')
             elif isinstance(part, tuple):
                 part_type, part = part
                 if part_type == 'action':

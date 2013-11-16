@@ -105,6 +105,9 @@ class CombatCommand(mudsling.commands.Command):
         if self.actor.in_combat:
             self.consume_actions()
             self.fire_combat_events()
+        self.display_emote()
+
+    def display_emote(self):
         if self.show_emote:
             emote = self.args.get('emote', None)
             if emote is None:
@@ -117,6 +120,8 @@ class CombatCommand(mudsling.commands.Command):
             if emote:
                 prefix = '{m(%s){n ' % self.emote_prefix
                 self.actor.emote(emote, prefix=prefix)
+            # Prevent double-emotes.
+            self.show_emote = False
 
 
 class PhysicalCombatCommand(CombatCommand):
