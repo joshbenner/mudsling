@@ -623,6 +623,7 @@ class Weapon(pathfinder.stats.HasStats):
             for dmg in damages[1:]:
                 notice.extend((', ', dmg))
             actor.rpg_notice(*notice)
+            target.take_damage(damages)
 
     def roll_damage(self, char, attack_type, crit=False, bonus=None,
                     extra=None, nonlethal=None, desc=False):
@@ -633,32 +634,29 @@ class Weapon(pathfinder.stats.HasStats):
         :param attack_type: The type of attack whose damage to roll.
         :param crit: Whether the attack is a critical hit.
         :param bonus: Additional damage that is multiplied by a critical hit.
+        :type bonus: DamageRoll
         :param extra: Extra damage that is NOT multiplied by a critical hit.
+        :type extra: DamageRoll
         :param nonlethal: The lethality of the damage. If None, use default.
         :param desc: Whether to generate the damage roll description.
+
+        :rtype: tuple of pathfinder.damage.Damage
         """
         nonlethal = nonlethal if nonlethal is not None else self.nonlethal
         fname = 'roll_%s_damage' % attack_type.replace(' ', '_').lower()
         func = getattr(self, fname)
-        dmg = func(char, nonlethal=nonlethal, desc=desc)
+        damages = list(func(char, nonlethal=nonlethal, desc=desc))
         if bonus:
-            bonus_points = char.roll(bonus, desc=desc)
-            if desc:
-                bonus_points, bonus_desc = bonus_points
-                dmg.desc += ' + ' + bonus_desc
-            dmg.points += bonus_points
+            damages.append(bonus.roll(char, desc=desc))
         if crit:
-            dmg.points *= self.critical_multiplier
-            if desc:
-                dmg.desc = ('(%s) * CRIT(%s)'
-                            % (dmg.desc, self.critical_multiplier))
+            for dmg in damages:
+                dmg.points *= self.critical_multiplier
+                if desc:
+                    dmg.desc = ('(%s) * CRIT(%s)'
+                                % (dmg.desc, self.critical_multiplier))
         if extra:
-            extra_points = char.roll(extra, desc=desc)
-            if desc:
-                extra_points, extra_desc = extra_points
-                dmg.desc += ' + ' + extra_desc
-            dmg.points += extra_points
-        return dmg
+            damages.append(extra.roll(char, desc=desc))
+        return tuple(damages)
 
 
 class Battleground(mudsling.objects.Object):

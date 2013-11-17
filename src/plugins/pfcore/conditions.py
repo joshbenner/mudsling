@@ -21,10 +21,6 @@ class Blind(Condition):
             return False
 
 
-class Broken(Condition):
-    name = 'Broken'
-
-
 class Dazed(Condition):
     named = 'Dazed'
     modifiers = mods('Become Incapable')
@@ -39,27 +35,12 @@ class Dazzled(Condition):
     )
 
 
-class Dead(Condition):
-    name = 'Dead'
-    modifiers = mods('Become Helpless')
-
-
 class Deaf(Condition):
     name = 'Deaf'
     modifiers = mods(
         '-4 to initiative',
         '-4 to Perception checks'
     )
-
-
-class Disabled(Condition):
-    name = 'Disabled'
-    description = "Character can move or act, but not both, in a single turn."
-
-
-class Dying(Condition):
-    name = 'Dying'
-    modifiers = mods('Become Unconscious')
 
 
 class Entangled(Condition):
@@ -94,17 +75,6 @@ class Grappled(Condition):
         '-2 to all saves',
         '-2 to all skill checks',
         '-2 to all ability checks',
-    )
-
-
-class Helpless(Condition):
-    name = 'Helpless'
-    modifiers = mods(
-        'Become Incapable',
-        'Become Immobilized',
-        'Become Flat-Footed',
-        '-4 to armor class against melee attacks',
-        '-10 to Dexterity'  # Compromise from rules.
     )
 
 
@@ -152,18 +122,6 @@ class Sickened(Condition):
     )
 
 
-class Stable(Condition):
-    name = 'Stable'
-    modifiers = mods('Become Unconcious')
-
-
-class Staggered(Condition):
-    name = 'Staggered'
-    description = "Character can move or act, but not both, in a single turn."
-    # Condition primarily achieved by taking nonlethal damage equal to current
-    # hit points.
-
-
 class Stunned(Condition):
     name = 'Stunned'
     modifiers = mods(
@@ -174,8 +132,3 @@ class Stunned(Condition):
     def respond_to_event(self, event, responses):
         if event.name == 'allow defensive dex bonus':
             return False
-
-
-class Unconscious(Condition):
-    name = 'Unconscious'
-    modifiers = mods('Become Helpless')

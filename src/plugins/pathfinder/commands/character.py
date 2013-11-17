@@ -719,7 +719,7 @@ class CharsheetCmd(Command):
     """
     aliases = ('+charsheet', '+char')
     lock = locks.all_pass
-    _hp_pct_style = (('>=', 75, '{g'), ('<', 30, '{r'), ('<', 75, '{y'))
+    hp_pct_style = (('>=', 75, '{g'), ('<', 30, '{r'), ('<', 75, '{y'))
 
     def run(self, this, actor, args):
         """
@@ -763,7 +763,7 @@ class CharsheetCmd(Command):
 
     def _top_table(self, char):
         hp = ui.conditional_style(char.hp_percent,
-                                  styles=self._hp_pct_style,
+                                  styles=self.hp_pct_style,
                                   alternate=str(char.remaining_hp))
         hp_line = ' {cHit Points:{n %s{n / %s' % (hp, char.max_hp)
         if char.temporary_hit_points:
@@ -1032,3 +1032,57 @@ class AdminConditionsCmd(ConditionsCmd):
 
     def run(self, this, actor, args):
         self._show_conditions(args['character'], actor)
+
+
+class HealthCmd(mudsling.commands.Command):
+    """
+    health
+
+    Display character's current health.
+    """
+    aliases = ('health',)
+    lock = mudsling.locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        actor.msg(self._health(this))
+
+    def _health(self, char):
+        """
+        Generate the health command output.
+
+        :param char: The character whose health to display.
+        :type char: pathfinder.characters.Character
+
+        :rtype: str
+        """
+        hp = ui.conditional_style(char.hp_percent,
+                                  styles=CharsheetCmd.hp_pct_style,
+                                  alternate=str(char.remaining_hp))
+        max_hp = char.max_hp
+        nonlethal_damage = char.nonlethal_damage
+        out = "{cHit Points{y: %s{n / %d    {cNonlethal Damage{y: {n%d"
+        out %= (hp, max_hp, nonlethal_damage)
+        return out
+
+
+class AdminHealthCmd(HealthCmd):
+    """
+    @health <character>
+
+    Display another character's current health.
+    """
+    aliases = ('@health',)
+    syntax = "<character>"
+    lock = view_charsheets
+    arg_parsers = {
+        'character': MatchCharacter()
+    }
+
+    def run(self, this, actor, args):
+        char = args['character']
+        actor.tell('{y[{m', char, '{y] ', self._health(char))

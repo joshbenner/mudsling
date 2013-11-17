@@ -142,6 +142,9 @@ class Character(mudslingcore.objects.Character,
         'right hand': None,
         'left hand': None
     })
+    critical_immunity = False
+    nonlethal_immunity = False
+    hardness = 0
     unarmed_damage_type = 'bludgeoning'
     frozen_level = 0
     xp = 0
@@ -434,6 +437,54 @@ class Character(mudslingcore.objects.Character,
         elif event.name in ('feat applied', 'feat removed'):
             self.clear_stat_cache()
         return event
+
+    def _set_damage_conditions(self, prev_hp, prev_nl_damage):
+        """
+        Set various conditions based on current hit points as well as their
+        previous values.
+
+        :param prev_hp: Previous hit points.
+        :param prev_nl_damage: Previous nonlethal damage.
+        """
+        hp = self.remaining_hp
+        nl_damage = self.nonlethal_damage
+        hp_conditions = self.get_conditions(source='damage')
+        current_conditions = set([c.name.lower() for c in hp_conditions])
+        new_conditions = set()
+        if 'unconscious' in current_conditions:
+            # Stay unconscious unless specifically removed.
+            new_conditions.add('unconscious')
+
+        # Conditions based on nonlethal damage.
+        if nl_damage == hp and prev_nl_damage != hp:
+            new_conditions.add('staggered')
+        elif nl_damage > hp and prev_nl_damage <= prev_hp:
+            new_conditions.add('unconscious')
+        elif (nl_damage < hp and prev_nl_damage >= prev_hp
+                and 'unconcious' in new_conditions):
+            new_conditions.remove('unconscious')
+
+        # Conditions based on hit points.
+        if hp <= -self.constitution:
+            new_conditions.add('dead')
+        elif hp == 0:
+            new_conditions.add('disabled')
+            new_conditions.add('staggered')
+        elif hp < 0:
+            # Note: If they are stable and take damage, they resume dying.
+            new_conditions.add('dying')
+            if prev_hp >= 0:  # Go unconsciou when they first fall below.
+                new_conditions.add('unconscious')
+        elif hp >= 0 > prev_hp and 'unconcious' in new_conditions:
+            new_conditions.remove('unconscious')
+
+        # Apply changes.
+        for condition in hp_conditions:
+            if condition.name.lower() not in new_conditions:
+                self.remove_condition(condition)
+        for condition in new_conditions:
+            if condition not in current_conditions:
+                self.add_condition(condition, source='damage')
 
     def add_xp(self, xp, stealth=False, force=True):
         if self.level > self.frozen_level and not force:
@@ -1175,6 +1226,7 @@ class Character(mudslingcore.objects.Character,
     @property
     def unarmed_weapon(self):
         return UnarmedWeapon(self)
+
 
 
 # Assign commands here to avoid circular import issues.

@@ -159,8 +159,9 @@ class Modifier(pathfinder.events.EventResponder):
             feat_class, subtype = pathfinder.parse_feat(self.payload_desc)
             return feat_class(subtype, source=self.source or self)
         elif self.type == Types.condition:
-            return pathfinder.data.match(self.payload_desc,
-                                         types=('condition',))
+            condition_class = pathfinder.data.match(self.payload_desc,
+                                                    types=('condition',))
+            return condition_class(source=self.source or self)
         elif self.type == Types.language:
             return pathfinder.data.match(self.payload_desc,
                                          types=('language',))

@@ -255,6 +255,8 @@ class PathfinderObject(mudsling.objects.Object,
         if event.name in ('condition applied', 'condition removed',
                           'effect applied', 'effect removed'):
             self.clear_stat_cache()
+        elif event.name == 'take damage':
+            self._set_damage_conditions(event.prev_hp, event.prev_nl_damage)
         return event
 
     def get_stat_modifiers(self, stat, **kw):
@@ -422,7 +424,8 @@ class PathfinderObject(mudsling.objects.Object,
         options = []
         for damage_type in damage_types:
             event = self.trigger_event(type, damage_type=damage_type)
-            applies = [v for v in event.responses.itervalues() if v is not None]
+            applies = [v for v in event.responses.itervalues()
+                       if v is not None]
             # Take the best resistance to a single damage type.
             if len(applies):
                 options.append(max(applies))
@@ -450,8 +453,8 @@ class PathfinderObject(mudsling.objects.Object,
         type.
 
         :param type: The damage type(s).
-        :return: A tuple listing the modifier that grants the resistance and the
-            value of that resistance.
+        :return: A tuple listing the modifier that grants the resistance and
+            the value of that resistance.
         :rtype: int or None
         """
         return self._resist_or_reduct('damage resistance', type)
@@ -476,12 +479,39 @@ class PathfinderObject(mudsling.objects.Object,
         :param damage: The damage being inflicted.
         :type damage: pathfinder.damage.Damage
         """
+        # todo: Half damage to objects via energy/ranged?
         # Reduction.
-        reduction = self.damage_reduction(damage.types)
-        resistance = self.damage_resistance(damage.types)
+        reduction = self.damage_reduction(damage.types) or 0
+        resistance = self.damage_resistance(damage.types) or 0
         points = damage.points - reduction - resistance
+        # Hardness reduces physical damage.
+        if len([dt for dt in damage.types if dt.kind != 'physical']) == 0:
+            points -= self.hardness
+        prev_hp = self.remaining_hp
+        prev_nl_damage = self.nonlethal_damage
+        trigger_event = False
         if damage.nonlethal:
             if not self.nonlethal_immunity:
-                self.nonlethal_damage += damage.points
+                if self.nonlethal_damage >= self.max_hp:
+                    # Nonlethal damage is lethal after a point.
+                    self.damage += points
+                else:
+                    self.nonlethal_damage += points
+                trigger_event = True
         else:
             self.damage += points
+            trigger_event = True
+        if trigger_event:
+            self.trigger_event('take damage', damage=damage, prev_hp=prev_hp,
+                               prev_nl_damage=prev_nl_damage)
+
+    def _set_damage_conditions(self, prev_hp, prev_nl_damage):
+        """
+        Set various conditions based on current hit points as well as their
+        previous values.
+
+        :param prev_hp: Previous hit points.
+        :param prev_nl_damage: Previous nonlethal damage.
+        """
+        if self.remaining_hp <= 0 and not self.has_condition('broken'):
+            self.add_condition('broken', source='damage')
