@@ -234,7 +234,8 @@ class Modifier(pathfinder.events.EventResponder):
             if event.stat == stat_name:
                 if event.tags == () or event.tags == tags:
                     statvs = getattr(event, 'vs', None)
-                    if statvs is None or set(statvs).intersection(vs):
+                    if (not vs or (statvs is not None
+                                   and set(statvs).intersection(vs))):
                         event.modifiers[self] = roll
 
     def event_feats(self, event, responses):

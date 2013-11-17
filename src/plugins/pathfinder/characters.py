@@ -942,8 +942,8 @@ class Character(mudslingcore.objects.Character,
                 return 0
             return super(Character, self).get_stat_base(stat, resolved=True)
 
-    def get_stat_modifiers(self, stat, **kw):
-        mods = super(Character, self).get_stat_modifiers(stat, **kw)
+    def get_stat_modifiers(self, stat, **params):
+        mods = super(Character, self).get_stat_modifiers(stat, **params)
         resolved, tags = self.resolve_stat_name(stat)
         if resolved in pathfinder.data.registry['skill']:
             mods.update(self.get_stat_modifiers('all skill checks'))
@@ -951,7 +951,7 @@ class Character(mudslingcore.objects.Character,
             skill = pathfinder.data.registry['skill'][resolved]
             modstat = 'all %s-based skill checks'
             modstat %= self.resolve_stat_name(skill.ability)[0]
-            mods.update(self.get_stat_modifiers(modstat, **kw))
+            mods.update(self.get_stat_modifiers(modstat, **params))
         elif 'check' in tags and resolved in pathfinder.abilities:
             mods.update(self.get_stat_modifiers('all %s checks' % resolved))
         elif resolved in ('melee attack', 'ranged attack'):

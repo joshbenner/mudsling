@@ -2,6 +2,7 @@ import sys
 from collections import OrderedDict
 
 from mudsling.storage import Persistent
+import mudsling.utils.sequence as seq_utils
 
 import dice
 
@@ -101,7 +102,7 @@ class HasStats(Persistent):
             return self.stats[stat]
         return self.get_stat_default(stat)
 
-    def get_stat_modifiers(self, stat):
+    def get_stat_modifiers(self, stat, **params):
         """
         Retrieve any modifiers (static values or rolls) which currently apply
         to the specific stat.
@@ -131,9 +132,14 @@ class HasStats(Persistent):
     def get_stat(self, stat, resolved=False, desc=False, **params):
         original = stat
         stat = stat if resolved else self.resolve_stat_name(stat)[0]
-        #key =
-        if stat in self._stat_cache:
-            cached = self._stat_cache[stat]
+        if len(params):
+            params['stat'] = stat
+            key = seq_utils.dict_hash(params)
+            del params['stat']
+        else:
+            key = stat
+        if key in self._stat_cache:
+            cached = self._stat_cache[key]
             if isinstance(cached, list):
                 if not desc:
                     return sum(map(self._eval_stat_part, cached))
@@ -161,9 +167,9 @@ class HasStats(Persistent):
         parts = [(original, self.get_stat_base(stat))]
         #parts.extend(self.get_stat_modifiers(stat).itervalues())
         parts.extend((self._part_name(source), mod) for source, mod
-                     in self.get_stat_modifiers(stat).iteritems())
-        self.cache_stat(stat, parts)
-        return self.get_stat(stat, desc=desc)
+                     in self.get_stat_modifiers(stat, **params).iteritems())
+        self.cache_stat(key, parts)
+        return self.get_stat(stat, resolved=True, desc=desc, **params)
 
     def _part_name(self, source):
         if (isinstance(source, pathfinder.modifiers.Modifier)

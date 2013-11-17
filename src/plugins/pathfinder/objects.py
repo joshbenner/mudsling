@@ -259,7 +259,7 @@ class PathfinderObject(mudsling.objects.Object,
             self._set_damage_conditions(event.prev_hp, event.prev_nl_damage)
         return event
 
-    def get_stat_modifiers(self, stat, **kw):
+    def get_stat_modifiers(self, stat, **params):
         """
         Get the modifiers for a stat.
 
@@ -274,7 +274,7 @@ class PathfinderObject(mudsling.objects.Object,
         """
         stat, tags = self.resolve_stat_name(stat)
         event = self.trigger_event('stat mods', stat=stat, tags=tags,
-                                   modifiers=OrderedDict(), **kw)
+                                   modifiers=OrderedDict(), **params)
         return event.modifiers
 
     def get_stat_base(self, stat, resolved=False):
