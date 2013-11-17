@@ -155,3 +155,17 @@ def flatten(iterable):
         else:
             out.append(e)
     return out
+
+
+def dict_hash(d):
+    """
+    Product a consistent string hash for a dictionary, such that distinct dicts
+    possessing the same key/value pairs will produce the same string hash.
+
+    :param d: The dictionary to hash.
+    :type d: dict
+
+    :return: A string hash representing the dictionary.
+    :rtype: str
+    """
+    raise NotImplementedError()

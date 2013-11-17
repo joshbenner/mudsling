@@ -261,6 +261,15 @@ class PathfinderObject(mudsling.objects.Object,
 
     def get_stat_modifiers(self, stat, **kw):
         """
+        Get the modifiers for a stat.
+
+        :param stat: The stat to modify.
+        :type stat: str
+
+        :param vs: Series of strings identifying what the stat is being
+            evaluated against.
+        :type vs: tuple or list
+
         :rtype: collections.OrderedDict
         """
         stat, tags = self.resolve_stat_name(stat)

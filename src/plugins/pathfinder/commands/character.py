@@ -999,18 +999,21 @@ class ConditionsCmd(Command):
         ui = pathfinder.ui
         table = ui.Table([
             ui.Column('Condition', width=15, align='l'),
-            ui.Column('Source', width=15, align='l'),
+            ui.Column('Source', width=15, align='l', wrap=True),
             ui.Column('Description', width='*', align='l', wrap=True)
         ])
         if char.conditions:
-            for condition in char.conditions:
-                desc = [condition.description] if condition.description else []
-                desc.extend(map(str, condition.modifiers))
-                table.add_row([
-                    condition.name,
-                    str(condition.source),
-                    '\n'.join(desc)
-                ])
+            conditions = {}
+            for cond in char.conditions:
+                if cond.name in conditions:
+                    conditions[cond.name][1] += ', %s' % str(cond.source)
+                else:
+                    desc = [cond.description] if cond.description else []
+                    desc.extend(map(str, cond.modifiers))
+                    desc = '\n'.join(desc)
+                    conditions[cond.name] = [cond.name, str(cond.source), desc]
+            for name, source, desc in conditions.itervalues():
+                table.add_row([name, source, desc])
         else:
             table.add_row("No current conditions.")
         title = "Conditions for %s" % actor.name_for(char)

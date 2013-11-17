@@ -257,7 +257,7 @@ class Character(mudslingcore.objects.Character,
 
         'armor dex limit': 99,  # todo: Retrieve this from armor.
         'armor class': Roll('10 + armor bonus + shield bonus'
-                            '+ defensive dex mod + size modifier'),
+                            ' + defensive dex mod + size modifier'),
         'armor class against melee attacks': 0,
         'armor class against ranged attacks': 0,
 
@@ -926,7 +926,7 @@ class Character(mudslingcore.objects.Character,
             # but character can lose dex BONUSES (positive only) to AC.
             dex_mod = min(self.get_stat('dex mod'),
                           self.get_stat('armor dex limit'))
-            if self.can_use_defensive_dex_bonus:
+            if not self.can_use_defensive_dex_bonus:
                 return max(0, dex_mod)
             else:
                 return dex_mod

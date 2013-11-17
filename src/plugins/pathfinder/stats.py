@@ -128,9 +128,10 @@ class HasStats(Persistent):
                 stats.update(cls.stat_defaults.iterkeys())
         return stats
 
-    def get_stat(self, stat, resolved=False, desc=False):
+    def get_stat(self, stat, resolved=False, desc=False, **params):
         original = stat
         stat = stat if resolved else self.resolve_stat_name(stat)[0]
+        #key =
         if stat in self._stat_cache:
             cached = self._stat_cache[stat]
             if isinstance(cached, list):

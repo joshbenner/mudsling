@@ -62,12 +62,13 @@ class Types(Enum):
 
 
 def _grammar():
-    from pyparsing import Optional, Suppress, StringEnd
+    from pyparsing import Optional, Suppress, StringEnd, printables
     from pyparsing import SkipTo, WordStart, oneOf, Word, alphas, nums
     from pyparsing import Literal as L
     from pyparsing import CaselessLiteral as CL
     from pyparsing import CaselessKeyword as CK
 
+    name = Word(printables, printables + ' ')
     to = Suppress(CK("to") | CK("on"))
 
     type = (CK("bonus") | CK("penalty")).setResultsName("type")
@@ -84,9 +85,12 @@ def _grammar():
 
     lastitem = SkipTo(expire | StringEnd())
 
-    stat = WordStart() + lastitem.setResultsName("stat")
+    vsname = name.setResultsName('statvs')
+    vs = (CK('against') | CK('vs')) + vsname
+    statname = (SkipTo(vs | expire | StringEnd())).setResultsName("stat")
+    stat = WordStart() + statname
     val = SkipTo(modtype + to).setResultsName('mod_val')
-    bonus = val + modtype + to + stat
+    bonus = val + modtype + to + stat + Optional(vs)
 
     grant = Suppress(CK("grant") | CK("grants"))
     grant += WordStart() + lastitem.setResultsName("grant")
@@ -202,7 +206,8 @@ class Modifier(pathfinder.events.EventResponder):
             nature = parsed.get('nature', '').strip().lower() or None
             type = parsed.get('type', '').strip().lower() or None
             stat = parsed.get('stat', '').strip().lower() or None
-            self.payload_desc = (roll, stat, type, nature)
+            vs = parsed.get('statvs', '').strip().lower() or ()
+            self.payload_desc = (roll, stat, type, nature, vs)
         self.expiration = None
         if 'until' in parsed:
             self.expiration = parsed['until'].strip().lower()
@@ -224,11 +229,13 @@ class Modifier(pathfinder.events.EventResponder):
 
     def event_stat_mods(self, event, responses):
         if self.type == Types.bonus:
-            roll, stat, type, nature = self.payload
+            roll, stat, type, nature, vs = self.payload
             stat_name, tags = event.obj.resolve_stat_name(stat)
             if event.stat == stat_name:
                 if event.tags == () or event.tags == tags:
-                    event.modifiers[self] = roll
+                    statvs = getattr(event, 'vs', None)
+                    if statvs is None or set(statvs).intersection(vs):
+                        event.modifiers[self] = roll
 
     def event_feats(self, event, responses):
         if self.type == Types.grant:
