@@ -170,3 +170,38 @@ def format_number(value, precision=None):
             precision = 0
     fmt = 'd' if precision == 0 else ('.%df' % precision)
     return format(value, ',%s' % fmt)
+
+
+def singular_noun(noun):
+    """
+    Convenience function that attempts to singularize a noun. Returns the noun
+    that was passed to it if the inflection engine cannot singularize.
+
+    :param noun: The noun to singularize.
+    :type noun: str
+
+    :return: A singular noun.
+    :rtype: str
+    """
+    singular = inflection.singular_noun(noun)
+    return singular if singular else noun
+
+
+def plural_noun(noun, count=None):
+    """
+    Convenience function that attempts to pluralize a noun.
+
+    .. note:: Will re-pluralize any plurals passed to it.
+
+    :param noun: The noun to pluralize.
+    :type noun: str
+
+    :param count: An optional parameter to indicate the number associated with
+        the noun to conditionally pluralize it.
+    :type count: int or float
+
+    :return: The pluralize noun.
+    :rtype: str
+    """
+    return inflection.plural_noun(noun, count)
+

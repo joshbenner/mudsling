@@ -217,6 +217,9 @@ class Character(mudslingcore.objects.Character,
         'cmb': 'combat maneuver bonus',
         'cmd': 'combat maneuver defense',
 
+        'all saving throws': 'all saves',
+        'saving throws': 'all saves',
+
         # The aliases keep attack type stat resolution consistent.
         'unarmed attack': 'unarmed strike',
         'lethal unarmed attack': 'lethal unarmed strike',
@@ -927,7 +930,7 @@ class Character(mudslingcore.objects.Character,
             dex_mod = min(self.get_stat('dex mod'),
                           self.get_stat('armor dex limit'))
             if not self.can_use_defensive_dex_bonus:
-                return max(0, dex_mod)
+                return min(0, dex_mod)
             else:
                 return dex_mod
         elif stat in pathfinder.data.registry['skill']:

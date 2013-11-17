@@ -36,11 +36,13 @@ Examples:
 TODO:
 """
 import logging
+import re
 
 from pyparsing import ParseException
 from flufl.enum import Enum
 
 import mudsling.utils.object as obj_utils
+import mudsling.utils.string as string_utils
 
 import dice
 
@@ -139,6 +141,8 @@ class Modifier(pathfinder.events.EventResponder):
     __slots__ = ('original', 'type', 'source', 'payload_desc', 'expiration')
     _transient_vars = ['payload_desc', 'expiration', 'type']
 
+    _stat_cleanup_re = re.compile(r'^(.*?)(?: +(?:skill +)?(?:check|roll)s?)?$')
+
     def __init__(self, mod_str, parser=None, source=None):
         self.source = source
         self._parse_mod(mod_str, parser)
@@ -206,7 +210,11 @@ class Modifier(pathfinder.events.EventResponder):
             nature = parsed.get('nature', '').strip().lower() or None
             type = parsed.get('type', '').strip().lower() or None
             stat = parsed.get('stat', '').strip().lower() or None
-            vs = parsed.get('statvs', '').strip().lower() or ()
+            stat = self._stat_cleanup_re.sub(r'\1', stat)
+            vs = parsed.get('statvs', '').strip().lower() or None
+            if vs is not None:
+                vs = string_utils.singular_noun(vs)
+
             self.payload_desc = (roll, stat, type, nature, vs)
         self.expiration = None
         if 'until' in parsed:
@@ -234,8 +242,7 @@ class Modifier(pathfinder.events.EventResponder):
             if event.stat == stat_name:
                 if event.tags == () or event.tags == tags:
                     statvs = getattr(event, 'vs', None)
-                    if (not vs or (statvs is not None
-                                   and set(statvs).intersection(vs))):
+                    if not vs or (statvs is not None and vs in statvs):
                         event.modifiers[self] = roll
 
     def event_feats(self, event, responses):
