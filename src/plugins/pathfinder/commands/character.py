@@ -1089,3 +1089,49 @@ class AdminHealthCmd(HealthCmd):
     def run(self, this, actor, args):
         char = args['character']
         actor.tell('{y[{m', char, '{y] ', self._health(char))
+
+
+class StatCmd(mudsling.commands.Command):
+    """
+    +stat <stat>
+
+    Display details about how a given stat is calculated.
+    """
+    aliases = ('+stat',)
+    syntax = '<stat>'
+    lock = mudsling.locks.all_pass
+
+    def run(self, this, actor, args):
+        actor.msg(self._stat(this, args['stat']))
+
+    def _stat(self, char, stat):
+        realstat, tags = char.resolve_stat_name(stat)
+        value, desc = char.get_stat(realstat, desc='full')
+        if desc.startswith(realstat + '('):
+            desc = desc[len(realstat) + 1:-1]
+        if realstat.lower() != stat.lower():
+            display = '{g%s {y-> {g%s' % (stat, realstat)
+        else:
+            display = '{g%s' % realstat
+        out = ['{c Stat{y: %s' % display,
+               '{cValue{y: {n%s' % value,
+               '{c Calc{y: {m%s' % desc]
+        return '\n'.join(out)
+
+
+class AdminStatCmd(StatCmd):
+    """
+    @stat <char>.<stat>
+
+    Display details about a given stat for a specified character.
+    """
+    aliases = ('@stat',)
+    syntax = "<char>.<stat>"
+    lock = view_charsheets
+    arg_parsers = {
+        'char': MatchCharacter()
+    }
+
+    def run(self, this, actor, args):
+        actor.tell('{y[{cStat info for {m', args['char'], '{y]')
+        actor.msg(self._stat(args['char'], args['stat']))

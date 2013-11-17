@@ -466,7 +466,7 @@ class Character(mudslingcore.objects.Character,
         elif nl_damage > hp and prev_nl_damage <= prev_hp:
             new_conditions.add('unconscious')
         elif (nl_damage < hp and prev_nl_damage >= prev_hp
-                and 'unconcious' in new_conditions):
+                and 'unconscious' in new_conditions):
             new_conditions.remove('unconscious')
 
         # Conditions based on hit points.

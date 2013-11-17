@@ -22,9 +22,14 @@ def resolve_roll_var(name, vars, state):
     try:
         #: :type: HasStats
         obj = state['stat object']
-        result = obj.get_stat(name.replace('_', ' '), desc=state['desc'])
-        if state['desc']:
-            result, desc = result
+        desc = state.get('desc', False)
+        full_desc = desc == 'full'
+        result = obj.get_stat(name.replace('_', ' '), desc=full_desc)
+        if desc:
+            if full_desc:
+                result, desc = result
+            else:
+                desc = '%s(%s)' % (name, result)
         else:
             desc = None
         return result, desc
@@ -147,14 +152,14 @@ class HasStats(Persistent):
                     results = []
                     desc_parts = []
                     for part in cached:
-                        r, d = self._eval_stat_part(part, desc=True)
+                        r, d = self._eval_stat_part(part, desc=desc)
                         results.append(r)
                         desc_parts.append(d)
                     result = sum(results)
-                    desc = ' + '.join(desc_parts)
+                    desc_text = ' + '.join(desc_parts)
                     if len(desc_parts) > 1:
-                        desc = "%s = %s" % (desc, result)
-                    return result, desc
+                        desc_text = "%s = %s" % (desc_text, result)
+                    return result, desc_text
             elif desc:
                 return cached, "%s(%s)" % (original, cached)
             else:
@@ -229,12 +234,12 @@ class HasStats(Persistent):
         if limits:
             return self.roll_limits(roll)
         elif desc:
-            result, desc = self.roll(roll, desc=True)
+            result, desc_text = self.roll(roll, desc=desc)
             if isinstance(roll.parsed, dice.VariableNode):
-                desc = desc[len(roll.parsed.name) + 1:-1]
+                desc_text = desc_text[len(roll.parsed.name) + 1:-1]
             elif isinstance(roll.parsed, dice.BinaryOpNode):
-                desc += ' = %s' % result
-            return result, "%s(%s)" % (name, desc)
+                desc_text += ' = %s' % result
+            return result, "%s(%s)" % (name, desc_text)
         else:
             return self.roll(roll)
 
