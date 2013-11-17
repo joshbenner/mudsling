@@ -347,16 +347,25 @@ class Combatant(pathfinder.objects.PathfinderObject):
             pathfinder.logger.warning("Initiative out of battle for %r", self)
         return self.battle_initiative
 
-    def roll_attack(self, target, attack_type, weapon, stealth=False):
+    def roll_attack(self, target, weapon, attack_type, attack_mode,
+                    stealth=False):
         """
         Perform an attack roll against a target.
 
         :param target: The target of the attack. Determines target number, etc.
-        :param attack_type: The type of attack. Determines which bonuses are
-            applied to the roll.
+        :type target: pathfinder.objects.PathfinderObject
+
         :param weapon: The weapon being used to perform the attack. Determines
             the critical threat range, attack bonuses, etc.
         :type weapon: pathfinder.combat.Weapon
+
+        :param attack_type: The type of attack. Determines which bonuses are
+            applied to the roll.
+        :type attack_type: str
+
+        :param attack_mode: The mode of attack, such as melee or ranged.
+        :type attack_mode: str
+
         :param stealth: Whether or not to hide the RPG notice output.
         :type stealth: bool
 
@@ -365,7 +374,9 @@ class Combatant(pathfinder.objects.PathfinderObject):
         """
         mods = {'attack modifier': '%s attack' % attack_type,
                 'weapon attack modifier': weapon.get_stat('attack modifier')}
-        attack_roll = lambda: self.d20_roll(mods=mods, vs=target.armor_class)
+        vs = ('%s attack' % attack_mode, attack_type)
+        target_ac = target.get_stat('ac', vs=vs)
+        attack_roll = lambda: self.d20_roll(mods=mods, vs=target_ac)
         attack = attack_roll()
         desc = attack.success_desc(win='{gHIT', fail='{rMISS', vs_name='AC')
         notice = [self, ' ', ('action', attack_type), ' vs ', target, ': ',
@@ -380,7 +391,8 @@ class Combatant(pathfinder.objects.PathfinderObject):
                 # Critical threat. Roll against target AC again to confirm.
                 confirm = attack_roll()
                 confirm_desc = confirm.success_desc(win='{gCONFIRMED',
-                                                    fail='{rFAIL', vs_name='AC')
+                                                    fail='{rFAIL',
+                                                    vs_name='AC')
                 crit_notice = ['  ', ('action', 'Confirm critical: '),
                                ('roll', confirm_desc)]
                 if confirm.success:

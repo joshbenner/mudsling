@@ -214,7 +214,6 @@ class Modifier(pathfinder.events.EventResponder):
             vs = parsed.get('statvs', '').strip().lower() or None
             if vs is not None:
                 vs = string_utils.singular_noun(vs)
-
             self.payload_desc = (roll, stat, type, nature, vs)
         self.expiration = None
         if 'until' in parsed:

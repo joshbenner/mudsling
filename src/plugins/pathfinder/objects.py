@@ -273,6 +273,8 @@ class PathfinderObject(mudsling.objects.Object,
         :rtype: collections.OrderedDict
         """
         stat, tags = self.resolve_stat_name(stat)
+        if 'vs' in params and isinstance(params['vs'], str):
+            params['vs'] = (params['vs'],)
         event = self.trigger_event('stat mods', stat=stat, tags=tags,
                                    modifiers=OrderedDict(), **params)
         return event.modifiers

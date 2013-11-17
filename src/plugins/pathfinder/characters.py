@@ -101,13 +101,15 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
 
     @pathfinder.combat.attack('strike', default=True)
     def unarmed_strike(self, actor, target, nonlethal=None):
-        hit, crit = actor.roll_attack(target,
-                                      attack_type='unarmed strike',
-                                      weapon=self)
+        if nonlethal is None:
+            nonlethal = True
+        attack_type = ('unarmed strike' if nonlethal
+                       else 'lethal unarmed strike')
+        hit, crit = actor.roll_attack(target, weapon=self,
+                                      attack_type=attack_type,
+                                      attack_mode='melee')
         if hit:
-            if nonlethal is None:
-                nonlethal = True
-            return self.roll_damage(actor, 'unarmed strike', crit=crit,
+            return self.roll_damage(actor, attack_type, crit=crit,
                                     nonlethal=nonlethal, desc=True)
         else:
             return ()

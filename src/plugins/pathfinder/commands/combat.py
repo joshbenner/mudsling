@@ -307,7 +307,7 @@ class WieldingCmd(mudsling.commands.Command):
 
 class StrikeCmd(pathfinder.commands.CombatCommand):
     """
-    strike[/unarmed][/nonlethal] <target> [:<emote>]
+    strike[/unarmed][/nonlethal][/lethal] <target> [:<emote>]
 
     Perform a melee attack against the target.
     """
@@ -318,7 +318,8 @@ class StrikeCmd(pathfinder.commands.CombatCommand):
     }
     switch_parsers = {
         'unarmed': mudsling.parsers.BoolStaticParser,
-        'nonlethal': mudsling.parsers.BoolStaticParser
+        'nonlethal': mudsling.parsers.BoolStaticParser,
+        'lethal': mudsling.parsers.BoolStaticParser
     }
     events = ('combat command', 'attack command', 'melee attack command')
     default_emotes = [
@@ -337,7 +338,12 @@ class StrikeCmd(pathfinder.commands.CombatCommand):
             unarmed = True
         else:
             unarmed = len(wielded) < 1
-        nonlethal = ('nonlethal' in self.switches) or None
+        if 'nonlethal' in self.switches:
+            nonlethal = True
+        elif 'lethal' in self.switches:
+            nonlethal = False
+        else:
+            nonlethal = None
         #: :type: pathfinder.combat.Weapon
         weapon = actor.unarmed_weapon if unarmed else wielded[0]
         self.display_emote()  # Show it before the actual attack.
