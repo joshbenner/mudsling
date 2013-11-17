@@ -1,6 +1,7 @@
 import pathfinder.equipment
 import pathfinder.data
-from pathfinder.combat import attack, DamageRoll
+from pathfinder.combat import attack
+from pathfinder.damage import DamageRoll
 from pathfinder.things import MultipartThing
 
 

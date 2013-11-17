@@ -2,7 +2,8 @@ from mudsling.utils.measurements import Dimensions as Dim
 
 from pathfinder.things import Part
 from pathfinder.weapons import MeleeWeapon
-from pathfinder.combat import WieldType, DamageRoll
+from pathfinder.combat import WieldType
+from pathfinder.damage import DamageRoll
 
 
 class Shortsword(MeleeWeapon):
