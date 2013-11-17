@@ -94,3 +94,7 @@ class PartNotFoundError(mudsling.errors.Error):
     Thrown when a specified part isn't found on a MultipartThing.
     """
     pass
+
+
+class OutOfAttackRange(PathfinderError):
+    default_msg = "Target is out of attack range"

@@ -7,6 +7,7 @@ import mudsling.messages
 
 import pathfinder
 import pathfinder.conditions
+import pathfinder.errors
 
 
 class LevellingCommand(mudsling.commands.Command):
@@ -122,6 +123,15 @@ class CombatCommand(mudsling.commands.Command):
                 self.actor.emote(emote, prefix=prefix)
             # Prevent double-emotes.
             self.show_emote = False
+
+    def execute(self):
+        """
+        Override execute to capture some common exceptions.
+        """
+        try:
+            super(CombatCommand, self).execute()
+        except pathfinder.errors.OutOfAttackRange as e:
+            raise self._err(e.message)
 
 
 class PhysicalCombatCommand(CombatCommand):

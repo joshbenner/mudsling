@@ -341,7 +341,7 @@ class Character(mudslingcore.objects.Character,
     @property
     def age(self):
         """
-        @rtype: L{ictime.Duration}
+        :rtype: ictime.Duration
         """
         if self.date_of_birth is None:
             return ictime.Duration(0)

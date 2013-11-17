@@ -476,6 +476,36 @@ class Combatant(pathfinder.objects.PathfinderObject):
         else:
             return 'near %s' % self.combat_position_name(position)
 
+    def combatants_in_melee_range(self):
+        """
+        Get a list of combatants that are in melee range.
+
+        :rtype: list of Combatant
+        """
+        me = self.ref()
+        #: :type: pathfinder.topography.Room
+        room = self.location
+        combatants = []
+        for c in room.combatants():
+            if c.combat_position == room and self.combat_position == c:
+                combatants.append(c)
+            elif c.combat_position in (self.combat_position, me):
+                combatants.append(c)
+        return combatants
+
+    def in_melee_range_of(self, combatant):
+        """
+        Returns true if this combatant is in melee range of the specified
+        combatant.
+
+        :param combatant: The other combatant.
+        :rtype: bool
+        """
+        return combatant.ref() in self.combatants_in_melee_range()
+
+    def combat_range_to(self, combatant):
+        pass
+
     def combat_move(self, where, stealth=False):
         """
         The combatant moves from one combat area to another.
@@ -516,7 +546,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
         self.trigger_event('combat move', previous=prev)
 
 
-def attack(attack_type, name=None, improvised=False, default=False):
+def attack(attack_type, name=None, improvised=False, default=False, range=0):
     """
     Decorator to esignate a method as an attack callback of a specific type.
 
@@ -533,7 +563,7 @@ def attack(attack_type, name=None, improvised=False, default=False):
     """
     def decorate(f):
         f.attack_info = AttackInfo(attack_type, name, improvised, default,
-                                   f.__name__)
+                                   range, f.__name__)
         return f
     return decorate
 
@@ -544,14 +574,15 @@ class AttackInfo(object):
 
     **See:** :func:`attack` decorator
     """
-    __slots__ = ('type', 'name', 'improvised', 'default', 'callback')
+    __slots__ = ('type', 'name', 'improvised', 'default', 'callback', 'range')
 
     def __init__(self, attack_type, name=None, improvised=False, default=False,
-                 callback=None):
+                 range=0, callback=None):
         self.type = str(attack_type)
         self.name = (str(name) if name is not None else self.type).lower()
         self.improvised = bool(improvised)
         self.default = bool(default)
+        self.range = range
         self.callback = callback
 
     def __str__(self):
@@ -628,6 +659,9 @@ class Weapon(pathfinder.stats.HasStats):
     def do_attack(self, actor, target, attack_type=None, name=None,
                   nonlethal=None):
         attack = self.get_attack(attack_type, name)
+        if target.isa(Combatant):
+            if not actor.in_melee_range_of(target):
+                raise pathfinder.errors.OutOfAttackRange()
         attack_func = getattr(self, attack.callback)
         damages = attack_func(actor, target, nonlethal=nonlethal)
         if len(damages) > 0:
@@ -729,6 +763,28 @@ class Battleground(mudsling.objects.Object):
             # The open area is adjacent to all areas (except itself).
             adjacent.append(self.ref())
         return adjacent
+
+    def combat_area_distance(self, area1, area2):
+        """
+        Compute the distance (number of moves) between two combat areas.
+        """
+        here = self.ref()
+        if area1 == area2:
+            return 0
+        elif area1.isa(Combatant) and area1.combat_position == area2:
+            return 1
+        elif area2.isa(Combatant) and area2.combat_position == area1:
+            return 1
+        elif area1.isa(Combatant) and area2.isa(Combatant):
+            return self.combat_area_distance(area1.combat_position,
+                                             area2.combat_position)
+        elif area1 == here or area2 == here:
+            # "The open" is 1 move away from everything. Even two objects in
+            # the open must first approach eachother to be at range 0.
+            return 1
+        else:
+            # Every other arrangement is a distance of 2.
+            return 2
 
     def match_combat_area(self, input):
         """
