@@ -66,7 +66,19 @@ class Room(mudslingcore.topography.Room, pathfinder.combat.Battleground):
                 pos = desc(combatant)
                 if combatant.combat_position == obj:
                     pos = '{r' + pos.upper()
-                status = '{rFIGHTING' if combatant.in_combat else ''
+                status = []
+                if combatant.in_combat:
+                    status.append('{rFIGHTING{n')
+                if combatant.has_condition('unconscious'):
+                    status.append('{yUnconscious{n')
+                if combatant.has_condition('disabled'):
+                    status.append('{yDisabled{n')
+                if combatant.has_condition('dead'):
+                    status.append('{rDEAD{n')
+                if status:
+                    status = '[%s]' % ', '.join(status)
+                else:
+                    status = ''
                 lines.append('  {m%s{n ({c%s{n) %s' % (name, pos, status))
         if contents:
             fmt = "{c%s{n"
