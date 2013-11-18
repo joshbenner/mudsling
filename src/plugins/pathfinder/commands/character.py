@@ -1006,7 +1006,9 @@ class ConditionsCmd(Command):
             conditions = {}
             for cond in char.conditions:
                 if cond.name in conditions:
-                    conditions[cond.name][1] += ', %s' % str(cond.source)
+                    src = str(cond.source)
+                    if src not in conditions[cond.name][1]:
+                        conditions[cond.name][1] += ', %s' % str(cond.source)
                 else:
                     desc = [cond.description] if cond.description else []
                     desc.extend(map(str, cond.modifiers))
@@ -1054,12 +1056,15 @@ class HealthCmd(mudsling.commands.Command):
         """
         actor.msg(self._health(this))
 
-    def _health(self, char):
+    def _health(self, char, display_name='You', verb='are'):
         """
         Generate the health command output.
 
         :param char: The character whose health to display.
         :type char: pathfinder.characters.Character
+
+        :param display_name: The name to display in the output.
+        :type display_name: str
 
         :rtype: str
         """
@@ -1070,6 +1075,18 @@ class HealthCmd(mudsling.commands.Command):
         nonlethal_damage = char.nonlethal_damage
         out = "{cHit Points{y: %s{n / %d    {cNonlethal Damage{y: {n%d"
         out %= (hp, max_hp, nonlethal_damage)
+        vital_conditions = {
+            'unconscious': '{y',
+            'disabled': '{y',
+            'dying': '{r',
+            'dead': '{r'
+        }
+        conditions = char.get_conditions(source='damage')
+        for cond in conditions:
+            name = cond.name.lower()
+            if name in vital_conditions:
+                color = vital_conditions[name]
+                out += "\n%s %s %s%s" % (display_name, verb, color, name)
         return out
 
 
@@ -1088,7 +1105,9 @@ class AdminHealthCmd(HealthCmd):
 
     def run(self, this, actor, args):
         char = args['character']
-        actor.tell('{y[{m', char, '{y] ', self._health(char))
+        display_name = "{m%s{n" % actor.name_for(char)
+        actor.tell('{y[{m', char, '{y] ',
+                   self._health(char, display_name, 'is'))
 
 
 class StatCmd(mudsling.commands.Command):
