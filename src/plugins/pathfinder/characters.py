@@ -338,6 +338,14 @@ class Character(mudslingcore.objects.Character,
                 desc += ' {nin ' + hands
         return desc
 
+    def has_sense(self, sense):
+        """Some features may prevent hearing or seeing."""
+        has = super(Character, self).has_sense(sense)
+        if has:
+            event = self.trigger_event('has sense', sense=sense)
+            has = False not in event.responses.itervalues()
+        return has
+
     @property
     def age(self):
         """

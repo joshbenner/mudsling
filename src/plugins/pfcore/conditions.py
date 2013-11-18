@@ -19,6 +19,8 @@ class Blind(Condition):
     def respond_to_event(self, event, responses):
         if event.name == 'allow defensive dex bonus':
             return False
+        elif event.name == 'has sense' and event.sense == 'vision':
+            return False
 
 
 class Dazed(Condition):
@@ -41,6 +43,12 @@ class Deaf(Condition):
         '-4 to initiative',
         '-4 to Perception checks'
     )
+
+    def respond_to_event(self, event, responses):
+        if event.name == 'allow defensive dex bonus':
+            return False
+        elif event.name == 'has sense' and event.sense == 'hearing':
+            return False
 
 
 class Entangled(Condition):

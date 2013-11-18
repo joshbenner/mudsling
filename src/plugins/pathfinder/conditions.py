@@ -83,6 +83,10 @@ class Unconscious(Condition):
     name = 'Unconscious'
     modifiers = mods('Become Helpless')
 
+    def respond_to_event(self, event, responses):
+        if event.name == 'has sense' and event.sense in ('hearing', 'vision'):
+            return False
+
 
 class Staggered(Condition):
     name = 'Staggered'
@@ -116,12 +120,11 @@ class Dying(Condition):
 
 class Dead(Condition):
     name = 'Dead'
-    modifiers = mods(
-        'Become Incapable',
-        'Become Immobilized',
-        'Become Deafened',
-        'Become Blinded',
-    )
+    modifiers = mods('Become Helpless')
+
+    def respond_to_event(self, event, responses):
+        if event.name == 'has sense' and event.sense in ('hearing', 'vision'):
+            return False
 
 
 class Broken(Condition):
