@@ -6,7 +6,9 @@ MUDSling is a MUD engine written in Python_ and powered by Twisted_.
 Getting Started
 ===============
 
-1. ``hg clone https://bitbucket.org/joshbenner/mudsling``
-2. ``cd mudsling``
-3. ``pip install -r requirements.txt``
-4. ``python run.py``
+.. sourcecode:: console
+
+    $ hg clone https://bitbucket.org/joshbenner/mudsling
+    $ cd mudsling
+    $ pip install -r requirements.txt
+    $ python run.py
