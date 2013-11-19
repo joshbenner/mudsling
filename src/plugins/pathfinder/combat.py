@@ -476,35 +476,25 @@ class Combatant(pathfinder.objects.PathfinderObject):
         else:
             return 'near %s' % self.combat_position_name(position)
 
-    def combatants_in_melee_range(self):
+    def combat_range_to(self, combatant):
         """
-        Get a list of combatants that are in melee range.
-
-        :rtype: list of Combatant
-        """
-        me = self.ref()
-        #: :type: pathfinder.topography.Room
-        room = self.location
-        combatants = []
-        for c in room.combatants():
-            if c.combat_position == room and self.combat_position == c:
-                combatants.append(c)
-            elif c.combat_position in (self.combat_position, me):
-                combatants.append(c)
-        return combatants
-
-    def in_melee_range_of(self, combatant):
-        """
-        Returns true if this combatant is in melee range of the specified
-        combatant.
+        Determine how far this combatant is from another combatant.
 
         :param combatant: The other combatant.
-        :rtype: bool
-        """
-        return combatant.ref() in self.combatants_in_melee_range()
+        :type combatant: Combatant
 
-    def combat_range_to(self, combatant):
-        pass
+        :rtype: int
+        """
+        if self.has_location and self.location == combatant.location:
+            #: :type: Battleground
+            here = self.location
+            if self.game.db.is_valid(here, Battleground):
+                return here.combat_area_distance(self.combat_position,
+                                                 combatant.combat_position)
+            else:
+                return 0
+        else:
+            return sys.maxint
 
     def combat_move(self, where, stealth=False):
         """
@@ -660,7 +650,7 @@ class Weapon(pathfinder.stats.HasStats):
                   nonlethal=None):
         attack = self.get_attack(attack_type, name)
         if target.isa(Combatant):
-            if not actor.in_melee_range_of(target):
+            if actor.combat_range_to(target) > attack.range:
                 raise pathfinder.errors.OutOfAttackRange()
         attack_func = getattr(self, attack.callback)
         damages = attack_func(actor, target, nonlethal=nonlethal)
@@ -769,12 +759,15 @@ class Battleground(mudsling.objects.Object):
         Compute the distance (number of moves) between two combat areas.
         """
         here = self.ref()
-        if area1 == area2:
+        if area1 == here and area2 == here:
+            # Both in open = 1 step away.
+            return 1
+        elif area1 == area2:
             return 0
         elif area1.isa(Combatant) and area1.combat_position == area2:
-            return 1
+            return 0
         elif area2.isa(Combatant) and area2.combat_position == area1:
-            return 1
+            return 0
         elif area1.isa(Combatant) and area2.isa(Combatant):
             return self.combat_area_distance(area1.combat_position,
                                              area2.combat_position)

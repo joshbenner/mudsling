@@ -278,7 +278,7 @@ class StoredObject(Persistent):
     @property
     def game(self):
         """
-        @rtype: mudsling.server.MUDSling
+        :rtype: mudsling.core.MUDSling
         """
         return self.db.game
 

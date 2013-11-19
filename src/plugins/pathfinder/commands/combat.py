@@ -346,6 +346,5 @@ class StrikeCmd(pathfinder.commands.CombatCommand):
             nonlethal = None
         #: :type: pathfinder.combat.Weapon
         weapon = actor.unarmed_weapon if unarmed else wielded[0]
-        self.display_emote()  # Show it before the actual attack.
         weapon.do_attack(actor, args['target'], attack_type='strike',
                          nonlethal=nonlethal)
