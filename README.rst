@@ -12,3 +12,5 @@ Getting Started
     $ cd mudsling
     $ pip install -r requirements.txt
     $ python run.py
+
+Then you may connect to localhost:4000 with your MUD client.
