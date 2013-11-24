@@ -20,6 +20,15 @@ import pathfinder.objects
 import pathfinder.conditions
 import pathfinder.errors
 import pathfinder.stats
+from pathfinder.events import EventType
+
+
+class events(object):
+    battle_left = EventType('battle left')
+    turn_started = EventType('combat turn started')
+    turn_ended = EventType('combat turn ended')
+    action_spent = EventType('combat action spent')
+    move = EventType('combat move')
 
 
 class MoveError(pathfinder.errors.PathfinderError):
@@ -311,7 +320,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
             self.remove_conditions(source=battle)
             self.battle = None
             self.tell('{gYou have left the battle.')
-            self.trigger_event('battle left', battle=battle)
+            self.trigger_event(events.battle_left, battle=battle)
 
     def initiate_battle(self, other_combatants=()):
         combatants = [self.ref()]
@@ -428,7 +437,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
                 # All attacks in a turn consume a single standard action.
                 self.consume_action('standard')
         self.combat_actions_spent[action_type] += amount
-        self.trigger_event('combat action spent', action_type=action_type,
+        self.trigger_event(events.action_spent, action_type=action_type,
                            amount=amount)
 
     def begin_battle_turn(self, round=None):
@@ -441,7 +450,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
                                    source=self.battle)
         self.reset_combat_actions()
         self.tell('{gBegin your turn!')
-        self.trigger_event('combat turn begin', round=round,
+        self.trigger_event(events.turn_started, round=round,
                            battle=self.battle)
 
     def end_battle_turn(self):
@@ -456,7 +465,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
         """
         Called by battle when this combatant's turn has ended.
         """
-        self.trigger_event('combat turn end', round=round, battle=self.battle)
+        self.trigger_event(events.turn_ended, round=round, battle=self.battle)
 
     def combat_position_name(self, position):
         if position == self.location:
@@ -533,7 +542,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
             from_ = self.combat_position_desc(prev)
             to_ = self.combat_position_desc(where)
             self.emit([self.ref(), ' moves from ', from_, ' to ', to_, '.'])
-        self.trigger_event('combat move', previous=prev)
+        self.trigger_event(events.move, previous=prev)
 
 
 def attack(attack_type, name=None, improvised=False, default=False, range=0):

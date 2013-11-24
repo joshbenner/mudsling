@@ -1,6 +1,7 @@
 import time
 
 import pathfinder.events
+import pathfinder.combat as combat
 from pathfinder.modifiers import Types as mod_types
 
 time_units = {
@@ -93,7 +94,7 @@ class Effect(pathfinder.events.EventResponder):
         return True  # Non-expiring.
 
     def respond_to_event(self, event, responses):
-        if event.name == 'combat turn begin':
+        if event.type == combat.events.turn_started:
             # Just in case DB had effects created on older code.
             if not hasattr(self, 'elapsed_turns'):
                 self.elapsed_turns = 0

@@ -2,17 +2,56 @@ import inspect
 from collections import OrderedDict
 
 import mudsling.storage
+import mudsling.pickler
+
+event_types = {}
+
+
+class EventType(object):
+    __slots__ = ('name',)
+
+    def __new__(cls, name):
+        return event_types.get(name, super(EventType, cls).__new__(cls))
+
+    def __init__(self, name):
+        self.name = name
+        event_types[name] = self
+
+    def __repr__(self):
+        return "%s.%s('%s')" % (self.__class__.__module__,
+                                self.__class__.__name__,
+                                self.name)
+
+    def __str__(self):
+        return self.name
+
+
+# Support storage of EventType in database by pickling only the name.
+mudsling.pickler.register_external_type(EventType, lambda e: e.name, EventType)
 
 
 class Event(object):
     obj = None
 
-    def __init__(self, name, **kw):
-        self.name = name
+    def __init__(self, event_type, **kw):
+        """
+        :param event_type: The name/type of the event.
+        :type event_type: str or EventType
+        """
+        self.type = event_type
         self.set_params(**kw)
 
     def set_params(self, **kw):
         self.__dict__.update(kw)
+
+    # Legacy support for use of the name attribute.
+    @property
+    def name(self):
+        return self.type
+
+    @name.setter
+    def name(self, val):
+        self.type = val
 
 
 class EventResponder(mudsling.storage.PersistentSlots):
