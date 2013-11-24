@@ -98,3 +98,10 @@ class PartNotFoundError(mudsling.errors.Error):
 
 class OutOfAttackRange(PathfinderError):
     default_msg = "Target is out of attack range"
+
+
+class InvalidSave(PathfinderError):
+    """
+    Thrown when a specified save type is invalid.
+    """
+    pass

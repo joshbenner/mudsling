@@ -527,7 +527,8 @@ class Character(mudslingcore.objects.Character,
         """
         save_type, tags = self.resolve_stat_name(save_type)
         if save_type not in ('fortitude', 'reflex', 'will'):
-            raise ValueError('Invalid save type: %s' % save_type)
+            raise pathfinder.errors.InvalidSave('Invalid save type: %s'
+                                                % save_type)
         key = '__%s_save' % save_type
         if key in self._stat_cache:
             mods = self._stat_cache[key]

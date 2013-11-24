@@ -1156,3 +1156,29 @@ class AdminStatCmd(StatCmd):
     def run(self, this, actor, args):
         actor.tell('{y[{cStat info for {m', args['char'], '{y]')
         actor.msg(self._stat(args['char'], args['stat']))
+
+
+class SaveCmd(mudsling.commands.Command):
+    """
+    +save <type> [vs [DC] <target number>]
+
+    Perform a saving throw against an optional target number.
+    """
+    aliases = ('+save',)
+    syntax = '<type> [vs [DC] <tn>]'
+    lock = mudsling.locks.all_pass
+    arg_parsers = {
+        'tn': parsers.IntStaticParser
+    }
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        try:
+            tn = args['tn'] if 'tn' in args else None
+            this.roll_save(args['type'], tn=tn)
+        except pathfinder.errors.InvalidSave as e:
+            raise self._err(e.message)
