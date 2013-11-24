@@ -321,7 +321,11 @@ class StrikeCmd(pathfinder.commands.CombatCommand):
         'nonlethal': mudsling.parsers.BoolStaticParser,
         'lethal': mudsling.parsers.BoolStaticParser
     }
-    events = ('combat command', 'attack command', 'melee attack command')
+    events = (
+        pathfinder.combat.events.combat_command,
+        pathfinder.combat.events.attack_command,
+        pathfinder.combat.events.melee_attack_command
+    )
     default_emotes = [
         "attempts to strike $target."
     ]

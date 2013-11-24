@@ -14,12 +14,22 @@ import dice
 
 import pathfinder
 import pathfinder.events
+from pathfinder.events import EventType
 import pathfinder.stats
 import pathfinder.features
 import pathfinder.modifiers
 import pathfinder.effects
 import pathfinder.conditions
 import pathfinder.damage
+
+
+class events(object):
+    stat_mods = EventType('stat mods')
+    condition_applied = EventType('condition applied')
+    condition_removed = EventType('condition removed')
+    effect_applied = EventType('effect applied')
+    effect_removed = EventType('effect removed')
+    take_damage = EventType('take damage')
 
 
 def is_pfobj(obj):
@@ -276,7 +286,7 @@ class PathfinderObject(mudsling.objects.Object,
         stat, tags = self.resolve_stat_name(stat)
         if 'vs' in params and isinstance(params['vs'], str):
             params['vs'] = (params['vs'],)
-        event = self.trigger_event('stat mods', stat=stat, tags=tags,
+        event = self.trigger_event(events.stat_mods, stat=stat, tags=tags,
                                    modifiers=OrderedDict(), **params)
         return event.modifiers
 
@@ -307,7 +317,7 @@ class PathfinderObject(mudsling.objects.Object,
         if effect.expires:  # Only store expiring effects directly on object.
             self._check_attr('_effects', [])
             self._effects.append(effect)
-        self.trigger_event('effect applied', effect=effect)
+        self.trigger_event(events.effect_applied, effect=effect)
 
     def remove_effect(self, effect):
         self._check_attr('_effects', [])
@@ -316,7 +326,7 @@ class PathfinderObject(mudsling.objects.Object,
             if effect in self._effects:
                 self._effects.remove(effect)
             effect.remove_from(self)
-            self.trigger_event('effect removed', effect=effect)
+            self.trigger_event(events.effect_removed, effect=effect)
             return True
         return False
 
@@ -516,8 +526,8 @@ class PathfinderObject(mudsling.objects.Object,
             self.damage += points
             trigger_event = True
         if trigger_event:
-            self.trigger_event('take damage', damage=damage, prev_hp=prev_hp,
-                               prev_nl_damage=prev_nl_damage)
+            self.trigger_event(events.take_damage, damage=damage,
+                               prev_hp=prev_hp, prev_nl_damage=prev_nl_damage)
 
     def _set_damage_conditions(self, prev_hp, prev_nl_damage):
         """

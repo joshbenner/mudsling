@@ -32,6 +32,9 @@ class events(object):
     round_ended = EventType('combat round ended')
     action_spent = EventType('combat action spent')
     move = EventType('combat move')
+    combat_command = EventType('combat command')
+    attack_command = EventType('attack command')
+    melee_attack_command = EventType('melee attack command')
 
 
 class MoveError(pathfinder.errors.PathfinderError):

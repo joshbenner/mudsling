@@ -87,12 +87,14 @@ class Feat(pathfinder.characters.CharacterFeature):
     def apply_to(self, obj):
         super(Feat, self).apply_to(obj)
         if pathfinder.characters.is_pfchar(obj):
-            obj.trigger_event('feat applied', feat=self)
+            obj.trigger_event(pathfinder.characters.events.feat_applied,
+                              feat=self)
 
     def remove_from(self, obj):
         super(Feat, self).remove_from(obj)
         if pathfinder.characters.is_pfchar(obj):
-            obj.trigger_event('feat removed', feat=self)
+            obj.trigger_event(pathfinder.characters.events.feat_removed,
+                              feat=self)
 
     def __str__(self):
         if self.multiple:

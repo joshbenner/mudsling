@@ -8,6 +8,7 @@ import mudsling.messages
 import pathfinder
 import pathfinder.conditions
 import pathfinder.errors
+import pathfinder.combat
 
 
 class LevellingCommand(mudsling.commands.Command):
@@ -50,7 +51,7 @@ class CombatCommand(mudsling.commands.Command):
     #: :type: pathfinder.characters.Character
     actor = None
     action_cost = {}
-    events = ('combat command',)
+    events = (pathfinder.combat.events.combat_command,)
     combat_only = True
     turn_only = True
     aggressive = True

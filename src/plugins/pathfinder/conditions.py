@@ -34,12 +34,14 @@ class Condition(pathfinder.features.Feature):
     def apply_to(self, obj):
         super(Condition, self).apply_to(obj)
         if pathfinder.objects.is_pfobj(obj):
-            obj.trigger_event('condition applied', condition=self)
+            obj.trigger_event(pathfinder.objects.events.condition_applied,
+                              condition=self)
 
     def remove_from(self, obj):
         super(Condition, self).remove_from(obj)
         if pathfinder.objects.is_pfobj(obj):
-            obj.trigger_event('condition removed', condition=self)
+            obj.trigger_event(pathfinder.objects.events.condition_removed,
+                              condition=self)
 
     def _show_msg(self, obj, msg):
         if (not isinstance(self.source, Condition)

@@ -23,6 +23,7 @@ import pathfinder
 import pathfinder.prerequisites
 import pathfinder.features
 import pathfinder.events
+from pathfinder.events import EventType
 import pathfinder.advancement
 import pathfinder.combat
 import pathfinder.damage
@@ -31,6 +32,16 @@ import pathfinder.errors
 import pathfinder.equipment
 import pathfinder.things
 import pathfinder.sizes as sizes
+
+
+class events(object):
+    has_sense = EventType('has sense')
+    spoken_languages = EventType('spoken languages')
+    allow_def_dex_bonus = EventType('allow defensive dex bonus')
+    unarmed_crit_threat = EventType('unarmed critical threat')
+    unarmed_crit_multiplier = EventType('unarmed critical multiplier')
+    feat_applied = EventType('feat applied')
+    feat_removed = EventType('feat removed')
 
 
 def is_pfchar(obj):
@@ -342,7 +353,7 @@ class Character(mudslingcore.objects.Character,
         """Some features may prevent hearing or seeing."""
         has = super(Character, self).has_sense(sense)
         if has:
-            event = self.trigger_event('has sense', sense=sense)
+            event = self.trigger_event(events.has_sense, sense=sense)
             has = False not in event.responses.itervalues()
         return has
 
@@ -439,7 +450,7 @@ class Character(mudslingcore.objects.Character,
 
     @property
     def can_use_defensive_dex_bonus(self):
-        event = pathfinder.events.Event('allow defensive dex bonus')
+        event = pathfinder.events.Event(events.allow_def_dex_bonus)
         return False not in self.trigger_event(event).responses.values()
 
     def trigger_event(self, event, **kw):
@@ -1048,7 +1059,7 @@ class Character(mudslingcore.objects.Character,
                   "{c", subject, "{y: ", fails)
 
     def spoken_languages(self):
-        e = self.trigger_event('spoken languages', languages=[])
+        e = self.trigger_event(events.spoken_languages, languages=[])
         return e.languages
 
     def auto_level(self):
@@ -1292,13 +1303,13 @@ class Character(mudslingcore.objects.Character,
 
     @property
     def unarmed_critical_threat(self):
-        event = self.trigger_event('unarmed critical threat')
+        event = self.trigger_event(events.unarmed_crit_threat)
         return min(20, 20, *[v for v in event.responses.itervalues()
                              if v is not None])
 
     @property
     def unarmed_critical_multiplier(self):
-        event = self.trigger_event('unarmed critical multiplier')
+        event = self.trigger_event(events.unarmed_crit_multiplier)
         return max(2, 2, *[v for v in event.responses.itervalues()
                            if v is not None])
 
