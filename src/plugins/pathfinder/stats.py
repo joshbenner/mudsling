@@ -234,10 +234,17 @@ class HasStats(Persistent):
         if limits:
             return self.roll_limits(roll)
         elif desc:
-            result, desc_text = self.roll(roll, desc=desc)
-            if isinstance(roll.parsed, dice.VariableNode):
+            full_desc = (desc == 'full')
+            if full_desc:
+                result, desc_text = self.roll(roll, desc='full')
+            else:
+                result = self.roll(roll)
+                desc_text = str(result)
+            if (isinstance(roll.parsed, dice.VariableNode)
+                    and roll.parsed.name in desc_text
+                    and '=' not in desc_text):
                 desc_text = desc_text[len(roll.parsed.name) + 1:-1]
-            elif isinstance(roll.parsed, dice.BinaryOpNode):
+            elif full_desc and isinstance(roll.parsed, dice.BinaryOpNode):
                 desc_text += ' = %s' % result
             return result, "%s(%s)" % (name, desc_text)
         else:
@@ -251,7 +258,7 @@ class HasStats(Persistent):
 
         :param desc: Whether or not to include the details of how the result
             was calculated. Useful to show to users.
-        :type desc: bool
+        :type desc: bool or str
 
         :param state: The state dictionary to pass to the roll. Useful when
             complex information needs to be passed into or out of the roll.

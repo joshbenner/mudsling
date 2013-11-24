@@ -4,6 +4,8 @@ import mudsling.messages
 
 import pathfinder.features
 import pathfinder.objects
+import pathfinder.combat
+import pathfinder.damage
 from pathfinder.modifiers import modifiers as mods
 
 
@@ -114,8 +116,15 @@ class Stable(Condition):
 
 class Dying(Condition):
     name = 'Dying'
+    description = "Lose 1 hit point every round until death or stabilizing."
     modifiers = mods('Become Unconscious')
-    # todo: Implement HP loss.
+
+    def respond_to_event(self, event, responses):
+        if event.type == pathfinder.combat.events.round_ended:
+            event.obj.take_damage(1)
+            event.obj.tell('{yYou are {rDYING{y! (1 hit point lost)')
+        elif event.type == pathfinder.combat.events.turn_started:
+            event.obj.attempt_to_stabilize()
 
 
 class Dead(Condition):

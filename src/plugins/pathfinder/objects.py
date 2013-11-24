@@ -94,7 +94,8 @@ class PathfinderObject(mudsling.objects.Object,
                 color = '{c'
             elif isinstance(part, dice.Roll):
                 color = '{m'
-            elif isinstance(part, pathfinder.damage.Damage):
+            elif isinstance(part, (pathfinder.damage.Damage,
+                                   pathfinder.RollResult)):
                 color = '{m'
                 part = part.full_desc
                 part = part.replace(' = ', ' {n={y ')
@@ -413,7 +414,7 @@ class PathfinderObject(mudsling.objects.Object,
                 if (condition is None or c.__class__ == condition)
                 and (source is None or source == c.source)]
 
-    def has_condition(self, condition):
+    def has_condition(self, condition, source=None):
         """Determine whether or not the object has a specific condition.
 
         :param condition: The condition in question.
@@ -422,7 +423,7 @@ class PathfinderObject(mudsling.objects.Object,
         :return: Whether this object has the specified condition or not.
         :rtype: bool
         """
-        return len(self.get_conditions(condition)) > 0
+        return len(self.get_conditions(condition, source=source)) > 0
 
     def has_any_condition(self, conditions):
         for condition in conditions:
@@ -444,7 +445,7 @@ class PathfinderObject(mudsling.objects.Object,
         if len(options) < len(damage_types):
             return None
         # Use the least effective resist/reduct across multiple damage types.
-        return min(options)
+        return min(options) if len(options) else None
 
     def damage_reduction(self, type):
         """
@@ -477,7 +478,9 @@ class PathfinderObject(mudsling.objects.Object,
         :param damages: The damages inflicted to the object.
         :type damages: (list or tuple or set) of pathfinder.damage.Damage
         """
-        if isinstance(damages, pathfinder.damage.Damage):
+        if isinstance(damages, int):
+            damages = (pathfinder.damage.Damage(damages),)
+        elif isinstance(damages, pathfinder.damage.Damage):
             damages = (damages,)
         for dmg in damages:
             self._take_damage(dmg)

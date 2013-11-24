@@ -13,7 +13,7 @@ import mudsling.config
 import mudslingcore.ui
 ui = mudslingcore.ui.ClassicUI()
 
-from dice import Roll
+from dice import Roll, VariableNode
 
 import icmoney
 
@@ -46,10 +46,10 @@ class RollResult(mudsling.storage.PersistentSlots):
     A roll result from a base roll (whose result is the 'natural' result)
     modified by a series of modifiers.
     """
-    __slots__ = ('roll', 'mods', 'state', 'desc', 'natural', 'total', 'vs',
-                 'success')
+    __slots__ = ('roll', 'mods', 'state', 'desc', 'natural', 'total',
+                 'target_number', 'success')
 
-    def __init__(self, base_roll, mods=None, state=None, vs=None,
+    def __init__(self, base_roll, mods=None, state=None, target_number=None,
                  always_succeeds=None, **vars):
         """
         :param base_roll: The base roll to perform. Usually only a diespec.
@@ -61,6 +61,15 @@ class RollResult(mudsling.storage.PersistentSlots):
         :param state: The roll expression's initial state.
         :type state: None or dict
 
+        :param target_number: The number to meet or exceed to yield success. If
+            not specified, then the result has no success/fail state.
+        :param type: int or None
+
+        :param always_succeeds: The number the natural roll must meet or exceed
+            to always yield success, regardless of the target number and other
+            modifiers.
+        :type always_succeeds: int or None
+
         :param vars: Any additional variables to use in the expression.
         :type vars: dict
         """
@@ -68,7 +77,7 @@ class RollResult(mudsling.storage.PersistentSlots):
         state['desc'] = True
         self.roll = base_roll
         self.mods = mods
-        self.vs = vs
+        self.target_number = target_number
         self.state = state
         self.natural, desc = roll(base_roll, state=state, desc=True, **vars)
         total = self.natural
@@ -77,7 +86,11 @@ class RollResult(mudsling.storage.PersistentSlots):
                 if isinstance(mod, basestring):
                     mod = Roll(mod)
                 if isinstance(mod, Roll):
-                    mod_val, mod_desc = mod.eval(state=state, desc=True, **vars)
+                    mod_val, mod_desc = mod.eval(state=state, desc=True,
+                                                 **vars)
+                    if (not isinstance(mod.parsed, VariableNode)
+                            or '=' in mod_desc):
+                        mod_desc = "%s(%s)" % (mod_key, mod_desc)
                 else:
                     mod_val = mod
                     mod_desc = "%s(%s)" % (mod_key, mod_val)
@@ -85,10 +98,10 @@ class RollResult(mudsling.storage.PersistentSlots):
                 desc += ' + %s' % mod_desc
         self.total = total
         self.desc = desc
-        if self.vs is not None:
+        if self.target_number is not None:
             if always_succeeds is None:
                 always_succeeds = _cached_roll(base_roll).max
-            self.success = succeeds(self.natural, self.total, vs,
+            self.success = succeeds(self.natural, self.total, target_number,
                                     always_succeeds=always_succeeds)
         else:
             self.success = None
@@ -97,12 +110,12 @@ class RollResult(mudsling.storage.PersistentSlots):
     def full_desc(self):
         return '%s = %s' % (self.desc, self.total)
 
-    def success_desc(self, win='SUCCESS', fail='FAIL', vs_name=''):
+    def success_desc(self, win='SUCCESS', fail='FAIL', tn_name='DC'):
         if self.success is None:
             r = '?'
         else:
             r = win if self.success else fail
-        vs = ('%s %s' % (vs_name, self.vs)).strip()
+        vs = ('%s %s' % (tn_name, self.target_number)).strip()
         return "%s vs %s: %s" % (self.full_desc, vs, r)
 
 
@@ -132,8 +145,8 @@ def _cached_roll(expr):
 
 def roll(expr, state=None, desc=False, **vars):
     """
-    Convenience die roller. Will cache the roll objects to make subsequent rolls
-    of same type more efficient.
+    Convenience die roller. Will cache the roll objects to make subsequent
+    rolls of same type more efficient.
 
     :param expr: The roll to cast.
     :type expr: str

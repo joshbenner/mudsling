@@ -1078,6 +1078,7 @@ class HealthCmd(mudsling.commands.Command):
         vital_conditions = {
             'unconscious': '{y',
             'disabled': '{y',
+            'stable': '{y',
             'dying': '{r',
             'dead': '{r'
         }
@@ -1086,7 +1087,7 @@ class HealthCmd(mudsling.commands.Command):
             name = cond.name.lower()
             if name in vital_conditions:
                 color = vital_conditions[name]
-                out += "\n%s %s %s%s" % (display_name, verb, color, name)
+                out += "\n%s %s %s%s." % (display_name, verb, color, name)
         return out
 
 
@@ -1126,7 +1127,8 @@ class StatCmd(mudsling.commands.Command):
     def _stat(self, char, stat):
         realstat, tags = char.resolve_stat_name(stat)
         value, desc = char.get_stat(realstat, desc='full')
-        if desc.startswith(realstat + '('):
+        cache = char._stat_cache[realstat]
+        if len(cache) == 1 and desc.startswith(realstat + '('):
             desc = desc[len(realstat) + 1:-1]
         if realstat.lower() != stat.lower():
             display = '{g%s {y-> {g%s' % (stat, realstat)

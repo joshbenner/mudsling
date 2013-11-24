@@ -499,6 +499,71 @@ class Character(mudslingcore.objects.Character,
             if condition not in current_conditions:
                 self.add_condition(condition, source='damage')
 
+    def attempt_to_stabilize(self):
+        if not self.has_condition('dying', source='damage'):
+            # No need to attempt to stabilize.
+            return None
+        attempt = self.roll_save('fort', tn=10, reason='to become stable')
+        if attempt.success:
+            self.remove_conditions('dying', source='damage')
+            self.add_condition('stable', source='damage')
+
+    def roll_save(self, save_type, tn=None, tn_name='DC', stealth=False,
+                  reason=None, desc_override=None, **params):
+        """
+        Perform a saving throw.
+
+        :param save_type: The save type (fortitude, reflex, will).
+        :param tn: The target number to meet or exceed for success.
+        :param tn_name: A description of the target number.
+        :param stealth: Whether or not to hide the RPG notice.
+        :param reason: Optional string describing why the save is needed.
+        :param desc_override: Optionally override automatic notice string with
+            a custom one.
+        :type desc_override: list or str
+        :param params: Parameters to pass when retrieving the save stat mods.
+
+        :rtype: pathfinder.RollResult
+        """
+        save_type, tags = self.resolve_stat_name(save_type)
+        if save_type not in ('fortitude', 'reflex', 'will'):
+            raise ValueError('Invalid save type: %s' % save_type)
+        key = '__%s_save' % save_type
+        if key in self._stat_cache:
+            mods = self._stat_cache[key]
+        else:
+            save_base = self.get_stat_base(save_type, resolved=True)
+            save_mods = self.get_stat_modifiers(save_type, **params)
+            mods = OrderedDict([(save_type, save_base)])
+            for name, mod in save_mods.iteritems():
+                mods[self._part_name(name)] = mod
+            self.cache_stat(key, mods)
+        result = self.d20_roll(mods, target_number=tn)
+        if not stealth:
+            if desc_override is not None:
+                if isinstance(desc_override, str):
+                    notice = [desc_override]
+                else:
+                    notice = desc_override
+            else:
+                # Automatic notice generation.
+                notice = [self, ' makes a ', '{y' + save_type, '{y check']
+                if tn is not None:
+                    tn_desc = ' vs ' + ("{y%s %s" % (tn_name, tn)).lstrip()
+                    notice.append(tn_desc)
+                if reason is not None:
+                    notice.append(' ' + reason.strip())
+                notice.append(': ')
+                notice.append(result)
+                if tn is not None:
+                    notice.append(': ')
+                    notice.append('{gSUCCESS' if result.success else '{rFAIL')
+                else:
+                    notice.append('.')
+            self.rpg_notice(*notice)
+        return result
+
+
     def add_xp(self, xp, stealth=False, force=True):
         if self.level > self.frozen_level and not force:
             if not stealth:

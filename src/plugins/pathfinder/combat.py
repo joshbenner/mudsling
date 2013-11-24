@@ -24,9 +24,12 @@ from pathfinder.events import EventType
 
 
 class events(object):
+    battle_joined = EventType('battle joined')
     battle_left = EventType('battle left')
     turn_started = EventType('combat turn started')
     turn_ended = EventType('combat turn ended')
+    round_started = EventType('combat round started')
+    round_ended = EventType('combat round ended')
     action_spent = EventType('combat action spent')
     move = EventType('combat move')
 
@@ -220,7 +223,17 @@ class Battle(mudsling.storage.Persistent):
     def start_next_round(self):
         self.round += 1
         self.tell_combatants('{yBeginning battle round {c%d{y.' % self.round)
+        for combatant in self.combatants:
+            combatant.trigger_event(events.round_started, round=self.round)
         self.begin_combatant_turn(self.combatants[0])
+
+    def end_round(self):
+        for combatant in self.combatants:
+            combatant.trigger_event(events.round_ended, round=self.round)
+        if self.active:
+            self.start_next_round()
+        else:
+            self.end_battle()
 
     def turn_completed(self):
         """
@@ -230,10 +243,7 @@ class Battle(mudsling.storage.Persistent):
                              '{y ends their turn.')
         self.active_combatant.battle_turn_ended(round=self.round)
         if self.active_combatant_offset == len(self.combatants) - 1:
-            if self.active:
-                self.start_next_round()
-            else:
-                self.end_battle()
+            self.end_round()
         else:
             self.activate_next_combatant()
 
@@ -310,6 +320,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
                                               self.full_combat_action_pool())
         self.reset_combat_actions()
         self.add_condition(pathfinder.conditions.FlatFooted, source=battle)
+        self.trigger_event(events.battle_joined)
 
     def leave_battle(self):
         if self.battle is not None:
@@ -385,9 +396,9 @@ class Combatant(pathfinder.objects.PathfinderObject):
                 'weapon attack modifier': weapon.get_stat('attack modifier')}
         vs = ('%s attack' % attack_mode, attack_type)
         target_ac = target.get_stat('ac', vs=vs)
-        attack_roll = lambda: self.d20_roll(mods=mods, vs=target_ac)
+        attack_roll = lambda: self.d20_roll(mods=mods, target_number=target_ac)
         attack = attack_roll()
-        desc = attack.success_desc(win='{gHIT', fail='{rMISS', vs_name='AC')
+        desc = attack.success_desc(win='{gHIT', fail='{rMISS', tn_name='AC')
         notice = [self, ' ', ('action', attack_type), ' vs ', target, ': ',
                   ('roll', desc)]
         critical = threat = False
@@ -401,7 +412,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
                 confirm = attack_roll()
                 confirm_desc = confirm.success_desc(win='{gCONFIRMED',
                                                     fail='{rFAIL',
-                                                    vs_name='AC')
+                                                    tn_name='AC')
                 crit_notice = ['  ', ('action', 'Confirm critical: '),
                                ('roll', confirm_desc)]
                 if confirm.success:

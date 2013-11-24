@@ -68,6 +68,7 @@ class Feat(pathfinder.characters.CharacterFeature):
             return 'general', cls.type
 
     def __init__(self, subtype=None, source=None, slot=None):
+        super(Feat, self).__init__()
         subtypes = self.subtypes()
         if ((len(subtypes) and subtype not in subtypes)
                 or (not len(subtypes) and subtype is not None)):

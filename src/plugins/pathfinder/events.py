@@ -96,7 +96,7 @@ class HasEvents(object):
             pass
 
     def trigger_event(self, event, **kw):
-        if isinstance(event, basestring):
+        if isinstance(event, (EventType, basestring)):
             event = Event(event)
         event.set_params(**kw)
         event.obj = self
