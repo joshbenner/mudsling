@@ -82,7 +82,7 @@ class EventResponder(mudsling.storage.PersistentSlots):
         event_type = (event.type.name if isinstance(event.type, EventType)
                       else event.name)
         for handler in self._event_handlers(event_type):
-            handler(event, responses)
+            handler(self, event, responses)
 
     def delegate_event(self, event, responses, delegates):
         """
@@ -101,7 +101,7 @@ class EventResponder(mudsling.storage.PersistentSlots):
         if etype not in self.event_handlers[cls]:
             f = lambda m: (inspect.ismethod(m)
                            and getattr(m, 'handle_event', None) == etype)
-            handlers = [f[1] for f in inspect.getmembers(self, predicate=f)]
+            handlers = [f[1] for f in inspect.getmembers(cls, predicate=f)]
             self.event_handlers[cls][etype] = handlers
         return self.event_handlers[cls][etype]
 
