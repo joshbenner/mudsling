@@ -234,6 +234,7 @@ class Modifier(pathfinder.events.EventResponder):
         super(Modifier, self).__setstate__(state)
         self._parse_mod(self.original)
 
+    @pathfinder.events.event_handler('stat mods')
     def event_stat_mods(self, event, responses):
         if self.type == Types.bonus:
             roll, stat, type, nature, vs = self.payload
@@ -244,38 +245,34 @@ class Modifier(pathfinder.events.EventResponder):
                     if not vs or (statvs is not None and vs in statvs):
                         event.modifiers[self] = roll
 
+    @pathfinder.events.event_handler('feats')
     def event_feats(self, event, responses):
         if self.type == Types.grant:
             event.feats.append(self.payload)
 
+    @pathfinder.events.event_handler('conditions')
     def event_conditions(self, event, responses):
         if self.type == Types.condition:
             event.conditions.append(self.payload)
 
+    @pathfinder.events.event_handler('spoken languages')
     def event_spoken_languages(self, event, responses):
         if self.type == Types.language:
             event.languages.append(self.payload)
 
+    @pathfinder.events.event_handler('damage reduction')
     def event_damage_reduction(self, event, responses):
         if self.type == Types.damage_reduction:
             value, vulnerable_to = self.payload
             if event.damage_type != vulnerable_to:
                 responses[self] = value
 
+    @pathfinder.events.event_handler('damage resistance')
     def event_damage_resistance(self, event, responses):
         if self.type == Types.damage_resistance:
             value, resist_type = self.payload
             if event.damage_type == resist_type:
                 responses[self] = value
-
-    event_callbacks = {
-        'stat mods': 'event_stat_mods',
-        'feats': 'event_feats',
-        'conditions': 'event_conditions',
-        'spoken languages': 'event_spoken_languages',
-        'damage reduction': 'event_damage_reduction',
-        'damage resistance': 'event_damage_resistance',
-    }
 
 
 def modifiers(*a, **kw):

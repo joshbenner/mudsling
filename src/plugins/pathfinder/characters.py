@@ -40,6 +40,7 @@ class events(object):
     allow_def_dex_bonus = EventType('allow defensive dex bonus')
     unarmed_crit_threat = EventType('unarmed critical threat')
     unarmed_crit_multiplier = EventType('unarmed critical multiplier')
+    feats = EventType('feats')
     feat_applied = EventType('feat applied')
     feat_removed = EventType('feat removed')
 
@@ -393,7 +394,7 @@ class Character(mudslingcore.objects.Character,
 
     def _process_effects(self, effects, data):
         super(Character, self)._process_effects(effects, data)
-        event = pathfinder.events.Event('feats')
+        event = pathfinder.events.Event(events.feats)
         event.feats = []
         for provider in effects:
             provider.respond_to_event(event, None)
@@ -458,7 +459,7 @@ class Character(mudslingcore.objects.Character,
         if event.name == 'alter roll' and 'attack roll' in kw['tags']:
             mods = self.get_stat_modifiers('all attacks')
             raise NotImplemented
-        elif event.name in ('feat applied', 'feat removed'):
+        elif event.type in (events.feat_applied, events.feat_removed):
             self.clear_stat_cache()
         return event
 

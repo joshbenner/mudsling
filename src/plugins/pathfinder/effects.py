@@ -101,5 +101,4 @@ class Effect(pathfinder.events.EventResponder):
             # Effects that last a number of rounds expire just before the same
             # initiative count that they began on.
             self.elapsed_turns += 1
-        else:
-            self.modifier.respond_to_event(event, responses)
+        self.modifier.respond_to_event(event, responses)

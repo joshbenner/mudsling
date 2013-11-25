@@ -6,6 +6,7 @@ import pathfinder.features
 import pathfinder.objects
 import pathfinder.combat
 import pathfinder.damage
+from pathfinder.events import event_handler
 from pathfinder.modifiers import modifiers as mods
 
 
@@ -57,9 +58,9 @@ class FlatFooted(Condition):
                   " their DEX bonus to AC and CMD, and unable to make attacks"\
                   " of opportunity."
 
-    def respond_to_event(self, event, responses):
-        if event.name == 'allow defensive dex bonus':
-            return False
+    @event_handler('allow defensive dex bonus')
+    def deny_dex_bonus(self, event, responses):
+        return False
 
 
 class Immobilized(Condition):
@@ -87,8 +88,9 @@ class Unconscious(Condition):
     name = 'Unconscious'
     modifiers = mods('Become Helpless')
 
-    def respond_to_event(self, event, responses):
-        if event.name == 'has sense' and event.sense in ('hearing', 'vision'):
+    @event_handler('has sense')
+    def no_see_or_hear(self, event, responses):
+        if event.sense in ('hearing', 'vision'):
             return False
 
 
@@ -133,8 +135,9 @@ class Dead(Condition):
     name = 'Dead'
     modifiers = mods('Become Helpless')
 
-    def respond_to_event(self, event, responses):
-        if event.name == 'has sense' and event.sense in ('hearing', 'vision'):
+    @event_handler('has sense')
+    def no_see_or_hear(self, event, responses):
+        if event.sense in ('hearing', 'vision'):
             return False
 
 

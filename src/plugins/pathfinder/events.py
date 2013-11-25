@@ -54,21 +54,35 @@ class Event(object):
         self.type = val
 
 
+def event_handler(event_type):
+    """
+    Decorator to identify a member of an EventResponder as an event handler.
+
+    :param event_type: The event type to handle.
+    :type event_type: EventType
+    """
+    def decorate(f):
+        f.handle_event = event_type
+        return f
+    return decorate
+
+
 class EventResponder(mudsling.storage.PersistentSlots):
     """
     Base class for objects that wish to be event responders.
     """
     __slots__ = ()
 
-    event_callbacks = {}
+    event_handlers = {}
 
     def respond_to_event(self, event, responses):
         """
         A responder should add their response(s) to the responses dictionary.
         """
-        if event.name in self.event_callbacks:
-            callback = self.event_callbacks[event.name]
-            getattr(self, callback)(event, responses)
+        event_type = (event.type.name if isinstance(event.type, EventType)
+                      else event.name)
+        for handler in self._event_handlers(event_type):
+            handler(event, responses)
 
     def delegate_event(self, event, responses, delegates):
         """
@@ -79,6 +93,17 @@ class EventResponder(mudsling.storage.PersistentSlots):
         for d in (d for d in delegates if isinstance(d, EventResponder)):
             sub_responses[d] = d.respond_to_event(event, responses)
         responses.update(sub_responses)
+
+    def _event_handlers(self, etype):
+        cls = self.__class__
+        if cls not in self.event_handlers:
+            self.event_handlers[cls] = {}
+        if etype not in self.event_handlers[cls]:
+            f = lambda m: (inspect.ismethod(m)
+                           and getattr(m, 'handle_event', None) == etype)
+            handlers = [f[1] for f in inspect.getmembers(self, predicate=f)]
+            self.event_handlers[cls][etype] = handlers
+        return self.event_handlers[cls][etype]
 
 
 class HasEvents(object):

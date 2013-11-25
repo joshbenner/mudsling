@@ -16,6 +16,7 @@ import pathfinder.events
 import pathfinder.data
 import pathfinder.modifiers
 import pathfinder.effects
+import pathfinder.objects
 
 
 class FeatureMetaClass(pathfinder.data.ForceSlotsMetaclass):
@@ -48,7 +49,7 @@ class Feature(pathfinder.events.EventResponder, mudsling.messages.HasMessages):
 
     def respond_to_event(self, event, responses):
         super(Feature, self).respond_to_event(event, responses)
-        if event.name == 'permanent effects':
+        if event.type == pathfinder.objects.events.permanent_effects:
             for mod in self.modifiers:
                 if mod.expiration is None:
                     event.effects.append(pathfinder.effects.Effect(mod))
@@ -56,7 +57,7 @@ class Feature(pathfinder.events.EventResponder, mudsling.messages.HasMessages):
     @classmethod
     def class_respond_to_event(cls, event, responses):
         """Static classes should use this for their event response."""
-        if event.name == 'permanent effects':
+        if event.type == pathfinder.objects.events.permanent_effects:
             for mod in cls.modifiers:
                 if mod.expiration is None:
                     event.effects.append(pathfinder.effects.Effect(mod))

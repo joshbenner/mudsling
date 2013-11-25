@@ -1,5 +1,6 @@
 from pathfinder.conditions import Condition
 from pathfinder.modifiers import modifiers as mods
+from pathfinder.events import event_handler
 
 
 class Bleeding(Condition):
@@ -16,10 +17,13 @@ class Blind(Condition):
         '-4 to all dexterity-based skill checks'
     )
 
-    def respond_to_event(self, event, responses):
-        if event.name == 'allow defensive dex bonus':
-            return False
-        elif event.name == 'has sense' and event.sense == 'vision':
+    @event_handler('allow defensive dex bonus')
+    def deny_dex_bonus(self, event, responses):
+        return False
+
+    @event_handler('has sense')
+    def cannot_see(self, event, responses):
+        if event.sense == 'vision':
             return False
 
 
@@ -44,10 +48,13 @@ class Deaf(Condition):
         '-4 to Perception checks'
     )
 
-    def respond_to_event(self, event, responses):
-        if event.name == 'allow defensive dex bonus':
-            return False
-        elif event.name == 'has sense' and event.sense == 'hearing':
+    @event_handler('allow defensive dex bonus')
+    def deny_dex_bonus(self, event, responses):
+        return False
+
+    @event_handler('has sense')
+    def cannot_hear(self, event, responses):
+        if event.sense == 'hearing':
             return False
 
 
@@ -137,6 +144,6 @@ class Stunned(Condition):
         '-4 to combat maneuver defense'
     )
 
-    def respond_to_event(self, event, responses):
-        if event.name == 'allow defensive dex bonus':
-            return False
+    @event_handler('allow defensive dex bonus')
+    def deny_dex_bonus(self, event, responses):
+        return False

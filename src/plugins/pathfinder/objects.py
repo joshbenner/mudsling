@@ -25,11 +25,15 @@ import pathfinder.damage
 
 class events(object):
     stat_mods = EventType('stat mods')
+    conditions = EventType('conditions')
     condition_applied = EventType('condition applied')
     condition_removed = EventType('condition removed')
     effect_applied = EventType('effect applied')
     effect_removed = EventType('effect removed')
     take_damage = EventType('take damage')
+    permanent_effects = EventType('permanent effects')
+    damage_resistance = EventType('damage resistance')
+    damage_reduction = EventType('damage reduction')
 
 
 def is_pfobj(obj):
@@ -185,7 +189,7 @@ class PathfinderObject(mudsling.objects.Object,
         may need to be overridden in child implementations to facilitate other
         data effects can handle for child types.
         """
-        event = pathfinder.events.Event('conditions')
+        event = pathfinder.events.Event(events.conditions)
         event.conditions = []
         for effect in effects:
             effect.respond_to_event(event, None)
@@ -195,7 +199,7 @@ class PathfinderObject(mudsling.objects.Object,
         """
         Features provide effects.
         """
-        event = pathfinder.events.Event('permanent effects')
+        event = pathfinder.events.Event(events.permanent_effects)
         event.effects = []
         for feature in [f for f in features if f is not None]:
             feature.respond_to_event(event, None)
@@ -263,10 +267,10 @@ class PathfinderObject(mudsling.objects.Object,
     def trigger_event(self, event, **kw):
         event = super(PathfinderObject, self).trigger_event(event, **kw)
         self.expire_effects()
-        if event.name in ('condition applied', 'condition removed',
-                          'effect applied', 'effect removed'):
+        if event.type in (events.condition_applied, events.condition_removed,
+                          events.effect_applied, events.effect_removed):
             self.clear_stat_cache()
-        elif event.name == 'take damage':
+        elif event.type == events.take_damage:
             self._set_damage_conditions(event.prev_hp, event.prev_nl_damage)
         return event
 
@@ -467,7 +471,7 @@ class PathfinderObject(mudsling.objects.Object,
             value of that reduction.
         :rtype: int or None
         """
-        return self._resist_or_reduct('damage reduction', type)
+        return self._resist_or_reduct(events.damage_reduction, type)
 
     def damage_resistance(self, type):
         """
@@ -479,7 +483,7 @@ class PathfinderObject(mudsling.objects.Object,
             the value of that resistance.
         :rtype: int or None
         """
-        return self._resist_or_reduct('damage resistance', type)
+        return self._resist_or_reduct(events.damage_resistance, type)
 
     def take_damage(self, damages):
         """

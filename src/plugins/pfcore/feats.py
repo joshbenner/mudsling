@@ -2,6 +2,7 @@ from mudsling.utils.sequence import CaselessDict
 
 from pathfinder.feats import Feat
 from pathfinder.modifiers import modifiers
+from pathfinder.events import event_handler
 import pathfinder.data
 
 
@@ -734,11 +735,11 @@ class SkillFocus(Feat):
     def _skill_bonus(self, char):
         return
 
-    def respond_to_event(self, event, responses):
-        if event.name == 'stat mods':
-            if event.stat == self.subtype.lower():
-                bonus = 6 if event.obj.skill_ranks(self.subtype) >= 10 else 3
-                event.modifiers[self] = bonus
+    @event_handler('stat mods')
+    def buff_skill(self, event, responses):
+        if event.stat == self.subtype.lower():
+            bonus = 6 if event.obj.skill_ranks(self.subtype) >= 10 else 3
+            event.modifiers[self] = bonus
 
 
 # class SpellFocus(Feat):
