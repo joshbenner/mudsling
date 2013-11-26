@@ -179,6 +179,7 @@ class MUDSling(MultiService):
         self.db.set_setting('player start', room)
         char.move_to(room)
 
+        CheckpointTask.game = self
         task = CheckpointTask()
         task.start(task.configured_interval())
 
@@ -241,6 +242,8 @@ class MUDSling(MultiService):
 
 
 class CheckpointTask(tasks.Task):
+    game = None
+
     def __str__(self):
         return "The Checkpoint Task"
 
