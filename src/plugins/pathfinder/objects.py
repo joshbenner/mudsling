@@ -322,6 +322,7 @@ class PathfinderObject(mudsling.objects.Object,
         if effect.expires:  # Only store expiring effects directly on object.
             self._check_attr('_effects', [])
             self._effects.append(effect)
+            effect_timer_objects.add(self.ref())
         self.trigger_event(events.effect_applied, effect=effect)
 
     def remove_effect(self, effect):
@@ -330,6 +331,8 @@ class PathfinderObject(mudsling.objects.Object,
         if effect in effects:
             if effect in self._effects:
                 self._effects.remove(effect)
+                if len(self._effects) < 1:
+                    effect_timer_objects.remove(self.ref())
             effect.remove_from(self)
             self.trigger_event(events.effect_removed, effect=effect)
             return True
@@ -446,6 +449,11 @@ class PathfinderObject(mudsling.objects.Object,
                 return True
         return False
 
+    def on_server_startup(self):
+        super(PathfinderObject, self).on_server_startup()
+        if len(self._effects) > 0:
+            effect_timer_objects.add(self.ref())
+
     def _resist_or_reduct(self, type, damage_type):
         damage_types = pathfinder.damage.parse_damage_types(damage_type)
         options = []
@@ -544,6 +552,10 @@ class PathfinderObject(mudsling.objects.Object,
         """
         if self.remaining_hp <= 0 and not self.has_condition('broken'):
             self.add_condition('broken', source='damage')
+
+
+# Track the objects that have expirable-effects.
+effect_timer_objects = set()
 
 
 class EffectTimerTask(mudsling.tasks.Task):
