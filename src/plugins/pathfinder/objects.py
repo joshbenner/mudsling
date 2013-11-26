@@ -8,6 +8,7 @@ import mudsling.utils.measurements
 import mudsling.match
 import mudsling.errors
 import mudsling.commands
+import mudsling.tasks
 
 from icmoney import Money
 import dice
@@ -543,3 +544,18 @@ class PathfinderObject(mudsling.objects.Object,
         """
         if self.remaining_hp <= 0 and not self.has_condition('broken'):
             self.add_condition('broken', source='damage')
+
+
+class EffectTimerTask(mudsling.tasks.Task):
+    """
+    A task to monitor objects with time-based effects and expire them based on
+    wall clock time.
+    """
+    def configured_interval(self):
+        return pathfinder.config.getinterval('effect timer interval')
+
+    def on_server_startup(self):
+        self.restart(self.configured_interval())
+
+    def run(self):
+        pass

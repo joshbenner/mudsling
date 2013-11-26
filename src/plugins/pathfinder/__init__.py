@@ -28,7 +28,7 @@ data_loaded = False
 
 config = mudsling.config.Config()
 config.read(os.path.join(os.path.dirname(__file__), 'defaults.cfg'))
-#: @type: L{mudsling.config.ConfigSection}
+#: :type: mudsling.config.ConfigSection
 config = config['pathfinder']
 
 abilities = ['strength', 'dexterity', 'constitution', 'intelligence',

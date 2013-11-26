@@ -91,8 +91,8 @@ class MUDSling(MultiService):
         self.load_database()
 
         # Dependency injection.
-        tasks.BaseTask.game = self
-        tasks.BaseTask.db = self.db
+        tasks.tasks = self.db.tasks
+        tasks.new_task_id = self.new_task_id
 
         if not self.db.initialized:
             self.init_database()
@@ -231,6 +231,13 @@ class MUDSling(MultiService):
         @rtype: C{dict}
         """
         return self.plugins.invoke_hook('GamePlugin', hook, *args, **kwargs)
+
+    @property
+    def tasks(self):
+        return self.db.tasks
+
+    def new_task_id(self):
+        return self.db.new_task_id()
 
 
 class CheckpointTask(tasks.Task):

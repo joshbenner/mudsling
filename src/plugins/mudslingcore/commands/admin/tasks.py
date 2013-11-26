@@ -2,6 +2,7 @@ from mudsling.commands import Command
 from mudsling import tasks
 from mudsling import errors
 from mudsling import locks
+import mudsling.parsers
 
 from . import ui  # Use the admin package ui.
 
@@ -19,9 +20,9 @@ class TasksCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: mudslingcore.objects.Player
-        @type actor: mudslingcore.objects.Player
-        @type args: dict
+        :type this: mudslingcore.objects.Player
+        :type actor: mudslingcore.objects.Player
+        :type args: dict
         """
 
         format_next_run = lambda t: ('(paused)' if t is None
@@ -53,16 +54,19 @@ class KillTaskCmd(Command):
     """
     aliases = ('@kill-task', '@killtask', '@kill')
     lock = manageTasks
-    syntax = r"<id:\d+>"
+    syntax = "<id>"
+    arg_parsers = {
+        'id': mudsling.parsers.IntStaticParser
+    }
 
     def run(self, this, actor, args):
         """
-        @type this: mudslingcore.objects.Player
-        @type actor: mudslingcore.objects.Player
-        @type args: dict
+        :type this: mudslingcore.objects.Player
+        :type actor: mudslingcore.objects.Player
+        :type args: dict
         """
         try:
-            task = self.game.db.get_task(int(args['id']))
+            task = tasks.get_task(args['id'])
             task.kill()
         except Exception as e:
             actor.msg("{r%s" % e.message)
@@ -86,8 +90,8 @@ class PauseTaskCmd(Command):
 
     def run(self, this, actor, args):
         try:
-            #: @type: mudsling.tasks.IntervalTask
-            task = self.game.db.get_task(int(args['id']))
+            #: :type: mudsling.tasks.IntervalTask
+            task = tasks.get_task(int(args['id']))
             if not isinstance(task, tasks.IntervalTask):
                 raise errors.InvalidTask("Only IntervalTask tasks may be "
                                          "paused or unpaused.")
@@ -114,8 +118,8 @@ class UnpauseTaskCmd(Command):
 
     def run(self, this, actor, args):
         try:
-            #: @type: mudsling.tasks.IntervalTask
-            task = self.game.db.get_task(int(args['id']))
+            #: :type: mudsling.tasks.IntervalTask
+            task = tasks.get_task(int(args['id']))
             if not isinstance(task, tasks.IntervalTask):
                 raise errors.InvalidTask("Only IntervalTask tasks may be "
                                          "paused or unpaused.")

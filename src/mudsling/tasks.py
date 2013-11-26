@@ -9,6 +9,61 @@ from twisted.internet.task import LoopingCall
 from twisted.internet.defer import CancelledError
 
 from mudsling.storage import Persistent
+import mudsling.errors
+
+#: :type: dict of (int, BaseTask)
+tasks = {}
+
+
+def new_task_id():
+    """Implementing system should replace this!"""
+    raise NotImplementedError()
+
+
+def register_task(task):
+    """
+    Adds a task to the database.
+
+    :param task: The task to register.
+    :type task: BaseTask
+    """
+    task.id = new_task_id()
+    task.alive = True
+    tasks[task.id] = task
+
+
+def get_task(taskId):
+    """
+    Retrieve a task from the Database.
+
+    :param taskId: The task ID (or perhaps the task itself).
+    :return: A task object found within the Database.
+    :rtype: BaseTask
+    """
+    try:
+        taskId = taskId if isinstance(taskId, int) else taskId.id
+        task = tasks[taskId]
+    except (AttributeError, KeyError):
+        raise mudsling.errors.InvalidTask("Invalid task or task ID: %r"
+                                          % taskId)
+    return task
+
+
+def get_tasks_of_type(cls):
+    return filter(lambda t: isinstance(t, cls), tasks.itervalues())
+
+
+def kill_task(taskId):
+    get_task(taskId).kill()
+
+
+def remove_task(taskId):
+    task = get_task(taskId)
+    if task.alive:
+        return False
+    else:
+        del tasks[task.id]
+        return True
 
 
 class BaseTask(Persistent):
@@ -17,28 +72,19 @@ class BaseTask(Persistent):
     This is the basic API a task class needs to implement in order to interact
     with the game.
 
-    @cvar db: A class-level reference to the database.
+    :cvar db: A class-level reference to the database.
 
-    @ivar id: Arbitrary numeric ID to identify task instance.
-    @ivar alive: If True, then the task has not been killed. Set by database
+    :ivar id: Arbitrary numeric ID to identify task instance.
+    :ivar alive: If True, then the task has not been killed. Set by database
         upon task registration.
     """
 
-    # Avoid saving (probably mistaken) db reference.
-    _transient_vars = ['db']
-
-    #: @type: mudsling.storage.Database
-    db = None
-
-    #: @type: mudsling.core.MUDSling
-    game = None
-
-    #: @type: int
+    #: :type: int
     id = 0
     alive = False
 
     def __init__(self):
-        self.db.register_task(self)
+        register_task(self)
 
     def kill(self):
         """
@@ -46,7 +92,7 @@ class BaseTask(Persistent):
         to their task mechanism!
         """
         self.alive = False
-        self.db.remove_task(self.id)
+        remove_task(self.id)
 
     def server_startup(self):
         """
@@ -85,7 +131,6 @@ class IntervalTask(BaseTask):
     _looper = None
 
     _last_run_time = None
-    _next_run_time = None
     _scheduled_time = None
 
     run_count = 0
@@ -130,7 +175,8 @@ class IntervalTask(BaseTask):
     def next_run_time(self):
         if self.paused:
             return None
-        return self._next_run_time
+        last = self.last_run_time or self._scheduled_time
+        return last + self._interval
 
     def _schedule(self, interval=None):
         interval = max(0, interval if interval is not None else self._interval)
@@ -138,7 +184,6 @@ class IntervalTask(BaseTask):
             self._scheduled_time = time.time()
             now = self._immediate and not self.run_count
             self._looper = LoopingCall(self._run)
-            self._next_run_time = time.time() + interval
             d = self._looper.start(interval, now=now)
             d.addErrback(self._errback)
 

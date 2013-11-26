@@ -6,10 +6,13 @@ logger.info("Loading pathfinder...")
 
 import os
 
+import mudsling.tasks as tasks
+
 import pathfinder
 import pathfinder.extensibility
 import pathfinder.characters
 import pathfinder.topography
+import pathfinder.objects as objects
 
 
 class PathfinderCorePlugin(pathfinder.extensibility.PathfinderPlugin):
@@ -23,6 +26,10 @@ class PathfinderCorePlugin(pathfinder.extensibility.PathfinderPlugin):
     def server_startup(self):
         if self.options is not None:
             pathfinder.config.update(self.options)
+        # Create the effect timer task.
+        if len(tasks.get_tasks_of_type(objects.EffectTimerTask)) < 1:
+            task = objects.EffectTimerTask()
+            task.start(task.configured_interval())
 
     def plugins_loaded(self):
         pf_plugins = self.game.plugins.active_plugins('PathfinderPlugin')

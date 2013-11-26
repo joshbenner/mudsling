@@ -603,43 +603,9 @@ class Database(Persistent):
         if role in self.roles:
             self.roles.remove(role)
 
-    def register_task(self, task):
-        """
-        Adds a task to the database.
-
-        @param task: The task to register.
-        @type task: mudsling.tasks.BaseTask
-        """
+    def new_task_id(self):
         self.max_task_id += 1
-        task.id = self.max_task_id
-        task.alive = True
-        self.tasks[task.id] = task
-
-    def get_task(self, taskId):
-        """
-        Retrieve a task from the Database.
-
-        @param taskId: The task ID (or perhaps the task itself).
-        @return: A task object found within the Database.
-        @rtype: mudsling.tasks.BaseTask
-        """
-        try:
-            taskId = taskId if isinstance(taskId, int) else taskId.id
-            task = self.tasks[taskId]
-        except (AttributeError, KeyError):
-            raise errors.InvalidTask("Invalid task or task ID: %r" % taskId)
-        return task
-
-    def kill_task(self, taskId):
-        self.get_task(taskId).kill()
-
-    def remove_task(self, taskId):
-        task = self.get_task(taskId)
-        if task.alive:
-            return False
-        else:
-            del self.tasks[task.id]
-            return True
+        return self.max_task_id
 
     # Satisfies the law of demeter, and lets us change implementation later.
     def get_setting(self, name, default=None):
