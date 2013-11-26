@@ -311,6 +311,8 @@ class PathfinderObject(mudsling.objects.Object,
         """
         :type effect: pathfinder.effects.Effect or pathfinder.effects.Modifier
         """
+        if isinstance(effect, basestring):
+            effect = pathfinder.modifiers.Modifier(effect, source=source)
         if isinstance(effect, pathfinder.modifiers.Modifier):
             effect = pathfinder.effects.Effect(effect, source)
         effect.apply_to(self.ref())
@@ -572,6 +574,8 @@ class EffectTimerTask(mudsling.tasks.Task):
     A task to monitor objects with time-based effects and expire them based on
     wall clock time.
     """
+    name = "Effect Timer"
+
     def configured_interval(self):
         return pathfinder.config.getinterval('effect timer interval')
 

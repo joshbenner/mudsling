@@ -271,9 +271,17 @@ class Task(IntervalTask):
     """
 
     started = False
+    name = None
 
-    def __init__(self):
+    def __init__(self, name=None):
         super(Task, self).__init__(self.run, None)
+        if name is not None:
+            self.name = name
+
+    def __str__(self):
+        if self.name is not None:
+            return self.name
+        return "%s.%s" % (self.__class__.__module__, self.__class__.__name__)
 
     def start(self, interval, iterations=None):
         if self.started:

@@ -243,9 +243,7 @@ class MUDSling(MultiService):
 
 class CheckpointTask(tasks.Task):
     game = None
-
-    def __str__(self):
-        return "The Checkpoint Task"
+    name = "Checkpointer"
 
     def run(self):
         self.game.save_database()
