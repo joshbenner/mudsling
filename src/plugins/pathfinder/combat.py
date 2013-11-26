@@ -481,6 +481,10 @@ class Combatant(pathfinder.objects.PathfinderObject):
         """
         self.trigger_event(events.turn_ended, round=round, battle=self.battle)
 
+    def effect_timer_elapse(self, turns=1):
+        if not self.in_combat:  # Time flows differently in combat!
+            super(Combatant, self).effect_timer_elapse(turns=turns)
+
     def combat_position_name(self, position):
         if position == self.location:
             name = 'the open'

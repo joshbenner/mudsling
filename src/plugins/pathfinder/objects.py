@@ -362,6 +362,14 @@ class PathfinderObject(mudsling.objects.Object,
                 self.remove_effect(effect)
         return expired
 
+    def effect_timer_elapse(self, turns=1):
+        """
+        Progress all effects forward by one round and evaluate for expiration.
+        """
+        for effect in self._effects:  # Only these can expire.
+            effect.elapse_turns(turns=turns)
+        self.expire_effects()
+
     def add_condition(self, condition, source=None):
         """Add the specified condition to the object directly, so that it is
         stored in the object's ._condition attribute.
@@ -555,6 +563,7 @@ class PathfinderObject(mudsling.objects.Object,
 
 
 # Track the objects that have expirable-effects.
+#: :type: set of PathfinderObject
 effect_timer_objects = set()
 
 
@@ -570,4 +579,5 @@ class EffectTimerTask(mudsling.tasks.Task):
         self.restart(self.configured_interval())
 
     def run(self):
-        pass
+        for obj in effect_timer_objects:
+            obj.effect_timer_elapse()

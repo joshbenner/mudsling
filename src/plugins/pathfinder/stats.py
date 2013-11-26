@@ -269,7 +269,7 @@ class HasStats(Persistent):
 
         :return: A tuple of result value and description (if desc enabled), or
             just the result value.
-        :rtype: tuple or int or float
+        :rtype: int or float
         """
         state = state or {}
         if isinstance(roll, basestring):

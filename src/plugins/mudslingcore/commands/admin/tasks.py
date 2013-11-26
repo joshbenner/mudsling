@@ -25,9 +25,8 @@ class TasksCmd(Command):
         :type args: dict
         """
 
-        format_next_run = lambda t: ('(paused)' if t is None
-                                     else ui.format_timestamp(t,
-                                                              format='short'))
+        format_next_run = lambda t: ('(paused)' if t is None else
+                                     ui.format_timestamp(t, format='compact'))
 
         table = ui.Table(
             [
@@ -37,7 +36,7 @@ class TasksCmd(Command):
                           cell_formatter=ui.format_dhms),
                 ui.Column("Last Run", data_key="last_run_time", align='l',
                           cell_formatter=ui.format_timestamp,
-                          formatter_args=('short',)),
+                          formatter_args=('compact',)),
                 ui.Column("Next Run", data_key="next_run_time", align='l',
                           cell_formatter=format_next_run),
             ]

@@ -175,7 +175,7 @@ class IntervalTask(BaseTask):
     def next_run_time(self):
         if self.paused:
             return None
-        last = self.last_run_time or self._scheduled_time
+        last = max(self.last_run_time, self._scheduled_time)
         return last + self._interval
 
     def _schedule(self, interval=None):

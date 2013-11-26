@@ -1,4 +1,5 @@
 import time
+import math
 
 import pathfinder.events
 import pathfinder.combat
@@ -17,8 +18,7 @@ class Effect(pathfinder.events.EventResponder):
     An Effect is a modifier applied against a specific object at a specific
     point in time. Effects basically wrap modifiers in state.
     """
-    __slots__ = ('modifier', 'source', 'start_time', 'expire_type', 'expire',
-                 'elapsed_turns')
+    __slots__ = ('modifier', 'source', 'start_time', 'expire', 'elapsed_turns')
 
     def __init__(self, modifier, source=None, subject=None):
         """
@@ -67,10 +67,10 @@ class Effect(pathfinder.events.EventResponder):
             duration_roll, duration_unit = self.modifier.expiration
             val = subject.roll(duration_roll)
             if duration_unit in time_units:
-                self.expire_type = 'time'
-                self.expire = val * time_units[duration_unit]
+                # Convert a time value into its equivalent rounds.
+                seconds = val * time_units[duration_unit]
+                self.expire = int(math.ceil(seconds / 6))
             else:
-                self.expire_type = 'turns'
                 self.expire = val
         else:
             self.expire = None
@@ -87,18 +87,15 @@ class Effect(pathfinder.events.EventResponder):
         Determine if the effect still applies.
         """
         if self.expire is not None:
-            if self.expire_type == 'time':
-                return time.time() < self.start_time + self.expire
-            elif self.expire_type == 'turns':
-                return self.elapsed_turns >= self.expire
+            return self.elapsed_turns >= self.expire
         return True  # Non-expiring.
+
+    def elapse_turns(self, turns=1):
+        self.elapsed_turns += turns
 
     def respond_to_event(self, event, responses):
         if event.type == pathfinder.combat.events.turn_started:
-            # Just in case DB had effects created on older code.
-            if not hasattr(self, 'elapsed_turns'):
-                self.elapsed_turns = 0
             # Effects that last a number of rounds expire just before the same
             # initiative count that they began on.
-            self.elapsed_turns += 1
+            self.elapse_turns()
         self.modifier.respond_to_event(event, responses)

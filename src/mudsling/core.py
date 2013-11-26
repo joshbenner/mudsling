@@ -93,6 +93,7 @@ class MUDSling(MultiService):
         # Dependency injection.
         tasks.tasks = self.db.tasks
         tasks.new_task_id = self.new_task_id
+        CheckpointTask.game = self
 
         if not self.db.initialized:
             self.init_database()
@@ -179,7 +180,6 @@ class MUDSling(MultiService):
         self.db.set_setting('player start', room)
         char.move_to(room)
 
-        CheckpointTask.game = self
         task = CheckpointTask()
         task.start(task.configured_interval())
 

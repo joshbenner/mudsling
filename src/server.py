@@ -4,6 +4,7 @@ import logging
 
 from twisted.internet import reactor
 
+import mudsling
 from mudsling.options import get_options
 from mudsling.core import MUDSling
 from mudsling.config import config
@@ -23,6 +24,7 @@ def run_server(args=None):
 
     # Run game.
     game = MUDSling(options['gamedir'], options.configPaths())
+    mudsling.game = game
     if options['debugger']:
         config.set('Plugins', 'SimpleTelnetServer', 'Enabled')
         config.set('Proxy', 'enabled', 'No')
