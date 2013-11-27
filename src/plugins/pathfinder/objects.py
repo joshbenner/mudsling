@@ -5,6 +5,7 @@ import mudsling.objects
 import mudsling.storage
 import mudsling.utils.units as units
 import mudsling.utils.measurements
+import mudsling.utils.string as string_utils
 import mudsling.match
 import mudsling.errors
 import mudsling.commands
@@ -35,6 +36,7 @@ class events(object):
     permanent_effects = EventType('permanent effects')
     damage_resistance = EventType('damage resistance')
     damage_reduction = EventType('damage reduction')
+    effect_timer = EventType('effect timer')
 
 
 def is_pfobj(obj):
@@ -370,6 +372,7 @@ class PathfinderObject(mudsling.objects.Object,
         """
         for effect in self._effects:  # Only these can expire.
             effect.elapse_turns(turns=turns)
+        self.trigger_event(events.effect_timer, turns=turns)
         self.expire_effects()
 
     def add_condition(self, condition, source=None):
@@ -504,15 +507,23 @@ class PathfinderObject(mudsling.objects.Object,
         """
         return self._resist_or_reduct(events.damage_resistance, type)
 
-    def take_damage(self, damages):
+    def take_damage(self, damages, types=(), nonlethal=False):
         """
         Deal damage to the object.
 
         :param damages: The damages inflicted to the object.
         :type damages: (list or tuple or set) of pathfinder.damage.Damage
+
+        :param types: The damage types to inflict. This is only relevant if the
+            ``damages`` parameter is an integer.
+        :type damages: str or tuple or list or pathfinder.damage.DamageType
+
+        :param nonlethal: Whether the damage is lethal or not. This is only
+            relevant if the ``damages`` paramter is an integer.
         """
         if isinstance(damages, int):
-            damages = (pathfinder.damage.Damage(damages),)
+            damages = (pathfinder.damage.Damage(damages, types=types,
+                                                nonlethal=nonlethal),)
         elif isinstance(damages, pathfinder.damage.Damage):
             damages = (damages,)
         for dmg in damages:
@@ -549,6 +560,17 @@ class PathfinderObject(mudsling.objects.Object,
             self.damage += points
             trigger_event = True
         if trigger_event:
+            color = '{y' if damage.nonlethal else '{r'
+            msg = [
+                color + 'You take {c', damage.points, color, ' ',
+                string_utils.inflection.plural('point', damage.points),
+                ' of{m',
+                ' non-lethal' if damage.nonlethal else '',
+                ' ' if damage.types else '',
+                ', '.join([dt.name for dt in damage.types]),
+                color, ' damage.'
+            ]
+            self.tell(*msg)
             self.trigger_event(events.take_damage, damage=damage,
                                prev_hp=prev_hp, prev_nl_damage=prev_nl_damage)
 

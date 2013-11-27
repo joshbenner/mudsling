@@ -95,27 +95,38 @@ class Unconscious(Condition):
 
 
 class Staggered(Condition):
+    """
+    Condition primarily achieved by taking nonlethal damage equal to current
+    hit points.
+    """
     name = 'Staggered'
     description = "Character can move or act, but not both, in a single turn."
-    # todo: Implement action restriction.
-    # Condition primarily achieved by taking nonlethal damage equal to current
-    # hit points.
+
+    @event_handler('combat action spent')
+    def event_combat_action_spent(self, event, responses):
+        if event.action_type in ('move', 'standard'):
+            char = event.obj
+            for action_type in ('move', 'standard'):
+                remaining = char.remaining_combat_actions(action_type)
+                if remaining:  # Prevent infinite recursion.
+                    char.consume_action(action_type, amount=remaining)
 
 
 class Disabled(Condition):
     name = 'Disabled'
     description = "Character takes damage from standard actions."
-    # Staggered is a related by distinct condition that is often added along
-    # with disabled. However, you can recover and remove the disabled condition
-    # while still being staggered.
-    # todo: Implement additional impact, such as some actions causing damage.
+    modifiers = mods('Become Staggered')
+
+    @event_handler('combat action spent')
+    def event_combat_action_spent(self, event, responses):
+        if event.action_type == 'standard':
+            event.obj.take_damage(1)
 
 
 class Stable(Condition):
     name = 'Stable'
-    # Unconsciousness is not a direct result, but a related condition that is
-    # likely to be added at the same time.
-    # todo: Implement roll penalties equal to negative hit points.
+    modifiers = mods('Become Unconscious')
+    description = "In a deadly condition, but not losing hit points."
 
 
 class Dying(Condition):
@@ -123,12 +134,18 @@ class Dying(Condition):
     description = "Lose 1 hit point every round until death or stabilizing."
     modifiers = mods('Become Unconscious')
 
+    def die_a_little(self, char):
+        char.tell('{yYou are {rDYING{y!')
+        char.take_damage(1)
+
     def respond_to_event(self, event, responses):
         if event.type == pathfinder.combat.events.round_ended:
-            event.obj.take_damage(1)
-            event.obj.tell('{yYou are {rDYING{y! (1 hit point lost)')
+            self.die_a_little(event.obj)
         elif event.type == pathfinder.combat.events.turn_started:
             event.obj.attempt_to_stabilize()
+        elif event.type == pathfinder.objects.events.effect_timer:
+            if not event.obj.attempt_to_stabilize():
+                self.die_a_little(event.obj)
 
 
 class Dead(Condition):

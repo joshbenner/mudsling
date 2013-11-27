@@ -494,7 +494,6 @@ class Character(mudslingcore.objects.Character,
             new_conditions.add('dead')
         elif hp == 0:
             new_conditions.add('disabled')
-            new_conditions.add('staggered')
         elif hp < 0:
             # Note: If they are stable and take damage, they resume dying.
             new_conditions.add('dying')
@@ -519,6 +518,7 @@ class Character(mudslingcore.objects.Character,
         if attempt.success:
             self.remove_conditions('dying', source='damage')
             self.add_condition('stable', source='damage')
+        return attempt.success
 
     def roll_save(self, save_type, tn=None, tn_name='DC', stealth=False,
                   reason=None, desc_override=None, **params):
