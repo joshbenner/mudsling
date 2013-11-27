@@ -109,7 +109,7 @@ class Staggered(Condition):
             for action_type in ('move', 'standard'):
                 remaining = char.remaining_combat_actions(action_type)
                 if remaining:  # Prevent infinite recursion.
-                    char.consume_action(action_type, amount=remaining)
+                    char.deduct_action(action_type, amount=remaining)
 
 
 class Disabled(Condition):

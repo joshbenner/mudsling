@@ -453,9 +453,16 @@ class Combatant(pathfinder.objects.PathfinderObject):
         if action_type == 'standard':
             total_attacks = self.total_combat_actions('attack')
             self.combat_actions_spent['attack'] = total_attacks
-        self.combat_actions_spent[action_type] += amount
+        self.deduct_action(action_type, amount=amount)
         self.trigger_event(events.action_spent, action_type=action_type,
                            amount=amount)
+
+    def deduct_action(self, action_type, amount=1):
+        """
+        Deduction of an action is merely bookkeeping -- no other events are
+        triggered off of this.
+        """
+        self.combat_actions_spent[action_type] += amount
 
     def begin_battle_turn(self, round=None):
         """
@@ -546,7 +553,8 @@ class Combatant(pathfinder.objects.PathfinderObject):
             # by doing a move from/to same location, and skip the "you are
             # already there" error.
             prev = where
-        elif where == prev:
+        elif where == prev and where != self.location:
+            # Can approach the open even if you're already there (maneuvering).
             raise InvalidMove("You are already near %s"
                               % self.combat_position_name(where))
         # If another combatant is "near" me, then change their combat position
@@ -560,9 +568,13 @@ class Combatant(pathfinder.objects.PathfinderObject):
                     who.combat_move(prev, stealth=True)
         self.combat_position = where
         if not stealth:
-            from_ = self.combat_position_desc(prev)
-            to_ = self.combat_position_desc(where)
-            self.emit([self.ref(), ' moves from ', from_, ' to ', to_, '.'])
+            fr = self.combat_position_desc(prev)
+            if prev == where and where == self.location:
+                self.emit(['{m', self.ref(), '{n moves {c', fr, '{n.'])
+            else:
+                to_ = self.combat_position_desc(where)
+                self.emit(['{m', self.ref(), '{n moves from {c', fr,
+                           '{n to {c', to_, '}n.'])
         self.trigger_event(events.move, previous=prev)
 
 

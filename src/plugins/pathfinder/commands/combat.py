@@ -60,10 +60,9 @@ class StandDownCmd(pathfinder.commands.CombatCommand):
     """
     aliases = ('standdown',)
     syntax = '[:<emote>]'
-    action_cost = {'standard': 1}
     aggressive = False
     default_emotes = [
-        "remains passive, clearly willing to end the fight.",
+        "is clearly willing to end the fight.",
     ]
 
     def run(self, this, actor, args):
@@ -128,13 +127,15 @@ class ApproachCmd(pathfinder.commands.MovementCombatCommand):
                 and destination.combat_position == actor):
             raise self._err("%s is already near you."
                             % actor.name_for(destination))
-        if destination not in adjacent:
+        if destination not in adjacent and destination != room:
             destname = actor.combat_position_name(destination)
             posname = actor.combat_position_name(position)
             raise self._err("%s is not adjacent to %s." % (destname, posname))
+        if 'emote' not in args:
+            # Skip emote if player didn't provide one.
+            self.show_emote = False
         try:
-            # Stealth move, because command will do its own emote.
-            actor.combat_move(destination, stealth=True)
+            actor.combat_move(destination)
         except pathfinder.combat.InvalidMove as e:
             raise self._err(e.message)
 
