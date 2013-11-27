@@ -648,6 +648,11 @@ class Weapon(pathfinder.stats.HasStats):
 
     stat_defaults = {
         'attack modifier': Roll('0'),
+        'damage modifier': Roll('0'),
+    }
+    stat_aliases = {
+        'attack': 'attack modifier',
+        'damage': 'damage modifier',
     }
 
     #: The object is designed to be used by creatures of this size.

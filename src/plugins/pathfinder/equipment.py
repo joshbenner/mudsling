@@ -30,6 +30,11 @@ class Equipment(Thing, mudslingcore.objects.Container):
     #: By default, equipment does not have a sealing mechanism.
     can_close = False
 
+    def event_responders(self, event):
+        responders = super(Equipment, self).event_responders(event)
+        responders.extend(self.enhancements)
+        return responders
+
     @property
     def used_cargo_capacity(self):
         """
