@@ -10,6 +10,7 @@ from mudsling import locks
 
 from mudsling import utils
 import mudsling.utils.string
+import mudsling.utils.modules as mod_utils
 
 from mudslingcore import misc
 
@@ -27,8 +28,14 @@ class CreateCmd(Command):
     def run(self, this, actor, args):
         cls = registry.classes.get_class(args['class'])
         if cls is None:
-            actor.msg("Unknown class: %s" % args['class'])
-            return
+            # noinspection PyBroadException
+            try:
+                cls = mod_utils.class_from_path(args['class'])
+            except:
+                cls = None
+            if cls is None or not issubclass(cls, BaseObject):
+                actor.msg("Unknown class: %s" % args['class'])
+                return
         clsName = registry.classes.get_class_name(cls)
         if not actor.superuser and not (issubclass(cls, LockableObject)
                                         and cls.createLock.eval(cls, actor)):
