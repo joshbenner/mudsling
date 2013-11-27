@@ -450,6 +450,9 @@ class Combatant(pathfinder.objects.PathfinderObject):
             if self.spent_combat_actions('standard') == 0:
                 # All attacks in a turn consume a single standard action.
                 self.consume_action('standard')
+        if action_type == 'standard':
+            total_attacks = self.total_combat_actions('attack')
+            self.combat_actions_spent['attack'] = total_attacks
         self.combat_actions_spent[action_type] += amount
         self.trigger_event(events.action_spent, action_type=action_type,
                            amount=amount)
