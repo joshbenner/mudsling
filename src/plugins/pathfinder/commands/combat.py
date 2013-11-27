@@ -328,7 +328,7 @@ class StrikeCmd(pathfinder.commands.CombatCommand):
         pathfinder.combat.events.melee_attack_command
     )
     default_emotes = [
-        "attempts to strike $target."
+        "attempts to strike $target with $weapon."
     ]
     action_cost = {'attack': 1}
 
@@ -351,5 +351,10 @@ class StrikeCmd(pathfinder.commands.CombatCommand):
             nonlethal = None
         #: :type: pathfinder.combat.Weapon
         weapon = actor.unarmed_weapon if unarmed else wielded[0]
+        # Push weapon into parsed_args for use in emote.
+        if self.game.db.is_valid(weapon, pathfinder.objects.PathfinderObject):
+            self.parsed_args['weapon'] = weapon
+        else:
+            self.parsed_args['weapon'] = weapon.name
         weapon.do_attack(actor, args['target'], attack_type='strike',
                          nonlethal=nonlethal)

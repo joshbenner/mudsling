@@ -69,6 +69,7 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
     The unarmed weapon takes most of its stats from the character it is
     instantiated for.
     """
+    nonlethal = True
     wield_type = pathfinder.combat.WieldType.Light
     dmg_roll = pathfinder.damage.DamageRoll
     b = pathfinder.damage_types.Bludgeoning
@@ -84,6 +85,8 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
         sizes.Colossal: dmg_roll('4d8 + STR mod', b)
     }
     del dmg_roll, b
+
+    name = 'Unarmed Strike'
 
     def __init__(self, char):
         """
@@ -111,20 +114,10 @@ class UnarmedWeapon(pathfinder.combat.Weapon):
         return (self.damage[self.user_size].roll(char, nonlethal=nonlethal,
                                                  desc=desc),)
 
-    @pathfinder.combat.attack('strike', default=True)
-    def unarmed_strike(self, actor, target, nonlethal=None):
-        if nonlethal is None:
-            nonlethal = True
-        attack_type = ('unarmed strike' if nonlethal
-                       else 'lethal unarmed strike')
-        hit, crit = actor.roll_attack(target, weapon=self,
-                                      attack_type=attack_type,
-                                      attack_mode='melee')
-        if hit:
-            return self.roll_damage(actor, attack_type, crit=crit,
-                                    nonlethal=nonlethal, desc=True)
-        else:
-            return ()
+    unarmed_strike = pathfinder.combat.simple_attack(group='strike',
+                                                     type='unarmed strike',
+                                                     mode='melee',
+                                                     default=True)
 
 
 class Character(mudslingcore.objects.Character,
@@ -291,7 +284,9 @@ class Character(mudslingcore.objects.Character,
         'melee touch attack': Roll('melee attack'),
         'ranged touch attack': Roll('ranged attack'),
         'unarmed strike': Roll('melee attack'),
-        'lethal unarmed strike': Roll('unarmed strike - 4'),
+        'lethal unarmed strike': Roll(
+            'unarmed strike + lethality inversion'),
+        'lethality inversion': -4,
     }
     # Map attributes to stats.
     stat_attributes = {

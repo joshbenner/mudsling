@@ -1,7 +1,7 @@
 import sys
 import random
 import inspect
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 from flufl.enum import IntEnum
 
@@ -371,7 +371,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
         return self.battle_initiative
 
     def roll_attack(self, target, weapon, attack_type, attack_mode,
-                    stealth=False):
+                    attack_mods=None, stealth=False):
         """
         Perform an attack roll against a target.
 
@@ -389,14 +389,21 @@ class Combatant(pathfinder.objects.PathfinderObject):
         :param attack_mode: The mode of attack, such as melee or ranged.
         :type attack_mode: str
 
+        :param attack_mods: Additional modifiers to apply to the attack roll.
+        :type attack_mods: dict or None
+
         :param stealth: Whether or not to hide the RPG notice output.
         :type stealth: bool
 
         :return: Tuple of whether the attack hits, and if the attack is a crit.
         :rtype: tuple of bool
         """
-        mods = {'attack modifier': '%s attack' % attack_type,
-                'weapon attack modifier': weapon.get_stat('attack modifier')}
+        mods = OrderedDict({
+            'attack modifier': '%s attack' % attack_type,
+            'weapon attack modifier': weapon.get_stat('attack modifier')
+        })
+        if attack_mods is not None:
+            mods.update(attack_mods)
         vs = ('%s attack' % attack_mode, attack_type)
         target_ac = target.get_stat('ac', vs=vs)
         attack_roll = lambda: self.d20_roll(mods=mods, target_number=target_ac)
@@ -436,6 +443,9 @@ class Combatant(pathfinder.objects.PathfinderObject):
         return self.combat_action_pool.get(action_type, 0)
 
     def spent_combat_actions(self, action_type):
+        if (action_type == 'attack'
+                and self.spent_combat_actions('standard') > 0):
+            return self.total_combat_actions('attack')
         return self.combat_actions_spent.get(action_type, 0)
 
     def remaining_combat_actions(self, action_type):
@@ -447,12 +457,9 @@ class Combatant(pathfinder.objects.PathfinderObject):
         if action_type == 'free':
             return
         if action_type == 'attack':
-            if self.spent_combat_actions('standard') == 0:
+            if self.remaining_combat_actions('standard'):
                 # All attacks in a turn consume a single standard action.
                 self.consume_action('standard')
-        if action_type == 'standard':
-            total_attacks = self.total_combat_actions('attack')
-            self.combat_actions_spent['attack'] = total_attacks
         self.deduct_action(action_type, amount=amount)
         self.trigger_event(events.action_spent, action_type=action_type,
                            amount=amount)
@@ -574,16 +581,16 @@ class Combatant(pathfinder.objects.PathfinderObject):
             else:
                 to_ = self.combat_position_desc(where)
                 self.emit(['{m', self.ref(), '{n moves from {c', fr,
-                           '{n to {c', to_, '}n.'])
+                           '{n to {c', to_, '{n.'])
         self.trigger_event(events.move, previous=prev)
 
 
-def attack(attack_type, name=None, improvised=False, default=False, range=0):
+def attack(attack_group, name=None, improvised=False, default=False, range=0):
     """
     Decorator to esignate a method as an attack callback of a specific type.
 
-    :param attack_type: The type of this attack -- strike, shoot, throw, etc.
-    :type attack_type: str
+    :param attack_group: The type of this attack -- strike, shoot, throw, etc.
+    :type attack_group: str
     :param name: The special name (if any) of this attack.
     :type name: str
     :param improvised: Whether or not this attack is improvised.
@@ -594,10 +601,25 @@ def attack(attack_type, name=None, improvised=False, default=False, range=0):
     :return: A function to wrap a method.
     """
     def decorate(f):
-        f.attack_info = AttackInfo(attack_type, name, improvised, default,
-                                   range, f.__name__)
+        f.attack_info = AttackInfo(attack_group, name, improvised, default,
+                                   range)
         return f
     return decorate
+
+
+def simple_attack(group, type, mode, name=None, improvised=False,
+                  default=False, range=0):
+    """
+    A function for defining pre-decorated simple attack callbacks.
+    """
+    def _attack(self, actor, target, **kw):
+        return self._standard_attack(actor, target,
+                                     attack_type=type,
+                                     attack_mode=mode,
+                                     **kw)
+    decorator = attack(group, name=name, improvised=improvised,
+                       default=default, range=range)
+    return decorator(_attack)
 
 
 class AttackInfo(object):
@@ -606,22 +628,21 @@ class AttackInfo(object):
 
     **See:** :func:`attack` decorator
     """
-    __slots__ = ('type', 'name', 'improvised', 'default', 'callback', 'range')
+    __slots__ = ('group', 'name', 'improvised', 'default', 'range')
 
-    def __init__(self, attack_type, name=None, improvised=False, default=False,
-                 range=0, callback=None):
-        self.type = str(attack_type)
-        self.name = (str(name) if name is not None else self.type).lower()
+    def __init__(self, group, name=None, improvised=False, default=False,
+                 range=0):
+        self.group = str(group)
+        self.name = (str(name) if name is not None else self.group).lower()
         self.improvised = bool(improvised)
         self.default = bool(default)
         self.range = range
-        self.callback = callback
 
     def __str__(self):
         return self.name
 
     def __repr__(self):
-        return 'Attack: %s (%s)' % (self.name, self.type)
+        return 'Attack: %s (%s)' % (self.name, self.group)
 
 
 class WieldType(IntEnum):
@@ -661,35 +682,39 @@ class Weapon(pathfinder.stats.HasStats):
     #: The weapon is designed to be held in this manner.
     wield_type = WieldType.OneHanded
 
+    @property
+    def name(self):
+        return self.__class__.__name__
+
     @staticmethod
     def __attack_filter(method):
         return inspect.ismethod(method) and 'attack_info' in method.__dict__
 
-    def attacks(self, attack_type=None):
+    def attacks(self, group=None):
         """
         Get a list of attack types this object is compatible with.
 
-        :param attack_type: Optional filter to limit the returned attack info
-            to attacks of a specific type.
-        :type attack_type: str
+        :param group: Optional filter to limit the returned attack info to
+            attacks of a specific group.
+        :type group: str
 
         :return: A list of attacks provided by the object.
-        :rtype: list of AttackInfo
+        :rtype: list
         """
         callbacks = inspect.getmembers(self, predicate=self.__attack_filter)
-        return [f[1].attack_info for f in callbacks
-                if attack_type is None or f[1].attack_info.type == attack_type]
+        return [getattr(self, f[0]) for f in callbacks
+                if group is None or f[1].attack_info.group == group]
 
-    def get_attack(self, attack_type=None, name=None):
-        attacks = self.attacks(attack_type)
+    def get_attack(self, group=None, name=None):
+        attacks = self.attacks(group)
         if name is None:
             for attack in attacks:
-                if attack.default:
+                if attack.attack_info.default:
                     return attack
         else:
             name = name.lower()
             for attack in attacks:
-                if name == attack.name:
+                if name == attack.attack_info.name:
                     return attack
         raise pathfinder.errors.NoSuchAttack()
 
@@ -697,16 +722,35 @@ class Weapon(pathfinder.stats.HasStats):
                   nonlethal=None):
         attack = self.get_attack(attack_type, name)
         if target.isa(Combatant):
-            if actor.combat_range_to(target) > attack.range:
+            if actor.combat_range_to(target) > attack.attack_info.range:
                 raise pathfinder.errors.OutOfAttackRange()
-        attack_func = getattr(self, attack.callback)
-        damages = attack_func(actor, target, nonlethal=nonlethal)
+        damages = attack(actor, target, nonlethal=nonlethal)
         if len(damages) > 0:
             notice = [('action', '  Damage: '), damages[0]]
             for dmg in damages[1:]:
                 notice.extend((', ', dmg))
             actor.rpg_notice(*notice)
             target.take_damage(damages)
+
+    def _standard_attack(self, actor, target, attack_type, attack_mode,
+                         nonlethal=None, attack_mods=None):
+        """
+        A standard attack implementation that can be used in specific attacks.
+        """
+        if nonlethal is None:
+            nonlethal = self.nonlethal
+        if nonlethal != self.nonlethal:
+            attack_mods = attack_mods or OrderedDict()
+            attack_mods['lethality inversion'] = -4
+        hit, crit = actor.roll_attack(target, weapon=self,
+                                      attack_type=attack_type,
+                                      attack_mode=attack_mode,
+                                      attack_mods=attack_mods)
+        if hit:
+            return self.roll_damage(actor, attack_type, crit=crit,
+                                    nonlethal=nonlethal, desc=True)
+        else:
+            return ()
 
     def roll_damage(self, char, attack_type, crit=False, bonus=None,
                     extra=None, nonlethal=None, desc=False):

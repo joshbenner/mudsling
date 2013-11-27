@@ -1,6 +1,6 @@
 import pathfinder.equipment
 import pathfinder.data
-from pathfinder.combat import attack
+from pathfinder.combat import attack, simple_attack
 from pathfinder.damage import DamageRoll
 from pathfinder.things import MultipartThing
 
@@ -34,9 +34,8 @@ class MeleeWeapon(Weapon):
     category = 'Melee'
     melee_damage = DamageRoll(0)
 
-    @attack('strike', default=True)
-    def melee_attack(self, actor, target):
-        raise NotImplemented
+    melee_attack = simple_attack(group='strike', type='melee', mode='melee',
+                                 default=True)
 
     def improvised_melee_attack(self, actor, target):
         """
@@ -44,8 +43,8 @@ class MeleeWeapon(Weapon):
         """
         pass
 
-    def roll_melee_damage(self, char, desc=False):
-        return self.melee_damage.roll(char, desc=desc)
+    def roll_melee_damage(self, char, nonlethal, desc=False):
+        return self.melee_damage.roll(char, nonlethal=nonlethal, desc=desc),
 
 
 class RangedWeapon(Weapon):
