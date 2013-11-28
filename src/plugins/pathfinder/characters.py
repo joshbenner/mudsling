@@ -1,7 +1,7 @@
 import math
 import re
 import random
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 from mudsling.storage import ObjRef
 from mudsling.commands import all_commands
@@ -40,9 +40,11 @@ class events(object):
     allow_def_dex_bonus = EventType('allow defensive dex bonus')
     unarmed_crit_threat = EventType('unarmed critical threat')
     unarmed_crit_multiplier = EventType('unarmed critical multiplier')
+    feat_slots = EventType('feat slots')
     feats = EventType('feats')
     feat_applied = EventType('feat applied')
     feat_removed = EventType('feat removed')
+    proficiencies = EventType('proficiencies')
 
 
 def is_pfchar(obj):
@@ -60,6 +62,20 @@ class CharacterFeature(pathfinder.features.Feature):
     def remove_from(self, obj):
         if is_pfchar(obj):
             super(CharacterFeature, self).remove_from(obj)
+
+
+class StaticCharacterFeature(pathfinder.features.StaticFeature):
+    feature_type = 'character feature'
+
+    @classmethod
+    def apply_to(cls, obj):
+        if is_pfchar(obj):
+            super(StaticCharacterFeature, cls).apply_to(obj)
+
+    @classmethod
+    def remove_from(cls, obj):
+        if is_pfchar(obj):
+            super(StaticCharacterFeature, cls).remove_from(obj)
 
 
 class UnarmedWeapon(pathfinder.combat.Weapon):
@@ -165,7 +181,6 @@ class Character(mudslingcore.objects.Character,
     skill_points = 0
     level_up_skills = {}
     level_up_feats = []
-    feat_slots = {}  # key = type or '*', value = how many
     languages = []
     #: :type: ictime.Date
     date_of_birth = None
@@ -435,7 +450,7 @@ class Character(mudslingcore.objects.Character,
     def unused_favored_class_bonuses(self):
         """
         Return the number of unused favored class bonuses.
-        @rtype: C{int}
+        :rtype: int
         """
         bonuses = 0
         favored = self.favored_classes
@@ -448,6 +463,17 @@ class Character(mudslingcore.objects.Character,
     def can_use_defensive_dex_bonus(self):
         event = pathfinder.events.Event(events.allow_def_dex_bonus)
         return False not in self.trigger_event(event).responses.values()
+
+    @property
+    def proficiencies(self):
+        """
+        :rtype: set of str
+        """
+        if '__proficiencies' not in self._stat_cache:
+            event = self.trigger_event(events.proficiencies)
+            prof = set(filter(lambda v: v, event.responses.itervalues()))
+            self.cache_stat('__proficiencies', prof)
+        return self._stat_cache['__proficiencies']
 
     def trigger_event(self, event, **kw):
         event = super(Character, self).trigger_event(event, **kw)
@@ -806,6 +832,18 @@ class Character(mudslingcore.objects.Character,
         feat.remove_from(self)
         self.clear_stat_cache()
         self.tell("{yYou lose the {c", feat, "{y ", feat.feature_type, '.')
+
+    @property
+    def feat_slots(self):
+        """
+        Return a dictionary of slot type and how many the character has total.
+        :rtype: dict of (str, int)
+        """
+        if '__feat_slots' not in self._stat_cache:
+            event = self.trigger_event(events.feat_slots,
+                                       slots=defaultdict(int))
+            self.cache_stat('__feat_slots', event.slots)
+        return self._stat_cache['__feat_slots']
 
     def add_feat_slot(self, type='general', slots=1):
         self._check_attr('feat_slots', {})

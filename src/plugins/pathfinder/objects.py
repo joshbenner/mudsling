@@ -193,6 +193,7 @@ class PathfinderObject(mudsling.objects.Object,
         data effects can handle for child types.
         """
         event = pathfinder.events.Event(events.conditions)
+        event.obj = self
         event.conditions = []
         for effect in effects:
             effect.respond_to_event(event, None)
@@ -203,6 +204,7 @@ class PathfinderObject(mudsling.objects.Object,
         Features provide effects.
         """
         event = pathfinder.events.Event(events.permanent_effects)
+        event.obj = self
         event.effects = []
         for feature in [f for f in features if f is not None]:
             feature.respond_to_event(event, None)

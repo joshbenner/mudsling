@@ -4,7 +4,7 @@ import pathfinder.modifiers
 import pathfinder.data
 
 
-class Race(pathfinder.characters.CharacterFeature):
+class Race(pathfinder.characters.StaticCharacterFeature):
     """
     A race.
 
@@ -16,10 +16,6 @@ class Race(pathfinder.characters.CharacterFeature):
     ability_modifiers = {}
     modifiers = []
     genders = ('male', 'female')
-
-    @classmethod
-    def respond_to_event(cls, event, responses):
-        return cls.class_respond_to_event(event, responses)
 
     @classmethod
     def apply_to(cls, char):

@@ -54,14 +54,6 @@ class Feature(pathfinder.events.EventResponder, mudsling.messages.HasMessages):
                 if mod.expiration is None:
                     event.effects.append(pathfinder.effects.Effect(mod))
 
-    @classmethod
-    def class_respond_to_event(cls, event, responses):
-        """Static classes should use this for their event response."""
-        if event.type == pathfinder.objects.events.permanent_effects:
-            for mod in cls.modifiers:
-                if mod.expiration is None:
-                    event.effects.append(pathfinder.effects.Effect(mod))
-
     def apply_to(self, obj):
         from .objects import is_pfobj
         if is_pfobj(obj):
@@ -83,8 +75,8 @@ class Feature(pathfinder.events.EventResponder, mudsling.messages.HasMessages):
                 obj.emit(msg)
 
 
-class StaticFeature(pathfinder.events.EventResponder):
-    __slots__ = ()
+class StaticFeature(pathfinder.events.StaticEventResponder):
+    __metaclass__ = FeatureMetaClass
 
     feature_type = 'feature'
     name = ''
@@ -99,7 +91,11 @@ class StaticFeature(pathfinder.events.EventResponder):
 
     @classmethod
     def respond_to_event(cls, event, responses):
-        pass
+        super(StaticFeature, cls).respond_to_event(event, responses)
+        if event.type == pathfinder.objects.events.permanent_effects:
+            for mod in cls.modifiers:
+                if mod.expiration is None:
+                    event.effects.append(pathfinder.effects.Effect(mod))
 
     @classmethod
     def apply_to(cls, obj):

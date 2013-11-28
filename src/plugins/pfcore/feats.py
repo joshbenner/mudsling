@@ -715,12 +715,14 @@ class TowerShieldProficiency(Feat):
     type = 'combat'
     _prerequisites = ['Shield Proficiency']
     description = "Tower shields' AC penalty only affects STR and DEX skills."
+    modifiers = modifiers('Proficient with tower shields')
 
 
 class SimpleWeaponProficiency(Feat):
     name = "Simple Weapon Proficiency"
     type = 'combat'
     description = "You are trained in the use of basic weapons."
+    modifiers = modifiers('Proficient with simple weapons')
 
 
 class SkillFocus(Feat):

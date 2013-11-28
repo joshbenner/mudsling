@@ -94,16 +94,27 @@ class EventResponder(mudsling.storage.PersistentSlots):
             sub_responses[d] = d.respond_to_event(event, responses)
         responses.update(sub_responses)
 
-    def _event_handlers(self, etype):
-        cls = self.__class__
-        if cls not in self.event_handlers:
-            self.event_handlers[cls] = {}
-        if etype not in self.event_handlers[cls]:
+    @classmethod
+    def _event_handlers(cls, etype):
+        if cls not in cls.event_handlers:
+            cls.event_handlers[cls] = {}
+        if etype not in cls.event_handlers[cls]:
             f = lambda m: (inspect.ismethod(m)
                            and getattr(m, 'handle_event', None) == etype)
             handlers = [f[1] for f in inspect.getmembers(cls, predicate=f)]
-            self.event_handlers[cls][etype] = handlers
-        return self.event_handlers[cls][etype]
+            cls.event_handlers[cls][etype] = handlers
+        return cls.event_handlers[cls][etype]
+
+
+class StaticEventResponder(EventResponder):
+    __slots__ = ()
+
+    @classmethod
+    def respond_to_event(cls, event, responses):
+        event_type = (event.type.name if isinstance(event.type, EventType)
+                      else event.name)
+        for handler in cls._event_handlers(event_type):
+            handler(event, responses)
 
 
 class HasEvents(object):

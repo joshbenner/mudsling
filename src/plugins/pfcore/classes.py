@@ -1,18 +1,31 @@
 from mudsling.utils.sequence import CaselessDict
 
-from pathfinder.classes import Class, lvl, GainFeat, BonusFeat
+from pathfinder.classes import Class, Level, GainFeat, BonusFeat
 from pathfinder.feats import Feat
-from pathfinder.characters import CharacterFeature, is_pfchar
+import pathfinder.characters
 from pathfinder.modifiers import modifiers
 
 
-class Bravery(CharacterFeature):
+class FighterProficiencies(pathfinder.characters.StaticCharacterFeature):
+    name = "Fighter Proficiencies"
+    modifiers = modifiers(
+        'Proficient with simple weapons',
+        'Proficient with martial weapons',
+        'Proficient with light armor',
+        'Proficient with medium armor',
+        'Proficient with heavy armor',
+        'Proficient with shields',
+        'Proficient with tower shields',
+    )
+
+
+class Bravery(pathfinder.characters.StaticCharacterFeature):
     name = 'Bravery'
     description = "+1 to will saves vs fear; +1 every 4th level after 2nd."
     modifiers = modifiers('+1 to Will saves against fear')
 
 
-class ArmorTraining(CharacterFeature):
+class ArmorTraining(pathfinder.characters.StaticCharacterFeature):
     name = 'Armor Training'
     description = "The fighter learns to be more maneuverable in armor."
     modifiers = modifiers(
@@ -48,7 +61,8 @@ class WeaponTraining(Feat):
         return CaselessDict(zip(groups, groups))
 
     def apply_to(self, obj):
-        if is_pfchar(obj):
+        super(WeaponTraining, self).apply_to(obj)
+        if pathfinder.characters.is_pfchar(obj):
             self.gained_at_level = obj.get_stat('level')
 
     def respond_to_event(self, event, responses):
@@ -56,7 +70,7 @@ class WeaponTraining(Feat):
         pass
 
 
-class ArmorMastery(CharacterFeature):
+class ArmorMastery(pathfinder.characters.StaticCharacterFeature):
     name = 'Armor Mastery'
     description = "The fighter's use of armor and shields is so finely honed "\
                   "that he effectively disregards 5 points of any blow."
@@ -67,7 +81,7 @@ class ArmorMastery(CharacterFeature):
             pass
 
 
-class WeaponMastery(CharacterFeature):
+class WeaponMastery(pathfinder.characters.CharacterFeature):
     name = 'Weapon Mastery'
     description = "A fighter's chosen weapon confirms all critical hits, and "\
                   "deals more critical damage than usual."
@@ -85,25 +99,25 @@ class Fighter(Class):
               'Swim')
     skill_points = '2 + INT mod'
     levels = [
-        #  LVL BAB Fort Ref Will Special
-        lvl(1,  1,  2,   0,  0,  GainFeat, BonusFeat),
-        lvl(2,  2,  3,   0,  0,  BonusFeat, Bravery),
-        lvl(3,  3,  3,   1,  1,  GainFeat, ArmorTraining),
-        lvl(4,  4,  4,   1,  1,  BonusFeat),
-        lvl(5,  5,  4,   1,  1,  GainFeat, WeaponTrainingSlot),
-        lvl(6,  6,  5,   2,  2,  BonusFeat, Bravery),
-        lvl(7,  7,  5,   2,  2,  GainFeat, ArmorTraining),
-        lvl(8,  8,  6,   2,  2,  BonusFeat),
-        lvl(9,  9,  6,   3,  3,  GainFeat, WeaponTrainingSlot),
-        lvl(10, 10, 7,   3,  3,  BonusFeat, Bravery),
-        lvl(11, 11, 7,   3,  3,  GainFeat, ArmorTraining),
-        lvl(12, 12, 8,   4,  4,  BonusFeat),
-        lvl(13, 13, 8,   4,  4,  GainFeat, WeaponTrainingSlot),
-        lvl(14, 14, 9,   4,  4,  BonusFeat, Bravery),
-        lvl(15, 15, 9,   5,  5,  GainFeat, ArmorTraining),
-        lvl(16, 16, 10,  5,  5,  BonusFeat),
-        lvl(17, 17, 10,  5,  5,  GainFeat, WeaponTrainingSlot),
-        lvl(18, 18, 11,  6,  6,  BonusFeat),
-        lvl(19, 19, 11,  6,  6,  GainFeat, ArmorMastery),
-        lvl(20, 20, 12,  6,  6,  BonusFeat, WeaponMastery)
+        #    LVL BAB Fort Ref Will Special
+        Level(1,  1,  2,   0,  0,  GainFeat, BonusFeat, FighterProficiencies),
+        Level(2,  2,  3,   0,  0,  BonusFeat, Bravery),
+        Level(3,  3,  3,   1,  1,  GainFeat, ArmorTraining),
+        Level(4,  4,  4,   1,  1,  BonusFeat),
+        Level(5,  5,  4,   1,  1,  GainFeat, WeaponTrainingSlot),
+        Level(6,  6,  5,   2,  2,  BonusFeat, Bravery),
+        Level(7,  7,  5,   2,  2,  GainFeat, ArmorTraining),
+        Level(8,  8,  6,   2,  2,  BonusFeat),
+        Level(9,  9,  6,   3,  3,  GainFeat, WeaponTrainingSlot),
+        Level(10, 10, 7,   3,  3,  BonusFeat, Bravery),
+        Level(11, 11, 7,   3,  3,  GainFeat, ArmorTraining),
+        Level(12, 12, 8,   4,  4,  BonusFeat),
+        Level(13, 13, 8,   4,  4,  GainFeat, WeaponTrainingSlot),
+        Level(14, 14, 9,   4,  4,  BonusFeat, Bravery),
+        Level(15, 15, 9,   5,  5,  GainFeat, ArmorTraining),
+        Level(16, 16, 10,  5,  5,  BonusFeat),
+        Level(17, 17, 10,  5,  5,  GainFeat, WeaponTrainingSlot),
+        Level(18, 18, 11,  6,  6,  BonusFeat),
+        Level(19, 19, 11,  6,  6,  GainFeat, ArmorMastery),
+        Level(20, 20, 12,  6,  6,  BonusFeat, WeaponMastery)
     ]

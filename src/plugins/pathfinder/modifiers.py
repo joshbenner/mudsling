@@ -18,11 +18,13 @@ BNF:
       expire ::= duration | until
        bonus ::= rollexpr [nature] [type] ("to" | "on") stat
        grant ::= "grant"["s"] <alphanums>+ ["feat"]
-      become ::= "become"["s"] <name>
+      become ::= "become"["s"] name
        speak ::= ["can"] "speak"["s"] <alphanums>+
       resist ::= ["can" | "gain"["s"]] "resist"["s"] damagetype damageval
       reduct ::= ["gain"["s"]] "DR" damageval "/" (damagetype | "-")
-    modifier ::= (bonus | resist | reduct | grant | cause | speak) [expire]
+  proficient ::= "proficient" ("with" | "in" | "at") name
+    modifier ::= (bonus | resist | reduct | grant | cause | speak
+                  | proficient) [expire]
 
 Examples:
 * +2 to STR for 2 turns
@@ -32,6 +34,7 @@ Examples:
 * Speak Common
 * Resist fire 5
 * Becomes Disabled
+* Proficient with simple weapons
 
 TODO:
 """
@@ -61,6 +64,7 @@ class Types(Enum):
     grant = 4
     language = 5
     condition = 6
+    proficiency = 7
 
 
 def _grammar():
@@ -115,7 +119,10 @@ def _grammar():
     reduct += damageval.setResultsName("reduction value")
     reduct += L('/') + (damagetype | L('-')).setResultsName("reduction type")
 
-    modifier = (bonus | resist | reduct | grant | become | lang)
+    proficient = Suppress(CK("proficient") + CK("with") | CK("in") | CK("at"))
+    proficient += WordStart() + lastitem.setResultsName('proficiency')
+
+    modifier = (bonus | resist | reduct | grant | become | lang | proficient)
     modifier += Optional(expire)
 
     return modifier
@@ -203,6 +210,9 @@ class Modifier(pathfinder.events.EventResponder):
                 parsed['reduction type'].strip())
             reduction_value = int(parsed['reduction value'].strip())
             self.payload_desc = (reduction_value, reduction_type)
+        elif 'proficiency' in parsed:
+            self.type = Types.proficiency
+            self.payload_desc = parsed['proficiency'].strip().lower()
         else:
             self.type = Types.bonus
             roll = (dice.Roll(parsed['mod_val'][0]) if 'mod_val' in parsed
@@ -273,6 +283,11 @@ class Modifier(pathfinder.events.EventResponder):
             value, resist_type = self.payload
             if event.damage_type == resist_type:
                 responses[self] = value
+
+    @pathfinder.events.event_handler('proficiencies')
+    def event_proficiencies(self, event, responses):
+        if self.type == Types.proficiency:
+            responses[self] = self.payload
 
 
 def modifiers(*a, **kw):

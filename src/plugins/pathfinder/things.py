@@ -23,9 +23,9 @@ class Thing(core_objects.Thing, PathfinderObject, pathfinder.combat.Weapon):
     #: The object is designed to be used by creatures of this size.
     user_size = pathfinder.sizes.Medium
 
-    @pathfinder.combat.attack('strike', improvised=True)
-    def improvised_melee_attack(self, actor, target):
-        raise NotImplemented
+    improvised_melee_attack = pathfinder.combat.simple_attack(
+        group='strike', type='melee', mode='melee', improvised=True,
+        default=True)
 
     @pathfinder.combat.attack('throw', improvised=True)
     def improvised_ranged_attack(self, actor, target):

@@ -23,7 +23,7 @@ class Weapon(MultipartThing, pathfinder.equipment.Equipment):
     """
     A pathfinder weapon.
     """
-    proficiency = 'simple'  # Training required to use the weapon.
+    proficiency = 'simple weapons'  # Proficiency required to use the weapon.
 
     category = ''  # Melee, Projectile, etc
     family = ''    # Sword, Knife, Bow, Handgun, Longarm, Shotgun, etc
@@ -37,11 +37,7 @@ class MeleeWeapon(Weapon):
     melee_attack = simple_attack(group='strike', type='melee', mode='melee',
                                  default=True)
 
-    def improvised_melee_attack(self, actor, target):
-        """
-        Override without @attack to disable improvised attack from parent.
-        """
-        pass
+    improvised_melee_attack = None  # Hides attack-enabled ancestor.
 
     def roll_melee_damage(self, char, nonlethal, desc=False):
         return self.melee_damage.roll(char, nonlethal=nonlethal, desc=desc),
