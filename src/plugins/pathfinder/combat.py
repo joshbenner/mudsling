@@ -276,10 +276,6 @@ class Combatant(pathfinder.objects.PathfinderObject):
     :ivar combat_capable: If the combatant is capable of fighting.
     :type combat_capable: bool
 
-    :ivar combat_action_pool: A dict of action types and how many of them are
-        available to the combatant in a turn.
-    :type combat_action_pool: defaultdict
-
     :ivar combat_actions_spent: A dict of action types and how many are spent.
     :type combat_actions_spent: defaultdict
 
@@ -290,10 +286,12 @@ class Combatant(pathfinder.objects.PathfinderObject):
     battle_initiative = None
     combat_willing = False
     combat_capable = True
-    combat_action_pool = None
     combat_actions_spent = None
     combat_position = None
-    num_attacks = 1
+
+    # List of bonuses for each attack available to combatant per round.
+    #: :type: tuple of int
+    attacks = (0,)
 
     stat_defaults = {
         'initiative': 0,
@@ -319,8 +317,6 @@ class Combatant(pathfinder.objects.PathfinderObject):
         if self.combat_position not in self.location.combat_areas():
             self.combat_move(self.location, stealth=True)
         self.battle = battle
-        self.combat_action_pool = defaultdict(int,
-                                              self.full_combat_action_pool())
         self.reset_combat_actions()
         self.add_condition(pathfinder.conditions.FlatFooted, source=battle)
         self.trigger_event(events.battle_joined)
@@ -398,10 +394,15 @@ class Combatant(pathfinder.objects.PathfinderObject):
         :return: Tuple of whether the attack hits, and if the attack is a crit.
         :rtype: tuple of bool
         """
-        mods = OrderedDict({
-            'attack modifier': '%s attack' % attack_type,
-            'weapon attack modifier': weapon.get_stat('attack modifier')
-        })
+        attack_offset = self.spent_combat_actions('attack')
+        bab_mod = self.attacks[attack_offset]
+        weapon_mod = weapon.get_stat('attack modifier')
+        mods = OrderedDict({'attack modifier': '%s attack' % attack_type})
+        if bab_mod:
+            ordinal = mudsling.match.ordinal_words[attack_offset]
+            mods['%s attack' % ordinal] = bab_mod
+        if weapon_mod:
+            mods['weapon'] = weapon_mod
         if attack_mods is not None:
             mods.update(attack_mods)
         vs = ('%s attack' % attack_mode, attack_type)
@@ -433,8 +434,9 @@ class Combatant(pathfinder.objects.PathfinderObject):
                 self.rpg_notice(*crit_notice)
         return attack.success, critical
 
-    def full_combat_action_pool(self):
-        return {'move': 1, 'standard': 1, 'attack': self.num_attacks}
+    @property
+    def combat_action_pool(self):
+        return {'move': 1, 'standard': 1, 'attack': len(self.attacks)}
 
     def reset_combat_actions(self):
         self.combat_actions_spent = defaultdict(int)
@@ -443,9 +445,6 @@ class Combatant(pathfinder.objects.PathfinderObject):
         return self.combat_action_pool.get(action_type, 0)
 
     def spent_combat_actions(self, action_type):
-        if (action_type == 'attack'
-                and self.spent_combat_actions('standard') > 0):
-            return self.total_combat_actions('attack')
         return self.combat_actions_spent.get(action_type, 0)
 
     def remaining_combat_actions(self, action_type):
@@ -458,8 +457,15 @@ class Combatant(pathfinder.objects.PathfinderObject):
             return
         if action_type == 'attack':
             if self.remaining_combat_actions('standard'):
-                # All attacks in a turn consume a single standard action.
-                self.consume_action('standard')
+                # All attacks in a turn consume a single standard action. We
+                # deduct/trigger instead of consume to avoid recursion issues.
+                self.deduct_action('standard')
+                self.trigger_event(events.action_spent, action_type='standard',
+                                   amount=1)
+        elif action_type == 'standard':
+            # A standard action makes any attacks impossible.
+            remaining = self.remaining_combat_actions('attack')
+            self.deduct_action('attack', amount=remaining)
         self.deduct_action(action_type, amount=amount)
         self.trigger_event(events.action_spent, action_type=action_type,
                            amount=amount)
@@ -719,7 +725,7 @@ class Weapon(pathfinder.stats.HasStats):
         raise pathfinder.errors.NoSuchAttack()
 
     def do_attack(self, actor, target, attack_group=None, name=None,
-                  nonlethal=None):
+                  nonlethal=None, attack_mods=None):
         """
         Perform a specific attack that this weapon is capable of.
 
@@ -744,6 +750,9 @@ class Weapon(pathfinder.stats.HasStats):
             damage. Defaults to this weapon's default lethality.
         :type nonlethal: bool
 
+        :param attack_mods: Additional modifiers to the attack roll.
+        :type attack_mods: None or dict
+
         :return: None if the attack misses, else a tuple of Damages.
         :rtype: None or tuple of pathfinder.damage.Damage
         """
@@ -752,7 +761,9 @@ class Weapon(pathfinder.stats.HasStats):
         if target.isa(Combatant):
             if actor.combat_range_to(target) > attack.attack_info.range:
                 raise pathfinder.errors.OutOfAttackRange()
-        damages = attack(actor, target, nonlethal=nonlethal)
+        #: :type: None or tuple of pathfinder.damage.Damage
+        damages = attack(actor, target, nonlethal=nonlethal,
+                         attack_mods=attack_mods)
         if damages:
             notice = [('action', '  Damage: '), damages[0]]
             for dmg in damages[1:]:

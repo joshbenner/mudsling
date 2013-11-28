@@ -350,7 +350,7 @@ class StrikeCmd(pathfinder.commands.CombatCommand):
         else:
             nonlethal = None
         #: :type: pathfinder.combat.Weapon
-        weapon = actor.unarmed_weapon if unarmed else wielded[0]
+        weapon = actor.unarmed_weapon if unarmed else actor.next_attack_weapon
         # Push weapon into parsed_args for use in emote.
         if self.game.db.is_valid(weapon, pathfinder.objects.PathfinderObject):
             self.parsed_args['weapon'] = weapon

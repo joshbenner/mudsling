@@ -259,8 +259,8 @@ class Character(mudslingcore.objects.Character,
         'range increment modifier': -2,
         'shoot into melee modifier': -4,
         'improvised weapon modifier': -4,
-        'two weapon primary hand modifier': -4,
-        'two weapon off hand modifier': -8,
+        'two weapon primary hand modifier': -6,
+        'two weapon off hand modifier': -10,
         'melee damage modifier': Roll('strength modifier'),
         'primary melee damage bonus': Roll('melee damage modifier'),
         'off hand melee damage bonus': Roll('trunc(melee damage modifier/2)'),
@@ -1044,6 +1044,12 @@ class Character(mudslingcore.objects.Character,
             mods.update(self.get_stat_modifiers('all attacks'))
         elif resolved in ('fortitude', 'reflex', 'will'):
             mods.update(self.get_stat_modifiers('all saves'))
+        elif resolved in ('two weapon primary hand modifier',
+                          'two weapon off hand modifier'):
+            off_weap = self.off_hand_weapon
+            light = pathfinder.combat.WieldType.Light
+            if off_weap is not None and off_weap.wield_type == light:
+                mods['light off hand weapon'] = 2
         return mods
 
     def check_prerequisites(self, prerequisites):
@@ -1096,16 +1102,63 @@ class Character(mudslingcore.objects.Character,
         # todo: feats
         self.process_input("+finalize/confirm")
 
-    def join_battle(self, battle):
-        battle.add_combatant(self.ref())
+    @property
+    def next_attack_weapon(self):
+        """
+        Returns weapon to be used in next attack.
+        :rtype: pathfinder.combat.Weapon
+        """
+        attack_offset = (0 if not self.taking_turn
+                         else self.spent_combat_actions('attack'))
+        return self.attack_weapon(attack_offset + 1)
+
+    def attack_weapon(self, attack_num=1):
+        """
+        Returns the weapon to be used for the specified attack.
+        :rtype: pathfinder.combat.Weapon
+        """
+        return (self.off_hand_weapon if attack_num > self.num_bab_attacks
+                else self.primary_weapon)
 
     @property
-    def num_attacks(self):
+    def num_bab_attacks(self):
         """
-        The number of attacks this character can perform per turn.
+        Number of attacks granted by base attack bonus.
         :rtype: int
         """
         return 1 + math.trunc((self.bab - 1) / 5)
+
+    @property
+    def attacks(self):
+        """
+        Bonus applied to each attack available to the character per turn.
+        :rtype: tuple of int
+        """
+        if '__attacks' not in self._stat_cache:
+            attacks = [-i * 5 for i in xrange(self.num_bab_attacks)]
+            # Wielding two weapons yields additional attack, but also applies
+            # penalties to the other attacks.
+            if self.off_hand_weapon is not None:
+                attacks.append(0)  # No mods, they are added at attack time.
+            self.cache_stat('__attacks', tuple(attacks))
+        return self._stat_cache['__attacks']
+
+    def roll_attack(self, target, weapon, attack_type, attack_mode,
+                    attack_mods=None, stealth=False):
+        mods = OrderedDict()
+        if len(self.wielded_weapons) > 1:
+            # Two weapon fighting.
+            if weapon == self.primary_weapon:
+                stat = 'two weapon primary hand modifier'
+            else:
+                stat = 'two weapon off hand modifier'
+            mods['two weapon fighting'] = Roll(stat)
+        if attack_mods is not None:
+            mods.update(attack_mods)
+        return super(Character, self).roll_attack(target, weapon, attack_type,
+                                                  attack_mode,
+                                                  attack_mods=mods,
+                                                  stealth=stealth)
 
     def body_region_worn(self, region=None):
         """
@@ -1202,6 +1255,18 @@ class Character(mudslingcore.objects.Character,
     def primary_hand(self):
         hands = self.hands.keys()
         return hands[0] if hands else None
+
+    @property
+    def primary_weapon(self):
+        return self.hands[self.primary_hand] or self.unarmed_weapon
+
+    @property
+    def off_hand_weapon(self):
+        primary = self.primary_hand
+        for hand, weapon in self.hands.iteritems():
+            if hand != primary:
+                return weapon
+        return None
 
     def is_wielding_obj(self, obj):
         """
