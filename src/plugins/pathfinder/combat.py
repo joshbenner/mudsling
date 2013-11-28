@@ -718,39 +718,95 @@ class Weapon(pathfinder.stats.HasStats):
                     return attack
         raise pathfinder.errors.NoSuchAttack()
 
-    def do_attack(self, actor, target, attack_type=None, name=None,
+    def do_attack(self, actor, target, attack_group=None, name=None,
                   nonlethal=None):
-        attack = self.get_attack(attack_type, name)
+        """
+        Perform a specific attack that this weapon is capable of.
+
+        See :py:meth:`._standard_attack` for a reference attack implementation.
+
+        :param actor: The combatant carrying out the attack.
+        :type actor: Combatant
+
+        :param target: The recipient of the attack.
+        :type target: pathfinder.objects.PathfinderObject
+
+        :param attack_group: The group of the attack being carried out, such as
+            strike, shoot, throw, etc.
+        :type attack_group: str
+
+        :param name: Optional specific name of the attack. Useful if a weapon
+            has multiple attacks within the specified group. If no name is
+            specified, then the default attack in that group is used.
+        :type name: str
+
+        :param nonlethal: Whether the attack is intended to deal nonlethal
+            damage. Defaults to this weapon's default lethality.
+        :type nonlethal: bool
+
+        :return: None if the attack misses, else a tuple of Damages.
+        :rtype: None or tuple of pathfinder.damage.Damage
+        """
+        #: See :py:meth:`._standard_attack`
+        attack = self.get_attack(attack_group, name)
         if target.isa(Combatant):
             if actor.combat_range_to(target) > attack.attack_info.range:
                 raise pathfinder.errors.OutOfAttackRange()
         damages = attack(actor, target, nonlethal=nonlethal)
-        if len(damages) > 0:
+        if damages:
             notice = [('action', '  Damage: '), damages[0]]
             for dmg in damages[1:]:
                 notice.extend((', ', dmg))
             actor.rpg_notice(*notice)
             target.take_damage(damages)
+        return damages
 
-    def _standard_attack(self, actor, target, attack_type, attack_mode,
+    def _standard_attack(self, attacker, target, attack_type, attack_mode,
                          nonlethal=None, attack_mods=None):
         """
         A standard attack implementation that can be used in specific attacks.
+        This method also serves as the reference attack implementation.
+
+        :param attacker: The object performing the attack.
+        :type attacker: Combatant
+
+        :param target: The object being attacked.
+        :type target: pathfinder.objects.PathfinderObject
+
+        :param attack_type: The type of attack to perform. This is passed to
+            attacker.roll_attack() and is used to determine which stat and
+            modifiers to use for the attack roll.
+        :type attack_type: str
+
+        :param attack_mode: The manner in which the attack is performed.
+            Usually either "melee" or "ranged". This is passed to roll_attack
+            and is used to determine if any special-case modifiers apply.
+        :type attack_mode: str
+
+        :param nonlethal: Whether the attack is dealing nonlethal damage.
+        :type nonlethal: bool
+
+        :param attack_mods: Any additional modifiers to the attack roll.
+        :type attack_mods: dict
+
+        :returns: None if the attack misses. If the attack hits, then returns
+            a tuple of Damage instances.
+        :rtype: None or tuple of pathfinder.damage.Damage
         """
         if nonlethal is None:
             nonlethal = self.nonlethal
         if nonlethal != self.nonlethal:
             attack_mods = attack_mods or OrderedDict()
             attack_mods['lethality inversion'] = -4
-        hit, crit = actor.roll_attack(target, weapon=self,
-                                      attack_type=attack_type,
-                                      attack_mode=attack_mode,
-                                      attack_mods=attack_mods)
+        hit, crit = attacker.roll_attack(target, weapon=self,
+                                         attack_type=attack_type,
+                                         attack_mode=attack_mode,
+                                         attack_mods=attack_mods)
         if hit:
-            return self.roll_damage(actor, attack_type, crit=crit,
+            return self.roll_damage(attacker, attack_type, crit=crit,
                                     nonlethal=nonlethal, desc=True)
         else:
-            return ()
+            return None
 
     def roll_damage(self, char, attack_type, crit=False, bonus=None,
                     extra=None, nonlethal=None, desc=False):

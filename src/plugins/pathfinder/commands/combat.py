@@ -356,5 +356,16 @@ class StrikeCmd(pathfinder.commands.CombatCommand):
             self.parsed_args['weapon'] = weapon
         else:
             self.parsed_args['weapon'] = weapon.name
-        weapon.do_attack(actor, args['target'], attack_type='strike',
-                         nonlethal=nonlethal)
+        damage = weapon.do_attack(actor, args['target'], attack_group='strike',
+                                  nonlethal=nonlethal)
+        self.display_emote()
+        if damage is None:
+            msg = ['{c', actor, ' {ymisses {m', args['target'], '{n.']
+        else:
+            if damage:
+                dmg_msg = ', '.join(['{y%s{n' % d for d in damage])
+            else:
+                dmg_msg = '{y0{n'
+            msg = ['{c', actor, ' {rHITs {m', args['target'], '{n for ',
+                   dmg_msg, ' points of damage.']
+        actor.emit(msg)
