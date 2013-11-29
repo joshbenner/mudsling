@@ -20,6 +20,7 @@ import pathfinder.objects
 import pathfinder.conditions
 import pathfinder.errors
 import pathfinder.stats
+import pathfinder.damage
 from pathfinder.events import EventType
 
 
@@ -295,6 +296,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
 
     stat_defaults = {
         'initiative': 0,
+        'improvised weapon modifier': -4,
     }
 
     @property
@@ -367,7 +369,7 @@ class Combatant(pathfinder.objects.PathfinderObject):
         return self.battle_initiative
 
     def roll_attack(self, target, weapon, attack_type, attack_mode,
-                    attack_mods=None, stealth=False):
+                    attack_mods=None, improvised=False, stealth=False):
         """
         Perform an attack roll against a target.
 
@@ -388,6 +390,9 @@ class Combatant(pathfinder.objects.PathfinderObject):
         :param attack_mods: Additional modifiers to apply to the attack roll.
         :type attack_mods: dict or None
 
+        :param improvised: Whether the attack is improvised.
+        :type improvised: bool
+
         :param stealth: Whether or not to hide the RPG notice output.
         :type stealth: bool
 
@@ -403,6 +408,8 @@ class Combatant(pathfinder.objects.PathfinderObject):
             mods['%s attack' % ordinal] = bab_mod
         if weapon_mod:
             mods['weapon'] = weapon_mod
+        if improvised:
+            mods['improvised'] = Roll('improvised weapon modifier')
         if attack_mods is not None:
             mods.update(attack_mods)
         vs = ('%s attack' % attack_mode, attack_type)
@@ -763,7 +770,8 @@ class Weapon(pathfinder.stats.HasStats):
                 raise pathfinder.errors.OutOfAttackRange()
         #: :type: None or tuple of pathfinder.damage.Damage
         damages = attack(actor, target, nonlethal=nonlethal,
-                         attack_mods=attack_mods)
+                         attack_mods=attack_mods,
+                         improvised=attack.attack_info.improvised)
         if damages:
             notice = [('action', '  Damage: '), damages[0]]
             for dmg in damages[1:]:
@@ -773,7 +781,7 @@ class Weapon(pathfinder.stats.HasStats):
         return damages
 
     def _standard_attack(self, attacker, target, attack_type, attack_mode,
-                         nonlethal=None, attack_mods=None):
+                         nonlethal=None, attack_mods=None, improvised=False):
         """
         A standard attack implementation that can be used in specific attacks.
         This method also serves as the reference attack implementation.
@@ -800,6 +808,9 @@ class Weapon(pathfinder.stats.HasStats):
         :param attack_mods: Any additional modifiers to the attack roll.
         :type attack_mods: dict
 
+        :param improvised: Whether the attack is an improvised attack.
+        :type improvised: bool
+
         :returns: None if the attack misses. If the attack hits, then returns
             a tuple of Damage instances.
         :rtype: None or tuple of pathfinder.damage.Damage
@@ -812,7 +823,8 @@ class Weapon(pathfinder.stats.HasStats):
         hit, crit = attacker.roll_attack(target, weapon=self,
                                          attack_type=attack_type,
                                          attack_mode=attack_mode,
-                                         attack_mods=attack_mods)
+                                         attack_mods=attack_mods,
+                                         improvised=improvised)
         if hit:
             return self.roll_damage(attacker, attack_type, crit=crit,
                                     nonlethal=nonlethal, desc=True)
@@ -839,7 +851,11 @@ class Weapon(pathfinder.stats.HasStats):
         nonlethal = nonlethal if nonlethal is not None else self.nonlethal
         fname = 'roll_%s_damage' % attack_type.replace(' ', '_').lower()
         func = getattr(self, fname)
-        damages = list(func(char, nonlethal=nonlethal, desc=desc))
+        damages = func(char, nonlethal=nonlethal, desc=desc)
+        if isinstance(damages, pathfinder.damage.Damage):
+            damages = [damages]
+        else:
+            damages = list(damages)
         if bonus:
             damages.append(bonus.roll(char, desc=desc))
         if crit:

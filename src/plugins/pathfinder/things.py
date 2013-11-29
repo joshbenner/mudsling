@@ -9,6 +9,7 @@ import pathfinder
 import pathfinder.combat
 import pathfinder.commands.thing
 import pathfinder.materials
+import pathfinder.damage
 from pathfinder.errors import PartNotFoundError
 from pathfinder.objects import PathfinderObject
 
@@ -26,6 +27,11 @@ class Thing(core_objects.Thing, PathfinderObject, pathfinder.combat.Weapon):
     improvised_melee_attack = pathfinder.combat.simple_attack(
         group='strike', type='melee', mode='melee', improvised=True,
         default=True)
+
+    def roll_melee_damage(self, char, nonlethal, desc=False):
+        roll = pathfinder.improvised_damage[self.size_category]
+        dmg = pathfinder.damage.DamageRoll(roll, 'bludgeoning')
+        return dmg.roll(char, nonlethal=nonlethal, desc=desc)
 
     @pathfinder.combat.attack('throw', improvised=True)
     def improvised_ranged_attack(self, actor, target):

@@ -1199,9 +1199,9 @@ class Character(mudslingcore.objects.Character,
         return self._stat_cache['__attacks']
 
     def roll_attack(self, target, weapon, attack_type, attack_mode,
-                    attack_mods=None, stealth=False):
+                    attack_mods=None, improvised=False, stealth=False):
         mods = OrderedDict()
-        if not self.is_proficient_with(weapon):
+        if not improvised and not self.is_proficient_with(weapon):
             mods['nonproficiency'] = -4
         if len(self.wielded_weapons) > 1:
             # Two weapon fighting.
@@ -1215,6 +1215,7 @@ class Character(mudslingcore.objects.Character,
         return super(Character, self).roll_attack(target, weapon, attack_type,
                                                   attack_mode,
                                                   attack_mods=mods,
+                                                  improvised=improvised,
                                                   stealth=stealth)
 
     def body_region_worn(self, region=None):
