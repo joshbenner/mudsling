@@ -25,6 +25,7 @@ from pathfinder.parsers import AbilityNameStaticParser, RaceStaticParser
 from pathfinder.parsers import ClassStaticParser, SkillStaticParser
 from pathfinder.parsers import MatchCharacter, FeatStaticParser
 import pathfinder.errors as pferr
+import pathfinder.modifiers
 
 view_charsheets = locks.Lock('perm(view character sheets)')
 
@@ -136,16 +137,20 @@ class RaceCmd(Command):
         ])
         # Table doesn't do data keys on objects without __dict__!
         for race in pathfinder.data.registry['race'].itervalues():
-            table.add_row([race.name, race.ability_modifiers])
+            table.add_row([race.name, race.modifiers])
         actor.tell(table)
 
     def _format_abilities(self, mods):
         abils = []
-        for abil, val in mods.iteritems():
-            i = pathfinder.abilities.index(abil.lower())
-            abil = pathfinder.abil_short[i].upper()
-            val = pathfinder.format_modifier(val)
-            abils.append('{y%s {m%s' % (val, abil))
+        for mod in mods:
+            if mod.type == pathfinder.modifiers.Types.bonus:
+                roll = mod.payload_desc[0]
+                abil = mod.payload_desc[1].lower()
+                if abil in pathfinder.abilities:
+                    i = pathfinder.abilities.index(abil)
+                    abil = pathfinder.abil_short[i].upper()
+                    val = pathfinder.format_modifier(roll.eval())
+                    abils.append('{y%s {m%s' % (val, abil))
         return '{n, '.join(abils)
 
 

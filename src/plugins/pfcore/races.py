@@ -8,12 +8,10 @@ class Dwarf(Race):
     name = 'Dwarf'
     plural = 'Dwarves'
     size = pathfinder.sizes.size_categories['medium']
-    ability_modifiers = {
-        'Constitution': 2,
-        'Wisdom': 2,
-        'Charisma': -2,
-    }
     modifiers = pathfinder.modifiers.modifiers(
+        '+2 to Constitution',
+        '+2 to Wisdom',
+        '-2 to Charisma',
         'Grants Darkvision',
         '+4 dodge bonus to AC against giant subtype',
         '+2 racial bonus on Appraise skill checks',
