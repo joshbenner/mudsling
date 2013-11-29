@@ -188,6 +188,15 @@ class HasStats(Persistent):
             self._stat_cache = {}
         self._stat_cache[stat] = value
 
+    def stat_cache_get(self, key, callback, *a, **kw):
+        """
+        Obtain a cached value, generating the cached value with the result of
+        a callback if needed.
+        """
+        if key not in self._stat_cache:
+            self.cache_stat(key, callback(*a, **kw))
+        return self._stat_cache[key]
+
     def clear_stat_cache(self, key=None):
         if key is not None:
             if key in self._stat_cache:

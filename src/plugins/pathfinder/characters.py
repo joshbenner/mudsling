@@ -486,6 +486,8 @@ class Character(mudslingcore.objects.Character,
 
         :rtype: bool
         """
+        if isinstance(equipment, UnarmedWeapon):
+            return True
         equip_profs = equipment.valid_proficiencies()
         profs = self.proficiencies
         return True if len(equip_profs.intersection(profs)) else False
@@ -1199,6 +1201,8 @@ class Character(mudslingcore.objects.Character,
     def roll_attack(self, target, weapon, attack_type, attack_mode,
                     attack_mods=None, stealth=False):
         mods = OrderedDict()
+        if not self.is_proficient_with(weapon):
+            mods['nonproficiency'] = -4
         if len(self.wielded_weapons) > 1:
             # Two weapon fighting.
             if weapon == self.primary_weapon:
@@ -1429,8 +1433,7 @@ class Character(mudslingcore.objects.Character,
 
     @property
     def unarmed_weapon(self):
-        return UnarmedWeapon(self)
-
+        return self.stat_cache_get('__unarmed_weapon', UnarmedWeapon, self)
 
 
 # Assign commands here to avoid circular import issues.
