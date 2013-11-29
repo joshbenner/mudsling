@@ -1,3 +1,6 @@
+import mudsling.utils.string as string_utils
+import mudsling.utils.object as obj_utils
+
 import pathfinder.equipment
 import pathfinder.data
 from pathfinder.combat import attack, simple_attack
@@ -23,11 +26,26 @@ class Weapon(MultipartThing, pathfinder.equipment.Equipment):
     """
     A pathfinder weapon.
     """
-    proficiency = 'simple weapons'  # Proficiency required to use the weapon.
+    group = 'simple'  # Proficiency required to use the weapon.
+    category = ''     # Melee, Projectile, etc
+    family = ''       # Sword, Knife, Bow, Handgun, Longarm, Shotgun, etc
+    type = ''         # Shortsword, Light crossbow, Beretta 92FS, etc
 
-    category = ''  # Melee, Projectile, etc
-    family = ''    # Sword, Knife, Bow, Handgun, Longarm, Shotgun, etc
-    type = ''      # Shortsword, Light crossbow, Beretta 92FS, etc
+    @classmethod
+    @obj_utils.memoize()
+    def valid_proficiencies(cls):
+        profs = super(Weapon, cls).valid_proficiencies()
+        if cls.group:
+            profs.add("%s weapons" % cls.group.lower())
+        if cls.category:
+            profs.add("%s weapons" % cls.category.lower())
+        if cls.family:
+            profs.add("%s weapons" % cls.family.lower())
+            profs.add(string_utils.inflection.plural_noun(cls.family.lower()))
+        if cls.type:
+            profs.add(cls.type.lower())
+            profs.add(string_utils.inflection.plural_noun(cls.type.lower()))
+        return profs
 
 
 class MeleeWeapon(Weapon):

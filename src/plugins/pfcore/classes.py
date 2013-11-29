@@ -9,13 +9,13 @@ from pathfinder.modifiers import modifiers
 class FighterProficiencies(pathfinder.characters.StaticCharacterFeature):
     name = "Fighter Proficiencies"
     modifiers = modifiers(
-        'Proficient with simple weapons',
-        'Proficient with martial weapons',
-        'Proficient with light armor',
-        'Proficient with medium armor',
-        'Proficient with heavy armor',
-        'Proficient with shields',
-        'Proficient with tower shields',
+        'Grants Simple Weapon Proficiency',
+        'Proficient with all martial weapons',
+        'Grants Armor Proficiency, Light',
+        'Grants Armor Proficiency, Medium',
+        'Grants Armor Proficiency, Heavy',
+        'Grants Shield Proficiency',
+        'Grants Tower Shield Proficiency',
     )
 
 

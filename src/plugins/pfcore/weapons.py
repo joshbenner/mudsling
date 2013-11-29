@@ -7,9 +7,9 @@ from pathfinder.damage import DamageRoll
 
 
 class Shortsword(MeleeWeapon):
+    group = 'martial'
     family = 'Sword'
     type = 'Shortsword'
-    proficiency = 'martial'
 
     wield_type = WieldType.Light
 

@@ -35,6 +35,15 @@ class Equipment(Thing, mudslingcore.objects.Container):
         responders.extend(self.enhancements)
         return responders
 
+    @classmethod  # Instances cannot override proficiencies.
+    def valid_proficiencies(cls):
+        """
+        What proficiencies apply to this object?
+        :rtype: set of any
+        """
+        #: :type: set of any
+        return {cls}
+
     @property
     def used_cargo_capacity(self):
         """

@@ -22,7 +22,7 @@ BNF:
        speak ::= ["can"] "speak"["s"] <alphanums>+
       resist ::= ["can" | "gain"["s"]] "resist"["s"] damagetype damageval
       reduct ::= ["gain"["s"]] "DR" damageval "/" (damagetype | "-")
-  proficient ::= "proficient" ("with" | "in" | "at") name
+  proficient ::= "proficient" ("with" | "in" | "at") ["all"] name
     modifier ::= (bonus | resist | reduct | grant | cause | speak
                   | proficient) [expire]
 
@@ -120,6 +120,7 @@ def _grammar():
     reduct += L('/') + (damagetype | L('-')).setResultsName("reduction type")
 
     proficient = Suppress(CK("proficient") + CK("with") | CK("in") | CK("at"))
+    proficient += Suppress(Optional(CK('all')))
     proficient += WordStart() + lastitem.setResultsName('proficiency')
 
     modifier = (bonus | resist | reduct | grant | become | lang | proficient)

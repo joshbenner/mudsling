@@ -71,16 +71,19 @@ class AnimalAffinity(Feat):
 
 class ArmorProficiencyLight(Feat):
     name = 'Armor Proficiency, Light'
+    modifiers = modifiers('Proficient with light armor')
 
 
 class ArmorProficiencyMedium(Feat):
     name = 'Armor Proficiency, Medium'
     _prerequisites = ['Armor Proficiency, Light']
+    modifiers = modifiers('Proficient with medium armor')
 
 
 class ArmorProficiencyHeavy(Feat):
     name = 'Armor Proficiency, Heavy'
     _prerequisites = ['Armor Proficiency, Medium']
+    modifiers = modifiers('Proficient with heavy armor')
 
 
 class Athletic(Feat):
@@ -574,7 +577,9 @@ class MartialWeaponProficiency(Feat):
     name = 'Martial Weapon Proficiency'
     type = 'combat'
     multiple = True
-    subtypes = ()  # todo: Dynamic martial weapon list
+    subtypes = ()
+    # todo: Dynamic martial weapon list
+    # todo: Dynamic proficiency
 
 
 class Persuasive(Feat):
@@ -689,6 +694,7 @@ class SelfSufficient(Feat):
 class ShieldProficiency(Feat):
     name = 'Shield Proficiency'
     description = "Most shields' AC penalty only affects STR and DEX skills."
+    modifiers = modifiers('Proficient with shields')
 
 
 class ImprovedShieldBash(Feat):

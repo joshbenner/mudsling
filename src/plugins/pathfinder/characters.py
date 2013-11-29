@@ -32,6 +32,7 @@ import pathfinder.errors
 import pathfinder.equipment
 import pathfinder.things
 import pathfinder.sizes as sizes
+import pathfinder.weapons
 
 
 class events(object):
@@ -467,13 +468,27 @@ class Character(mudslingcore.objects.Character,
     @property
     def proficiencies(self):
         """
-        :rtype: set of str
+        :rtype: set of any
         """
         if '__proficiencies' not in self._stat_cache:
             event = self.trigger_event(events.proficiencies)
             prof = set(filter(lambda v: v, event.responses.itervalues()))
             self.cache_stat('__proficiencies', prof)
         return self._stat_cache['__proficiencies']
+
+    def is_proficient_with(self, equipment):
+        """
+        Whether the character is proficient in the use of a specified piece of
+        equipment.
+
+        :param equipment: The equipment to query about proficiency.
+        :type equipment: pathfinder.equipment.Equipment
+
+        :rtype: bool
+        """
+        equip_profs = equipment.valid_proficiencies()
+        profs = self.proficiencies
+        return True if len(equip_profs.intersection(profs)) else False
 
     def trigger_event(self, event, **kw):
         event = super(Character, self).trigger_event(event, **kw)
