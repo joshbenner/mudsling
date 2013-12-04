@@ -36,6 +36,7 @@ class events(object):
     combat_command = EventType('combat command')
     attack_command = EventType('attack command')
     melee_attack_command = EventType('melee attack command')
+    ranged_attack_command = EventType('ranged attack command')
 
 
 class MoveError(pathfinder.errors.PathfinderError):

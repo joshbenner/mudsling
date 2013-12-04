@@ -157,6 +157,10 @@ class PathfinderObject(mudsling.objects.Object,
 
         :rtype: pathfinder.RollResult
         """
+        if 'always_fails' not in vars:
+            vars['always_fails'] = 1
+        if 'always_succeeds' not in vars:
+            vars['always_succeeds'] = 20
         return self.pf_roll('1d20', mods=mods, state=state, **vars)
 
     @property

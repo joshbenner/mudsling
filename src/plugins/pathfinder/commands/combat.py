@@ -306,6 +306,19 @@ class WieldingCmd(mudsling.commands.Command):
             actor.tell(*msg)
 
 
+def attack_dmg_emit(attacker, target, damage):
+    if damage is None:
+        msg = ['{c', attacker, ' {ymisses {m', target, '{n.']
+    else:
+        if damage:
+            dmg_msg = ', '.join(['{y%s{n' % d for d in damage])
+        else:
+            dmg_msg = '{y0{n'
+        msg = ['{c', attacker, ' {rHITs {m', target, '{n for ',
+               dmg_msg, ' points of damage.']
+    attacker.emit(msg)
+
+
 class StrikeCmd(pathfinder.commands.CombatCommand):
     """
     strike[/unarmed][/nonlethal][/lethal] <target> [:<emote>]
@@ -359,13 +372,42 @@ class StrikeCmd(pathfinder.commands.CombatCommand):
         damage = weapon.do_attack(actor, args['target'], attack_group='strike',
                                   nonlethal=nonlethal)
         self.display_emote()
-        if damage is None:
-            msg = ['{c', actor, ' {ymisses {m', args['target'], '{n.']
+        attack_dmg_emit(actor, args['target'], damage)
+
+
+class ThrowCmd(pathfinder.commands.CombatCommand):
+    """
+    throw [at] <target> [:<emote>]
+
+    Throw a wielded object.
+    """
+    aliases = ('throw',)
+    syntax = '[at] <target> [:<emote>]'
+    arg_parsers = {
+        'target': pathfinder.parsers.match_combatant
+    }
+    events = (
+        pathfinder.combat.events.combat_command,
+        pathfinder.combat.events.attack_command,
+        pathfinder.combat.events.ranged_attack_command
+    )
+    default_emotes = [
+        "throws $weapon at $target."
+    ]
+    action_cost = {'attack': 1}
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        weapon = actor.next_attack_weapon
+        if self.game.db.is_valid(weapon, pathfinder.objects.PathfinderObject):
+            self.parsed_args['weapon'] = weapon
         else:
-            if damage:
-                dmg_msg = ', '.join(['{y%s{n' % d for d in damage])
-            else:
-                dmg_msg = '{y0{n'
-            msg = ['{c', actor, ' {rHITs {m', args['target'], '{n for ',
-                   dmg_msg, ' points of damage.']
-        actor.emit(msg)
+            self.parsed_args['weapon'] = weapon.name
+        damage = weapon.do_attack(actor, args['target'], attack_group='throw')
+        self.display_emote()
+        attack_dmg_emit(actor, args['target'], damage)
+

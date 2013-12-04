@@ -28,14 +28,20 @@ class Thing(core_objects.Thing, PathfinderObject, pathfinder.combat.Weapon):
         group='strike', type='melee', mode='melee', improvised=True,
         default=True)
 
-    def roll_melee_damage(self, char, nonlethal, desc=False):
+    improvised_throw_attack = pathfinder.combat.simple_attack(
+        group='throw', type='throw', mode='ranged', improvised=True, range=3,
+        default=True)
+
+    def roll_improvised_damage(self, char, nonlethal, desc=False):
         roll = pathfinder.improvised_damage[self.size_category]
         dmg = pathfinder.damage.DamageRoll(roll, 'bludgeoning')
         return dmg.roll(char, nonlethal=nonlethal, desc=desc)
 
-    @pathfinder.combat.attack('throw', improvised=True)
-    def improvised_ranged_attack(self, actor, target):
-        raise NotImplemented
+    def roll_melee_damage(self, char, nonlethal, desc=False):
+        return self.roll_improvised_damage(char, nonlethal, desc=desc)
+
+    def roll_throw_damage(self, char, nonlethal, desc=False):
+        return self.roll_improvised_damage(char, nonlethal, desc=desc)
 
     def get_stat_base(self, stat, resolved=False):
         stat = stat if resolved else self.resolve_stat_name(stat)[0]

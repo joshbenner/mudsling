@@ -50,7 +50,7 @@ class RollResult(mudsling.storage.PersistentSlots):
                  'target_number', 'success')
 
     def __init__(self, base_roll, mods=None, state=None, target_number=None,
-                 always_succeeds=None, **vars):
+                 always_succeeds=None, always_fails=None, **vars):
         """
         :param base_roll: The base roll to perform. Usually only a diespec.
         :type base_roll: str
@@ -99,10 +99,9 @@ class RollResult(mudsling.storage.PersistentSlots):
         self.total = total
         self.desc = desc
         if self.target_number is not None:
-            if always_succeeds is None:
-                always_succeeds = _cached_roll(base_roll).max
             self.success = succeeds(self.natural, self.total, target_number,
-                                    always_succeeds=always_succeeds)
+                                    always_succeeds=always_succeeds,
+                                    always_fails=always_fails)
         else:
             self.success = None
 
@@ -125,6 +124,10 @@ class D20Result(RollResult):
     """
 
     def __init__(self, mods=None, state=None, **vars):
+        if 'always_fails' not in vars:
+            vars['always_fails'] = 1
+        if 'always_succeeds' not in vars:
+            vars['always_succeeds'] = 20
         super(D20Result, self).__init__('1d20', mods=mods, state=state, **vars)
 
 
@@ -166,10 +169,13 @@ def roll(expr, state=None, desc=False, **vars):
     return _cached_roll(expr).eval(state=state, desc=desc, **vars)
 
 
-def succeeds(natural, total, target_number, always_succeeds=20):
+def succeeds(natural, total, target_number, always_succeeds=20,
+             always_fails=1):
     """
     Convenience function to evaluate if a roll succeeded.
     """
+    if always_fails and natural <= always_fails:
+        return False
     return ((always_succeeds and natural >= always_succeeds)
             or total >= target_number)
 
@@ -184,14 +190,14 @@ icmoney.Currency('cp', 'Copper Piece', .001)
 # Default damage rolls for objects ob various sizes.
 improvised_damage = {
     sizes.Fine: Roll('0'),
-    sizes.Diminutive: Roll('1d1'),
-    sizes.Tiny: Roll('1d2'),
-    sizes.Small: Roll('1d4'),
-    sizes.Medium: Roll('1d8'),
-    sizes.Large: Roll('1d20'),
-    sizes.Huge: Roll('2d20'),
-    sizes.Gargantuan: Roll('4d20'),
-    sizes.Colossal: Roll('6d20')
+    sizes.Diminutive: Roll('1d1 + STR mod'),
+    sizes.Tiny: Roll('1d2 + STR mod'),
+    sizes.Small: Roll('1d4 + STR mod'),
+    sizes.Medium: Roll('1d8 + STR mod'),
+    sizes.Large: Roll('1d20 + STR mod'),
+    sizes.Huge: Roll('2d20 + STR mod'),
+    sizes.Gargantuan: Roll('4d20 + STR mod'),
+    sizes.Colossal: Roll('6d20 + STR mod')
 }
 
 
