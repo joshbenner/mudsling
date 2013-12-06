@@ -1,5 +1,6 @@
 import mudsling.commands
 import mudsling.storage
+import mudsling.errors
 import mudsling.utils.object as obj_utils
 import mudsling.utils.units as units
 
@@ -32,9 +33,30 @@ class Thing(core_objects.Thing, PathfinderObject, pathfinder.combat.Weapon):
         group='throw', type='throw', mode='ranged', improvised=True, range=3,
         default=True)
 
+    def do_attack(self, actor, target, attack_group=None, name=None,
+                  nonlethal=None, attack_mods=None):
+        damages = super(Thing, self).do_attack(actor, target,
+                                               attack_group=attack_group,
+                                               name=name,
+                                               nonlethal=nonlethal,
+                                               attack_mods=attack_mods)
+        # If we get here, then the attack was carried out.
+        if attack_group == 'throw':
+            try:
+                self.move_to(actor.location)
+            except (AttributeError, mudsling.errors.MoveError):
+                pathfinder.logger.warning("Could not move thrown weapon",
+                                          exc_info=1)
+        return damages
+
+    @property
+    def improvised_damage_roll(self):
+        """:rtype: dice.Roll"""
+        return pathfinder.improvised_damage[self.size_category]
+
     def roll_improvised_damage(self, char, nonlethal, desc=False):
-        roll = pathfinder.improvised_damage[self.size_category]
-        dmg = pathfinder.damage.DamageRoll(roll, 'bludgeoning')
+        dmg = pathfinder.damage.DamageRoll(self.improvised_damage_roll,
+                                           'bludgeoning')
         return dmg.roll(char, nonlethal=nonlethal, desc=desc)
 
     def roll_melee_damage(self, char, nonlethal, desc=False):

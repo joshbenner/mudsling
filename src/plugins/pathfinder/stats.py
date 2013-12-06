@@ -24,11 +24,10 @@ def resolve_roll_var(name, vars, state):
         obj = state['stat object']
         desc = state.get('desc', False)
         full_desc = desc == 'full'
-        result = obj.get_stat(name.replace('_', ' '), desc=full_desc)
+        result = obj.get_stat(name.replace('_', ' '), desc=desc)
         if desc:
-            if full_desc:
-                result, desc = result
-            else:
+            result, desc = result
+            if not full_desc:
                 desc = '%s(%s)' % (name, result)
         else:
             desc = None
