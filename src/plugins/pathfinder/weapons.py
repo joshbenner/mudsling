@@ -1,8 +1,12 @@
+import mudsling.storage
 import mudsling.utils.string as string_utils
 import mudsling.utils.object as obj_utils
 
 import pathfinder.equipment
 import pathfinder.data
+import pathfinder.errors
+import pathfinder.modifiers
+import pathfinder.objects
 from pathfinder.combat import attack, simple_attack
 from pathfinder.damage import DamageRoll
 from pathfinder.things import MultipartThing
@@ -65,9 +69,63 @@ class RangedWeapon(Weapon):
     category = 'Projectile'
     ranged_damage = DamageRoll(0)
 
-    @attack('shoot', default=True)
-    def ranged_attack(self, actor, target):
-        raise NotImplemented
+    def consume_ammo(self):
+        """
+        Consumes the ammo used for a single shot.
+        :raises: pathfinder.errors.InsufficientAmmo
+        :returns: The ammo used.
+        :rtype: Ammunition
+        """
+        raise pathfinder.errors.InsufficientAmmo()
 
-    def roll_ranged_damage(self, char, desc=False):
-        return self.ranged_damage.roll(char, desc=desc)
+    @attack('shoot', default=True, range=3)
+    def ranged_attack(self, actor, target, attack_type, attack_mod,
+                      nonlethal=None, attack_mods=None, improvised=False):
+        ammo = self.consume_ammo()
+        damage = self._standard_attack(actor, target, attack_type, attack_mod,
+                                       nonlethal=nonlethal,
+                                       attack_mods=attack_mods,
+                                       improvised=improvised)
+        if damage is not None:  # The shot hit, apply effects.
+            extra_dmg = ammo.apply_effects(target)
+            if extra_dmg:
+                damage = list(damage)
+                damage.extend(extra_dmg)
+                damage = tuple(damage)
+        return damage
+
+    def roll_ranged_damage(self, char, nonlethal, desc=False):
+        return self.ranged_damage.roll(char, nonlethal=nonlethal, desc=desc)
+
+
+class Ammunition(mudsling.storage.PersistentSlots):
+    """
+    A type of ammunition.
+
+    Ammunition will do the damage specified by the weapon firing it, but the
+    ammunition can apply affects to the target that has been hit.
+    """
+    name = ''
+    #: :type: list of (pathfinder.modifiers.Modifier, DamageRoll)
+    effects = []
+
+    @classmethod
+    def apply_effects(cls, target):
+        """
+        Apply this ammunition's effects to a target.
+
+        :param target: The target to which the effects will be applied.
+        :type target: pathfinder.objects.PathfinderObject
+
+        :returns: Any additional damage to do to target.
+        :rtype: list of pathfinder.damage.Damage
+        """
+        damages = []
+        if not pathfinder.objects.is_pfobj(target):
+            return
+        for effect in cls.effects:
+            if isinstance(effect, pathfinder.modifiers.Modifier):
+                target.apply_effect(effect, source=cls)
+            elif isinstance(effect, DamageRoll):
+                damages.append(effect.roll(target, desc=True))
+        return damages

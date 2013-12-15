@@ -105,3 +105,10 @@ class InvalidSave(PathfinderError):
     Thrown when a specified save type is invalid.
     """
     pass
+
+
+class InsufficientAmmo(PathfinderError):
+    """
+    Thrown if a weapon lacks ammunition.
+    """
+    pass

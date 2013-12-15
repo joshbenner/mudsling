@@ -1,7 +1,7 @@
 from mudsling.utils.measurements import Dimensions as Dim
 
 from pathfinder.things import Part
-from pathfinder.weapons import MeleeWeapon
+from pathfinder.weapons import MeleeWeapon, RangedWeapon
 from pathfinder.combat import WieldType
 from pathfinder.damage import DamageRoll
 
@@ -21,3 +21,13 @@ class Shortsword(MeleeWeapon):
         'blade': Part('Blade', 'steel', Dim(24, 3.5, 0.1, 'inches')),
         'hilt': Part('Hilt', 'wood', Dim(8, 1.5, 1.5, 'inches'))
     }
+
+
+class Bow(RangedWeapon):
+    """
+    A generic arrow-consuming bow.
+    """
+    family = 'Bow'
+
+    def consume_ammo(self):
+        pass

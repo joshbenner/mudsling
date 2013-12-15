@@ -463,11 +463,11 @@ class Combatant(pathfinder.objects.PathfinderObject):
     def consume_action(self, action_type, amount=1):
         if action_type == 'free':
             return
-        if action_type == 'attack':
+        elif action_type == 'attack':
             if self.remaining_combat_actions('standard'):
                 # All attacks in a turn consume a single standard action. We
                 # deduct/trigger instead of consume to avoid recursion issues.
-                self.deduct_action('standard')
+                self.deduct_action('standard', amount=amount)
                 self.trigger_event(events.action_spent, action_type='standard',
                                    amount=1)
         elif action_type == 'standard':
@@ -682,8 +682,8 @@ class Weapon(pathfinder.stats.HasStats):
     nonlethal = False
 
     stat_defaults = {
-        'attack modifier': Roll('0'),
-        'damage modifier': Roll('0'),
+        'attack modifier': 0,
+        'damage modifier': 0,
     }
     stat_aliases = {
         'attack': 'attack modifier',

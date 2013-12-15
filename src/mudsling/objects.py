@@ -707,6 +707,10 @@ class Object(BaseObject):
         #: :type: list of Object
         self._contents = []
 
+    def delete(self):
+        self.move_to(None)
+        return super(Object, self).delete()
+
     @property
     def location(self):
         """

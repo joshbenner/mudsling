@@ -2,29 +2,28 @@
 Modifiers are value-changers for stats, ability-grants, etc.
 
 BNF:
-        name ::= <printables> (<printables> | " ")*
-    rollexpr ::= <diceroll grammar>
-      nature ::= "enhancement" | "racial" | "dodge"
-        type ::= "bonus" | "penalty"
-  damagetype ::= name
-   damageval ::= <nums>+
-    statname ::= name
-      statvs ::= name
-        stat ::= statname [("against" | "vs") statvs]
-    timeunit ::= ("round" | "turn" | "second" | "minute" | "hour" | "day")["s"]
-    duration ::= "for" rollexpr timeunit
-       event ::= <printables>+
-       until ::= "until" event
-      expire ::= duration | until
-       bonus ::= rollexpr [nature] [type] ("to" | "on") stat
-       grant ::= "grant"["s"] <alphanums>+ ["feat"]
-      become ::= "become"["s"] name
-       speak ::= ["can"] "speak"["s"] <alphanums>+
-      resist ::= ["can" | "gain"["s"]] "resist"["s"] damagetype damageval
-      reduct ::= ["gain"["s"]] "DR" damageval "/" (damagetype | "-")
-  proficient ::= "proficient" ("with" | "in" | "at") ["all"] name
-    modifier ::= (bonus | resist | reduct | grant | cause | speak
-                  | proficient) [expire]
+       name ::= <printables> (<printables> | " ")*
+   rollexpr ::= <diceroll grammar>
+     nature ::= "enhancement" | "racial" | "dodge"
+       type ::= "bonus" | "penalty"
+ damagetype ::= name
+  damageval ::= <nums>+
+   statname ::= name
+     statvs ::= name
+       stat ::= statname [("against" | "vs") statvs]
+   timeunit ::= ("round" | "turn" | "second" | "minute" | "hour" | "day")["s"]
+   duration ::= "for" rollexpr timeunit
+      event ::= <printables>+
+      until ::= "until" event
+     expire ::= duration | until
+      bonus ::= rollexpr [nature] [type] ("to" | "on") stat
+      grant ::= "grant"["s"] <alphanums>+ ["feat"]
+     become ::= "become"["s"] name
+      speak ::= ["can"] "speak"["s"] <alphanums>+
+     resist ::= ["can" | "gain"["s"]] "resist"["s"] damagetype damageval
+     reduct ::= ["gain"["s"]] "DR" damageval "/" (damagetype | "-")
+ proficient ::= "proficient" ("with" | "in" | "at") ["all"] name
+   modifier ::= (bonus | resist | reduct | grant | speak | proficient) [expire]
 
 Examples:
 * +2 to STR for 2 turns
