@@ -16,8 +16,6 @@ class Arrow(pathfinder.weapons.Ammunition):
 class ArrowBundle(pathfinder.equipment.Equipment):
     """
     A bundle of one type of arrows.
-
-    .. todo:: Splitting bundles into other bundles.
     """
     arrow_type = Arrow
     arrow_count = 20
