@@ -120,7 +120,10 @@ class CombatCommand(mudsling.commands.Command):
                     **self.parsed_args
                 )
             if emote:
-                prefix = '{m(%s){n ' % self.emote_prefix
+                if self.actor.in_combat:
+                    prefix = '{m(%s){n ' % self.emote_prefix
+                else:
+                    prefix = ''
                 self.actor.emote(emote, prefix=prefix)
             # Prevent double-emotes.
             self.show_emote = False

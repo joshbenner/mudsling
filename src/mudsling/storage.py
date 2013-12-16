@@ -507,13 +507,13 @@ class Database(Persistent):
 
         obj = obj._real_object()
         try:
-            del self.objects[obj.obj_id]
-        except KeyError:
-            logging.error("%s missing from objects dictionary!" % obj)
-        try:
             self.type_registry[obj.__class__].remove(obj.ref())
         except (ValueError, KeyError):
             logging.error("%s missing from type registry!" % obj)
+        try:
+            del self.objects[obj.obj_id]
+        except KeyError:
+            logging.error("%s missing from objects dictionary!" % obj)
 
     def is_valid(self, obj, cls=None):
         """

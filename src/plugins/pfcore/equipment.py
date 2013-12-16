@@ -38,16 +38,115 @@ class ArrowBundle(pathfinder.equipment.Equipment):
         self.arrow_count -= remove
         return remove
 
+    def arrows_plural(self, count=None):
+        if count is None:
+            count = self.arrow_count
+        return str_utils.inflection.plural_noun(self.arrow_type.name,
+                                                count=count)
+
+    def split_bundle(self, count):
+        """
+        Create a new bundle just like this one with a few arrows from this
+        bundle.
+
+        :param count: How many arrows to use to create the new bundle.
+        :type count: int
+
+        :return: The new bundle.
+        :rtype: ArrowBundle
+        """
+        plural = self.arrows_plural()
+        #: :type: ArrowBundle
+        new_bundle = self.__class__.create(names=('Bundle of %s' % plural,))
+        new_bundle.arrow_count = 0
+        count = self.remove_arrows(count)
+        new_bundle.add_arrows(count)
+        return new_bundle
+
     @property
     def names(self):
         names = super(ArrowBundle, self).names
         autoname = "Bundle of %d %s" % (
             self.arrow_count,
-            str_utils.inflection.plural_noun(self.arrow_type.name.lower(),
-                                             count=self.arrow_count)
+            self.arrows_plural()
         )
         names = (autoname,) + names
         return names
+
+
+class SplitCmd(pathfinder.commands.CombatCommand):
+    """
+    split <num> from <bundle> [:<emote>]
+
+    Separates a bundle of arrows into two bundles, the new one containing
+    the specified number of arrows.
+    """
+    aliases = ('split',)
+    syntax = '<num> from <bundle> [:<emote>]'
+    arg_parsers = {
+        'num': mudsling.parsers.IntStaticParser,
+        'bundle': 'this',
+    }
+    default_emotes = [
+        'splits apart $bundle.',
+        'separates $bundle.'
+    ]
+    action_cost = {'move': 1}
+
+    def run(self, this, actor, args):
+        """
+        :type this: ArrowBundle
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        num = args['num']
+        if num > this.arrow_count:
+            raise self._err('There are only %d %s.'
+                            % (this.arrow_count, this.arrows_plural()))
+        new_bundle = this.split_bundle(num)
+        new_bundle.move_to(actor)
+        actor.tell('You now have {c', new_bundle, '{n.')
+
+
+class CombineCmd(pathfinder.commands.CombatCommand):
+    """
+    combine <bundle> with <bundle>
+
+    Combine two bundles into a single bundle. They must be bundles of the
+    same type of arrows.
+    """
+    aliases = ('combine',)
+    syntax = '<bundle1> {with|and|into} <bundle2>'
+    arg_parsers = {
+        'bundle1': mudsling.parsers.MatchObject(cls=ArrowBundle,
+                                                search_for='arrow bundle',
+                                                show=True),
+        'bundle2': 'this',
+    }
+    default_emotes = [
+        'combines bundles of arrows.',
+    ]
+    action_cost = {'move': 1}
+
+    def run(self, this, actor, args):
+        """
+        :type this: ArrowBundle
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        #: :type: ArrowBundle
+        other_bundle = args['bundle1']
+        if this.arrow_type != other_bundle.arrow_type:
+            raise self._err('Arrow types must match to combine.')
+        num = other_bundle.arrow_count
+        other_bundle.remove_arrows(num)
+        this.add_arrows(num)
+        self.display_emote()
+        other_bundle.move_to(None)
+        other_bundle.delete()
+        actor.tell('You now have {c', this, '{n.')
+
+ArrowBundle.public_commands = [SplitCmd, CombineCmd]
 
 
 class Quiver(pathfinder.equipment.WearableEquipment):
