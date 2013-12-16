@@ -184,7 +184,7 @@ def succeeds(natural, total, target_number, always_succeeds=20,
 icmoney.Currency('pp', 'Platinum Piece', 10.0)
 icmoney.Currency('gp', 'Gold Piece', 1.0)
 icmoney.Currency('sp', 'Silver Piece', 0.1)
-icmoney.Currency('cp', 'Copper Piece', .001)
+icmoney.Currency('cp', 'Copper Piece', .01)
 
 
 # Default damage rolls for objects ob various sizes.

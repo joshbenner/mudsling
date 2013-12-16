@@ -60,7 +60,7 @@ class Currency(object):
 
     def format_money(self, amount, show_code=True):
         amount = Decimal(str(amount))
-        fmt = "{:,2f}"
+        fmt = "{:,.2f}"
         if show_code:
             fmt += " {}"
         return fmt.format(amount, self.code)

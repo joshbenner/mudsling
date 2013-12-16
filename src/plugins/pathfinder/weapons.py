@@ -7,6 +7,7 @@ import pathfinder.data
 import pathfinder.errors
 import pathfinder.modifiers
 import pathfinder.objects
+import pathfinder.characters
 from pathfinder.combat import attack, simple_attack
 from pathfinder.damage import DamageRoll
 from pathfinder.things import MultipartThing
@@ -34,6 +35,14 @@ class Weapon(MultipartThing, pathfinder.equipment.Equipment):
     category = ''     # Melee, Projectile, etc
     family = ''       # Sword, Knife, Bow, Handgun, Longarm, Shotgun, etc
     type = ''         # Shortsword, Light crossbow, Beretta 92FS, etc
+
+    def wielded_by(self):
+        #: :type: pathfinder.characters.Character
+        who = self.location
+        if (pathfinder.characters.is_pfchar(who)
+                and self.ref() in who.wielded_weapons()):
+            return who
+        return None
 
     @classmethod
     @obj_utils.memoize()
@@ -69,10 +78,15 @@ class RangedWeapon(Weapon):
     category = 'Projectile'
     ranged_damage = DamageRoll(0)
 
-    def consume_ammo(self):
+    def consume_ammo(self, amount=1):
         """
         Consumes the ammo used for a single shot.
+
+        :param amount: How much ammo to consume.
+        :type amount: int
+
         :raises: pathfinder.errors.InsufficientAmmo
+
         :returns: The ammo used.
         :rtype: Ammunition
         """
