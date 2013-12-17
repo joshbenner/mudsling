@@ -107,8 +107,20 @@ class NamedObject(LockableObject):
 
     def __init__(self, **kwargs):
         super(NamedObject, self).__init__(**kwargs)
-        clsName = self.class_name()
-        self.set_names(kwargs.get('names', ("New " + clsName, clsName)))
+        names = kwargs.get('names', None) or (self.default_name(),)
+        self.set_names(names)
+
+    @classmethod
+    def default_name(cls):
+        """Name given to instance if no name was specified."""
+        name = registry.classes.get_class_name(cls, class_path=False)
+        if name is None:
+            # Convert class CamelCase name to spaced name.
+            # regex credit: http://stackoverflow.com/a/9283563
+            name = re.sub(r'((?<=[a-z])[A-Z]|(?<!\A)[A-Z](?=[a-z]))',
+                          r' \1',
+                          cls.__name__)
+        return name
 
     def __str__(self):
         return self.name

@@ -23,7 +23,7 @@ class CreateCmd(Command):
     """
     aliases = ('@create',)
     lock = 'perm(create objects)'
-    syntax = "<class> {called|named|=} <names>"
+    syntax = "<class> [{called|named|=} <names>]"
 
     def run(self, this, actor, args):
         cls = registry.classes.get_class(args['class'])
@@ -42,11 +42,14 @@ class CreateCmd(Command):
             msg = "{yYou do not have permission to create {c%s{y objects."
             actor.msg(msg % clsName)
             return
-        try:
-            names = misc.parse_names(args['names'])
-        except Exception as e:
-            actor.msg('{r' + e.message)
-            return
+        if 'names' in args and args['names']:
+            try:
+                names = misc.parse_names(args['names'])
+            except Exception as e:
+                actor.msg('{r' + e.message)
+                return
+        else:
+            names = None
 
         obj = cls.create(names=names, owner=actor)
         actor.msg("{gCreated new %s: {c%s" % (clsName, obj.nn))
