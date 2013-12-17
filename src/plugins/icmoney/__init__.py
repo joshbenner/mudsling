@@ -65,6 +65,11 @@ class Currency(object):
             fmt += " {}"
         return fmt.format(amount, self.code)
 
+    def __mul__(self, other):
+        return Money(1, self) * other
+
+    __rmul__ = __mul__
+
 #: The database of registered currencies.
 #: :type: dict of Currency
 currencies = {}

@@ -36,6 +36,10 @@ class Weapon(MultipartThing, pathfinder.equipment.Equipment):
     family = ''       # Sword, Knife, Bow, Handgun, Longarm, Shotgun, etc
     type = ''         # Shortsword, Light crossbow, Beretta 92FS, etc
 
+    @classmethod
+    def default_name(cls):
+        return cls.type if cls.type else super(Weapon, cls).default_name()
+
     def wielded_by(self):
         #: :type: pathfinder.characters.Character
         who = self.location

@@ -1321,10 +1321,11 @@ class Character(mudslingcore.objects.Character,
 
     @property
     def off_hand_weapon(self):
-        primary = self.primary_hand
+        primary_hand = self.primary_hand
+        primary_weapon = self.primary_weapon
         for hand, weapon in self.hands.iteritems():
-            if hand != primary:
-                return weapon
+            if hand != primary_hand:
+                return weapon if primary_weapon != weapon else None
         return None
 
     def is_wielding_obj(self, obj):

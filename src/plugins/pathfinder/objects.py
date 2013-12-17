@@ -11,7 +11,6 @@ import mudsling.errors
 import mudsling.commands
 import mudsling.tasks
 
-from icmoney import Money
 import dice
 
 import pathfinder
@@ -54,7 +53,7 @@ class PathfinderObject(mudsling.objects.Object,
     """
     _transient_vars = ['_stat_cache']
 
-    cost = Money(0, 'gp')
+    cost = None
     weight = mudsling.utils.units.Quantity(0, 'gram')
     hardness = 0
     dimensions = mudsling.utils.measurements.Dimensions()
