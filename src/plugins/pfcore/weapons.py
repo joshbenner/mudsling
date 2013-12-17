@@ -50,8 +50,9 @@ class Bow(RangedWeapon):
                 #: :type: pfcore.equipment.Quiver
                 quiver = worn
                 if amount <= quiver.num_arrows():
-                    for atype, num in quiver.arrow_inventory.items():
-                        if num >= amount:
+                    for atype, in_stock in quiver.arrow_inventory.items():
+                        if in_stock >= amount:
+                            quiver.remove_arrows(atype, amount=amount)
                             return atype
         raise pathfinder.errors.InsufficientAmmo()
 
@@ -77,23 +78,23 @@ class CompositeBow(Bow):
         return False
 
     def get_stat_base(self, stat, resolved=False):
-        stat = stat if resolved else self.resolve_stat_name(stat)
+        stat = stat if resolved else self.resolve_stat_name(stat)[0]
         if stat == 'attack modifier':
             return 0 if self.wielder_gets_bonus() else -2
         return super(CompositeBow, self).get_stat_base(stat, resolved=True)
 
     def roll_ranged_damage(self, char, nonlethal, desc=False):
-        damages = super(CompositeBow, self).roll_ranged_damage(char,
-                                                               nonlethal,
-                                                               desc=desc)
+        damage = super(CompositeBow, self).roll_ranged_damage(char,
+                                                              nonlethal,
+                                                              desc=desc)
         if self.wielder_gets_bonus():
             extra = min(self.strength_rating,
                         self.wielded_by().get_stat('str mod'))
-            damages = list(damages)
-            damages.append(Damage(extra, 'piercing', nonlethal=nonlethal,
-                                  desc=desc))
-            damages = tuple(damages)
-        return damages
+            damage = list(damage) if isinstance(damage, tuple) else [damage]
+            damage.append(Damage(extra, 'piercing', nonlethal=nonlethal,
+                                 desc='Composite STR bonus (%d)' % extra))
+            damage = tuple(damage)
+        return damage
 
 
 class Longbow(Bow):

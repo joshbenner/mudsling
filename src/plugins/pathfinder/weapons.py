@@ -44,7 +44,7 @@ class Weapon(MultipartThing, pathfinder.equipment.Equipment):
         #: :type: pathfinder.characters.Character
         who = self.location
         if (pathfinder.characters.is_pfchar(who)
-                and self.ref() in who.wielded_weapons()):
+                and self.ref() in who.wielded_weapons):
             return who
         return None
 
@@ -97,10 +97,10 @@ class RangedWeapon(Weapon):
         raise pathfinder.errors.InsufficientAmmo()
 
     @attack('shoot', default=True, range=3)
-    def ranged_attack(self, actor, target, attack_type, attack_mod,
-                      nonlethal=None, attack_mods=None, improvised=False):
+    def ranged_attack(self, attacker, target, nonlethal=None, attack_mods=None,
+                      improvised=False):
         ammo = self.consume_ammo()
-        damage = self._standard_attack(actor, target, attack_type, attack_mod,
+        damage = self._standard_attack(attacker, target, 'ranged', 'ranged',
                                        nonlethal=nonlethal,
                                        attack_mods=attack_mods,
                                        improvised=improvised)

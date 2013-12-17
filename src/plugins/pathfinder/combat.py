@@ -852,6 +852,7 @@ class Weapon(pathfinder.stats.HasStats):
         nonlethal = nonlethal if nonlethal is not None else self.nonlethal
         fname = 'roll_%s_damage' % attack_type.replace(' ', '_').lower()
         func = getattr(self, fname)
+        #: :type: list of pathfinder.damage.Damage
         damages = func(char, nonlethal=nonlethal, desc=desc)
         if isinstance(damages, pathfinder.damage.Damage):
             damages = [damages]
@@ -867,7 +868,18 @@ class Weapon(pathfinder.stats.HasStats):
                                 % (dmg.desc, self.critical_multiplier))
         if extra:
             damages.append(extra.roll(char, desc=desc))
-        return tuple(damages)
+        # Simplify any damages of same type.
+        for damage in list(damages):
+            if not damage.points:
+                continue
+            for dmg in damages:
+                if dmg != damage and dmg.points and damage.types == dmg.types:
+                    damage.points += dmg.points
+                    damage.desc += ' + ' + dmg.desc
+                    dmg.points = 0
+        # Filter out non-damaging damages.
+        return tuple(d for d in damages if d.points)
+
 
 
 class Battleground(mudsling.objects.Object):

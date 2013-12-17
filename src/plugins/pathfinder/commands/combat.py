@@ -8,6 +8,7 @@ import pathfinder.commands
 import pathfinder.objects
 import pathfinder.combat
 import pathfinder.characters
+import pathfinder.errors
 
 
 class FightCmd(pathfinder.commands.PhysicalCombatCommand):
@@ -411,3 +412,44 @@ class ThrowCmd(pathfinder.commands.CombatCommand):
         self.display_emote()
         attack_dmg_emit(actor, args['target'], damage)
 
+
+class ShootCmd(pathfinder.commands.CombatCommand):
+    """
+    shoot [at] <target> [:<emote>]
+
+    Make a ranged attack with a wielded weapon.
+    """
+    aliases = ('shoot',)
+    syntax = '[at] <target> [:<emote>]'
+    arg_parsers = {
+        'target': pathfinder.parsers.match_combatant
+    }
+    events = (
+        pathfinder.combat.events.combat_command,
+        pathfinder.combat.events.attack_command,
+        pathfinder.combat.events.ranged_attack_command
+    )
+    default_emotes = [
+        "shoots at $target with $weapon.",
+        "fires $weapon at $target.",
+    ]
+    action_cost = {'attack': 1}
+
+    def run(self, this, actor, args):
+        """
+        :type this: pathfinder.characters.Character
+        :type actor: pathfinder.characters.Character
+        :type args: dict
+        """
+        weapon = actor.next_attack_weapon
+        if self.game.db.is_valid(weapon, pathfinder.objects.PathfinderObject):
+            self.parsed_args['weapon'] = weapon
+        else:
+            self.parsed_args['weapon'] = weapon.name
+        try:
+            damage = weapon.do_attack(actor, args['target'],
+                                      attack_group='shoot')
+        except pathfinder.errors.InsufficientAmmo:
+            raise self._err("Insufficient ammunition.")
+        self.display_emote()
+        attack_dmg_emit(actor, args['target'], damage)
