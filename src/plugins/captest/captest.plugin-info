@@ -1,0 +1,5 @@
+name = Capacity test
+description = Test MUDSling with LOTS of objects.
+version = 0.1
+author = Joshua Benner
+module = captest_plugin.py
