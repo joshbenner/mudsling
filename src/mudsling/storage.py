@@ -2,7 +2,10 @@ import copy_reg
 import types
 import logging
 import os
+import sys
 import time
+
+from twisted.internet.task import LoopingCall
 
 from mudsling.match import match_objlist
 from mudsling import errors
@@ -465,10 +468,41 @@ class Database(Persistent):
         filepath = filepath or self.filepath
         logging.info("Dumping database to %s..." % filepath)
         self.filepath = filepath
-        start = time.clock()
-        pickler.dump(filepath, self)
-        duration = time.clock() - start
-        logging.info('  -> completed in %.3f seconds' % duration)
+
+        def dump():
+            start = time.clock()
+            pickler.dump(filepath, self)
+            dur = time.clock() - start
+            logging.info('  -> completed in %.3f seconds' % dur)
+
+        if 'fork' in dir(os):
+            pid = os.fork()
+            if pid == 0:  # Child process writing the DB to disk.
+                # noinspection PyBroadException
+                try:
+                    dump()
+                except Exception:
+                    logging.error("Cannot save database", exc_info=1)
+                    os._exit(1)
+                else:
+                    os._exit(0)
+            else:
+                logging.info('  -> dumping in PID %d' % pid)
+
+                def check_status():
+                    child_pid, status = os.waitpid(pid, os.WNOHANG)
+                    if child_pid != 0:
+                        raise Exception()
+
+                def checkpoint_done(f):
+                    pass
+
+                looper = LoopingCall(check_status)
+                d = looper.start(0.1)
+                d.addErrback(checkpoint_done)
+        else:
+            logging.info('  -> NON-FORKED DUMP, MAY SLOW DOWN SERVER')
+            dump()
 
     def _get_object(self, obj_id):
         try:
