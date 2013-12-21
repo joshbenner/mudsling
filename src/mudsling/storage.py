@@ -2,6 +2,7 @@ import copy_reg
 import types
 import logging
 import os
+import time
 
 from mudsling.match import match_objlist
 from mudsling import errors
@@ -34,7 +35,7 @@ class PersistentSlots(object):
         slots = []
         for ancestor in cls.__mro__:
             if '__slots__' in ancestor.__dict__:
-                slots.extend(list(ancestor.__slots__))
+                slots.extend(ancestor.__slots__)
         return slots
 
     def __getstate__(self):
@@ -385,13 +386,21 @@ class Database(Persistent):
     def load(cls, filepath, game):
         if os.path.exists(filepath):
             logging.info("Loading database from %s" % filepath)
+            start = time.clock()
             db = cls._load(filepath)
+            duration = time.clock() - start
+            logging.info("  -> loaded %d objects" % len(db.objects))
+            logging.info("  -> loaded in %.3f seconds" % duration)
         else:
             logging.info("Initializing new database at %s" % filepath)
             db = cls(filepath)
         db.filepath = filepath
         ObjRef.db = db
+        logging.info('Running post-load database hooks...')
+        start = time.clock()
         db.on_loaded(game)
+        duration = time.clock() - start
+        logging.info('  -> hooks ran in %.3f seconds' % duration)
         return db
 
     @classmethod
@@ -413,15 +422,26 @@ class Database(Persistent):
         """
         Called just after the database has been loaded from disk.
         """
-        self.type_registry = {}
         self.game = game
         # Add ref back to db, which also yields a trail back to game, which
         # StoredObject takes advantage of with its game property.
         StoredObject.db = self
+        self.rebuild_type_registry()
+
+    def rebuild_type_registry(self):
+        self.type_registry = {}
+
+        import gc
+        toggle_gc = gc.isenabled()
 
         # Build the type registry.
-        for obj in self.objects.values():
+        if toggle_gc:
+            gc.disable()
+        for obj in self.objects.itervalues():
             self._add_to_type_registry(obj)
+        if toggle_gc:
+            gc.collect()
+            gc.enable()
 
     def on_server_startup(self):
         """
@@ -443,8 +463,12 @@ class Database(Persistent):
 
     def save(self, filepath=None):
         filepath = filepath or self.filepath
+        logging.info("Dumping database to %s..." % filepath)
         self.filepath = filepath
+        start = time.clock()
         pickler.dump(filepath, self)
+        duration = time.clock() - start
+        logging.info('  -> completed in %.3f seconds' % duration)
 
     def _get_object(self, obj_id):
         try:
@@ -466,9 +490,9 @@ class Database(Persistent):
     def _add_to_type_registry(self, obj):
         cls = obj.__class__
         if cls not in self.type_registry:
-            self.type_registry[cls] = []
-        if obj not in self.type_registry[cls]:
-            self.type_registry[cls].append(obj.ref())
+            self.type_registry[cls] = set()
+        if obj.obj_id not in self.type_registry[cls]:
+            self.type_registry[cls].add(obj.obj_id)
 
     def change_class(self, obj, newclass, **kw):
         """
@@ -507,7 +531,7 @@ class Database(Persistent):
 
         obj = obj._real_object()
         try:
-            self.type_registry[obj.__class__].remove(obj.ref())
+            self.type_registry[obj.__class__].remove(obj.obj_id)
         except (ValueError, KeyError):
             logging.error("%s missing from type registry!" % obj)
         try:
@@ -551,7 +575,7 @@ class Database(Persistent):
         for cls, children in self.type_registry.iteritems():
             if issubclass(cls, ancestor):
                 descendants.extend(children)
-        return descendants
+        return map(ObjRef, descendants)
 
     def children(self, parent):
         """
@@ -562,7 +586,7 @@ class Database(Persistent):
         @rtype: list
         """
         if parent in self.type_registry:
-            return list(self.type_registry[parent])
+            return map(ObjRef, self.type_registry[parent])
         return []
 
     def match_descendants(self, search, cls, varname="names", exactOnly=False):
