@@ -187,7 +187,7 @@ class WhirlwindAttack(Feat):
     _prerequisites = [
         'Dexterity 13',
         'Combat Expertise',
-        'Sprint Attack',
+        'Spring Attack',
         'BAB 4'
     ]
     description = "Make melee attack against all foes within reach."

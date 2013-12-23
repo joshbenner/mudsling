@@ -32,7 +32,6 @@ import pathfinder.errors
 import pathfinder.equipment
 import pathfinder.things
 import pathfinder.sizes as sizes
-import pathfinder.weapons
 
 
 class events(object):
@@ -1036,11 +1035,9 @@ class Character(mudslingcore.objects.Character,
         names.update(pathfinder.data.names('skill'))
         return names
 
-    def best_class_stat(self, stat):
-        options = [0]
-        options.extend(getattr(c.levels[l - 1], stat)
-                       for c, l in self.classes.iteritems())
-        return max(options)
+    def multiclass_sum(self, stat):
+        return sum(getattr(c.levels[l - 1], stat)
+                   for c, l in self.classes.iteritems())
 
     def get_stat_base(self, stat, resolved=False):
         stat = stat if resolved else self.resolve_stat_name(stat)[0]
@@ -1056,13 +1053,13 @@ class Character(mudslingcore.objects.Character,
         elif stat == 'special size modifier':
             return self.size_category.special_size_modifier
         elif stat == 'base attack bonus':
-            return self.best_class_stat('bab')
+            return self.multiclass_sum('bab')
         elif stat == 'fortitude':
-            return self.best_class_stat('fort')
+            return self.multiclass_sum('fort')
         elif stat == 'reflex':
-            return self.best_class_stat('ref')
+            return self.multiclass_sum('ref')
         elif stat == 'will':
-            return self.best_class_stat('will')
+            return self.multiclass_sum('will')
         elif stat == 'defensive dex mod':
             # Normally, the dex MODIFIER (bonus + penalties) is applied to AC,
             # but character can lose dex BONUSES (positive only) to AC.
