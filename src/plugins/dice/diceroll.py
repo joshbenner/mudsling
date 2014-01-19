@@ -21,7 +21,7 @@ Extended BNF (same as Python specification):
         number ::= integer | fractional
         seqnum ::= ["-"] (number | identifier)
       sequence ::= "{" seqnum ( ("," seqnum)* | (".." seqnum) ) "}"
-       rollmod ::= ("d" | "k" | "r" | "e") [integer]
+       rollmod ::= ("d" | "k" | "r" | "e" | "x") [integer]
           roll ::= [integer] "d" (integer | sequence) (rollmod)*
        literal ::= roll | number
          group ::= "(" expression ")"
@@ -43,6 +43,7 @@ Dice Roll Modifiers:
     k[N=1] -- Keep highest N rolls.
     r[N=1] -- Re-roll values <= N.
     e[N=<max>] -- Explode (re-roll) values >= N (default highest), keep all.
+    x[N=<max>] -- Modified explode that rolls only one die during explosion.
 
 Sequence Methods:
     .max() => Largest value in the sequence.
@@ -137,7 +138,7 @@ def _grammar():
     seqexplicit.setParseAction(lambda t: SequenceNode(lst=t))
     sequence = seqrange | seqexplicit
 
-    rollmod = nw + Group(oneOf("d k r e") + Optional(integer))
+    rollmod = nw + Group(oneOf("d k r e x") + Optional(integer))
     numdice = Optional(integer, default=1)
     roll = numdice + nw + Suppress("d") + nw + (integer | sequence)
     roll += Group(ZeroOrMore(rollmod))
@@ -307,6 +308,8 @@ class DieRollNode(EvalNode):
         'k': lambda self, r, v, s, keep=1: self.keep_highest(r, s, keep),
         'r': lambda self, r, v, s, low=None: self.reroll_low(r, v, s, low),
         'e': lambda self, r, v, s, high=None: self.explode(r, v, s, high),
+        'x': lambda self, r, v, s, high=None: self.modified_explode(r, v, s,
+                                                                    high),
     }
 
     def __init__(self, tok):
@@ -410,6 +413,18 @@ class DieRollNode(EvalNode):
                     olddesc = state['rolldescs'][state['current roll']][id]
                     newdesc = '%s!%s' % (olddesc, result)
                     state['rolldescs'][state['current roll']][id] = newdesc
+
+    def modified_explode(self, rolls, vars, state, high=None):
+        high = high or self.num_dice * self.sides
+        desc = state.get('desc', False)
+        result = sum(rolls.itervalues())
+        while result >= high:
+            # After first explode, we only explode a single die.
+            high = self.sides
+            result, id = self.roll_die(vars, state)
+            rolls[id] = result
+            if desc:
+                state['rolldescs'][state['current roll']][id] = str(result)
 
     def eval(self, vars, state):
         # Sanity-check the mods, convert nodes to values.
