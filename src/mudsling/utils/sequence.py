@@ -116,6 +116,12 @@ def unique(seq):
     return [x for x in seq if x not in seen and not add(x)]
 
 
+def unique_caseless(seq):
+    seen = set()
+    add = seen.add
+    return [x for x in seq if x.lower() not in seen and not add(x.lower())]
+
+
 def dict_merge(*dicts):
     """Efficient merge of an arbitrary number of dictionaries."""
     return dict(chain(*[d.iteritems() for d in dicts]))
