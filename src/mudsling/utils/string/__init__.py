@@ -1,6 +1,7 @@
 """
 Various string utilities.
 """
+import re
 import sys
 import random
 import string
@@ -205,3 +206,8 @@ def plural_noun(noun, count=None):
     """
     return inflection.plural_noun(noun, count)
 
+decamelcase = re.compile(r'((?<=[a-z])[A-Z]|(?<!\A)[A-Z](?=[a-z]))')
+
+
+def camelcase_to_spaces(text):
+    return decamelcase.sub(r' \1', text)
