@@ -378,7 +378,7 @@ class DieRollNode(EvalNode):
         if state.get('desc', False):
             descs = state['rolldescs'][state['current roll']]
             copy = OrderedDict(rolls)
-            sort_dict(copy, key=lambda r: r[1], keep=keep)
+            sort_dict(copy, key=lambda r: r[1], keep=-keep)
             for id, result in rolls.iteritems():
                 if id not in copy:
                     rolls[id] = 0
