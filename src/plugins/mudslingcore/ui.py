@@ -17,6 +17,7 @@ class BaseUI(object):
     h3_format = "{text}"
     hr_format = '----'
     footer_format = "{text}"
+    label_format = "{text}:"
 
     _op_map = {
         '<': operator.lt,
@@ -77,6 +78,32 @@ class BaseUI(object):
         return '\n'.join([self.h1(title),
                           self.body(body),
                           self.footer(footer)])
+
+    def _label_formatter(self, text):
+        return self.label_format.format(text=text)
+
+    def keyval_table(self, keyvals, **kw):
+        """
+        Create a table with one column for labels and another for values.
+
+        :param keyvals: Iterable of labels and their values as tuples.
+        :type keyvals: list of (str, str)
+
+        :return: Table object.
+        :rtype: mudsling.utils.string.Table
+        """
+        params = {'show_header': False, 'frame': False, 'lpad': ''}
+        params.update(kw)
+        tbl = self.Table(
+            [
+                self.Column('Label', width='auto', align='r',
+                            cell_formatter=self._label_formatter),
+                self.Column('Value', width='*', align='l', wrap=True)
+            ],
+            **params
+        )
+        tbl.add_rows(*keyvals)
+        return tbl
 
     def format_timestamp(self, timestamp, format='long'):
         if timestamp is None:
@@ -207,6 +234,7 @@ class ClassicUI(BaseUI):
     width = 100
     _hr = '{c' + ('-=' * 50)  # Half width because two chars.
     h1_format = "{{y{text}"
+    label_format = "{c{text}{y:"
     body_prefix = ' '
     body_suffix = ' '
     table_settings = {
