@@ -234,7 +234,7 @@ class ClassicUI(BaseUI):
     width = 100
     _hr = '{c' + ('-=' * 50)  # Half width because two chars.
     h1_format = "{{y{text}"
-    label_format = "{c{text}{y:"
+    label_format = "{{c{text}{{y:"
     body_prefix = ' '
     body_suffix = ' '
     table_settings = {
