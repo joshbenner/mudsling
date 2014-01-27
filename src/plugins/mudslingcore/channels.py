@@ -190,14 +190,14 @@ class ChannelVoiceCmd(Command):
         """
         if 'optset1' in args:
             mode = args['optset1']
-            if 'player' in args:
+            if args['player'] is not None:
                 player = args['player']
                 msg = self._set_player_voice(chan, actor, player, mode)
             else:
                 # No player, but optset1... that means we are acting on ALL.
                 msg = self._set_all_voice(chan, actor, mode)
         else:  # No on/off.
-            if 'player' in args and args['player'] is not None:
+            if args['player'] is not None:
                 msg = self._show_player_voice(chan, actor, args['player'])
             else:
                 # No on/off, no player... show all voice info!

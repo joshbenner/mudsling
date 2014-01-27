@@ -231,7 +231,7 @@ class BanCmd(Command):
         args = self.parsed_args
         what = args['what']
         actor = self.actor
-        if 'duration' in args:
+        if 'duration' in args and args['duration'] is not None:
             expires = time.time() + args['duration']
             prompt = ["{yYou want to ban {m", what, "{y until {c",
                       utils.time.format_timestamp(expires, 'long'), "{y?"]

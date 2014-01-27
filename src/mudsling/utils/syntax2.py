@@ -96,6 +96,16 @@ class SyntaxOptional(SyntaxToken):
         return 'Optional(%s)' % repr(self.inside)[1:-1]
 
     def parse_action(self, tok):
+        if not len(tok):
+            # Child params do not process if there is nothing there, so we need
+            # to manually parse empty inputs with them so the results include
+            # the params' keys.
+            for child in self.inside:
+                if isinstance(child, SyntaxParam):
+                    try:
+                        tok.insert(len(tok), child.result(0, ('',)))
+                    except Exception as e:
+                        pass
         for i, t in enumerate(tok):
             if isinstance(t, tuple):  # Make contained parameters optional.
                 t = list(t)
@@ -212,7 +222,7 @@ if __name__ == '__main__':
             'look',
             'look at that',
             'look "at another thing"',
-        ]),
+            ]),
         ('<class> {named|called|=} <names>', [
             'thing called Foo',
             'another thing named Foo Too'
@@ -228,28 +238,28 @@ if __name__ == '__main__':
         ('<foo> [to <bar>] as <baz>', [
             'foo to bar as baz',
             'foo as baz',
-        ]),
+            ]),
         ('[<foo>] for <bar>', [
             'for bar',
             'foo for bar',
-        ]),
+            ]),
         ('<names> [<password>]', [
             'hesterly',
             'hesterly test',
             '"Mr. Hesterly" test',
             'hesterly,blah test',
             '"just a long name"',
-        ]),
+            ]),
         ('<foo> [<bar> to] <baz>', [
             'foo bar to baz',
             'foo to baz',
             'foo baz',
-        ]),
+            ]),
         ('for <duration>', [
             'for 1h',
             'forever',
-        ]),
-    ]
+            ]),
+        ]
 
     for spec, tests in test:
         syntax = Syntax(spec)
