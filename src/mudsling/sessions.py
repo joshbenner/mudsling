@@ -33,7 +33,7 @@ class Session(object):
     ip = ''
     hostname = ''
 
-    #: @type: mudsling.objects.BasePlayer
+    #: :type: mudsling.objects.BasePlayer
     player = None
 
     line_delimiter = '\r\n'
@@ -110,19 +110,20 @@ class Session(object):
         """
         Send output to the Session.
 
-        @param text: Text to send. Can be a list.
-        @param flags: A dictionary of flags to modify how the text is output.
-        @type text: str
+        :param text: Text to send. Can be a list.
+        :param flags: A dictionary of flags to modify how the text is output.
+        :type text: str
 
-        @rtype: L{twisted.internet.defer.Deferred}
+        :rtype: twisted.internet.defer.Deferred
         """
         if flags is None:
             flags = {}
         profile = flags.get('profile', False)
         start = time.clock() if profile else None
-        if isinstance(text, list):
-            text = '\n'.join(text)
-        text = str(text)
+        # Normalize line endings.
+        if isinstance(text, (list, tuple)):
+            text = self.line_delimiter.join(text)
+        text = self.line_delimiter.join(str(text).splitlines())
         if not text.endswith(self.line_delimiter):
             text += self.line_delimiter
 
@@ -141,7 +142,8 @@ class Session(object):
             text = mxp.strip(text)
 
         if self.ansi and not raw:
-            text = text.replace('\n', string.ansi.ANSI_NORMAL + '\n')
+            text = text.replace(self.line_delimiter,
+                                string.ansi.ANSI_NORMAL + self.line_delimiter)
             text = (string.parse_ansi(text, xterm256=self.xterm256)
                     + string.ansi.ANSI_NORMAL)
         elif not raw:

@@ -26,8 +26,6 @@ class SimpleTelnetSession(StatefulTelnetProtocol, Session):
     def connectionMade(self):
         self.game = self.factory.game
         self.open_session()
-        if self.line_delimiter != self.delimiter:
-            self.line_delimiter = self.delimiter
 
     def connectionLost(self, reason):
         self.session_closed()
