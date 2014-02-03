@@ -467,7 +467,7 @@ class DieRollNode(EvalNode):
             sides = (self.sides.eval(vars, state)[1]
                      if isinstance(self.sides, EvalNode) else str(self.sides))
             die = "%sd%s%s" % (self.num_dice, sides, self.mod_desc())
-            desc = "%s(%s)" % (die, rollsdesc)
+            desc = "%s[%s]" % (die, rollsdesc)
         else:
             desc = ''
         return result, desc
@@ -593,7 +593,7 @@ class VariableNode(EvalNode):
 
         if need_desc:
             if not desc:
-                desc = "%s(%s)" % (self.original, value)
+                desc = "%s[%s]" % (self.original, value)
         else:
             desc = ''
         return value, desc
