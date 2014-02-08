@@ -75,9 +75,10 @@ class BaseUI(object):
         return self.table_class(columns, **settings)
 
     def report(self, title, body, footer=''):
-        return '\n'.join([self.h1(title),
-                          self.body(body),
-                          self.footer(footer)])
+        report = [self.h1(title), self.body(body)]
+        if footer or isinstance(footer, str):
+            report.append(self.footer(footer))
+        return '\n'.join(report)
 
     def _label_formatter(self, text):
         return self.label_format.format(text=text)
