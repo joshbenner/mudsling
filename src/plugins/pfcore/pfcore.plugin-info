@@ -1,6 +1,0 @@
-name = Pathfinder Core Database
-description = Provides stock Pathfinder data.
-version = 0.1
-author = Joshua Benner
-dependencies = pathfinder
-module = pfcore_plugin.py

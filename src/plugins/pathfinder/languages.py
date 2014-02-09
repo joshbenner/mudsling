@@ -1,4 +1,0 @@
-
-
-class Language(object):
-    name = ''

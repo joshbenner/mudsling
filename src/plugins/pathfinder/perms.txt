@@ -1,2 +1,0 @@
-view character sheets: Can use @charsheet to see any character's sheet.
-reset character sheets: Can use @reset-charsheet to reset a character.
