@@ -59,7 +59,7 @@ class SyntaxChoice(SyntaxToken):
         return '{%s}' % '|'.join(map(str, self.choices))
 
     def _expr(self, nextToken):
-        r = oneOf([x.text for x in self.choices])
+        r = oneOf([x.text for x in self.choices], caseless=True)
         r.setParseAction(lambda l, t: ('__optset__', t[0], '', l))
         return r
 
