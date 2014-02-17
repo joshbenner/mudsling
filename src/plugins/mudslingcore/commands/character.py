@@ -31,9 +31,9 @@ class LookCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.objects.Character}
-        @type actor: L{mudslingcore.objects.Character}
-        @type args: C{dict}
+        :type this: mudslingcore.objects.Character
+        :type actor: mudslingcore.objects.Character
+        :type args: dict
         """
         if not this.can_see:
             actor.msg("{yYou are unable to see.")
@@ -47,7 +47,7 @@ class LookCmd(Command):
             actor.msg("You don't seem to see anything...")
             return
 
-        #: @type: Object
+        #: :type: Object
         target = args['something']
 
         if target in actor._get_context() or actor.has_perm('remote look'):
@@ -73,9 +73,9 @@ class InventoryCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.objects.Character}
-        @type actor: L{mudslingcore.objects.Character}
-        @type args: C{dict}
+        :type this: mudslingcore.objects.Character
+        :type actor: mudslingcore.objects.Character
+        :type args: dict
         """
         actor.msg("You are carrying:\n" + this.contents_as_seen_by(this))
 
@@ -92,9 +92,9 @@ class SayCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.objects.Character}
-        @type actor: L{mudslingcore.objects.Character}
-        @type args: C{dict}
+        :type this: mudslingcore.objects.Character
+        :type actor: mudslingcore.objects.Character
+        :type args: dict
         """
         this.say(args['speech'])
 
@@ -111,9 +111,9 @@ class EmoteCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.objects.Character}
-        @type actor: L{mudslingcore.objects.Character}
-        @type args: C{dict}
+        :type this: mudslingcore.objects.Character
+        :type actor: mudslingcore.objects.Character
+        :type args: dict
         """
         this.emote(args['pose'],
                    sep='' if self.argstr.startswith(':') else ' ')
@@ -121,17 +121,17 @@ class EmoteCmd(Command):
 
 class GenderCmd(Command):
     """
-    +gender [<gender>]
+    @gender [<gender>]
     """
-    aliases = ('+gender',)
+    aliases = ('@gender',)
     syntax = '[<gender>]'
     lock = locks.all_pass
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.objects.Character}
-        @type actor: L{mudslingcore.objects.Character}
-        @type args: C{dict}
+        :type this: mudslingcore.objects.Character
+        :type actor: mudslingcore.objects.Character
+        :type args: dict
         """
         if args['gender'] is not None:
             gender_name = args['gender'].lower()

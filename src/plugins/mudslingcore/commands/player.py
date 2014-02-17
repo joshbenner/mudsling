@@ -17,12 +17,12 @@ from mudslingcore.ui import ClassicUI
 
 class AnsiCmd(Command):
     """
-    +ansi on|off
+    @ansi on|off
 
     Enable/disable ANSI color.
     """
 
-    aliases = ('+ansi',)
+    aliases = ('@ansi',)
     syntax = "[{ on | off }]"
     lock = locks.all_pass
 
@@ -69,12 +69,12 @@ class AnsiCmd(Command):
 
 class HelpCmd(Command):
     """
-    +help [<topic>]
+    help [<topic>]
 
     Retrieves help on the specified topic. If no topic is given, it will look
     for the "index" help topic.
     """
-    aliases = ('help', '@help', '+help')  # All the same help.
+    aliases = ('help', '@help')  # All the same help.
     syntax = "[<topic>]"
     lock = locks.all_pass  # Everyone can have help.
 
@@ -108,11 +108,11 @@ class HelpCmd(Command):
 
 class WhoCmd(Command):
     """
-    +who
+    @who
 
     Displays a list of connected players.
     """
-    aliases = ('+who', 'who')
+    aliases = ('@who', 'who')
     lock = locks.all_pass
 
     def format_attached(self, player):
@@ -157,9 +157,9 @@ class WhoCmd(Command):
 
 class PageCmd(Command):
     """
-    +page <player>=<message>
+    page <player>=<message>
     """
-    aliases = ('+page', 'page', '@page', '+p', 'p', '@p')
+    aliases = ('page', '@page', 'p', '@p')
     # Using {=} instead of just = allows the equals to work with no spaces.
     syntax = '<player> {=} <message>'
     arg_parsers = {

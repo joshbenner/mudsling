@@ -733,11 +733,11 @@ class ChanDelCmd(Command):
 
 class ChanAddCmd(Command):
     """
-    +chanadd <channel>=<alias>
+    @chanadd <channel>=<alias>
 
     Adds a channel to your personal channel aliases.
     """
-    aliases = ('+chanadd', '+addchan')
+    aliases = ('@chanadd', '@addchan')
     syntax = '<channel> {=} <alias>'
     arg_parsers = {
         'channel': MatchDescendants(cls=Channel, search_for='channel',
@@ -759,11 +759,11 @@ class ChanAddCmd(Command):
 
 class ChanRemoveCmd(Command):
     """
-    +chanremove <alias>
+    @chanremove <alias>
 
     Removes a channel from your personal aliases.
     """
-    aliases = ('+chanremove', '+chanrem', '+remchan', '+rmchan')
+    aliases = ('@chanremove', '@chanrem', '@remchan', '@rmchan')
     syntax = '<alias>'
     lock = locks.all_pass
 
