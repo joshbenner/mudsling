@@ -180,6 +180,15 @@ scruple = 20 * gram
 bag = 94 * lb
 ton = 2000 * lb = short_ton
 
+buttload = 1337 * ton = b*l
+butt_ton = 10 * buttload = b*t
+assload = 10 * butt_ton = a*l
+asston = 10 * assload = a*t
+shitload = 10 * asston = s*l
+shit_ton = 10 * shitload = s*t
+fuckload = 10 * shit_ton = f*l
+fuckton = 10 * fuckload = f*t
+
 # Textile
 denier =  gram / (9000 * meter)
 tex = gram/ (1000 * meter)
