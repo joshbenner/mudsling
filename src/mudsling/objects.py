@@ -104,6 +104,7 @@ class NamedObject(LockableObject):
         primary name.
     """
     _names = ()
+    default_names = ()
 
     def __init__(self, **kwargs):
         super(NamedObject, self).__init__(**kwargs)
@@ -112,8 +113,10 @@ class NamedObject(LockableObject):
             self.set_names(names)
 
     @classmethod
-    def default_names(cls):
+    def _default_names(cls):
         """Names given to instance if no names are specified."""
+        if cls.default_names:
+            return cls.default_names
         name = registry.classes.get_class_name(cls, class_path=False)
         if name is None:
             # Convert class CamelCase name to spaced name.
@@ -139,7 +142,7 @@ class NamedObject(LockableObject):
 
     @property
     def names(self):
-        return self._names or self.default_names()
+        return self._names or self._default_names()
 
     @property
     def nn(self):
