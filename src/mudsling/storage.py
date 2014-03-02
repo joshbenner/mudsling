@@ -181,6 +181,13 @@ class ObjRef(PersistentSlots):
         except TypeError:
             return False
 
+    def ref(self):
+        """
+        Proxy version of StoredObject.ref() for efficiency and so that it still
+        works for invalid object references.
+        """
+        return self
+
 
 class StoredObject(Persistent):
     """
