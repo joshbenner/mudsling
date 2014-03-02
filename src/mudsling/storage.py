@@ -154,7 +154,9 @@ class ObjRef(PersistentSlots):
     def __cmp__(self, other):
         if other is None:
             return -1
-        if isinstance(other, (ObjRef, StoredObject)):
+        if isinstance(other, ObjRef):
+            return self._id.__cmp__(other._id)
+        if isinstance(other, StoredObject):
             return self._id.__cmp__(other.obj_id)
         raise TypeError("ObjRefs may only be compared with other ObjRefs or "
                         "StoredObjects")
