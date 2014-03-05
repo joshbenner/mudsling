@@ -1,6 +1,4 @@
-import logging
-
-from mudsling.objects import BasePlayer, BaseCharacter, Object
+from mudsling.objects import BasePlayer, BaseCharacter
 from mudsling.commands import all_commands
 from mudsling.messages import Messages
 from mudsling import parsers
@@ -24,7 +22,54 @@ import commands.admin.objects
 import commands.admin.players
 
 
-class DescribableObject(Object):
+class CoreObject(senses.SensoryMedium):
+    """
+    The most basic object used by MUDSling Core.
+    """
+
+    @property
+    def containing_room(self):
+        """
+        :returns: The first room found in this objects list of locations.
+        :rtype: mudslingcore.topography.Room
+        """
+        import mudslingcore.topography
+        for loc in self.locations():
+            if loc.isa(mudslingcore.topography.Room):
+                return loc
+        return None
+
+    @property
+    def in_a_room(self):
+        return self.containing_room is not None
+
+    def emit(self, msg, exclude=None, location=None):
+        """
+        Version of emit which accepts sensations. If the input is a simple
+        string, then the emit is assumed to be a :class:`Sight`.
+
+        :param msg: Text or sensation to emit.
+        :type msg: str or list or dict or Sensation
+        :param exclude: List of objects to NOT notify of the emit.
+        :type exclude: list or set or tuple or None
+        :param location: Where the emission takes place.
+        :type location: Object or SensoryMedium
+
+        :return: The list of objects which were subject to the emission.
+        :rtype: list
+        """
+        if location is None:
+            location = self.location
+        if isinstance(msg, basestring):
+            msg = senses.Sight(msg)
+        if isinstance(msg, senses.Sensation):
+            if location is not None and location.isa(senses.SensoryMedium):
+                return location.propagate_sensation(msg, exclude=exclude)
+        else:
+            return super(CoreObject, self).emit(msg, exclude, location)
+
+
+class DescribableObject(CoreObject):
     """
     An object that has a description and can be seen.
 
@@ -340,6 +385,9 @@ class Container(Thing):
     @property
     def closed(self):
         return not self._opened
+
+    def propagate_sensation_up(self, sensation):
+        return self.opened
 
     def open(self, opened_by=None):
         """

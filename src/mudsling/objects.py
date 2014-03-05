@@ -1028,7 +1028,7 @@ class Object(BaseObject):
             be a valid location, and will not include it in the list.
 
         :return: List of nested locations, from deepest to shallowest.
-        :rtype: list
+        :rtype: list of Object
         """
         locations = []
         if (isinstance(self.location, ObjRef)

@@ -47,13 +47,14 @@ class SensoryMedium(Object):
     senses = set()
 
     def propagate_sensation(self, sensation, exclude=None):
-        """Propagates a sensation through the medium to its contents.
+        """Propagates a sensation through the medium to its contents, and
+        optionally to its container (if also a sensory medium).
 
         :param sensation: The sensation to propagate.
         :type sensation: Sensation
 
         :returns: A list of objects that sensed the sensation.
-        :rtype: list
+        :rtype: list of Object
         """
         sensed_by = []
         exclude = exclude or []
@@ -62,7 +63,16 @@ class SensoryMedium(Object):
             if obj.isa(SensingObject) and obj.has_any_sense(senses):
                 obj.sense(sensation)
                 sensed_by.append(obj)
+        if (self.propagate_sensation_up(sensation) and self.has_location
+                and self.location.isa(SensoryMedium)):
+            #: :type: mudslingcore.senses.SensoryMedium
+            container = self.location
+            sensed_by.extend(container.propagate_sensation(sensation,
+                                                           exclude=exclude))
         return sensed_by
+
+    def propagate_sensation_up(self, sensation):
+        return True
 
 
 class SensingObject(Object):
@@ -142,28 +152,3 @@ class SensingObject(Object):
             except AttributeError:
                 continue
             func(sensation)
-
-    def emit(self, msg, exclude=None, location=None):
-        """
-        Version of emit which accepts sensations. If the input is a simple
-        string, then the emit is assumed to be a :class:`Sight`.
-
-        :param msg: Text or sensation to emit.
-        :type msg: str or list or dict or Sensation
-        :param exclude: List of objects to NOT notify of the emit.
-        :type exclude: list or set or tuple or None
-        :param location: Where the emission takes place.
-        :type location: Object or SensoryMedium
-
-        :return: The list of objects which were subject to the emission.
-        :rtype: list
-        """
-        if location is None:
-            location = self.location
-        if isinstance(msg, basestring):
-            msg = Sight(msg)
-        if isinstance(msg, Sensation):
-            if location is not None and location.isa(SensoryMedium):
-                return location.propagate_sensation(msg, exclude=exclude)
-        else:
-            return super(SensingObject, self).emit(msg, exclude, location)

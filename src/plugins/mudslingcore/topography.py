@@ -11,12 +11,11 @@ from mudsling import parsers
 from mudsling import utils
 import mudsling.utils.string
 
-from mudslingcore.objects import DescribableObject, Object
-from mudslingcore.senses import SensoryMedium
+from mudslingcore.objects import DescribableObject
 
 
 # noinspection PyShadowingBuiltins
-class Room(DescribableObject, SensoryMedium):
+class Room(DescribableObject):
     """
     A standard room.
 
@@ -75,7 +74,7 @@ class Room(DescribableObject, SensoryMedium):
         Determines if what may enter this room via the given exit.
         @rtype: bool
         """
-        return what.is_valid(Object)
+        return what.is_valid(LocatedObject)
 
     def allow_leave(self, what, exit=None):
         """
