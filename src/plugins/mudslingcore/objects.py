@@ -60,7 +60,7 @@ class CoreObject(senses.SensoryMedium):
         """
         if location is None:
             location = self.location
-        if isinstance(msg, basestring):
+        if isinstance(msg, (basestring, dict, list)):
             msg = senses.Sight(msg)
         if isinstance(msg, senses.Sensation):
             if location is not None and location.isa(senses.SensoryMedium):
@@ -268,15 +268,16 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject,
             cmd.execute()
 
     def vision_sense(self, sensation):
-        self.msg(sensation.content)
+        self.msg(sensation.content_for(self))
 
     def hearing_sense(self, sensation):
+        content = self._format_msg(sensation.content_for(self))
         if isinstance(sensation, senses.Speech):
-            msg = [sensation.origin, ' says, "{c', sensation.content, '{n".']
+            msg = [sensation.origin, ' says, "{c', content, '{n".']
         elif 'bare' in sensation.traits:
-            msg = sensation.content
+            msg = content
         else:
-            msg = ["{mYou hear: {n", sensation.content]
+            msg = ["{mYou hear: {n", content]
         self.msg(msg)
 
     def say(self, speech):

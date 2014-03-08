@@ -21,6 +21,12 @@ class Sensation(PersistentSlots):
         self.origin = origin
         self.traits = set(traits)
 
+    def content_for(self, senser):
+        if isinstance(self.content, dict):
+            return (self.content[senser] if senser in self.content
+                    else self.content['*'])
+        return self.content
+
 
 class Sound(Sensation):
     """A sension which can be heard."""
