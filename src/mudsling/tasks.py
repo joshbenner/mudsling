@@ -180,12 +180,11 @@ class IntervalTask(BaseTask):
 
     def _schedule(self, interval=None):
         interval = max(0, interval if interval is not None else self._interval)
-        if interval:  # None/0/False interval means it does not schedule.
-            self._scheduled_time = time.time()
-            now = self._immediate and not self.run_count
-            self._looper = LoopingCall(self._run)
-            d = self._looper.start(interval, now=now)
-            d.addErrback(self._errback)
+        self._scheduled_time = time.time()
+        now = self._immediate and not self.run_count
+        self._looper = LoopingCall(self._run)
+        d = self._looper.start(interval, now=now)
+        d.addErrback(self._errback)
 
     def kill(self):
         self._kill_looper()
@@ -261,6 +260,7 @@ class DelayedTask(IntervalTask):
     """
     def __init__(self, callback, delay, *args, **kwargs):
         super(DelayedTask, self).__init__(callback, delay, iterations=1,
+                                          immediate=delay <= 0,
                                           args=args, kwargs=kwargs)
 
 
