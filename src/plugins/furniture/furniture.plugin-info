@@ -1,0 +1,6 @@
+name = Furniture
+description = Enhanced MUDSlingCore with interactive furniture.
+dependencies = mudslingcore
+author = Josh Benner
+version = 0.1
+module = furniture_plugin.py
