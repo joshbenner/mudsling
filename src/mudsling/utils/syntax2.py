@@ -49,6 +49,14 @@ class SyntaxLiteral(SyntaxToken):
             return CaselessKeyword(self.text)
 
 
+class WhiteSpaceAssertion(SyntaxToken):
+    def __repr__(self):
+        return '(white space)'
+
+    def _expr(self, nextToken):
+        return White()
+
+
 class SyntaxChoice(SyntaxToken):
     __slots__ = ('choices',)
 
@@ -132,6 +140,9 @@ def syntax_grammar():
     literal = CharsNotIn('[]<>{}')
     literal.setParseAction(SyntaxLiteral)
 
+    assertWhiteSpace = CaselessLiteral(r'\w')
+    assertWhiteSpace.setParseAction(WhiteSpaceAssertion)
+
     paramName = Regex(r"[^>]+")
     param = Literal('<') + paramName + Literal('>')
     param.setParseAction(SyntaxParam)
@@ -145,7 +156,7 @@ def syntax_grammar():
     optional = Literal('[') + syntax + Literal(']')
     optional.setParseAction(SyntaxOptional)
 
-    syntax << OneOrMore(param | choice | optional | literal)
+    syntax << OneOrMore(param | choice | optional | literal | assertWhiteSpace)
 
     return syntax
 
