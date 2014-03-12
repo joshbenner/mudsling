@@ -13,6 +13,7 @@ from mudslingcore import bans
 from mudslingcore.channels import ChannelUser
 import mudslingcore.genders
 from mudslingcore import senses
+import mudslingcore.errors
 
 from mudslingcore import commands
 import commands.admin.system
@@ -441,3 +442,20 @@ class Container(Thing):
             desc.append('Contents:')
             desc.append(self.contents_as_seen_by(viewer))
         return '\n'.join(desc)
+
+
+class LockableContainer(Container):
+    """
+    A container that can be locked, though this class provides no locking
+    mechanism.
+    """
+    locked = False
+
+    def open(self, opened_by=None):
+        if not self.opened:
+            if self.locked:
+                name = (self.name if opened_by is None
+                        else opened_by.name_for(self))
+                raise mudslingcore.errors.ContainerLocked(
+                    '%s is locked' % name)
+            super(LockableContainer, self).open(opened_by=opened_by)
