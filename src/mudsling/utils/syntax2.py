@@ -156,7 +156,7 @@ def syntax_grammar():
     optional = Literal('[') + syntax + Literal(']')
     optional.setParseAction(SyntaxOptional)
 
-    syntax << OneOrMore(param | choice | optional | literal | assertWhiteSpace)
+    syntax << OneOrMore(assertWhiteSpace | param | choice | optional | literal)
 
     return syntax
 
