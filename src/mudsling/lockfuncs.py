@@ -1,9 +1,18 @@
-from mudsling.objects import BasePlayer, Object
+from mudsling.objects import BasePlayer, BaseObject, Object
 from mudsling import registry
+import mudsling.utils.modules as mod_utils
 
 
 def _isa(accessed_obj, accessing_obj, cls_name):
     cls = registry.classes.get_class(cls_name)
+    if cls is None:
+        # noinspection PyBroadException
+        try:
+            cls = mod_utils.class_from_path(cls_name)
+        except:
+            cls = None
+        if not issubclass(cls, BaseObject):
+            cls = None
     if cls is not None:
         return accessing_obj.isa(cls)
     return False
