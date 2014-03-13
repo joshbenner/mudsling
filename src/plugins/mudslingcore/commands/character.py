@@ -119,6 +119,26 @@ class EmoteCmd(Command):
                    sep='' if self.argstr.startswith(':') else ' ')
 
 
+class EmitCmd(Command):
+    """
+    emit <text>
+
+    Emits to the character's location a completely freeform message.
+    """
+    aliases = ('emit', 'spoof')
+    syntax = '<text>'
+    lock = locks.all_pass
+
+    def run(self, this, actor, args):
+        """
+        :type this: mudslingcore.objects.Character
+        :type actor: mudslingcore.objects.Character
+        :type args: dict
+        """
+        this.emote(args['text'], show_name=False, sep='')
+
+
+
 class GenderCmd(Command):
     """
     @gender [<gender>]

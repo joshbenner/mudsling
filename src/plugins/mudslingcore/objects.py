@@ -287,8 +287,8 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject,
         self.emit(speech, exclude=(self.ref(),))
         self.tell('You say, "{g', speech.content, '{n".')
 
-    def emote(self, pose, sep=' ', prefix='', suffix=''):
-        msg = [prefix, self.ref(), sep]
+    def emote(self, pose, sep=' ', prefix='', suffix='', show_name=True):
+        msg = [prefix, self.ref() if show_name else '', sep]
         if isinstance(pose, list):
             msg.extend(pose)
         else:
