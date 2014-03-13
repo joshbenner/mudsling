@@ -287,7 +287,8 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject,
         self.emit(speech, exclude=(self.ref(),))
         self.tell('You say, "{g', speech.content, '{n".')
 
-    def emote(self, pose, sep=' ', prefix='', suffix='', show_name=True):
+    def _prepare_emote(self, pose, sep=' ', prefix='', suffix='',
+                       show_name=True):
         msg = [prefix, self.ref() if show_name else '', sep]
         if isinstance(pose, list):
             msg.extend(pose)
@@ -295,7 +296,10 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject,
             msg.append(pose)
         if suffix:
             msg.extend((sep, suffix))
-        self.emit(msg)
+        return msg
+
+    def emote(self, pose, sep=' ', prefix='', suffix='', show_name=True):
+        self.emit(self._prepare_emote(pose, sep, prefix, suffix, show_name))
 
 
 class Thing(DescribableObject):

@@ -4,8 +4,10 @@ import mudsling.locks
 import mudsling.errors
 import mudsling.messages
 import mudsling.parsers
+import mudsling.objects
 
 import mudslingcore.objects
+import mudslingcore.senses as senses
 
 isa_occupant = mudsling.locks.Lock('isa(furniture.FurnitureOccupant)')
 
@@ -45,6 +47,173 @@ class Reclining(Posture):
     base = 'recline'
     participle = 'reclining'
     indicative = 'reclines'
+
+
+class FurnitureOccupant(mudslingcore.objects.Character):
+    """
+    A character that can sit/lay/recline on furniture.
+
+    :ivar furniture: A reference to the furniture object currently occupied by
+        this character.
+    :type furniture: Furniture
+
+    :ivar furniture_posture: The class describing the posture the character
+        has while occupying the furniture.
+    :type furniture_posture: Posture
+
+    :ivar furniture_talk: Whether to restrict communication to the scope of
+        the currently-occupied furniture or not.
+    :type furniture_talk: bool
+    """
+    furniture = None
+    furniture_posture = None
+    furniture_talk = False
+
+    def furniture_desc_to(self, who=None):
+        """
+        Get a string describing this character's furniture state.
+
+        :param who: The observer.
+        :type who: mudsling.objects.Object
+
+        :rtype: str
+        """
+        name = self.name if who is None else who.name_for(self)
+        return ' '.join((self.furniture_posture.participle,
+                         self.furniture_posture.preposition,
+                         name))
+
+    def occupy_furniture(self, furniture, posture):
+        """
+        Begin occupying a piece of furniture.
+
+        :param furniture: The furniture object to occupy.
+        :type furniture: Furniture
+
+        :param posture: The posture with which to occupy the furniture.
+        :type posture: Posture
+
+        :raises: NoOccupancy
+        """
+        if self.furniture == furniture:
+            # Already occupying furniture, so we're just changing posture.
+            self.furniture_posture = posture
+        else:
+            if furniture.available_occupancy < 1:
+                raise NoOccupancy('%s is occupied' % self.name_for(furniture))
+            if self.furniture is not None:
+                self.leave_furniture()
+            self.furniture = furniture
+            self.furniture_posture = posture
+            furniture.add_occupant(self.ref())
+        furniture.emit_message('occupant added', actor=self.ref(),
+                               posture=posture)
+
+    def leave_furniture(self, stealth=False):
+        """
+        Cease occupying the currently-occupied piece of furniture.
+
+        :raises: NotOccupyingFurniture
+        """
+        if self.furniture is None:
+            raise NotOccupyingFurniture('Not occupying any furniture')
+        furniture = self.furniture
+        posture = self.furniture_posture
+        furniture.remove_occupant(self)
+        self.furniture = None
+        self.furniture_posture = None
+        self.furniture_talk = False
+        if not stealth:
+            furniture.emit_message('occupant left', actor=self.ref(),
+                                   posture=posture)
+
+    def shoved_from_furniture(self, by):
+        """
+        This character is shoved out of their current furniture occupancy.
+
+        :param by: The object shoving them out.
+        :type by: FurnitureOccupant
+        """
+        furniture = self.furniture
+        posture = self.furniture_posture
+        self.leave_furniture(stealth=True)
+        furniture.emit_message('occupant shoved', actor=by,
+                               occupant=self.ref(), posture=posture)
+
+    def before_object_moved(self, moving_from, moving_to, by=None, via=None):
+        super(FurnitureOccupant, self) \
+            .before_object_moved(moving_from, moving_to, by=by, via=via)
+        try:
+            self.leave_furniture()
+        except NotOccupyingFurniture:
+            pass  # Quietly fail.
+
+    def say(self, speech):
+        if not self.furniture_talk:
+            super(FurnitureOccupant, self).say(speech)
+        else:
+            if not isinstance(speech, senses.Speech):
+                speech = senses.Speech(str(speech), origin=self.ref())
+            self.furniture.msg_occupants(speech, exclude=(self.ref(),))
+            self.tell('You say quietly, "{g', speech.content, '{n".')
+
+    def emote(self, pose, sep=' ', prefix='', suffix='', show_name=True):
+        if not self.furniture_talk:
+            super(FurnitureOccupant, self).emote(pose, sep=sep, prefix=prefix,
+                                                 suffix=suffix,
+                                                 show_name=show_name)
+        else:
+            pose = senses.Sight(self._prepare_emote(pose, sep, prefix, suffix,
+                                                    show_name))
+            self.furniture.msg_occupants(pose)
+
+    class PrivateTalkCmd(mudsling.commands.Command):
+        """
+        privatetalk [on|off]
+
+        Display your private talk status, or set your private talk mode.
+        """
+        aliases = ('privatetalk', 'tabletalk')
+        syntax = '[{on|off}]'
+        lock = isa_occupant
+
+        def run(self, this, actor, args):
+            """
+            :type this: FurnitureOccupant
+            :type actor: FurnitureOccupant
+            :type args: dict
+            """
+            if (actor.furniture is None
+                    or actor.furniture.occupant_capacity < 2):
+                raise self._err('Private talk is only available when '
+                                'occupying a piece of furniture that can '
+                                'accommodate more than one occupant.')
+            mode = args.get('optset1', None)
+            if mode == 'on':
+                if actor.furniture_talk:
+                    actor.tell('{yPrivate talk is already {gON{y.')
+                else:
+                    actor.furniture_talk = True
+                    actor.tell('{gPrivate talk activated. Only others '
+                               'occupying the same piece of furniture will '
+                               'hear you.')
+            elif mode == 'off':
+                if not actor.furniture_talk:
+                    actor.tell('{yPrivate talk is already {rOFF{y.')
+                else:
+                    actor.furniture_talk = False
+                    actor.tell('{rPrivate talk is OFF. Everyone can hear you.')
+            else:
+                if actor.furniture_talk:
+                    actor.tell('Private talk is {gON{n. Only others '
+                               'occupying the same piece of furniture will '
+                               'hear you.')
+                else:
+                    actor.tell('Private talk is {rOFF{n. Everyone in the '
+                               'same room as you can hear you.')
+                actor.tell(self.syntax_help())
+
+    private_commands = [PrivateTalkCmd]
 
 
 class Furniture(mudslingcore.objects.Thing):
@@ -92,6 +261,58 @@ class Furniture(mudslingcore.objects.Thing):
     def available_occupancy(self):
         """:rtype: int"""
         return max(0, self.occupant_capacity - len(self.occupants))
+
+    def add_occupant(self, occupant):
+        self.occupants.append(occupant.ref())
+
+    def remove_occupant(self, occupant):
+        self.occupants.remove(occupant)
+
+    def msg_occupants(self, msg, exclude=None):
+        """
+        Send a message to all occupants of this furniture.
+
+        Based on mudsling.objects.Object.msg_contents
+
+        :returns: List of objects to receive message.
+        :rtype: list
+        """
+        # Offers caller freedom of not having to check for None, which he might
+        # get back from some message generation calls.
+        if msg is None:
+            return []
+
+        # Caller may have passed objects instead of references, but we need
+        # references since we're doing 'in' matching against values in
+        # contents, which really, really should be references.
+        exclude = [e.ref() for e in (exclude or [])
+                   if isinstance(e, mudsling.storage.StoredObject)
+                   or isinstance(e, mudsling.storage.ObjRef)]
+
+        if isinstance(msg, dict):
+            # Dict keys indicate what objects receive special messages. All
+            # others receive whatever's in '*'.
+            _content = lambda o: msg[o] if o in msg else msg['*']
+        else:
+            _content = lambda o: msg
+
+        if isinstance(msg, senses.Sensation):
+            def _method(obj, content):
+                if (obj.isa(senses.SensingObject)
+                        and obj.has_any_sense(content.sensed_by)):
+                    obj.sense(content)
+                    return obj
+        else:
+            def _method(obj, content):
+                obj.msg(content)
+
+        receivers = []
+        for o in self.occupants:
+            if o in exclude or not o.is_valid(mudsling.objects.Object):
+                continue
+            receivers.append(_method(o, _content(o)))
+
+        return filter(None, receivers)
 
     class FurnitureSitCmd(mudsling.commands.Command):
         """
@@ -177,98 +398,6 @@ class Furniture(mudslingcore.objects.Thing):
             occupant.shoved_from_furniture(by=actor)
 
     public_commands = [FurnitureSitCmd, FurnitureStandCmd, FurnitureShoveCmd]
-
-
-class FurnitureOccupant(mudslingcore.objects.Character):
-    """
-    A character that can sit/lay/recline on furniture.
-
-    :ivar furniture: A reference to the furniture object currently occupied by
-        this character.
-    :type furniture: Furniture
-
-    :ivar furniture_posture: The class describing the posture the character
-        has while occupying the furniture.
-    :type furniture_posture: Posture
-    """
-    furniture = None
-    furniture_posture = None
-
-    def furniture_desc_to(self, who=None):
-        """
-        Get a string describing this character's furniture state.
-
-        :param who: The observer.
-        :type who: mudsling.objects.Object
-
-        :rtype: str
-        """
-        name = self.name if who is None else who.name_for(self)
-        return ' '.join((self.furniture_posture.participle,
-                         self.furniture_posture.preposition,
-                         name))
-
-    def occupy_furniture(self, furniture, posture):
-        """
-        Begin occupying a piece of furniture.
-
-        :param furniture: The furniture object to occupy.
-        :type furniture: Furniture
-
-        :param posture: The posture with which to occupy the furniture.
-        :type posture: Posture
-
-        :raises: NoOccupancy
-        """
-        if self.furniture == furniture:
-            # Already occupying furniture, so we're just changing posture.
-            self.furniture_posture = posture
-        else:
-            if furniture.available_occupancy < 1:
-                raise NoOccupancy('%s is occupied' % self.name_for(furniture))
-            if self.furniture is not None:
-                self.leave_furniture()
-            self.furniture = furniture
-            self.furniture_posture = posture
-        furniture.emit_message('occupant added', actor=self.ref(),
-                               posture=posture)
-
-    def leave_furniture(self, stealth=False):
-        """
-        Cease occupying the currently-occupied piece of furniture.
-
-        :raises: NotOccupyingFurniture
-        """
-        if self.furniture is None:
-            raise NotOccupyingFurniture('Not occupying any furniture')
-        furniture = self.furniture
-        posture = self.furniture_posture
-        self.furniture = None
-        self.furniture_posture = None
-        if not stealth:
-            furniture.emit_message('occupant left', actor=self.ref(),
-                                   posture=posture)
-
-    def shoved_from_furniture(self, by):
-        """
-        This character is shoved out of their current furniture occupancy.
-
-        :param by: The object shoving them out.
-        :type by: FurnitureOccupant
-        """
-        furniture = self.furniture
-        posture = self.furniture_posture
-        self.leave_furniture(stealth=True)
-        furniture.emit_message('occupant shoved', actor=by,
-                               occupant=self.ref(), posture=posture)
-
-    def before_object_moved(self, moving_from, moving_to, by=None, via=None):
-        super(FurnitureOccupant, self)\
-            .before_object_moved(moving_from, moving_to, by=by, via=via)
-        try:
-            self.leave_furniture()
-        except NotOccupyingFurniture:
-            pass  # Quietly fail.
 
 
 class Sofa(Furniture):
