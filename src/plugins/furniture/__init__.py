@@ -3,8 +3,11 @@ import mudsling.commands
 import mudsling.locks
 import mudsling.errors
 import mudsling.messages
+import mudsling.parsers
 
 import mudslingcore.objects
+
+isa_occupant = mudsling.locks.Lock('isa(furniture.FurnitureOccupant)')
 
 
 class NoOccupancy(mudsling.errors.Error):
@@ -73,6 +76,11 @@ class Furniture(mudslingcore.objects.Thing):
                      '${posture.preposition} $this.',
             '*': '$actor stands up from ${posture.participle} '
                  '${posture.preposition} $this.'
+        },
+        'occupant shoved': {
+            'actor': 'You shove $occupant away from $this.',
+            'occupant': '$actor shoves you away from $this!',
+            '*': '$actor shoves $occupant away from $this.'
         }
     })
 
@@ -93,7 +101,7 @@ class Furniture(mudslingcore.objects.Thing):
         """
         aliases = ('sit', 'lie', 'lay', 'recline')
         syntax = '[down] {on|in|at|across|upon|atop} \w <this>'
-        lock = mudsling.locks.Lock('isa(furniture.FurnitureOccupant)')
+        lock = isa_occupant
         arg_parsers = {
             'this': 'THIS'
         }
@@ -125,7 +133,7 @@ class Furniture(mudslingcore.objects.Thing):
         aliases = ('stand', 'rise')
         syntax = 'from <this>'
         arg_parsers = {'this': 'THIS'}
-        lock = mudsling.locks.Lock('isa(furniture.FurnitureOccupant)')
+        lock = isa_occupant
 
         def run(self, this, actor, args):
             """
@@ -138,7 +146,37 @@ class Furniture(mudslingcore.objects.Thing):
                                 % actor.name_for(this))
             actor.leave_furniture()
 
-    public_commands = [FurnitureSitCmd, FurnitureStandCmd]
+    class FurnitureShoveCmd(mudsling.commands.Command):
+        """
+        shove <character> from <furniture>
+
+        Push a character off of the furniture.
+        """
+        aliases = ('shove', 'push')
+        syntax = '<character> {from|off|off of|out of} <this>'
+        arg_parsers = {
+            'character': mudsling.parsers.MatchObject(FurnitureOccupant,
+                                                      search_for='character',
+                                                      show=True),
+            'this': 'THIS'
+        }
+        lock = isa_occupant
+
+        def run(self, this, actor, args):
+            """
+            :type this: Furniture
+            :type actor: FurnitureOccupant
+            :type args: dict
+            """
+            #: :type: FurnitureOccupant
+            occupant = args['character']
+            if occupant.furniture != this:
+                raise self._err('%s is not occupying %s'
+                                % (actor.name_for(occupant),
+                                   actor.name_for(this)))
+            occupant.shoved_from_furniture(by=actor)
+
+    public_commands = [FurnitureSitCmd, FurnitureStandCmd, FurnitureShoveCmd]
 
 
 class FurnitureOccupant(mudslingcore.objects.Character):
@@ -195,7 +233,7 @@ class FurnitureOccupant(mudslingcore.objects.Character):
         furniture.emit_message('occupant added', actor=self.ref(),
                                posture=posture)
 
-    def leave_furniture(self):
+    def leave_furniture(self, stealth=False):
         """
         Cease occupying the currently-occupied piece of furniture.
 
@@ -207,8 +245,22 @@ class FurnitureOccupant(mudslingcore.objects.Character):
         posture = self.furniture_posture
         self.furniture = None
         self.furniture_posture = None
-        furniture.emit_message('occupant left', actor=self.ref(),
-                               posture=posture)
+        if not stealth:
+            furniture.emit_message('occupant left', actor=self.ref(),
+                                   posture=posture)
+
+    def shoved_from_furniture(self, by):
+        """
+        This character is shoved out of their current furniture occupancy.
+
+        :param by: The object shoving them out.
+        :type by: FurnitureOccupant
+        """
+        furniture = self.furniture
+        posture = self.furniture_posture
+        self.leave_furniture(stealth=True)
+        furniture.emit_message('occupant shoved', actor=by,
+                               occupant=self.ref(), posture=posture)
 
     def before_object_moved(self, moving_from, moving_to, by=None, via=None):
         super(FurnitureOccupant, self)\
