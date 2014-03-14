@@ -743,6 +743,18 @@ class Object(BaseObject):
         # to reference _contents directly (and CAREFULLY).
         return list(self._contents)
 
+    def contents_name(self, viewer=None):
+        """
+        The string to display for this object when seen in a list of contents.
+
+        :param viewer: An optional viewer object.
+        :type viewer: BaseObject
+
+        :return: The name to show while in the contents list of its container.
+        :rtype: str
+        """
+        return self.name if viewer is None else viewer.name_for(self)
+
     def can_touch(self, obj):
         obj = obj.ref()
         if self.has_location and obj in self.location.contents:
