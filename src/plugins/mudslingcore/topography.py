@@ -141,7 +141,7 @@ class Room(DescribableObject):
         """
         Return the contents of the room as seen by the passed object.
         """
-        contents = [c for c in self.contents if not getattr(c, 'obscure', 0)]
+        contents = self.contents_visible_to(obj)
         if obj in contents:
             contents.remove(obj)
         if contents:
