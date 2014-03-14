@@ -20,6 +20,10 @@ class NotOccupyingFurniture(mudsling.errors.Error):
     pass
 
 
+class InvalidSurface(mudsling.errors.Error):
+    pass
+
+
 class Posture(mudsling.storage.PersistentSlots):
     __slots__ = ('preposition',)
 
@@ -69,16 +73,23 @@ class FurnitureOccupant(mudslingcore.objects.Character):
     furniture_posture = None
     furniture_talk = False
 
+    def contents_name(self, viewer=None):
+        name = super(FurnitureOccupant, self).contents_name(viewer=viewer)
+        if self.furniture is not None:
+            name = '%s (%s)' % (name, self.furniture_desc_to(viewer))
+        return name
+
     def furniture_desc_to(self, who=None):
         """
         Get a string describing this character's furniture state.
 
         :param who: The observer.
-        :type who: mudsling.objects.Object
+        :type who: mudsling.objects.Object or None
 
         :rtype: str
         """
-        name = self.name if who is None else who.name_for(self)
+        name = (self.furniture.name if who is None
+                else who.name_for(self.furniture))
         return ' '.join((self.furniture_posture.participle,
                          self.furniture_posture.preposition,
                          name))
@@ -231,9 +242,10 @@ class Furniture(mudslingcore.objects.Thing):
     :type occupants: list of FurnitureOccupant
     """
     occupant_capacity = 1
-    surface = False
+    surface = True
 
     occupants = []
+    surface_objects = []
 
     messages = mudsling.messages.Messages({
         'occupant added': {
@@ -256,6 +268,24 @@ class Furniture(mudslingcore.objects.Thing):
     def on_object_created(self):
         #: :type: list of FurnitureOccupant
         self.occupants = []
+        #: :type: list of PlaceableObject
+        self.surface_objects = []
+
+    def before_object_moved(self, moving_from, moving_to, by=None, via=None):
+        super(Furniture, self).before_object_moved(moving_from, moving_to,
+                                                   by=by, via=via)
+        for occupant in self.occupants:
+            occupant.leave_furniture()
+        for obj in self.surface_objects:
+            obj.displace(by=by)
+
+    def contents_name(self, viewer=None):
+        name = super(Furniture, self).contents_name(viewer=viewer)
+        if self.surface_objects:
+            holding = ', '.join(o.contents_name(viewer=viewer)
+                                for o in self.surface_objects)
+            name = '%s (holding: %s)' % (name, holding)
+        return name
 
     @property
     def available_occupancy(self):
@@ -314,6 +344,31 @@ class Furniture(mudslingcore.objects.Thing):
 
         return filter(None, receivers)
 
+    def add_to_surface(self, obj):
+        """
+        Add an object to this object's surface.
+
+        This gets called by PlaceableObject.place_on(), so all we do here is
+        modify our internal list of surface objects.
+
+        :param obj: The object being placed on this object.
+        :type obj: PlaceableObject
+        """
+        if obj not in self.surface_objects:
+            self.surface_objects.append(obj.ref())
+
+    def remove_from_surface(self, obj):
+        """
+        Remove an object from this object's surface.
+
+        This gets called by PlaceableObject, so all we do is update internal
+        list of surface objects.
+
+        :param obj: The object to remove.
+        """
+        if obj in self.surface_objects:
+            self.surface_objects.remove(obj)
+
     class FurnitureSitCmd(mudsling.commands.Command):
         """
         sit|lie|recline [down] on <furniture>
@@ -324,7 +379,7 @@ class Furniture(mudslingcore.objects.Thing):
         syntax = '[down] {on|in|at|across|upon|atop} \w <this>'
         lock = isa_occupant
         arg_parsers = {
-            'this': 'THIS'
+            'this': 'this'
         }
         postures = {
             'sit': Sitting,
@@ -353,7 +408,7 @@ class Furniture(mudslingcore.objects.Thing):
         """
         aliases = ('stand', 'rise')
         syntax = 'from <this>'
-        arg_parsers = {'this': 'THIS'}
+        arg_parsers = {'this': 'this'}
         lock = isa_occupant
 
         def run(self, this, actor, args):
@@ -379,7 +434,7 @@ class Furniture(mudslingcore.objects.Thing):
             'character': mudsling.parsers.MatchObject(FurnitureOccupant,
                                                       search_for='character',
                                                       show=True),
-            'this': 'THIS'
+            'this': 'this'
         }
         lock = isa_occupant
 
@@ -400,9 +455,125 @@ class Furniture(mudslingcore.objects.Thing):
     public_commands = [FurnitureSitCmd, FurnitureStandCmd, FurnitureShoveCmd]
 
 
+class PlaceableObject(mudslingcore.objects.CoreObject):
+    """
+    An object that can be placed on a furniture surface.
+    """
+    placed_on = None
+
+    messages = mudsling.messages.Messages({
+        'displace': {
+            'actor': 'You remove $this from $furniture.',
+            '*': '$actor removes $this from $furniture.'
+        },
+        'place': {
+            'actor': 'You place $this on $furniture.',
+            '*': '$actor places $this on $furniture.'
+        }
+    })
+
+    def show_in_contents_to(self, obj):
+        show = super(PlaceableObject, self).show_in_contents_to(obj)
+        return show and self.placed_on is None
+
+    def place_on(self, furniture, by=None):
+        """
+        Place this object on a piece of furniture.
+
+        :param furniture: The piece of furniture on which to place this.
+        :type furniture: Furniture
+
+        :param by: The object placing this on furniture.
+        :type: by: mudsling.objects.Object
+
+        :raises: InvalidSurface
+        """
+        if not (self.game.db.is_valid(furniture, Furniture)
+                and furniture.surface):
+            raise InvalidSurface('Invalid furniture surface')
+        if self.location != furniture.location:
+            self.move_to(furniture.location)
+        if self.placed_on is not None:
+            self.displace(by=by)
+        furniture.add_to_surface(self)
+        self.placed_on = furniture
+        if self.game.db.is_valid(by, mudsling.objects.Object):
+            self.emit_message('place', actor=by, furniture=furniture)
+
+    def displace(self, by=None):
+        """
+        Remove this object from the furniture on which it rests.
+        """
+        furniture = self.placed_on
+        self.placed_on = None
+        if self.game.db.is_valid(furniture, Furniture):
+            furniture.remove_from_surface(self)
+            if self.game.db.is_valid(by, mudsling.objects.Object):
+                self.emit_message('displace', actor=by, furniture=furniture)
+
+    def before_object_moved(self, moved_from, moved_to, by=None, via=None):
+        super(PlaceableObject, self).before_object_moved(moved_from, moved_to,
+                                                         by=by, via=via)
+        if self.placed_on is not None:
+            self.displace(by=by)
+
+    class FurniturePutCmd(mudsling.commands.Command):
+        """
+        put <object> on <furniture>
+
+        Place an object on a furniture surface.
+        """
+        aliases = ('put', 'place', 'set')
+        syntax = '<this> on <furniture>'
+        arg_parsers = {
+            'furniture': mudsling.parsers.MatchObject(Furniture, show=True,
+                                                      search_for='furniture'),
+            'this': 'this'
+        }
+        lock = mudsling.locks.all_pass
+
+        def run(self, this, actor, args):
+            """
+            :type this: PlaceableObject
+            :type actor: mudslingcore.objects.Character
+            :type args: dict
+            """
+            #: :type: Furniture
+            furniture = args['furniture']
+            if this.placed_on == furniture:
+                raise self._err('%s is already on %s.'
+                                % (actor.name_for(this),
+                                   actor.name_for(furniture)))
+            this.place_on(furniture, by=actor)
+
+    public_commands = [FurniturePutCmd]
+
+
+class PlaceableThing(mudslingcore.objects.Thing, PlaceableObject):
+    """
+    A thing that can be placed on furniture surfaces.
+    """
+
+
 class Sofa(Furniture):
     occupant_capacity = 3
 
 
 class Chair(Furniture):
+    occupant_capacity = 1
+
+
+class SmallTable(Furniture):
+    occupant_capacity = 2
+
+
+class MediumTable(Furniture):
+    occupant_capacity = 4
+
+
+class LargeTable(Furniture):
+    occupant_capacity = 8
+
+
+class Desk(Furniture):
     occupant_capacity = 1
