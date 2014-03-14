@@ -33,6 +33,24 @@ class CoreObject(senses.SensoryMedium):
     """
     obscure = False
 
+    def show_in_contents_to(self, obj):
+        return not self.obscure
+
+    def contents_visible_to(self, obj):
+        """
+        Return the list of contents within self visible to the provided object.
+        """
+        default = lambda o: True
+        return [c for c in self.contents
+                if getattr(c, 'show_in_contents_to', default)(obj)]
+
+    def contents_as_seen_by(self, obj):
+        """
+        Return the text describing the contents of self to the given object.
+        """
+        names = [' ' + obj.name_for(o) for o in self.contents_visible_to(obj)]
+        return utils.string.columnize(names, 2) if names else " Nothing"
+
     @property
     def containing_room(self):
         """
@@ -126,19 +144,6 @@ class DescribableObject(CoreObject):
         Return the string describing this object to the passed object.
         """
         return self.desc if self.desc else "You see nothing special."
-
-    def contents_visible_to(self, obj):
-        """
-        Return the list of contents within self visible to the provided object.
-        """
-        return list(self.contents)
-
-    def contents_as_seen_by(self, obj):
-        """
-        Return the text describing the contents of self to the given object.
-        """
-        names = [' ' + obj.name_for(o) for o in self.contents_visible_to(obj)]
-        return utils.string.columnize(names, 2) if names else " Nothing"
 
 
 class Player(BasePlayer, ConfigurableObject, ChannelUser):
