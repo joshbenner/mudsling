@@ -26,7 +26,12 @@ import commands.admin.players
 class CoreObject(senses.SensoryMedium):
     """
     The most basic object used by MUDSling Core.
+
+    :ivar obscure: Object is visible but difficult to see. May be excluded
+        from content lists.
+    :type obscure: bool
     """
+    obscure = False
 
     @property
     def containing_room(self):
