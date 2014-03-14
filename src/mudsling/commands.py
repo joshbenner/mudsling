@@ -269,7 +269,7 @@ class Command(object):
             self.args = parsed
             # Check for 'this' in any of the validators.
             for argName, valid in self.arg_parsers.iteritems():
-                if valid.lower() == 'this':
+                if isinstance(valid, str) and valid.lower() == 'this':
                     matches = self.actor.match_object(parsed[argName])
                     if self.obj not in matches:
                         return False
