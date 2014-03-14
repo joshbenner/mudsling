@@ -48,7 +48,8 @@ class CoreObject(senses.SensoryMedium):
         """
         Return the text describing the contents of self to the given object.
         """
-        names = [' ' + obj.name_for(o) for o in self.contents_visible_to(obj)]
+        names = [' ' + o.contents_name(obj) for o
+                 in self.contents_visible_to(obj)]
         return utils.string.columnize(names, 2) if names else " Nothing"
 
     @property

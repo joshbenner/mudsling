@@ -146,13 +146,8 @@ class Room(DescribableObject):
             contents.remove(obj)
         if contents:
             fmt = "{c%s{n"
-            if self.game.db.is_valid(obj):
-                def name(o):
-                    return fmt % obj.name_for(o)
-            else:
-                def name(o):
-                    return fmt % o.name
-            names = utils.string.english_list(map(name, contents))
+            names = utils.string.english_list([fmt % c.contents_name(obj)
+                                               for c in contents])
             return "You see %s here." % names
         else:
             return ''
