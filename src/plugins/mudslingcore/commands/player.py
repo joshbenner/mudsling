@@ -17,13 +17,13 @@ from mudslingcore.ui import ClassicUI
 
 class AnsiCmd(Command):
     """
-    @ansi on|off
+    @ansi on|off|256
 
     Enable/disable ANSI color.
     """
 
     aliases = ('@ansi',)
-    syntax = "[{ on | off }]"
+    syntax = "[{ on | off | 256}]"
     lock = locks.all_pass
 
     def run(self, this, actor, args):
@@ -36,11 +36,14 @@ class AnsiCmd(Command):
         if 'optset1' not in args:
             if actor.ansi:
                 self.demo()
+                actor.tell('\n256 color support is: ',
+                           '{gON' if actor.xterm256 else '{rOFF')
+                actor.msg(self.syntax_help())
             else:
                 actor.msg('ANSI color is OFF')
             return
 
-        val = args['optset1'] == 'on'
+        val = args['optset1'] in ('on', '256')
 
         if actor.ansi == val:
             if val:
@@ -49,6 +52,16 @@ class AnsiCmd(Command):
                 actor.msg("You already have ANSI disabled.")
         else:
             actor.ansi = val
+
+        xterm256 = args['optset1'] == '256'
+
+        if actor.xterm256 == xterm256:
+            if xterm256:
+                actor.msg('You already have 256 color support enabled.')
+            else:
+                actor.msg('You already have 256 color support disabled.')
+        else:
+            actor.xterm256 = xterm256
 
     def demo(self):
         msg = [

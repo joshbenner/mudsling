@@ -1157,6 +1157,7 @@ class BasePlayer(BaseObject):
 
     # Governed by ansi property
     _ansi = False
+    _xterm256 = False
 
     __roles = set()
 
@@ -1328,6 +1329,7 @@ class BasePlayer(BaseObject):
             pass
         self.session = session
         session.ansi = self.ansi
+        session.xterm256 = self.xterm256
         self.msg("{gConnected to player {c%s{g." % self.name)
         if self.possessing is None:
             self.msg("{rYou are not attached to any game object!")
@@ -1577,6 +1579,24 @@ class BasePlayer(BaseObject):
                 self.msg("ANSI {gENABLED{n.")
             else:
                 self.msg("ANSI DISABLED.")
+
+    @property
+    def xterm256(self):
+        """:rtype: bool"""
+        return self._xterm256
+
+    @xterm256.setter
+    def xterm256(self, val):
+        if self._xterm256 != val:
+            if val:
+                self.ansi = val
+            self._xterm256 = val
+            if self.session is not None:
+                self.session.xterm256 = val
+            if val:
+                self.msg('256 color support {gENABLED{n.')
+            else:
+                self.msg('256 color support {rDISABLED{n.')
 
     def match_obj_of_type(self, search, cls=None):
         if inspect.isclass(cls) and issubclass(cls, BasePlayer):
