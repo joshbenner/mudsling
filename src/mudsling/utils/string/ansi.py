@@ -197,7 +197,7 @@ class ANSIParser(object):
         self.ansi_escapes = re.compile(r"(%s)" % "|".join(ANSI_ESCAPES),
                                        re.DOTALL)
 
-        tokens = []
+        tokens = [r'\{(b?\d{1,3})']
         for regex, sub in self.xterm256_map:
             regex = regex.replace('(', '').replace(')', '')
             tokens.append(regex)
