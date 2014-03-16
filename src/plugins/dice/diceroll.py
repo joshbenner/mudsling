@@ -124,7 +124,7 @@ def _grammar():
 
     identifier = Word(alphas + "_", alphanums + "_")
 
-    integer = Word('+' + '-' + nums, nums)
+    integer = Word(nums)
     integer.setParseAction(IntegerNode)
     fractional = Combine(Word('+' + '-' + nums, nums) + '.' + Word(nums))
     fractional.setParseAction(FloatNode)
