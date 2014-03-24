@@ -178,8 +178,8 @@ class ANSIParser(object):
 
         # xterm256 {123, %c134,
         self.xterm256_map = [
-            (r'{([0-9]{3})', self.parse_xterm256),  # {123 - foreground color
-            (r'{(b[0-9]{3})', self.parse_xterm256)  # {b123 - background color
+            (r'{([0-9]{1,3})', self.parse_xterm256),  # {123 - fg color
+            (r'{(_[0-9]{1,3})', self.parse_xterm256)  # {_123 - bg color
         ]
 
         # prepare regex matching
@@ -188,7 +188,7 @@ class ANSIParser(object):
         self.ansi_map = self.ext_ansi_map
         self.xterm256_sub = [(re.compile(r, re.DOTALL), f)
                              for r, f in self.xterm256_map]
-        self.xterm256_regex = re.compile(r'\{(b?\d{1,3})', re.DOTALL)
+        self.xterm256_regex = re.compile(r'\{(_?\d{1,3})', re.DOTALL)
 
         # prepare matching ansi codes overall
         self.ansi_regex = re.compile("\033\[[0-9;]+m")
@@ -197,7 +197,7 @@ class ANSIParser(object):
         self.ansi_escapes = re.compile(r"(%s)" % "|".join(ANSI_ESCAPES),
                                        re.DOTALL)
 
-        tokens = [r'\{b?\d{1,3}']
+        tokens = [r'\{_?\d{1,3}']
         for regex, sub in self.xterm256_map:
             regex = regex.replace('(', '').replace(')', '')
             tokens.append(regex)
@@ -595,7 +595,7 @@ class ANSIParser(object):
                 return ''
             if not isinstance(colornum, str):
                 colornum = colornum.groups()[0]
-            bg = colornum.startswith('b')
+            bg = colornum.startswith('_')
             colornum = int(colornum[1 if bg else 0:])
         return ANSI_ESCAPE + ('[%d;5;%dm' % (48 if bg else 38, colornum))
 
@@ -609,7 +609,7 @@ class ANSIParser(object):
         input = match.groups()[0]
         if not input:
             return ''
-        background = input.startswith('b')
+        background = input.startswith('_')
         xterm256num = int(input[1 if background else 0:])
         codes = self.simplify_bg if background else self.simplify_fg
         return codes[self.ansi256_to_ansi16[xterm256num]]
@@ -626,7 +626,7 @@ class ANSIParser(object):
             return ""
         rgbtag = rgbmatch.groups()[0]
 
-        background = rgbtag[0] == 'b'
+        background = rgbtag[0] == '_'
         if background:
             red, green, blue = int(rgbtag[1]), int(rgbtag[2]), int(rgbtag[3])
         else:
