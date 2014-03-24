@@ -188,7 +188,7 @@ class Calendar(object):
         """
         if isinstance(duration, basestring):
             return cls.parse_ic_duration(duration)
-        return cls.duration(duration * cls.time_scale)
+        return cls.duration(duration / cls.time_scale)
 
     @classmethod
     def interval(cls, interval):
@@ -444,6 +444,10 @@ class Timestamp(namedtuple('Timestamp', 'unix_time calendar_name')):
     @property
     def date(self):
         return Date(self)
+
+    @property
+    def rl_timestamp(self):
+        return RealTime.timestamp(self.unix_time)
 
     def __str__(self):
         return self.calendar.format_datetime(self)
