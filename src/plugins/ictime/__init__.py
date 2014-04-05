@@ -449,6 +449,28 @@ class Timestamp(namedtuple('Timestamp', 'unix_time calendar_name')):
     def rl_timestamp(self):
         return RealTime.timestamp(self.unix_time)
 
+    @property
+    def since(self):
+        """
+        Get a Duration since this timestamp to now, or None if this timestamp
+        is in the future.
+
+        :rtype: Duration
+        """
+        since = self.calendar.now() - self
+        return since if since.real_seconds >= 0 else None
+
+    @property
+    def until(self):
+        """
+        Get a Duration until this timestamp arrives, or None if this timestamp
+        is in the past.
+
+        :rtype: Duration
+        """
+        until = self - self.calendar.now()
+        return until if until.real_seconds >= 0 else None
+
     def __str__(self):
         return self.calendar.format_datetime(self)
 
@@ -476,6 +498,8 @@ class Timestamp(namedtuple('Timestamp', 'unix_time calendar_name')):
         if isinstance(other, Duration):
             return Timestamp(self.unix_time - other.real_seconds,
                              self.calendar)
+        elif isinstance(other, Timestamp):
+            return Duration(self.unix_time - other.unix_time, self.calendar)
         return NotImplemented
 
 
