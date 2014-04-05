@@ -103,8 +103,9 @@ class Table(object):
             if w is None or w == 'auto':
                 w = ansi.length(col.name)
                 if len(rows):
-                    w = max(w, *[self._longestline(row[index])
-                                 for row in rows if isinstance(row, list)])
+                    # w twice in case there are no rows.
+                    w = max(w, w, *[self._longestline(row[index])
+                                    for row in rows if isinstance(row, list)])
             if isinstance(w, basestring):
                 if w in ('*', 'expand', 'fill'):
                     expand = index
