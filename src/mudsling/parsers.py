@@ -240,6 +240,21 @@ class MatchOtherContents(MatchObject):
                                              err=False)
 
 
+class MatchContext(MatchObject):
+    """
+    Parser to match an object within the matcher's context. This prevents, for
+    instance, specifying an object literal to match an object that is not in
+    the matcher's context.
+    """
+    def _match(self, obj, input):
+        try:
+            f = obj.match_context
+        except AttributeError:  # Account for contextless objects.
+            return []
+        else:
+            return f(input, cls=self.objClass, err=False)
+
+
 class MatchChildren(MatchObject):
     """
     Parser to match an object among the children of a given type.

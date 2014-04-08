@@ -42,9 +42,11 @@ class MUDSlingCorePlugin(GamePlugin):
 
     def lock_functions(self):
         from mudslingcore.channels import lock_invited, lock_operator
+        from mudslingcore.objsettings import lock_can_configure
         return {
             'invited': lock_invited,
             'invitees': lock_invited,
             'operator': lock_operator,
             'operators': lock_operator,
+            'can_configure': lock_can_configure
         }

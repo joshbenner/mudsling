@@ -17,6 +17,8 @@ mudslingcore
 * create things -- Player may create objects of class Thing.
 * create objects
 * delete objects
+* configure own objects
+* configure all objects
 * use building commands
 * remote look -- Look at objects outside of own context.
 * teleport -- Player may access teleportation commands.

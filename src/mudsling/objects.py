@@ -776,9 +776,35 @@ class Object(BaseObject):
             if o.location == this:
                 o.move_to(None)
 
+    def match_context(self, search, cls=None, err=False):
+        """
+        Match an object, but only match objects in this object's context. This
+        excludes matching of any objects not in this object's contents or
+        location.
+
+        :param search: The search text.
+        :type search: str
+
+        :param cls: A class to limit potential matches.
+        :type cls: type
+
+        :param err: Whether or not to raise match errors.
+        :type err: bool
+
+        :return: List of matches.
+        :rtype: list of Object
+        """
+        index = dict((o, o.names + ('#%d' % o.obj_id,))
+                     for o in utils.object.filter_by_class(self.context, cls))
+        if self.location in index:
+            index[self.location] += ('here',)
+        if self in index:
+            index[self] += ('me',)
+        return match_stringlists(search, index, exact=False, err=err)
+
     def match_object(self, search, cls=None, err=False):
         """
-        @type search: str
+        :type search: str
         :rtype: list
         """
         # Any match in parent bypasses further matching. This means, in theory,

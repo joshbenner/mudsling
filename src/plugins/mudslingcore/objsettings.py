@@ -1,7 +1,34 @@
 import inspect
 
 from mudsling import errors
-from mudsling.storage import StoredObject, ObjRef, Persistent
+from mudsling.storage import StoredObject, ObjRef
+import mudsling.commands
+import mudsling.match
+import mudsling.errors
+import mudsling.locks
+import mudsling.objects
+
+from mudsling.utils.sequence import CaselessDict
+
+can_configure = mudsling.locks.Lock('can_configure()')
+
+
+def lock_can_configure(obj, who):
+    """
+    Lock function can_configure().
+
+    True if user can configure settings on object.
+
+    :type obj: ConfigurableObject
+    """
+    if obj.isa(ConfigurableObject):
+        if who.has_perm('configure all objects'):
+            return True
+        elif (who.has_perm('configure own objects')
+              and obj.isa(mudsling.objects.BaseObject)
+              and obj.owner == who):
+            return True
+    return False
 
 
 class ObjSetting(object):
@@ -39,17 +66,17 @@ class ObjSetting(object):
         Store the given value for this object setting. No validation or
         converstion.
 
-        @raise L{errors.ObjSettingError}: If setting the attribute results in
+        :raise errors.ObjSettingError: If setting the attribute results in
             an exception.
 
-        @returns: True if storing the value was successful.
-        @rtype: C{bool}
+        :returns: True if storing the value was successful.
+        :rtype: bool
         """
         attr = self.attr
         if attr is None:  # Store in unbound_settings
             if "unbound_settings" in obj.__dict__:
                 if obj.unbound_settings is None:
-                    obj.unbound_settings = {}
+                    obj.unbound_settings = CaselessDict()
                 obj.unbound_settings[self.name] = value
                 return True
             else:
@@ -69,8 +96,8 @@ class ObjSetting(object):
         Sets the value for the setting this instance describes on the provided
         object to the provided value.
 
-        @returns: True if set action succeeds.
-        @rtype: C{bool}
+        :returns: True if set action succeeds.
+        :rtype: bool
         """
         if callable(self.parser):
             try:
@@ -106,34 +133,46 @@ class ObjSetting(object):
         # If we get this far, then value is valid.
         return self.set_value(obj, value)
 
-    def getValue(self, obj):
+    def get_value(self, obj):
         attr = self.attr
         if attr is None:
             if "unbound_settings" in obj.__dict__:
-                if attr in obj.unbound_settings:
-                    return obj.unbound_settings[attr]
+                if self.name in obj.unbound_settings:
+                    return obj.unbound_settings[self.name]
         else:
             if hasattr(obj, attr):
                 return getattr(obj, attr)
         return self.default(obj) if callable(self.default) else self.default
 
+    def reset_value(self, obj):
+        attr = self.attr
+        if (attr is None
+                and "unbound_settings" in obj.__dict__
+                and attr in obj.unbound_settings):
+            del obj.unbound_settings[attr]
+            return True
+        elif attr in obj.__dict__:
+            delattr(obj, attr)
+            return True
+        return False
 
-class ConfigurableObject(Persistent):
+
+class ConfigurableObject(mudsling.objects.BaseObject):
     """
     An object that has a configuration API.
 
-    @cvar object_settings: Settings exposed by this class.
-    @cvar _objSettings_cache: A cache of the class's settings after resolving
-        all available settings through the MRO. See L{obj_settings}.
+    :cvar object_settings: Settings exposed by this class.
+    :cvar _objSettings_cache: A cache of the class's settings after resolving
+        all available settings through the MRO. See obj_settings.
 
-    @ivar unbound_settings: A place to stash setting values that have no
+    :ivar unbound_settings: A place to stash setting values that have no
         configured attribute for storage.
     """
 
     object_settings = [
         # Examples.
         # ObjSetting('name', str, 'name'),
-        # ObjSetting('aliases', list, 'aliases',
+        # ObjSetting('aliases', list, 'aliases', []
         #            ObjSetting.parse_string_list_none_empty)
     ]
     _objsettings_cache = None
@@ -148,14 +187,14 @@ class ConfigurableObject(Persistent):
         ObjSettings come from this class and all ancestor classes that specify
         a list of ObjSettings.
 
-        @return: Dict of ObjSetting instances describing the settings for obj.
-        @rtype: C{dict} of C{str}:L{ObjSetting}
+        :return: Dict of ObjSetting instances describing the settings for obj.
+        :rtype: dict of (str, ObjSetting)
         """
         if cls._objsettings_cache is not None:
             return cls._objsettings_cache
         mro = list(cls.__mro__)
         mro.reverse()
-        settings = {}
+        settings = CaselessDict()
         for c in mro:
             if (issubclass(c, ConfigurableObject)
                     and 'object_settings' in c.__dict__):
@@ -164,19 +203,85 @@ class ConfigurableObject(Persistent):
         cls._objsettings_cache = settings
         return settings
 
+    def get_obj_setting(self, name):
+        """
+        Retrieve an object setting.
+
+        :param name: The name of the object setting.
+        :type name: str
+
+        :rtype: ObjSetting
+        """
+        settings = self.obj_settings()
+        if name not in settings:
+            raise errors.SettingNotFound(self, name)
+        return settings[name]
+
     def set_obj_setting(self, name, input):
         """
         Set the value of an object setting.
-        @param name: The object setting to manipulate.
-        @param input: The raw user input representing the value to store.
+        :param name: The object setting to manipulate.
+        :param input: The raw user input representing the value to store.
         """
-        settings = self.obj_settings()
-        if name not in settings:
-            raise errors.SettingNotFound(self, name)
-        return settings[name].set_value(self, input)
+        return self.get_obj_setting(name).set_value_from_input(self, input)
 
-    def get_obj_setting(self, name):
-        settings = self.obj_settings()
-        if name not in settings:
-            raise errors.SettingNotFound(self, name)
-        return settings[name].getValue(self)
+    def get_obj_setting_value(self, name):
+        return self.get_obj_setting(name).get_value(self)
+
+    def reset_obj_setting(self, name):
+        return self.get_obj_setting(name).reset_value(self)
+
+    class SetCmd(mudsling.commands.Command):
+        """
+        @set <obj>.<setting>=<value>
+
+        Set a configuration option on an object.
+        """
+        aliases = ('@set',)
+        syntax = '<obj> {.} <setting> {=} <value>'
+        arg_parsers = {'obj': 'this'}
+        lock = can_configure
+
+        def run(self, this, actor, args):
+            """
+            :type this: ConfigurableObject
+            :type actor: mudsling.objects.BaseObject
+            :type args: dict
+            """
+            try:
+                previous = this.get_obj_setting_value(args['setting'])
+                this.set_obj_setting(args['setting'], args['value'])
+            except errors.ObjSettingError as e:
+                raise self._err(e.message)
+            else:
+                new = this.get_obj_setting_value(args['setting'])
+                actor.tell(this, '.', args['setting'], ' set to %r' % new,
+                           ' (previous value: %r)' % previous)
+
+    class ResetCmd(mudsling.commands.Command):
+        """
+        @reset <obj>.<setting>
+
+        Resets an object setting to its default.
+        """
+        aliases = ('@reset',)
+        syntax = '<obj> {.} <setting>'
+        arg_parsers = {'obj': 'this'}
+        lock = can_configure
+
+        def run(self, this, actor, args):
+            """
+            :type this: ConfigurableObject
+            :type actor: mudsling.objects.BaseObject
+            :type args: dict
+            """
+            try:
+                this.reset_obj_setting(args['setting'])
+            except errors.ObjSettingError as e:
+                raise self._err(e.message)
+            else:
+                actor.tell(this, '.', args['setting'],
+                           ' reset to default (%r).'
+                           % this.get_obj_setting_value(args['setting']))
+
+    public_commands = [SetCmd, ResetCmd]
