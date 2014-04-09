@@ -412,7 +412,7 @@ class ShowCmd(mudsling.commands.Command):
             if obj.isa(mudslingcore.objsettings.ConfigurableObject):
                 out += '\n\n' + ui.h2('Settings') + '\n'
                 out += str(self.settings_table(obj))
-            actor.tell(ui.report('Showing %s' % actor.name_for(this), out))
+            actor.tell(ui.report('Showing %s' % actor.name_for(obj), out))
 
     def settings_table(self, obj):
         if self.args['setting'] is not None:

@@ -39,7 +39,7 @@ class CoreObject(senses.SensoryMedium):
         details = OrderedDict((
             ('Names', ', '.join(self.names)),
             ('Class', parsers.ObjClassStaticParser.unparse(self.__class__)),
-            ('Owner', who.name_for(self))
+            ('Owner', who.name_for(self.owner))
         ))
         return details
 
