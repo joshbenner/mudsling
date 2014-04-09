@@ -415,10 +415,10 @@ class ShowCmd(mudsling.commands.Command):
             actor.tell(ui.report('Showing %s' % actor.name_for(obj), out))
 
     def settings_table(self, obj):
-        if self.args['setting'] is not None:
-            settings = (self.args['setting'],)
+        if self.parsed_args['setting'] is not None:
+            settings = (self.parsed_args['setting'],)
         else:
-            settings = obj.obj_settings().keys()
+            settings = sorted(obj.obj_settings().keys(), key=str.lower)
         settings = map(str.lower, settings)
         table = ui.Table(
             [
@@ -429,8 +429,8 @@ class ShowCmd(mudsling.commands.Command):
                           cell_formatter=self.fmt_default)
             ]
         )
-        table.add_rows(*(s for s in obj.obj_settings().itervalues()
-                         if s.name.lower() in settings))
+        all_settings = obj.obj_settings()
+        table.add_rows(*(all_settings[s] for s in settings))
         return table
 
     def fmt_type(self, setting):
