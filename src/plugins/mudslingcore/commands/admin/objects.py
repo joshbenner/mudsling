@@ -308,7 +308,10 @@ class SetCmd(mudsling.commands.Command):
     Set a configuration option on an object.
     """
     aliases = ('@set',)
-    syntax = '<obj> {.} <setting> {=} <value>'
+    syntax = (
+        '<obj> {.} <setting> {=} <value>',
+        '<obj>.<setting> to <value>'
+    )
     arg_parsers = {
         'obj': match_configurable_obj
     }
@@ -397,7 +400,7 @@ class ShowCmd(mudsling.commands.Command):
                 setting = obj.get_obj_setting(args['setting'])
                 val = mudsling.utils.string.escape_ansi_tokens(
                     setting.display_value(obj))
-                actor.tell('{g', obj, '{n.{g', args['setting'], ' {x[',
+                actor.tell('{g', obj, '{n.{y', args['setting'], ' {x[',
                            self.fmt_type(setting), '] {n= {c', val)
             else:
                 raise self._err('Object does not have settings')
