@@ -82,7 +82,13 @@ class ObjClassStaticParser(StaticParser):
 
     @classmethod
     def unparse(cls, val, obj=None):
-        return registry.classes.get_class_name(val) or cls.invalid_str
+        #return registry.classes.get_class_name(val) or cls.invalid_str
+        mod = val.__module__
+        if mod == '__builtin__':
+            mod = ''
+        else:
+            mod += '.'
+        return mod + val.__name__
 
 
 class BoolStaticParser(StaticParser):

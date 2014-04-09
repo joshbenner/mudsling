@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from mudsling.objects import BasePlayer, BaseCharacter
 from mudsling.commands import all_commands
 from mudsling.messages import Messages
@@ -16,11 +18,6 @@ from mudslingcore import senses
 import mudslingcore.errors
 
 from mudslingcore import commands
-import commands.admin.system
-import commands.admin.perms
-import commands.admin.tasks
-import commands.admin.objects
-import commands.admin.players
 
 
 class CoreObject(senses.SensoryMedium):
@@ -32,6 +29,19 @@ class CoreObject(senses.SensoryMedium):
     :type obscure: bool
     """
     obscure = False
+
+    def show_details(self, who=None):
+        """
+        Key/value pairs to display when someone uses @show to inspect this.
+
+        :param who: The object inspecting this object.
+        """
+        details = OrderedDict((
+            ('Names', ', '.join(self.names)),
+            ('Class', parsers.ObjClassStaticParser.unparse(self.__class__)),
+            ('Owner', who.name_for(self))
+        ))
+        return details
 
     def show_in_contents_to(self, obj):
         return not self.obscure
@@ -152,6 +162,11 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser):
     Core player class.
     """
     import commands.player as player_commands
+    import commands.admin.system
+    import commands.admin.perms
+    import commands.admin.tasks
+    import commands.admin.objects
+    import commands.admin.players
     private_commands = all_commands(
         commands.admin.system,
         commands.admin.perms,
@@ -188,10 +203,12 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser):
         :type raw: str
         """
         if raw.startswith(';') and self.has_perm("eval code"):
+            import commands.admin.system
             return commands.admin.system.EvalCmd(raw, ';', raw[1:],
                                                  self.game, self.ref(),
                                                  self.ref())
         if raw.startswith('?'):
+            import commands.player
             cmd = commands.player.HelpCmd(raw, '?', raw[1:], self.game,
                                           self.ref(), self.ref())
             cmd.match_syntax(cmd.argstr)

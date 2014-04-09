@@ -10,8 +10,6 @@ import mudsling.objects
 
 from mudsling.utils.sequence import CaselessDict
 
-can_configure = mudsling.locks.Lock('can_configure()')
-
 
 def lock_can_configure(obj, who):
     """
@@ -60,6 +58,26 @@ class ObjSetting(object):
     @staticmethod
     def parse_string_list_none_empty(string):
         return filter(lambda x: x, ObjSetting.parse_string_list(string))
+
+    def display_value(self, obj):
+        val = self.get_value(obj)
+        if inspect.isclass(self.parser):
+            return self.parser.unparse(val)
+        else:
+            return repr(val)
+
+    def is_default(self, obj):
+        """
+        Determine if the setting is currently un-set for the obj, using the
+        default.
+        """
+        attr = self.attr
+        if attr is None:
+            if 'unbound_settings' in obj.__dict__:
+                return not self.name in obj.unbound_settings
+            return True
+        else:
+            return not attr in obj.__dict__
 
     def set_value(self, obj, value):
         """
@@ -231,57 +249,5 @@ class ConfigurableObject(mudsling.objects.BaseObject):
     def reset_obj_setting(self, name):
         return self.get_obj_setting(name).reset_value(self)
 
-    class SetCmd(mudsling.commands.Command):
-        """
-        @set <obj>.<setting>=<value>
-
-        Set a configuration option on an object.
-        """
-        aliases = ('@set',)
-        syntax = '<obj> {.} <setting> {=} <value>'
-        arg_parsers = {'obj': 'this'}
-        lock = can_configure
-
-        def run(self, this, actor, args):
-            """
-            :type this: ConfigurableObject
-            :type actor: mudsling.objects.BaseObject
-            :type args: dict
-            """
-            try:
-                previous = this.get_obj_setting_value(args['setting'])
-                this.set_obj_setting(args['setting'], args['value'])
-            except errors.ObjSettingError as e:
-                raise self._err(e.message)
-            else:
-                new = this.get_obj_setting_value(args['setting'])
-                actor.tell(this, '.', args['setting'], ' set to %r' % new,
-                           ' (previous value: %r)' % previous)
-
-    class ResetCmd(mudsling.commands.Command):
-        """
-        @reset <obj>.<setting>
-
-        Resets an object setting to its default.
-        """
-        aliases = ('@reset',)
-        syntax = '<obj> {.} <setting>'
-        arg_parsers = {'obj': 'this'}
-        lock = can_configure
-
-        def run(self, this, actor, args):
-            """
-            :type this: ConfigurableObject
-            :type actor: mudsling.objects.BaseObject
-            :type args: dict
-            """
-            try:
-                this.reset_obj_setting(args['setting'])
-            except errors.ObjSettingError as e:
-                raise self._err(e.message)
-            else:
-                actor.tell(this, '.', args['setting'],
-                           ' reset to default (%r).'
-                           % this.get_obj_setting_value(args['setting']))
-
-    public_commands = [SetCmd, ResetCmd]
+    def obj_setting_is_default(self, name):
+        return self.get_obj_setting(name).is_default(self)

@@ -7,12 +7,18 @@ from mudsling.objects import BasePlayer, Object as LocatedObject
 from mudsling import registry
 from mudsling import parsers
 from mudsling import locks
+from mudsling import errors
 
 from mudsling import utils
 import mudsling.utils.string
 import mudsling.utils.modules as mod_utils
 
 from mudslingcore import misc
+import mudslingcore.objsettings
+
+from mudslingcore.commands.admin import ui
+
+can_configure = mudsling.locks.Lock('can_configure()')
 
 
 class CreateCmd(Command):
@@ -274,9 +280,9 @@ class MoveCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.objects.Player}
-        @type actor: L{mudslingcore.objects.Player}
-        @type args: C{dict}
+        :type this: mudslingcore.objects.Player
+        :type actor: mudslingcore.objects.Player
+        :type args: dict
         """
         obj, where = (args['what'], args['where'])
         if not obj.allows(actor, 'move'):
@@ -286,3 +292,155 @@ class MoveCmd(Command):
         msg_key = 'teleport' if obj.location == where else 'teleport_failed'
         actor.direct_message(msg_key, recipients=(actor, obj),
                              actor=actor, obj=obj, where=where)
+
+
+match_configurable_obj = parsers.MatchObject(
+    cls=mudslingcore.objsettings.ConfigurableObject,
+    search_for='configurable object',
+    show=True
+)
+
+
+class SetCmd(mudsling.commands.Command):
+    """
+    @set <obj>.<setting>=<value>
+
+    Set a configuration option on an object.
+    """
+    aliases = ('@set',)
+    syntax = '<obj> {.} <setting> {=} <value>'
+    arg_parsers = {
+        'obj': match_configurable_obj
+    }
+    lock = can_configure
+
+    def run(self, this, actor, args):
+        """
+        :type this: mudslingcore.objects.Player
+        :type actor: mudslingcore.objects.Player
+        :type args: dict
+        """
+        #: :type: mudslingcore.objsettings.ConfigurableObject
+        obj = args['obj']
+        try:
+            previous = obj.get_obj_setting_value(args['setting'])
+            obj.set_obj_setting(args['setting'], args['value'])
+        except errors.ObjSettingError as e:
+            raise self._err(e.message)
+        else:
+            new = obj.get_obj_setting_value(args['setting'])
+            actor.tell(obj, '.', args['setting'], ' set to %r' % new,
+                       ' (previous value: %r)' % previous)
+
+
+class ResetCmd(mudsling.commands.Command):
+    """
+    @reset <obj>.<setting>
+
+    Resets an object setting to its default.
+    """
+    aliases = ('@reset',)
+    syntax = '<obj> {.} <setting>'
+    arg_parsers = {
+        'obj': match_configurable_obj
+    }
+    lock = can_configure
+
+    def run(self, this, actor, args):
+        """
+        :type this: mudslingcore.objects.Player
+        :type actor: mudslingcore.objects.Player
+        :type args: dict
+        """
+        #: :type: mudslingcore.objsettings.ConfigurableObject
+        obj = args['obj']
+        try:
+            obj.reset_obj_setting(args['setting'])
+        except errors.ObjSettingError as e:
+            raise self._err(e.message)
+        else:
+            actor.tell(obj, '.', args['setting'],
+                       ' reset to default (%r).'
+                       % obj.get_obj_setting_value(args['setting']))
+
+
+class ShowCmd(mudsling.commands.Command):
+    """
+    @show <obj>[.<setting>]
+
+    Display all settings on an object, or a specific setting.
+    """
+    aliases = ('@show',)
+    syntax = '<obj>[.<setting>]'
+    lock = can_configure
+
+    def execute(self):
+        # Just to avoid circular imports!
+        import mudslingcore.objects
+        self.arg_parsers = {
+            'obj': parsers.MatchObject(cls=mudslingcore.objects.CoreObject,
+                                       search_for='inspectable object',
+                                       show=True)
+        }
+        super(ShowCmd, self).execute()
+
+    def run(self, this, actor, args):
+        """
+        :type this: mudslingcore.objects.Player
+        :type actor: mudslingcore.objects.Player
+        :type args: dict
+        """
+        obj = args['obj']
+        if args['setting'] is not None:
+            if obj.isa(mudslingcore.objsettings.ConfigurableObject):
+                #: :type: mudslingcore.objsettings.ObjSetting
+                setting = obj.get_obj_setting(args['setting'])
+                val = mudsling.utils.string.escape_ansi_tokens(
+                    setting.display_value(obj))
+                actor.tell('{g', obj, '{n.{g', args['setting'], ' {x[',
+                           self.fmt_type(setting), '] {n= {c', val)
+            else:
+                raise self._err('Object does not have settings')
+        else:
+            details = obj.show_details(who=actor).items()
+            out = mudsling.utils.string.columnize(
+                str(ui.keyval_table(details)).splitlines(), 2,
+                width=ui.table_settings['width'])
+            if obj.isa(mudslingcore.objsettings.ConfigurableObject):
+                out += '\n\n' + ui.h2('Settings') + '\n'
+                out += str(self.settings_table(obj))
+            actor.tell(ui.report('Showing %s' % actor.name_for(this), out))
+
+    def settings_table(self, obj):
+        if self.args['setting'] is not None:
+            settings = (self.args['setting'],)
+        else:
+            settings = obj.obj_settings().keys()
+        settings = map(str.lower, settings)
+        table = ui.Table(
+            [
+                ui.Column('Setting', align='l', data_key='name'),
+                ui.Column('Type', align='c', cell_formatter=self.fmt_type),
+                ui.Column('Value', align='l', cell_formatter=self.fmt_val),
+                ui.Column('Default', align='c',
+                          cell_formatter=self.fmt_default)
+            ]
+        )
+        table.add_rows(*(s for s in obj.obj_settings().itervalues()
+                         if s.name.lower() in settings))
+        return table
+
+    def fmt_type(self, setting):
+        setting_type = setting.type
+        mod = setting_type.__module__
+        if mod == '__builtin__':
+            mod = ''
+        else:
+            mod += '.'
+        return mod + setting_type.__name__
+
+    def fmt_val(self, setting):
+        return setting.display_value(self.parsed_args['obj'])
+
+    def fmt_default(self, setting):
+        return 'Yes' if setting.is_default(self.parsed_args['obj']) else 'No'
