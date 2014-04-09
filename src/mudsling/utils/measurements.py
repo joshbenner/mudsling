@@ -51,9 +51,12 @@ class Dimensions(namedtuple('Dimensions', 'l w h units')):
         return units.parse_units(self.units)
 
     def __str__(self):
-        u = units.format_dimensions(self.dimensionality.items(),
+        u = units.format_dimensions(self.dimensionality.items(), short=True,
                                     count=self.l + self.w + self.h)
         return "{}x{}x{} {}".format(self.l, self.w, self.h, u)
+
+    def __repr__(self):
+        return 'Dimensions: %s' % str(self)
 
     def _replace(self, **kw):
         dims = ('length', 'width', 'height')

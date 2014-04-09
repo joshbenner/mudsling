@@ -70,6 +70,9 @@ class BaseUI(object):
         settings.update(kwargs)
         return settings
 
+    def get_table_setting(self, setting):
+        return self._table_settings()[setting]
+
     def Table(self, columns=None, **kwargs):
         settings = self._table_settings(**kwargs)
         return self.table_class(columns, **settings)
@@ -148,18 +151,27 @@ class LimitedWidthUI(BaseUI):
     body_prefix = ''
     body_suffix = ''
 
-    #: @type: string.AnsiWrapper
+    #: :type: string.AnsiWrapper
     _wrapper = None
 
     def __init__(self):
-        self._wrapper = utils.string.AnsiWrapper(width=self.width,
+        self._wrapper = utils.string.AnsiWrapper(width=self.body_width,
                                                  subsequent_indent=self.indent)
 
+    @property
+    def body_width(self):
+        l = ansi.length
+        return self.width - l(self.body_prefix) - l(self.body_suffix)
+
     def body_line(self, line):
-        return self.body_prefix + self._wrapper.fill(line) + self.body_suffix
+        p = self.body_prefix
+        s = self.body_suffix
+        w = self.body_width
+        wrapped = self._wrapper.wrap(line)
+        return '\n'.join(p + ansi.ljust(l, w) + s for l in wrapped)
 
 
-class SimpleUI(BaseUI):
+class SimpleUI(LimitedWidthUI):
     width = 100
     fill_char = '-'
     body_prefix = ' '
@@ -178,6 +190,7 @@ class SimpleUI(BaseUI):
             if k in settings:
                 setattr(self, k, v)
         self.table_settings['width'] = self.width - 2 * len(self.body_prefix)
+        super(SimpleUI, self).__init__()
 
     def h1(self, text=''):
         text = '' if text == '' else "{y%s " % text
@@ -190,10 +203,7 @@ class SimpleUI(BaseUI):
         return self.h2(text)
 
     def hr(self):
-        return '-' * 100
-
-    def body_line(self, line):
-        return self.body_prefix + line
+        return '-' * self.width
 
     def footer(self, text=''):
         text = '' if text == '' else " {y%s" % text
@@ -231,7 +241,7 @@ class SimpleUI(BaseUI):
     table_class = SimpleUITable
 
 
-class ClassicUI(BaseUI):
+class ClassicUI(LimitedWidthUI):
     width = 100
     _hr = '{c' + ('-=' * 50)  # Half width because two chars.
     h1_format = "{{y{text}"
@@ -263,6 +273,7 @@ class ClassicUI(BaseUI):
         self.table_settings['width'] = w
         if self.width != 100:
             self._hr = '{c' + ('-=' * (self.width / 2))
+        super(ClassicUI, self).__init__()
 
     def h1(self, text=''):
         if text:
@@ -274,9 +285,6 @@ class ClassicUI(BaseUI):
 
     def hr(self):
         return self._hr
-
-    def body_line(self, line):
-        return self.body_prefix + line + self.body_suffix
 
     def footer(self, text=''):
         lines = [self._hr]

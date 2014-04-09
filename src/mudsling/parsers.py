@@ -3,6 +3,8 @@ Parsers are classes used to convert from strings representing a value to
 the python value, and back again. The most straightforward case is converting
 to/from input and a python value.
 """
+import re
+
 from mudsling import registry
 from mudsling import errors
 from mudsling import match
@@ -11,6 +13,7 @@ from mudsling.storage import StoredObject
 from mudsling import utils
 import mudsling.utils.time
 import mudsling.utils.units
+import mudsling.utils.measurements
 
 
 class StaticParser(object):
@@ -159,6 +162,9 @@ class Parser(object):
         @param actor: If parsing from an object's perspective, the object.
         """
 
+    def unparse(self, value):
+        return str(value)
+
 
 class UnitParser(Parser):
     """
@@ -169,10 +175,7 @@ class UnitParser(Parser):
         self.dimensions = dimensions
 
     def parse(self, input, actor=None):
-        try:
-            q = utils.units.parse(input)
-        except ValueError:
-            raise errors.ParseError("Invalid quantity.")
+        q = UnitStaticParser.parse(input)
         dims = self.dimensions
         if isinstance(dims, basestring):
             if not q.is_simple_dimension(dims):
@@ -181,6 +184,56 @@ class UnitParser(Parser):
             if dims != q.dimensionality:
                 raise errors.ParseError("Units not compatible with %s." % dims)
         return q
+
+
+class UnitStaticParser(StaticParser):
+    @classmethod
+    def parse(cls, input):
+        try:
+            q = utils.units.parse(input)
+        except ValueError:
+            raise errors.ParseError("Invalid quantity.")
+        return q
+
+
+class DimensionsStaticParser(StaticParser):
+    """
+    A parser for length, width, and height expressed as units.
+
+    Syntax: <length><units>x<width><units>x<height><units>
+    """
+    regex = re.compile(r'(?P<length>\d*\.?\d+(?: *[a-zA-Z]+)?) *x *'
+                       r'(?P<width>\d*\.?\d+(?: *[a-zA-Z]+)?) *x *'
+                       r'(?P<height>\d*\.?\d+(?: *[a-zA-Z]+)?)')
+
+    @classmethod
+    def parse(cls, input):
+        m = cls.regex.match(input)
+        if not m:
+            raise errors.ParseError('Invalid dimension syntax.')
+        inputs = m.groupdict()
+        values = {}
+        default_unit = None
+        for dim in inputs.iterkeys():
+            try:
+                value = utils.units.parse(inputs[dim])
+            except ValueError:
+                raise errors.ParseError('Invalid quantity: %s' % inputs[dim])
+            values[dim] = value
+            if default_unit is None and not value.unitless:
+                default_unit = value.units
+        if default_unit is None:
+            raise errors.ParseError('No units specified.')
+        for dim in inputs.iterkeys():
+            if values[dim].unitless:
+                values[dim] = utils.units.Quantity(values[dim].magnitude,
+                                                   default_unit)
+        return mudsling.utils.measurements.Dimensions(
+            length=values['length'],
+            width=values['width'],
+            height=values['height'],
+            units=str(default_unit.keys()[0])
+        )
 
 
 class MatchObject(Parser):

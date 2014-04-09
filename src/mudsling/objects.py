@@ -601,10 +601,15 @@ class BaseObject(PossessableObject):
                 # a lot of similarly-named commands is a bad idea, so this
                 # should ideally only involve one command offering some help,
                 # so we raise with the first one that wants to help.
+                help_shown = []
+                msg = []
                 for cmd in name_only:
-                    msg = cmd.failed_command_match_help()
-                    if msg:
-                        raise errors.CommandError(msg=msg)
+                    cls = cmd.__class__
+                    if cls not in help_shown:
+                        msg.append(cmd.failed_command_match_help())
+                        help_shown.append(cls)
+                if msg:
+                    raise errors.CommandError(msg='\n'.join(msg))
         else:  # Single good match.
             return cmd_matches[0]
 

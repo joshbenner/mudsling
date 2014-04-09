@@ -38,7 +38,7 @@ class _Quantity(__Quantity):
                                              product_fmt='*', division_fmt='/')
         return '{} {}'.format(self._magnitude, u)
 
-    def graduated(self, strings=False, short=False):
+    def graduated(self, strings=False, short=False, limit=None):
         if len(self._units) != 1 or not round(self._magnitude, 14):
             parts = [self]
         else:
@@ -64,6 +64,8 @@ class _Quantity(__Quantity):
                             part = Q(value, unit)
                             parts.append(part)
                             remainder -= part
+                            if limit and len(parts) >= limit:
+                                break
         if strings:
             return [(p.short() if short else str(p)) for p in parts]
         else:

@@ -211,8 +211,8 @@ class ANSIParser(object):
                                                    + '|'
                                                    + self.ansi_regex.pattern))
         self.parse_token_regex = re.compile(
-            r'\{(?:_(?P<bg>[rgybmcwx])'
-            r'|(?P<fg>[rRgGyYbBmMcCwWxX])'
+            r'\{(?:_(?P<bg>[rgybmcwx]|\d{1,3})'
+            r'|(?P<fg>[rRgGyYbBmMcCwWxX]|\d{1,3})'
             r'|(?P<special>[nui]))')
 
         self.ansi_hex = [

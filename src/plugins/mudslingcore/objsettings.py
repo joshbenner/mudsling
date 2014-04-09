@@ -7,6 +7,7 @@ import mudsling.match
 import mudsling.errors
 import mudsling.locks
 import mudsling.objects
+import mudsling.parsers
 
 from mudsling.utils.sequence import CaselessDict
 
@@ -61,7 +62,8 @@ class ObjSetting(object):
 
     def display_value(self, obj):
         val = self.get_value(obj)
-        if inspect.isclass(self.parser):
+        if (inspect.isclass(self.parser)
+                or isinstance(self.parser, mudsling.parsers.Parser)):
             return self.parser.unparse(val)
         else:
             return repr(val)
@@ -117,19 +119,19 @@ class ObjSetting(object):
         :returns: True if set action succeeds.
         :rtype: bool
         """
-        if callable(self.parser):
-            try:
-                if inspect.isclass(self.parser):
-                    value = self.parser.parse(input)
-                else:
-                    value = self.parser(obj, self, input)
-            except errors.ObjSettingError:
-                raise
-            except Exception as e:
-                msg = "Error parsing input: %s" % e.message
-                raise errors.ObjSettingError(obj, self.name, msg)
-        else:
-            value = input
+        try:
+            if (inspect.isclass(self.parser)
+                    or isinstance(self.parser, mudsling.parsers.Parser)):
+                value = self.parser.parse(input)
+            elif callable(self.parser):
+                value = self.parser(obj, self, input)
+            else:
+                value = input
+        except errors.ObjSettingError:
+            raise
+        except Exception as e:
+            msg = "Error parsing input: %s" % e.message
+            raise errors.ObjSettingError(obj, self.name, msg)
 
         if callable(self.validator):
             try:

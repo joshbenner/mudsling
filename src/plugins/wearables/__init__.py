@@ -78,7 +78,8 @@ class Wearer(mudslingcore.objects.DescribableObject):
         if not visible:
             return desc
         names = map(lambda n: '{C%s{n' % n, viewer.list_of_names(visible))
-        return desc + '\nWearing: ' + utils.string.english_list(names)
+        desc['wearing'] = 'Wearing: ' + utils.string.english_list(names)
+        return desc
 
     def visible_wearables(self, viewer=None):
         return self.wearing

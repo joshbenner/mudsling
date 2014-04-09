@@ -141,7 +141,7 @@ class DescribableObject(CoreObject):
         :return: What the object would see.
         :rtype: str
         """
-        return "%s\n%s" % (self.desc_title(obj), self.describe_to(obj))
+        return "%s\n%s" % (self.desc_title(obj), self.text_describe_to(obj))
 
     def desc_title(self, viewer):
         """
@@ -152,9 +152,16 @@ class DescribableObject(CoreObject):
 
     def describe_to(self, viewer):
         """
-        Return the string describing this object to the passed object.
+        :returns: Series of strings describing the object to the viewer.
+        :rtype: collections.OrderedDict
         """
-        return self.desc if self.desc else "You see nothing special."
+        desc = OrderedDict()
+        desc['base'] = self.desc if self.desc else "You see nothing special."
+        return desc
+
+    def text_describe_to(self, viewer):
+        desc = self.describe_to(viewer)
+        return '\n'.join(desc.itervalues())
 
 
 class Player(BasePlayer, ConfigurableObject, ChannelUser):
@@ -469,11 +476,11 @@ class Container(Thing):
             return []
 
     def describe_to(self, viewer):
-        desc = [super(Container, self).describe_to(viewer)]
+        desc = super(Container, self).describe_to(viewer)
         if self._opened:
-            desc.append('Contents:')
-            desc.append(self.contents_as_seen_by(viewer))
-        return '\n'.join(desc)
+            desc['open container contents'] = \
+                'Contents:\n' + self.contents_as_seen_by(viewer)
+        return desc
 
 
 class LockableContainer(Container):

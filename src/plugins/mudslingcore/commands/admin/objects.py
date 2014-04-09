@@ -326,14 +326,14 @@ class SetCmd(mudsling.commands.Command):
         #: :type: mudslingcore.objsettings.ConfigurableObject
         obj = args['obj']
         try:
-            previous = obj.get_obj_setting_value(args['setting'])
+            previous = obj.get_obj_setting(args['setting']).display_value(obj)
             obj.set_obj_setting(args['setting'], args['value'])
         except errors.ObjSettingError as e:
             raise self._err(e.message)
         else:
-            new = obj.get_obj_setting_value(args['setting'])
-            actor.tell(obj, '.', args['setting'], ' set to %r' % new,
-                       ' (previous value: %r)' % previous)
+            new = obj.get_obj_setting(args['setting']).display_value(obj)
+            actor.tell(obj, '.', args['setting'], ' set to %s' % new,
+                       ' (previous value: %s)' % previous)
 
 
 class ResetCmd(mudsling.commands.Command):
@@ -423,9 +423,9 @@ class ShowCmd(mudsling.commands.Command):
         table = ui.Table(
             [
                 ui.Column('Setting', align='l', data_key='name'),
-                ui.Column('Type', align='c', cell_formatter=self.fmt_type),
+                ui.Column('Type', align='l', cell_formatter=self.fmt_type),
                 ui.Column('Value', align='l', cell_formatter=self.fmt_val),
-                ui.Column('Default', align='c',
+                ui.Column('Default', align='l',
                           cell_formatter=self.fmt_default)
             ]
         )
@@ -434,16 +434,15 @@ class ShowCmd(mudsling.commands.Command):
         return table
 
     def fmt_type(self, setting):
-        setting_type = setting.type
-        mod = setting_type.__module__
-        if mod == '__builtin__':
-            mod = ''
-        else:
-            mod += '.'
-        return mod + setting_type.__name__
+        return setting.type.__name__
 
     def fmt_val(self, setting):
         return setting.display_value(self.parsed_args['obj'])
 
     def fmt_default(self, setting):
-        return 'Yes' if setting.is_default(self.parsed_args['obj']) else 'No'
+        obj = self.parsed_args['obj']._real_object()
+        default = 'Yes' if setting.is_default(obj) else 'No'
+        if default and isinstance(getattr(obj.__class__, setting.attr, None),
+                                  property):
+            return '(alias)'
+        return default
