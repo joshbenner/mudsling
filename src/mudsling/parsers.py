@@ -241,20 +241,26 @@ class MatchObject(Parser):
     Parser to match an object from the perspective of another object.
     """
     def __init__(self, cls=StoredObject, err=True, search_for=None,
-                 show=False):
+                 show=False, context=True):
         """
-        @param cls: Matching object must be of this objClass.
-        @param err: If True, raises a L{mudsling.errors.MatchError}.
-        @param search_for: String describing what is being sought.
-        @param show: If true, includes list of objects for ambiguous matches.
+        :param cls: Matching object must be of this objClass.
+        :param err: If True, raises a L{mudsling.errors.MatchError}.
+        :param search_for: String describing what is being sought.
+        :param show: If true, includes list of objects for ambiguous matches.
+        :param context: If true, limit matching to object's context.
         """
         self.objClass = cls
         self.err = err
         self.search_for = search_for
         self.show = show
+        self.context = context
 
     def _match(self, obj, input):
-        return obj.match_object(input, cls=self.objClass, err=False)
+        try:
+            f = obj.match_context if self.context else obj.match_object
+        except AttributeError:
+            return []
+        return f(input, cls=self.objClass, err=False)
 
     def parse(self, input, actor=None):
         if actor is None:
@@ -297,21 +303,6 @@ class MatchOtherContents(MatchObject):
     def _match(self, obj, input):
         return self.container.match_contents(input, cls=self.objClass,
                                              err=False)
-
-
-class MatchContext(MatchObject):
-    """
-    Parser to match an object within the matcher's context. This prevents, for
-    instance, specifying an object literal to match an object that is not in
-    the matcher's context.
-    """
-    def _match(self, obj, input):
-        try:
-            f = obj.match_context
-        except AttributeError:  # Account for contextless objects.
-            return []
-        else:
-            return f(input, cls=self.objClass, err=False)
 
 
 class MatchChildren(MatchObject):

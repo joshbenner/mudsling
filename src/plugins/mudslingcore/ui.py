@@ -167,7 +167,7 @@ class LimitedWidthUI(BaseUI):
         p = self.body_prefix
         s = self.body_suffix
         w = self.body_width
-        wrapped = self._wrapper.wrap(line)
+        wrapped = self._wrapper.wrap(line) or ['']
         return '\n'.join(p + ansi.ljust(l, w) + s for l in wrapped)
 
 
