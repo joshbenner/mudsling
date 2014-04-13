@@ -7,3 +7,4 @@ fuzzywuzzy==0.1
 pytz
 flufl.enum==4.0
 python-dateutil==2.1
+yoyo-migrations>=4.2.2

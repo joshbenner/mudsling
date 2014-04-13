@@ -29,6 +29,8 @@ mudslingcore
 * ban -- Can ban players and IP addresses.
 * create channels -- Can create new channel objects via +chancreate.
 * delete channels -- Can delete channels via +chandel.
+* join any channel -- Can join any channel, even private channels.
+* global operator -- Operator on all channels.
 
 ## Object Lock types
 * control

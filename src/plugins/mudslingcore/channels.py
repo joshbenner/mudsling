@@ -3,6 +3,8 @@ MUDSlingCore channel system.
 """
 import logging
 import re
+import sqlite3
+import os
 
 from mudsling.objects import NamedObject, BaseObject
 from mudsling import locks
@@ -12,7 +14,11 @@ from mudsling import errors
 
 from mudsling import utils
 import mudsling.utils.string
+import mudsling.utils.file as file_utils
+import mudsling.utils.db as db_utils
+import mudsling.utils.time as time_utils
 
+import mudslingcore
 from mudslingcore.ui import ClassicUI
 
 ui = ClassicUI()
@@ -378,12 +384,14 @@ class ChannelInfoCmd(Command):
             voice = utils.string.english_list(voices, nothingstr="Nobody")
         ops = map(actor.name_for, chan.operators)
         ops = utils.string.english_list(ops, nothingstr="Nobody")
+        log = '{rENABLED' if chan.log_enabled else '{gdisabled'
         # noinspection PyListCreation
         msg = [
             'Channel info:',
             '    Topic: %s' % chan.topic or "Not set",
             '    Voice: %s' % voice,
             '  Private: %s' % ('{rYes' if chan.private else '{gNo'),
+            '  Logging: %s' % log,
             'Join Lock: %s' % chan.get_lock('join'),
             'Operators: %s' % ops,
         ]
@@ -463,6 +471,33 @@ class ChannelUninviteCmd(Command):
             chan.tell(actor, '{c', player, '{r is not invited.')
 
 
+class ChannelLogCmd(Command):
+    """
+    <alias> /log on|off
+
+    Enable or disable logging on the channel.
+    """
+    aliases = ('log',)
+    syntax = '{on|off}'
+    lock = 'operator()'
+
+    def run(self, chan, actor, args):
+        """
+        :type chan: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
+        """
+        enable = (args['optset1'] == 'on')
+        if enable == chan.log_enabled:
+            chan.tell(actor, 'Logging already ',
+                      'enabled' if enable else 'disabled', '.')
+        else:
+            chan.log_enabled = enable
+            msg = 'This channel is now '
+            msg += '{rON THE RECORD' if enable else '{gOFF THE RECORD'
+            chan.broadcast(msg)
+
+
 class Channel(NamedObject):
     """
     Channel object stores the state/config for a channel in the game, the list
@@ -473,9 +508,10 @@ class Channel(NamedObject):
     :ivar invitees: Players who have been invited to the (restricted) channel.
     :ivar voice: If None, all can speak. Otherwise, set of participants that
         can speak on the channel.
-    :type voice: None} or C{set
+    :type voice: None or set
     :ivar private: Whether or not channel is private (hidden).
     :ivar topic: The topic/subject matter of the channel.
+    :ivar log: Whether logging is enabled or not.
     """
     operators = set()
     _participants = set()
@@ -484,6 +520,10 @@ class Channel(NamedObject):
     locks = locks.LockSet('join:all()')
     private = False
     topic = ''
+    _log_enabled = False
+
+    _logfile = None
+    _transient_vars = ['_logfile']
 
     commands = CommandSet([
         ChannelWhoCmd,
@@ -498,6 +538,7 @@ class Channel(NamedObject):
         ChannelInfoCmd,
         ChannelInviteCmd,
         ChannelUninviteCmd,
+        ChannelLogCmd,
     ])
 
     def __init__(self, **kwargs):
@@ -543,6 +584,7 @@ class Channel(NamedObject):
                 p.msg(msg)
             except Exception:
                 logging.warning("Bad object on chan %s: %r" % (self.name, p))
+        self.log(who, msg)
 
     def tell(self, who, *msg):
         msg = self._prepare_message(who._format_msg(msg))
@@ -610,16 +652,75 @@ class Channel(NamedObject):
         else:
             cmd.execute()
 
+    @property
+    def log_enabled(self):
+        return self._log_enabled
+
+    @log_enabled.setter
+    def log_enabled(self, val):
+        self._log_enabled = val
+        if val and self._logfile is None:
+            self._init_logfile()
+        elif not val and self._logfile:
+            self._logfile.commit()
+            self._logfile.close()
+            self._logfile = None
+
+    @property
+    def log_filename(self):
+        return file_utils.sanitize_filename('%s.sqlite' % self.name)
+
+    @property
+    def log_filepath(self):
+        return self.game.game_file_path(os.path.join('channel_logs',
+                                                     self.log_filename))
+
+    def _init_logfile(self):
+        if self._logfile is None:
+            filepath = self.log_filepath
+            if not os.path.exists(filepath):
+                try:
+                    self.game.makedirs('channel_logs')
+                except OSError:
+                    # It probably already exists...
+                    pass
+                conn = sqlite3.connect(filepath)
+                conn.close()
+            # Apply any pending migrations.
+            module_root = os.path.dirname(mudslingcore.__file__)
+            migrations = os.path.join(module_root, 'schemas', 'channel_log')
+            db_utils.migrate('sqlite:///%s' % filepath, migrations)
+            self._logfile = sqlite3.connect(filepath)
+
+    def log(self, source, text):
+        if self._log_enabled:
+            self._init_logfile()
+            if hasattr(source, 'obj_id'):
+                if hasattr(source, 'name'):
+                    source = '%s (#%d)' % (source.name, source.obj_id)
+                else:
+                    source = '#%d' % source.obj_id
+            else:
+                source = str(source)
+            lines = [''.join(l.split(self.prefix, 1))
+                     for l in text.splitlines()]
+            logfile = self._logfile
+            for line in lines:
+                logfile.execute('INSERT INTO log (timestamp, source, text)'
+                                'VALUES (?, ?, ?)',
+                                (time_utils.unixtime(), source, line))
+            logfile.commit()
+
 
 class ChannelsCmd(Command):
     """
-    +channels[/all]
+    @channels[/all]
 
     Show a list of channels. The all switch shows all channels accessible to
     the player, while the default is to just show channels the player has
     added to their list of aliases.
     """
-    aliases = ('+channels',)
+    aliases = ('@channels',)
     switch_parsers = {
         'all': BoolStaticParser,
     }
@@ -673,11 +774,11 @@ class ChannelsCmd(Command):
 
 class ChanCreateCmd(Command):
     """
-    +chancreate[/private] <channel>
+    @chancreate[/private] <channel>
 
     Create a new channel.
     """
-    aliases = ('+chancreate', '+createchan', '+mkchan')
+    aliases = ('@chancreate', '@createchan', '@mkchan')
     syntax = '<channel>'
     lock = 'perm(create channels)'
     switch_parsers = {
@@ -708,11 +809,11 @@ class ChanCreateCmd(Command):
 
 class ChanDelCmd(Command):
     """
-    +chandel <channel>
+    @chandel <channel>
 
     Deletes a channel.
     """
-    aliases = ('+chandel', '+delchan')
+    aliases = ('@chandel', '@delchan')
     syntax = '<channel>'
     arg_parsers = {
         'channel': MatchDescendants(cls=Channel, search_for='channel',
@@ -871,8 +972,10 @@ def lock_invited(channel, who):
     :type channel: mudslingcore.channels.Channel
     :type who: mudslingcore.channels.ChannelUser
     """
-    return channel.isa(Channel) and who in channel.invitees
+    return channel.isa(Channel) and (who in channel.invitees
+                                     or who.has_perm('join any channel'))
 
 
 def lock_operator(channel, who):
-    return channel.isa(Channel) and who in channel.operators
+    return channel.isa(Channel) and (who in channel.operators
+                                     or who.has_perm('global operator'))

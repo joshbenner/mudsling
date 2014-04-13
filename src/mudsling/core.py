@@ -31,6 +31,7 @@ from mudsling import utils
 import mudsling.utils.modules
 import mudsling.utils.sequence
 import mudsling.utils.time
+import mudsling.utils.file as file_utils
 
 
 class MUDSling(MultiService):
@@ -245,6 +246,12 @@ class MUDSling(MultiService):
 
     def set_setting(self, key, value):
         return self.db.set_setting(key, value)
+
+    def makedirs(self, subpath):
+        os.makedirs(self.game_file_path(subpath))
+
+    def game_file_path(self, subpath):
+        return os.path.join(self.game_dir, subpath)
 
 
 class CheckpointTask(tasks.Task):
