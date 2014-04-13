@@ -495,7 +495,7 @@ class ChannelLogCmd(Command):
             chan.log_enabled = enable
             msg = 'This channel is now '
             msg += '{rON THE RECORD' if enable else '{gOFF THE RECORD'
-            chan.broadcast(msg)
+            chan.broadcast(msg, who=actor)
 
 
 class Channel(NamedObject):
@@ -668,7 +668,8 @@ class Channel(NamedObject):
 
     @property
     def log_filename(self):
-        return file_utils.sanitize_filename('%s.sqlite' % self.name)
+        return file_utils.sanitize_filename('%s-%d.sqlite' % (self.name,
+                                                              self.obj_id))
 
     @property
     def log_filepath(self):
