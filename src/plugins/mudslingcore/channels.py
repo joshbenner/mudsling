@@ -29,9 +29,9 @@ class ChannelWhoCmd(Command):
 
     def run(self, chan, actor, args):
         """
-        @type chan: L{mudslingcore.channels.Channel}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type chan: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         names = map(lambda p: actor.name_for(p), chan.participants)
         msg = "Participants: %s" % utils.string.english_list(names)
@@ -50,9 +50,9 @@ class ChannelAllowCmd(Command):
 
     def run(self, chan, actor, args):
         """
-        @type chan: L{mudslingcore.channels.Channel}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type chan: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         lock_expr = args['lock']
         if lock_expr in ('invited', 'invitees', 'invite'):
@@ -82,9 +82,9 @@ class ChannelOnCmd(Command):
 
     def run(self, chan, actor, args):
         """
-        @type chan: L{mudslingcore.channels.Channel}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type chan: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         if actor in chan.participants:
             chan.tell(actor, "{yYou are already on this channel.")
@@ -105,9 +105,9 @@ class ChannelOffCmd(Command):
 
     def run(self, chan, actor, args):
         """
-        @type chan: L{mudslingcore.channels.Channel}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type chan: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         if actor not in chan.participants:
             chan.tell(actor, "{yYou are not on this channel.")
@@ -135,9 +135,9 @@ class ChannelOpCmd(Command):
 
     def run(self, chan, actor, args):
         """
-        @type chan: L{mudslingcore.channels.Channel}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type chan: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         toggle = args.get('optset1', None)
         player = args['player']
@@ -184,9 +184,9 @@ class ChannelVoiceCmd(Command):
 
     def run(self, chan, actor, args):
         """
-        @type chan: L{mudslingcore.channels.Channel}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type chan: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         if 'optset1' in args:
             mode = args['optset1']
@@ -272,9 +272,9 @@ class ChannelTopicCmd(Command):
 
     def run(self, chan, actor, args):
         """
-        @type chan: L{mudslingcore.channels.Channel}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type chan: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         chan.topic = args['text']
         chan.broadcast("{gTopic set: {n%s" % chan.topic, actor)
@@ -295,9 +295,9 @@ class ChannelPrivateCmd(Command):
 
     def run(self, chan, actor, args):
         """
-        @type chan: L{mudslingcore.channels.Channel}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type chan: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         mode = args.get('optset1', None)
         status = lambda c: "{rPRIVATE" if c.private else "{gPUBLIC"
@@ -338,9 +338,9 @@ class ChannelBootCmd(Command):
 
     def run(self, chan, actor, args):
         """
-        @type chan: L{mudslingcore.channels.Channel}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type chan: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         player = args['player']
         if player in chan._participants:  # Can boot even if offline.
@@ -367,9 +367,9 @@ class ChannelInfoCmd(Command):
 
     def run(self, chan, actor, args):
         """
-        @type chan: L{mudslingcore.channels.Channel}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type chan: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         if chan.voice is None:
             voice = 'Everyone'
@@ -411,9 +411,9 @@ class ChannelInviteCmd(Command):
 
     def run(self, chan, actor, args):
         """
-        @type chan: L{mudslingcore.channels.Channel}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type chan: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         player = args.get('player', None)
         if player is None:
@@ -451,9 +451,9 @@ class ChannelUninviteCmd(Command):
 
     def run(self, chan, actor, args):
         """
-        @type chan: L{mudslingcore.channels.Channel}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type chan: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         player = args['player']
         if player in chan.invitees:
@@ -468,14 +468,14 @@ class Channel(NamedObject):
     Channel object stores the state/config for a channel in the game, the list
     of participants, and processes/routes messages to/from those participants.
 
-    @ivar operators: Players who can administer the channel.
-    @ivar _participants: Players who are joined to the channel.
-    @ivar invitees: Players who have been invited to the (restricted) channel.
-    @ivar voice: If None, all can speak. Otherwise, set of participants that
+    :ivar operators: Players who can administer the channel.
+    :ivar _participants: Players who are joined to the channel.
+    :ivar invitees: Players who have been invited to the (restricted) channel.
+    :ivar voice: If None, all can speak. Otherwise, set of participants that
         can speak on the channel.
-    @type voice: C{None} or C{set}
-    @ivar private: Whether or not channel is private (hidden).
-    @ivar topic: The topic/subject matter of the channel.
+    :type voice: None} or C{set
+    :ivar private: Whether or not channel is private (hidden).
+    :ivar topic: The topic/subject matter of the channel.
     """
     operators = set()
     _participants = set()
@@ -602,7 +602,7 @@ class Channel(NamedObject):
                                         query=cmdstr, matches=matches)
         else:
             raise errors.FailedMatch("Invalid command.", query=cmdstr)
-        #: @type: mudsling.commands.Command
+        #: :type: mudsling.commands.Command
         cmd = cls(input, cmdstr, argstr, game=self.game, obj=self.ref(),
                   actor=actor)
         if not cmd.match_syntax(argstr):
@@ -630,9 +630,9 @@ class ChannelsCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.channels.ChannelUser}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type this: mudslingcore.channels.ChannelUser
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         if self.switches['all']:
             my_channels = actor.channels.values()
@@ -689,16 +689,16 @@ class ChanCreateCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.channels.ChannelUser}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type this: mudslingcore.channels.ChannelUser
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         existing = self.game.db.match_descendants(args['channel'], Channel,
                                                   exactOnly=True)
         if existing:
             actor.msg('{yChannel `{c%s{y` already exists.' % existing[0].name)
         else:
-            #: @type: Channel
+            #: :type: Channel
             channel = Channel.create(names=(args['channel'],))
             if self.switches['private']:
                 channel.private = True
@@ -722,9 +722,9 @@ class ChanDelCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.channels.ChannelUser}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type this: mudslingcore.channels.ChannelUser
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         name = actor.name_for(args['channel'])
         args['channel'].delete()
@@ -747,9 +747,9 @@ class ChanAddCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.channels.ChannelUser}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type this: mudslingcore.channels.ChannelUser
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         try:
             actor.add_channel(args['channel'], args['alias'])
@@ -769,9 +769,9 @@ class ChanRemoveCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.channels.ChannelUser}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type this: mudslingcore.channels.ChannelUser
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         alias = args['alias'].strip()
         if alias not in this.channels:
@@ -789,9 +789,9 @@ class UseChannelCmd(Command):
     """
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.channels.Channel}
-        @type actor: L{mudslingcore.channels.ChannelUser}
-        @type args: C{dict}
+        :type this: mudslingcore.channels.Channel
+        :type actor: mudslingcore.channels.ChannelUser
+        :type args: dict
         """
         try:
             this.process_input(self.argstr, actor)
@@ -868,8 +868,8 @@ class ChannelUser(BaseObject):
 def lock_invited(channel, who):
     """
     Lock function invited().
-    @type channel: L{mudslingcore.channels.Channel}
-    @type who: L{mudslingcore.channels.ChannelUser}
+    :type channel: mudslingcore.channels.Channel
+    :type who: mudslingcore.channels.ChannelUser
     """
     return channel.isa(Channel) and who in channel.invitees
 
