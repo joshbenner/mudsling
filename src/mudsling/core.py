@@ -240,6 +240,12 @@ class MUDSling(MultiService):
     def new_task_id(self):
         return self.db.new_task_id()
 
+    def get_setting(self, key, default=None):
+        return self.db.get_setting(key, default=default)
+
+    def set_setting(self, key, value):
+        return self.db.set_setting(key, value)
+
 
 class CheckpointTask(tasks.Task):
     game = None
