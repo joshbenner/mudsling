@@ -2,7 +2,6 @@ import copy_reg
 import types
 import logging
 import os
-import sys
 import time
 
 from twisted.internet.task import LoopingCall
@@ -150,6 +149,13 @@ class ObjRef(PersistentSlots):
 
     def __hash__(self):
         return self._id
+
+    def __eq__(self, other):
+        if isinstance(other, ObjRef):
+            return self._id == other._id
+        if isinstance(other, StoredObject):
+            return self._id == other.obj_id
+        return False
 
     def __cmp__(self, other):
         if other is None:
