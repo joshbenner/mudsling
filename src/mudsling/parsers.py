@@ -14,6 +14,7 @@ from mudsling import utils
 import mudsling.utils.time
 import mudsling.utils.units
 import mudsling.utils.measurements
+import mudsling.utils.string
 
 
 class StaticParser(object):
@@ -148,6 +149,18 @@ class DhmsStaticParser(StaticParser):
     @classmethod
     def unparse(cls, val, obj=None):
         return utils.time.format_dhms(val)
+
+
+class DurationStaticParser(StaticParser):
+    @classmethod
+    def parse(cls, input):
+        return utils.time.parse_duration(input)
+
+    @classmethod
+    def unparse(cls, val, obj=None):
+        p = mudsling.utils.string.inflection.plural
+        return ', '.join('%d %s' % (c, p(u.singular, count=c))
+                         for c, u in utils.time.graduated_interval(val))
 
 
 class Parser(object):

@@ -26,7 +26,7 @@ class TimeSchema(object):
 
     def __init__(self, *units):
         self.units = []
-        for u in units:
+        for u in sorted(units, key=lambda u: u.seconds, reverse=True):
             self.add_unit(u)
 
     def add_unit(self, unit):

@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 import datetime
-import time
 import re
 import calendar
 
@@ -141,3 +140,14 @@ def format_timestamp(timestamp=None, format='default', tz=None):
 def format_interval(seconds, format=None, schema=realTime):
     return schema.format_interval(seconds, format)
 
+
+def graduated_interval(seconds, schema=realTime):
+    parts = []
+    for unit in schema.units:
+        count = seconds / unit.seconds
+        if count >= 1:
+            parts.append((count, unit))
+            seconds -= count * unit.seconds
+        if seconds <= 0:
+            break
+    return parts
