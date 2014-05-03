@@ -82,18 +82,20 @@ def init_game_dir(path):
     """
     If game dir doesn't exist, try to create it.
     """
-    if not os.path.exists(path):
-        logging.info("Creating game directory %s" % os.path.realpath(path))
+    path = os.path.realpath(path)
+    if not path:
+        logging.info("Creating game directory %s" % path)
         os.makedirs(path)
         if os.path.exists(path):
             f = open(os.path.join(path, 'settings.cfg'), 'w')
             f.close()
         else:
             raise Exception(
-                "Cannot create game dir at %s" % os.path.realpath(path))
+                "Cannot create game dir at %s" % path)
     elif not os.path.isdir(path):
         raise Exception("Game dir is a file!")
-
+    logging.info('Using game directory: %s' % path)
+    return path
 
 if __name__ == '__main__':
     # Add our src path to the beginning of the PYTHONPATH.
@@ -101,15 +103,14 @@ if __name__ == '__main__':
     from mudsling.options import get_options
 
     # We are not interested in the script name part of the argv list.
-    argv = sys.argv[1:]
-    options = get_options(argv)
-    init_game_dir(options['gamedir'])
+    options = get_options()
+    options['gamedir'] = init_game_dir(options['gamedir'])
 
     # Debugger means we want to keep everything in a single process.
     if '--debugger' in sys.argv:
         from server import run_server
         os.chdir(src)
-        run_server(argv)
+        run_server(options)
     else:
         # Imports shouldn't resolve to this file since we added src to the
         # front of the search path above.

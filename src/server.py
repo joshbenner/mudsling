@@ -12,9 +12,10 @@ from mudsling.logs import open_log
 from mudsling.pid import check_pid
 
 
-def run_server(args=None):
+def run_server(options=None):
     # Startup.
-    options = get_options(args)
+    if options is None:
+        options = get_options()
     log_level = logging.DEBUG if options['debugger'] else logging.INFO
     open_log(filepath=os.path.join(options['gamedir'], 'server.log'),
              level=log_level,
