@@ -577,3 +577,7 @@ class LargeTable(Furniture):
 
 class Desk(Furniture):
     occupant_capacity = 1
+
+
+class Bed(Furniture):
+    occupant_capacity = 2
