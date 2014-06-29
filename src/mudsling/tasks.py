@@ -258,9 +258,8 @@ class DelayedTask(IntervalTask):
     Run a callback once, after a specified delay. This is mostly a convenience
     and is (literally) equivalent to IntervalTask(iterations=1).
     """
-    def __init__(self, callback, delay, *args, **kwargs):
+    def __init__(self, callback, delay=0, *args, **kwargs):
         super(DelayedTask, self).__init__(callback, delay, iterations=1,
-                                          immediate=delay <= 0,
                                           args=args, kwargs=kwargs)
 
 
