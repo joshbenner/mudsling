@@ -427,10 +427,17 @@ class PossessableObject(MessagedObject):
             return parts
         parts = list(parts)
         for i, part in enumerate(parts):
+            filter = None
+            if isinstance(part, mudsling.messages.FilteredPart):
+                filter = part
+                part = filter.value
+                parts[i] = part
             if self.db.is_valid(part, StoredObject):
                 # Other children of StoredObject might be compatible with the
                 # nameFor method? Shows "UNKNOWN" if not.
                 parts[i] = self.name_for(part)
+            if filter is not None:
+                parts[i] = filter.render(parts[i])
         return ''.join(map(str, parts))
 
     def on_object_deleted(self):

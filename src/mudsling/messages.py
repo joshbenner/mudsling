@@ -12,6 +12,21 @@ class InvalidMessage(Exception):
     pass
 
 
+class FilteredPart(object):
+    __slots__ = ('value', 'funcname', 'cached')
+
+    def __init__(self, value, funcname):
+        self.value = value
+        self.funcname = funcname
+        self.cached = None
+
+    def render(self, part):
+        try:
+            return getattr(str(part), self.funcname)()
+        except AttributeError:
+            return str(part) + '(ERROR)'
+
+
 class MessageParser(object):
     """
     The message parser is rather similar to L{string.Template}, and even uses
@@ -90,15 +105,23 @@ class MessageParser(object):
 
     @classmethod
     def subst(cls, name, keywords):
-        if name in keywords:
-            return keywords[name]
-        elif '.' in name:
+        funcname = None
+        out = None
+        if '|' in name:
+            name, _, funcname = name.partition('|')
+        if '.' in name:
             name, _, attr = name.partition('.')
             obj = keywords.get(name, None)
             try:
-                return getattr(obj, attr)
+                out = getattr(obj, attr)
             except AttributeError:
                 pass
+        elif name in keywords:
+            out = keywords[name]
+        if out is not None:
+            if funcname is not None:
+                out = FilteredPart(out, funcname)
+            return out
         return "${{{}}}".format(name)
 
 
