@@ -509,6 +509,28 @@ class BaseObject(PossessableObject):
         strings = OrderedDict(zip(objlist, map(self.names_for, objlist)))
         return match_stringlists(search, strings, exact=exactOnly, err=err)
 
+    def match_context(self, search, cls=None, err=False):
+        """
+        Match an object, but only match objects in this object's context.
+
+        :param search: The search text.
+        :type search: str
+
+        :param cls: A class to limit potential matches.
+        :type cls: type
+
+        :param err: Whether or not to raise match errors.
+        :type err: bool
+
+        :return: List of matches.
+        :rtype: list of Object
+        """
+        index = dict((o, o.names + ('#%d' % o.obj_id,))
+                     for o in utils.object.filter_by_class(self.context, cls))
+        if self in index:
+            index[self] += ('me',)
+        return match_stringlists(search, index, exact=False, err=err)
+
     def match_object(self, search, cls=None, err=False):
         """
         A general object match for this object. Uses .namesFor() values in the
@@ -1659,6 +1681,26 @@ class BasePlayer(BaseObject):
             raise errors.AmbiguousMatch(matches=matches)
 
         return matches
+
+    def match_context(self, search, cls=None, err=False):
+        """
+        Also match the player's possessed object's context.
+        """
+        try:
+            f = self.possessing.match_context
+        except AttributeError:
+            matches = ()
+        else:
+            matches = f(search, cls=cls, err=err)
+        if not matches:
+            matches = super(BasePlayer, self).match_context(search, cls=cls,
+                                                            err=err)
+        if err and len(matches) > 1:
+            raise errors.AmbiguousMatch(matches=matches)
+        elif err and len(matches) < 1:
+            raise errors.FailedMatch(query=search)
+        else:
+            return matches
 
 
 class BaseCharacter(Object):
