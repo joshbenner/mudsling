@@ -55,6 +55,8 @@ class CommandSet(object):
         :param cmd: The command CLASS to add.
         :type cmd: Command
         """
+        if cmd.__dict__.get('abstract', False):
+            return
         try:
             self.commands[cmd.key] = cmd
         except Exception as e:
@@ -116,6 +118,8 @@ class Command(object):
     switch_defaults = {}
 
     lock = locks.none_pass  # Commands are restricted by default.
+
+    abstract = False  # Flag as abstract to avoid populating command lists.
 
     #: :type: mudsling.objects.BaseObject
     obj = None
@@ -508,7 +512,8 @@ def make_command_list(obj):
     commands = []
     for name in obj.__dict__:
         c = getattr(obj, name)
-        if inspect.isclass(c) and issubclass(c, Command) and c != Command:
+        if (inspect.isclass(c) and issubclass(c, Command) and c != Command
+                and not c.__dict__.get('abstract', False)):
             if not c in commands:
                 commands.append(c)
     return commands
@@ -522,7 +527,8 @@ def all_commands(*objects):
     """
     commands = []
     for o in objects:
-        if inspect.isclass(o) and issubclass(o, Command):
+        if (inspect.isclass(o) and issubclass(o, Command)
+                and not o.__dict__.get('abstract', False)):
             commands.append(o)
             continue
         for cmd in make_command_list(o):

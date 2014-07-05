@@ -683,7 +683,7 @@ class BaseObject(PossessableObject):
             commands = CommandSet()
             for obj_class in utils.object.descend_mro(cls):
                 if IHasCommands.implementedBy(obj_class):
-                    commands.add_commands(getattr(obj_class, attr))
+                    commands.add_commands(obj_class.__dict__.get(attr, ()))
             cls._command_cache[attr] = commands
 
         return commands
