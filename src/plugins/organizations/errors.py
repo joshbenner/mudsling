@@ -11,3 +11,7 @@ class AlreadyInOrg(OrgError):
 
 class NotInOrg(OrgError):
     pass
+
+
+class RecursiveParentage(OrgError):
+    pass

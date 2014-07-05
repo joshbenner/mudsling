@@ -10,6 +10,8 @@ import mudslingcore.ui
 import organizations.errors as errors
 import organizations.orgs as orgs
 
+manage_orgs = mudsling.locks.Lock('perm(manage orgs)')
+
 
 class Member(mudsling.objects.BaseCharacter):
     org_memberships = ()
@@ -137,6 +139,102 @@ class OrgCommand(mudsling.commands.Command):
             return None
 
 
+class CreateOrgCmd(mudsling.commands.Command):
+    """
+    @create-org[/sovereign] <name> (<abbrev>) [under <parent>]
+
+    Create a new organization.
+    """
+    aliases = ('@create-org',)
+    syntax = '<name> (<abbrev>) [under <parent>]'
+    arg_parsers = {
+        'parent': match_org,
+    }
+    switch_defaults = {'sovereign': False}
+    switch_parsers = {'sovereign': mudsling.parsers.BoolStaticParser}
+    lock = mudsling.locks.Lock('perm(create orgs)')
+
+    def run(self, this, actor, args):
+        """
+        :type this: Member
+        :type actor: Member
+        :type args: dict
+        """
+        name = args['name']
+        abbrev = args['abbrev']
+        if len(abbrev) < 2:
+            raise self._err('Abbreviations must be at least 2 characters.')
+        #: :type: orgs.Organization
+        parent = args['parent']
+        #: :type: orgs.Organization
+        org = orgs.Organization.create(names=(name,), owner=actor)
+        org.abbreviation = abbrev
+        org.sovereign = self.switches['sovereign']
+        if parent:
+            org.make_child_org(parent)
+        actor.tell('{gCreated ', '{ysovereign {g' if org.sovereign else '',
+                   'org {c', org, '{g. Parent: {m', parent, '{g.')
+
+
+class MakeSuborgCmd(mudsling.commands.Command):
+    """
+    @make-suborg <org> under <parent>
+
+    Move a suborg to be a child of another org.
+    """
+    aliases = ('@make-suborg',)
+    syntax = '<org> under <parent>'
+    arg_parsers = {
+        'org': match_org,
+        'parent': match_org,
+    }
+    lock = manage_orgs
+
+    def run(self, this, actor, args):
+        """
+        :type this: Member
+        :type actor: Member
+        :type args: dict
+        """
+        #: :type: orgs.Organization
+        org = args['org']
+        #: :type: orgs.Organization
+        parent = args['parent']
+        if parent == org.parent_org:
+            raise self._err('Specified parentage already in place.')
+        try:
+            org.make_child_org(parent)
+        except errors.RecursiveParentage as e:
+            raise self._err(e.message)
+        else:
+            actor.tell('{c', org, ' {nis now a suborg of {m', parent, '{n.')
+
+
+class MakeIndependentCmd(mudsling.commands.Command):
+    """
+    @make-independent <org>
+
+    Make an organization independent.
+    """
+    aliases = ('@make-independent',)
+    syntax = '<org>'
+    arg_parsers = {'org': match_org}
+    lock = manage_orgs
+
+    def run(self, this, actor, args):
+        """
+        :type this: Member
+        :type actor: Member
+        :type args: dict
+        """
+        #: :type: orgs.Organization
+        org = args['org']
+        if org.parent_org is None:
+            raise self._err('Already independent.')
+        org.make_independent_org()
+        actor.tell('{c', org, '{n is now independent.')
+
+
 class OrgsCmd(OrgCommand):
     """
     @orgs [<character>]
@@ -211,6 +309,70 @@ class PrimaryOrgCmd(OrgCommand):
         else:
             actor.tell('{c', org, '{n is now the primary org for {m', char,
                        '{n.')
+
+
+class SuborgsCmd(OrgCommand):
+    """
+    @suborgs[/all] <org>
+
+    Display the org and its suborgs. The /all switch will show a all levels.
+    """
+    aliases = ('@suborgs',)
+    syntax = '<org>'
+    arg_parsers = {'org': match_org}
+    switch_defaults = {'all': False}
+    switch_parsers = {'all': mudsling.parsers.BoolStaticParser}
+
+    def run(self, this, actor, args):
+        """
+        :type this: Member
+        :type actor: Member
+        :type args: dict
+        """
+        #: :type: orgs.Organization
+        org = args['org']
+        all = self.switches['all']
+        out = [actor.name_for(org)]
+        out.extend(self.suborgs(org, descend=all))
+        actor.tell('\n'.join(out))
+
+    def suborgs(self, org, descend, depth=1):
+        """
+        :type org: orgs.Organization
+        :type descend: bool
+        :rtype: list
+        """
+        out = []
+        name = self.actor.name_for
+        for suborg in org.child_orgs:
+            out.append('  ' * depth + name(suborg))
+            if descend:
+                out.extend(self.suborgs(suborg, True, depth + 1))
+        return out
+
+
+class ParentOrgsCmd(OrgCommand):
+    """
+    @parent-orgs <org>
+
+    Display the parentage of the specified organization.
+    """
+    aliases = ('@parent-orgs',)
+    syntax = '<org>'
+    arg_parsers = {'org': match_org}
+
+    def run(self, this, actor, args):
+        #: :type: orgs.Organization
+        org = args['org']
+        parentage = [actor.name_for(o) for o in org.org_parentage]
+        parentage.reverse()
+        parentage.append('{c' + actor.name_for(org))
+        out = []
+        indent = 0
+        for o in parentage:
+            out.append('  ' * indent + o)
+            indent += 1
+        actor.tell('\n'.join(out))
 
 
 class InductCmd(OrgCommand):

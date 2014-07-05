@@ -1,7 +1,11 @@
+from mudsling import parsers
+
 from mudslingcore.objsettings import ConfigurableObject, ObjSetting
 from mudslingcore.objects import InspectableObject
 
 import ictime
+
+import organizations.errors as errors
 
 
 class Organization(ConfigurableObject, InspectableObject):
@@ -17,7 +21,8 @@ class Organization(ConfigurableObject, InspectableObject):
 
     object_settings = {
         ObjSetting(name='abbreviation', type=str, attr='abbreviation'),
-        ObjSetting(name='sovereign', type=bool, attr='sovereign'),
+        ObjSetting(name='sovereign', type=bool, attr='sovereign',
+                   parser=parsers.BoolStaticParser),
     }
 
     @property
@@ -47,7 +52,42 @@ class Organization(ConfigurableObject, InspectableObject):
         self.members.append(who.ref())
 
     def unregister_member(self, who):
-        self.members.remove(who)
+        self.members.remove(who.ref())
+
+    @property
+    def org_parentage(self):
+        """
+        List of parent organization structure.
+        :rtype: tuple
+        """
+        if self.parent_org is None:
+            return ()
+        else:
+            return (self.parent_org,) + self.parent_org.org_parentage
+
+    def make_child_org(self, parent):
+        if parent == self:
+            raise errors.RecursiveParentage('Org cannot be its own parent.')
+        elif self in parent.org_parentage:
+            raise errors.RecursiveParentage('Org cannot be in parentage of '
+                                            'its own parent.')
+        if self.game.db.is_valid(self.parent_org, Organization):
+            self.parent_org.unregister_child(self)
+        self.parent_org = parent.ref()
+        parent.register_child(self)
+
+    def make_independent_org(self):
+        if self.game.db.is_valid(self.parent_org, Organization):
+            self.parent_org.unregister_child(self)
+        self.parent_org = None
+
+    def register_child(self, child):
+        if 'child_orgs' not in self.__dict__:
+            self.child_orgs = []
+        self.child_orgs.append(child.ref())
+
+    def unregister_child(self, child):
+        self.child_orgs.remove(child.ref())
 
 
 class Rank(object):
