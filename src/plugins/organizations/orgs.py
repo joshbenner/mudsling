@@ -21,7 +21,8 @@ class Organization(mudsling.objects.BaseObject):
 
     @property
     def managers(self):
-        return tuple(m for m in self.members if m.manages_org(self))
+        return tuple(m for m in self.members
+                     if m.get_org_membership(self).manager)
 
     def is_manager(self, who):
         """

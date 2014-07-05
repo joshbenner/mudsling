@@ -19,6 +19,26 @@ class Member(mudsling.objects.BaseCharacter):
         return tuple(m.org for m in self.org_memberships)
 
     @property
+    def primary_org(self):
+        return self.org_memberships[0].org if self.org_memberships else None
+
+    def set_primary_org(self, org):
+        if not self.in_org(org):
+            raise errors.NotInOrg()
+        others = tuple(m for m in self.org_memberships if m.org != org)
+        self.org_memberships = (self.get_org_membership(org),) + others
+        self.tell('{c', org, '{n is now your primary organization.')
+
+    @property
+    def citizenship(self):
+        return tuple(m.org for m in self.org_memberships if m.org.sovereign)
+
+    @property
+    def primary_citizenship(self):
+        citizenship = self.citizenship
+        return citizenship[0] if citizenship else None
+
+    @property
     def managed_orgs(self):
         return tuple(m.org for m in self.org_memberships if m.manager)
 
@@ -147,12 +167,50 @@ class OrgsCmd(OrgCommand):
         table.add_rows(*char.org_memberships)
         actor.tell(self.ui.report(
             'Organizations for %s' % actor.name_for(char), table,
-            '{g*{n = Organization Manager'))
+            '{y*{n = Primary Org, {gM{n = Organization Manager'))
 
     def org_name_formatter(self, membership, char):
-        out = '{g*{n ' if char.manages_org(membership.org) else '  '
+        out = '{y*{n' if membership.org == char.primary_org else ' '
+        out += '{gM{n ' if char in membership.org.managers else '  '
         out += self.actor.name_for(membership.org)
         return out
+
+
+class PrimaryOrgCmd(OrgCommand):
+    """
+    @primary-org [for <char> is] <org>
+
+    Sets your primary org. Admin can set primary org for other characters.
+    """
+    aliases = ('@primary-org',)
+    syntax = '[for <char> is] <org>'
+    arg_parsers = {
+        'char': match_char,
+        'org': match_org
+    }
+
+    def run(self, this, actor, args):
+        """
+        :type this: Member
+        :type actor: Member
+        :type args: dict
+        """
+        #: :type: Member
+        char = args['char'] or actor
+        #: :type: orgs.Organization
+        org = args['org']
+        if char != actor and not actor.has_perm('manage orgs'):
+            raise self._err('Permission denied.')
+        if char.primary_org == org:
+            raise self._err('%s is already the primary organization.'
+                            % actor.name_for(org))
+        try:
+            char.set_primary_org(org)
+        except errors.NotInOrg:
+            raise self._err('Must be a member of org to set it as primary.')
+        else:
+            actor.tell('{c', org, '{n is now the primary org for {m', char,
+                       '{n.')
 
 
 class InductCmd(OrgCommand):
