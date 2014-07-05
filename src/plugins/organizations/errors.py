@@ -7,3 +7,7 @@ class OrgError(mudsling.errors.Error):
 
 class AlreadyInOrg(OrgError):
     pass
+
+
+class NotInOrg(OrgError):
+    pass

@@ -30,6 +30,12 @@ class Member(mudsling.objects.BaseCharacter):
             candidates = self.orgs
         return self._match(search, candidates, exactOnly=exactOnly, err=err)
 
+    def get_org_membership(self, org):
+        for membership in self.org_memberships:
+            if membership.org == org:
+                return membership
+        return None
+
     def in_org(self, org):
         return org in self.orgs
 
@@ -41,6 +47,16 @@ class Member(mudsling.objects.BaseCharacter):
             self.org_memberships += (membership,)
             org.register_member(self)
             self.tell('{gYou are now a member of {c', org, '{g.')
+
+    def leave_org(self, org):
+        if not self.in_org(org):
+            raise errors.NotInOrg()
+        else:
+            membership = self.get_org_membership(org)
+            self.org_memberships = tuple(m for m in self.org_memberships
+                                         if m != membership)
+            org.unregister_member(self)
+            self.tell('{yYou are no longer a member of {c', org, '{y.')
 
 
 match_char = mudsling.parsers.MatchDescendants(cls=Member,
@@ -149,6 +165,39 @@ class InductCmd(OrgCommand):
                                                       actor.name_for(org)))
         else:
             actor.tell('{m', char, '{g is now a member of {c', org, '{g.')
+
+
+class DismissCmd(OrgCommand):
+    """
+    @dismiss <character> [from <org>]
+
+    Remove a character from an organization you manage.
+    """
+    aliases = ('@dismiss',)
+    syntax = '<char> [from <org>]'
+    arg_parsers = {
+        'char': match_char,
+        'org': match_org
+    }
+    org_manager = True
+
+    def run(self, this, actor, args):
+        """
+        :type this: Member
+        :type actor: Member
+        :type args: dict
+        """
+        #: :type: Member
+        char = args['char']
+        #: :type: orgs.Organization
+        org = args['org']
+        try:
+            char.leave_org(org)
+        except errors.NotInOrg:
+            raise self._err('%s is not in %s.' % (actor.name_for(char),
+                                                  actor.name_for(org)))
+        else:
+            actor.tell('{m', char, '{y has been removed from {c', org, '{y.')
 
 
 Member.private_commands = mudsling.commands.all_commands(sys.modules[__name__])

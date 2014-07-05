@@ -63,3 +63,6 @@ class Membership(object):
         self.timestamp = timestamp
         self.rank_timestamp = timestamp
         self.manager = False
+
+    def __repr__(self):
+        return '%s in %s' % (self.member.name, self.org.name)
