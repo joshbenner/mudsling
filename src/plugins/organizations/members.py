@@ -5,6 +5,8 @@ import mudsling.objects
 import mudsling.parsers
 import mudsling.locks
 
+import mudslingcore.ui
+
 import organizations.errors as errors
 import organizations.orgs as orgs
 
@@ -78,6 +80,7 @@ class OrgCommand(mudsling.commands.Command):
     abstract = True
     org_manager = False
     lock = mudsling.locks.all_pass
+    ui = mudslingcore.ui.ClassicUI()
 
     def prepare(self):
         """
@@ -132,6 +135,24 @@ class OrgsCmd(OrgCommand):
         :type actor: Member
         :type args: dict
         """
+        char = args['char'] or actor
+        if char != actor and not actor.has_perm('manage orgs'):
+            raise self._err('Permission denied.')
+        c = self.ui.Column
+        table = self.ui.Table([
+            c('Organization', align='l',
+              cell_formatter=self.org_name_formatter, formatter_args=(char,)),
+            c('Rank', align='l', data_key='rank')
+        ])
+        table.add_rows(*char.org_memberships)
+        actor.tell(self.ui.report(
+            'Organizations for %s' % actor.name_for(char), table,
+            '{g*{n = Organization Manager'))
+
+    def org_name_formatter(self, membership, char):
+        out = '{g*{n ' if char.manages_org(membership.org) else '  '
+        out += self.actor.name_for(membership.org)
+        return out
 
 
 class InductCmd(OrgCommand):
