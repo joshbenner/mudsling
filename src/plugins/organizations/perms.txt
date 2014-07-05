@@ -1,0 +1,1 @@
+manage orgs: Can view all characters' org info and is admin in all orgs.
