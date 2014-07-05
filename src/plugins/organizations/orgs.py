@@ -1,9 +1,10 @@
-import mudsling.objects
+from mudslingcore.objsettings import ConfigurableObject, ObjSetting
+from mudslingcore.objects import InspectableObject
 
 import ictime
 
 
-class Organization(mudsling.objects.BaseObject):
+class Organization(ConfigurableObject, InspectableObject):
     """
     Represents some grouping of persons for a common purpose.
     """
@@ -14,10 +15,17 @@ class Organization(mudsling.objects.BaseObject):
     ranks = []
     members = []
 
+    object_settings = {
+        ObjSetting(name='abbreviation', type=str, attr='abbreviation'),
+        ObjSetting(name='sovereign', type=bool, attr='sovereign'),
+    }
+
     @property
     def names(self):
         names = super(Organization, self).names
-        return names + (self.abbreviation,)
+        if self.abbreviation:
+            names += (self.abbreviation,)
+        return names
 
     @property
     def managers(self):

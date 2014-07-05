@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from mudsling.objects import BasePlayer, BaseCharacter
+from mudsling.objects import BasePlayer, BaseCharacter, BaseObject
 from mudsling.commands import all_commands
 from mudsling.messages import Messages
 from mudsling import parsers
@@ -20,15 +20,10 @@ import mudslingcore.errors
 from mudslingcore import commands
 
 
-class CoreObject(senses.SensoryMedium):
+class InspectableObject(BaseObject):
     """
-    The most basic object used by MUDSling Core.
-
-    :ivar obscure: Object is visible but difficult to see. May be excluded
-        from content lists.
-    :type obscure: bool
+    Basic object that can be used with @show.
     """
-    obscure = False
 
     def show_details(self, who=None):
         """
@@ -42,6 +37,17 @@ class CoreObject(senses.SensoryMedium):
             ('Owner', who.name_for(self.owner))
         ))
         return details
+
+
+class CoreObject(senses.SensoryMedium, InspectableObject):
+    """
+    The most basic object used by MUDSling Core.
+
+    :ivar obscure: Object is visible but difficult to see. May be excluded
+        from content lists.
+    :type obscure: bool
+    """
+    obscure = False
 
     def show_in_contents_to(self, obj):
         return not self.obscure

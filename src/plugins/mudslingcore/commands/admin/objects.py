@@ -378,11 +378,11 @@ class ShowCmd(mudsling.commands.Command):
 
     def execute(self):
         # Just to avoid circular imports!
-        import mudslingcore.objects
+        from mudslingcore.objects import InspectableObject
         self.arg_parsers = {
-            'obj': parsers.MatchObject(cls=mudslingcore.objects.CoreObject,
+            'obj': parsers.MatchObject(cls=InspectableObject,
                                        search_for='inspectable object',
-                                       show=True)
+                                       show=True, context=False)
         }
         super(ShowCmd, self).execute()
 
