@@ -123,7 +123,8 @@ class ChangeClassCmd(Command):
     aliases = ('@chclass', '@change-class', '@chparent')
     syntax = '<object> to <class>'
     arg_parsers = {
-        'object': parsers.MatchObject(show=True)
+        'object': parsers.MatchObject(show=True),
+        'class': parsers.ObjClassStaticParser
     }
     lock = 'perm(create objects)'
 
@@ -133,9 +134,7 @@ class ChangeClassCmd(Command):
         :type actor: mudslingcore.objects.Player
         :type args: dict
         """
-        cls = registry.classes.get_class(args['class'])
-        if cls is None:
-            raise self._err("Unknown class: %s" % args['class'])
+        cls = args['class']
         clsName = registry.classes.get_class_name(cls)
         if not actor.superuser and not (issubclass(cls, LockableObject)
                                         and cls.createLock.eval(cls, actor)):

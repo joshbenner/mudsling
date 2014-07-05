@@ -15,6 +15,7 @@ import mudsling.utils.time
 import mudsling.utils.units
 import mudsling.utils.measurements
 import mudsling.utils.string
+import mudsling.utils.modules
 
 
 class StaticParser(object):
@@ -80,7 +81,13 @@ class ObjClassStaticParser(StaticParser):
     @classmethod
     def parse(cls, input):
         objClass = registry.classes.get_class(input)
-        if objClass is None or not issubclass(objClass, StoredObject):
+        if objClass is None:
+            # noinspection PyBroadException
+            try:
+                objClass = utils.modules.class_from_path(input)
+            except:
+                objClass = None
+        if not issubclass(objClass, StoredObject):
             raise errors.ParseError("Invalid object class name: %r" % input)
         return objClass
 
