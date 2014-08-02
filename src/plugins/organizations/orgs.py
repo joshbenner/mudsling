@@ -43,6 +43,27 @@ class Organization(ConfigurableObject, InspectableObject):
         """
         return who in self.managers or who.has_perm('manage orgs')
 
+    def add_manager(self, who):
+        """
+        :param who: The character to flag as a manager.
+        :type who: organizations.members.Member
+        """
+        if not self.has_member(who):
+            raise errors.NotInOrg("Managers must first be members.")
+        #: :type: Membersip
+        membership = who.get_org_membership(self)
+        if membership.manager:
+            raise errors.AlreadyManager("Member is already a manager.")
+        membership.manager = True
+
+    def remove_manager(self, who):
+        if not self.has_member(who):
+            raise errors.NotInOrg("Member not found.")
+        membership = who.get_org_membership(self)
+        if not membership.manager:
+            raise errors.NotManager("Member is not a manager.")
+        membership.manager = False
+
     def has_member(self, who):
         return who in self.members
 

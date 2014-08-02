@@ -15,3 +15,11 @@ class NotInOrg(OrgError):
 
 class RecursiveParentage(OrgError):
     pass
+
+
+class AlreadyManager(OrgError):
+    pass
+
+
+class NotManager(OrgError):
+    pass

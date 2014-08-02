@@ -14,6 +14,7 @@ manage_orgs = mudsling.locks.Lock('perm(manage orgs)')
 
 
 class Member(mudsling.objects.BaseCharacter):
+    #: :type: tuple of organizations.orgs.Membership
     org_memberships = ()
 
     @property
@@ -55,6 +56,7 @@ class Member(mudsling.objects.BaseCharacter):
         return self._match(search, candidates, exactOnly=exactOnly, err=err)
 
     def get_org_membership(self, org):
+        """:rtype: organizations.orgs.Membership"""
         for membership in self.org_memberships:
             if membership.org == org:
                 return membership
@@ -439,6 +441,74 @@ class DismissCmd(OrgCommand):
                                                   actor.name_for(org)))
         else:
             actor.tell('{m', char, '{y has been removed from {c', org, '{y.')
+
+
+class AddManagerCmd(OrgCommand):
+    """
+    @add-manager <character> for <org>
+
+    Designates the character as a manager for the specified organization.
+    """
+    aliases = ('@add-manager',)
+    syntax = '<char>\w{to|in|for|of}\w<org>'
+    arg_parsers = {'char': match_char, 'org': match_org}
+    org_manager = True
+
+    def run(self, actor, char, org):
+        """
+        :type actor: Member
+        :type char: Member
+        :type org: orgs.Organization
+        """
+        try:
+            org.add_manager(char)
+        except errors.OrgError as e:
+            raise self._err(e.message)
+        else:
+            actor.tell('{m', char, '{n is {gnow a manager{n of {c',
+                       org, '{n.')
+
+
+class RemoveManagerCmd(OrgCommand):
+    """
+    @remove-manager <character> for <org>
+
+    Remove a manager from an org.
+    """
+    aliases = ('@remove-manager', '@rem-manager')
+    syntax = '<char>\w{from|in|for|of}\w<org>'
+    arg_parsers = {'char': match_char, 'org': match_org}
+    org_manager = True
+
+    def run(self, actor, char, org):
+        """
+        :type actor: Member
+        :type char: Member
+        :type org: orgs.Organization
+        """
+        try:
+            org.remove_manager(char)
+        except errors.OrgError as e:
+            raise self._err(e.message)
+        else:
+            actor.tell('{m', char, '{n is {rno longer a manager{n of {c',
+                       org, '{n.')
+
+
+class TopOrgsCmd(mudsling.commands.Command):
+    """
+    @top-orgs
+
+    List all orgs with no parent.
+    """
+    aliases = ('@top-orgs',)
+    lock = manage_orgs
+
+    def run(self, actor):
+        top = sorted(actor.name_for(o)
+                     for o in self.game.db.descendants(orgs.Organization)
+                     if o.parent_org is None)
+        actor.msg('\n'.join(top))
 
 
 Member.private_commands = mudsling.commands.all_commands(sys.modules[__name__])
