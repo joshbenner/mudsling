@@ -511,4 +511,51 @@ class TopOrgsCmd(mudsling.commands.Command):
         actor.msg('\n'.join(top))
 
 
+class SetGradeCmd(OrgCommand):
+    """
+    @set-seniority <grade>=<seniority> [for <org>]
+
+    Set a rank grade's seniority, creating the grade if it does not exist.
+    """
+    aliases = ('@set-seniority',)
+    syntax = '<grade_code> {=} <seniority> [for <org>]'
+    arg_parsers = {
+        'seniority': mudsling.parsers.IntStaticParser,
+        'org': match_org
+    }
+    org_manager = True
+
+    def run(self, actor, grade_code, seniority, org):
+        """
+        :type actor: Member
+        :type grade_code: str
+        :type seniority: int
+        :type org: orgs.Organization
+        """
+
+
+class AddRankCmd(OrgCommand):
+    """
+    @add-rank <name> (<abbrev>) [seniority <seniority>] [to <org>]
+
+    Add a rank to an organization.
+    """
+    aliases = ('@add-rank',)
+    syntax = '<name> (<abbrev>) [{seniority|sr|at|as}\w<seniority>] [to <org>]'
+    arg_parsers = {
+        'seniority': mudsling.parsers.IntStaticParser,
+        'org': match_org
+    }
+
+    def run(self, actor, name, abbrev, seniority, org):
+        """
+        :type actor: Member
+        :type name: str
+        :type abbrev: str
+        :type seniority: int
+        :type org: orgs.Organization
+        """
+
+
+
 Member.private_commands = mudsling.commands.all_commands(sys.modules[__name__])

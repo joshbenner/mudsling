@@ -23,3 +23,19 @@ class AlreadyManager(OrgError):
 
 class NotManager(OrgError):
     pass
+
+
+class DuplicateRank(OrgError):
+    pass
+
+
+class InvalidRank(OrgError):
+    pass
+
+
+class GradeAlreadyExists(OrgError):
+    pass
+
+
+class GradeNotFound(OrgError):
+    pass

@@ -1,4 +1,6 @@
-from mudsling import parsers
+from mudsling import parsers, match
+
+import mudsling.utils.sequence as seq_utils
 
 from mudslingcore.objsettings import ConfigurableObject, ObjSetting
 from mudslingcore.objects import InspectableObject
@@ -16,13 +18,17 @@ class Organization(ConfigurableObject, InspectableObject):
     sovereign = False
     parent_org = None
     child_orgs = []
-    ranks = []
+    rank_grades = {}
+    inherit_rank_grades = True
+    ranks = {}
     members = []
 
     object_settings = {
         ObjSetting(name='abbreviation', type=str, attr='abbreviation'),
         ObjSetting(name='sovereign', type=bool, attr='sovereign',
                    parser=parsers.BoolStaticParser),
+        ObjSetting(name='inherit_rank_grades', type=bool,
+                   attr='inherit_rank_grades', parser=parsers.BoolStaticParser)
     }
 
     @property
@@ -110,14 +116,86 @@ class Organization(ConfigurableObject, InspectableObject):
     def unregister_child(self, child):
         self.child_orgs.remove(child.ref())
 
+    @property
+    def all_rank_grades(self):
+        """:rtype: mudsling.utils.sequence.CaselessDict"""
+        parents = list(self.org_parentage)
+        parents.reverse()
+        grades = {}
+        for parent in parents:
+            grades.update(parent.rank_grades)
+        return seq_utils.CaselessDict(grades)
+
+    def get_rank_grade(self, code, inherited=True):
+        grades = self.all_rank_grades if inherited else self.rank_grades
+        if code not in grades:
+            raise errors.GradeNotFound('Grade not found.')
+        return grades[code]
+
+    def create_rank_grade(self, code, seniority=0, pay=0.0):
+        if 'rank_grades' not in self.__dict__:
+            self.rank_grades = seq_utils.CaselessDict()
+        code = code.upper()
+        if code in self.rank_grades:
+            raise errors.GradeAlreadyExists('Grade already exists.')
+        grade = RankGrade(code, seniority, pay)
+        self.rank_grades[code] = grade
+        return grade
+
+    def delete_rank_grade(self, code):
+        code = code.upper()
+        self.get_rank_grade(code, inherited=False)  # Error if not exists.
+        for rank in self.ranks:
+            if rank.grade_code.upper() == code:
+                rank.grade_code = None
+        del self.rank_grades[code]
+
+    def match_rank(self, search, exact=False, err=False):
+        return match.match_objlist(search, self.ranks, exact=exact, err=err)
+
+    def create_rank(self, name, abbrev, grade_code=None):
+        if name.lower() in [r.name.lower() for r in self.ranks]:
+            raise errors.DuplicateRank('Rank name already in use.')
+        if abbrev.lower() in [r.abbreviation.lower() for r in self.ranks]:
+            raise errors.DuplicateRank('Rank abbreviation already in use.')
+        rank = Rank(self.ref(), name, abbrev, grade_code)
+        if 'ranks' not in self.__dict__:
+            self.ranks = {}
+        self.ranks[abbrev] = rank
+        return rank
+
+    #def delete_rank(self, ):
+
+
+class RankGrade(object):
+    __slots__ = ('code', 'seniority', 'pay')
+
+    def __init__(self, code, seniority=0, pay=0.0):
+        self.code = code
+        self.seniority = seniority
+        self.pay = pay
+
 
 class Rank(object):
-    __slots__ = ('name', 'abbreviation', 'seniority')
+    __slots__ = ('name', 'abbreviation', 'grade_code', 'org')
 
-    def __init__(self, name, abbreviation, seniority):
+    def __init__(self, org, name, abbreviation, grade_code=None):
+        #: :type: Organization
+        self.org = org.ref()
         self.name = name
         self.abbreviation = abbreviation
-        self.seniority = seniority
+        self.grade_code = grade_code
+
+    @property
+    def names(self):
+        return self.name, self.abbreviation
+
+    @property
+    def grade(self):
+        """:rtype: RankGrade"""
+        if self.grade_code is None:
+            return None
+        return self.org.get_rank_grade(self.grade_code)
 
 
 class Membership(object):
@@ -125,8 +203,11 @@ class Membership(object):
                  'manager')
 
     def __init__(self, member, org, rank=None, timestamp=None):
+        #: :type: organizations.members.Member
         self.member = member.ref()
+        #: :type: Organization
         self.org = org.ref()
+        #: :type: Rank
         self.rank = rank
         if timestamp is None:
             timestamp = ictime.Timestamp()
@@ -136,3 +217,12 @@ class Membership(object):
 
     def __repr__(self):
         return '%s in %s' % (self.member.name, self.org.name)
+
+    def set_rank(self, rank):
+        if rank not in self.org.ranks:
+            raise errors.InvalidRank('Invalid rank for organization.')
+        self.rank = rank
+        self.rank_timestamp = ictime.Timestamp()
+        self.member.tell('You now hold the rank of {m', rank.name, ' (',
+                         rank.abbreviation, ') [', rank.seniority, ']{n in {c',
+                         self.org, '{n.')
