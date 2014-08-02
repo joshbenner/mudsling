@@ -313,8 +313,31 @@ class Command(object):
         self.parsed_args = self.parse_args(self.args, self.arg_parsers)
         if self.prepare():
             self.before_run()
-            self.run(self.obj, self.actor, self.parsed_args)
+            self.run(**self.prepare_run_args())
             self.after_run()
+
+    def prepare_run_args(self):
+        """
+        Prepare the arguments to be passed to run, matching parsed args to
+        argument names if possible.
+
+        :return: The arguments to pass to run.
+        :rtype: dict
+        """
+        args = {
+            'this': self.obj,
+            'actor': self.actor,
+            'args': self.parsed_args,
+            'switches': self.switches,
+        }
+        args.update((k, v) for k, v in self.parsed_args.iteritems()
+                    if k not in args)
+        spec = inspect.getargspec(self.run)
+        if spec.keywords is not None:
+            # If the method accepts all keywords, just pass them all in.
+            return args
+        # Otherwise, only pass keyword arguments listed in the arglist.
+        return dict((k, v) for k, v in args.iteritems() if k in spec.args)
 
     def before_run(self):
         """Commands can fire additional logic before running."""
@@ -421,7 +444,7 @@ class Command(object):
         """
         return True
 
-    def run(self, this, actor, args):
+    def run(self, **kw):
         """
         This is where the magic happens.
         """
