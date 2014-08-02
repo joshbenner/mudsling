@@ -49,6 +49,11 @@ class CaselessDict:
         self.dict[k] = (key, value)
         self.keyList = self.dict.keys()
 
+    def __delitem__(self, key):
+        k = key.lower()
+        del self.dict[k]
+        self.keyList = self.dict.keys()
+
     def has_key(self, key):
         k = key.lower()
         return k in self.keyList
