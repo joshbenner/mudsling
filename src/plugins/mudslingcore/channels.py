@@ -33,15 +33,15 @@ class ChannelWhoCmd(Command):
     aliases = ('who',)
     lock = locks.all_pass
 
-    def run(self, chan, actor, args):
+    def run(self, this, actor, args):
         """
-        :type chan: mudslingcore.channels.Channel
+        :type this: mudslingcore.channels.Channel
         :type actor: mudslingcore.channels.ChannelUser
         :type args: dict
         """
-        names = map(lambda p: actor.name_for(p), chan.participants)
+        names = map(lambda p: actor.name_for(p), this.participants)
         msg = "Participants: %s" % utils.string.english_list(names)
-        chan.tell(actor, msg)
+        this.tell(actor, msg)
 
 
 class ChannelAllowCmd(Command):
@@ -54,9 +54,9 @@ class ChannelAllowCmd(Command):
     syntax = "<lock>"
     lock = 'operator()'
 
-    def run(self, chan, actor, args):
+    def run(self, this, actor, args):
         """
-        :type chan: mudslingcore.channels.Channel
+        :type this: mudslingcore.channels.Channel
         :type actor: mudslingcore.channels.ChannelUser
         :type args: dict
         """
@@ -68,13 +68,13 @@ class ChannelAllowCmd(Command):
         lock = locks.Lock(lock_expr)
         try:
             # Test evaluation to make sure it works.
-            lock.eval(chan, actor)
+            lock.eval(this, actor)
         except:
             logging.exception("Eval lock: %s" % lock_expr)
-            chan.tell(actor, "{rInvalid lock expression.")
+            this.tell(actor, "{rInvalid lock expression.")
         else:
-            chan.set_lock('join', lock_expr)
-            chan.tell(actor, "{yJoin lock set to: {c", chan.get_lock('join'))
+            this.set_lock('join', lock_expr)
+            this.tell(actor, "{yJoin lock set to: {c", this.get_lock('join'))
 
 
 class ChannelOnCmd(Command):
@@ -86,18 +86,18 @@ class ChannelOnCmd(Command):
     aliases = ('on', 'unmute', 'join')
     lock = locks.all_pass
 
-    def run(self, chan, actor, args):
+    def run(self, this, actor, args):
         """
-        :type chan: mudslingcore.channels.Channel
+        :type this: mudslingcore.channels.Channel
         :type actor: mudslingcore.channels.ChannelUser
         :type args: dict
         """
-        if actor in chan.participants:
-            chan.tell(actor, "{yYou are already on this channel.")
-        elif not chan.joinable_by(actor):
-            chan.tell(actor, "{rYou are not allowed to join this channel.")
+        if actor in this.participants:
+            this.tell(actor, "{yYou are already on this channel.")
+        elif not this.joinable_by(actor):
+            this.tell(actor, "{rYou are not allowed to join this channel.")
         else:
-            chan.joined_by(actor)
+            this.joined_by(actor)
 
 
 class ChannelOffCmd(Command):
@@ -109,16 +109,16 @@ class ChannelOffCmd(Command):
     aliases = ('off', 'mute', 'leave')
     lock = locks.all_pass
 
-    def run(self, chan, actor, args):
+    def run(self, this, actor, args):
         """
-        :type chan: mudslingcore.channels.Channel
+        :type this: mudslingcore.channels.Channel
         :type actor: mudslingcore.channels.ChannelUser
         :type args: dict
         """
-        if actor not in chan.participants:
-            chan.tell(actor, "{yYou are not on this channel.")
+        if actor not in this.participants:
+            this.tell(actor, "{yYou are not on this channel.")
         else:
-            chan.left_by(actor)
+            this.left_by(actor)
 
 
 class ChannelOpCmd(Command):
@@ -139,32 +139,32 @@ class ChannelOpCmd(Command):
         }
         super(ChannelOpCmd, self).__init__(*args, **kwargs)
 
-    def run(self, chan, actor, args):
+    def run(self, this, actor, args):
         """
-        :type chan: mudslingcore.channels.Channel
+        :type this: mudslingcore.channels.Channel
         :type actor: mudslingcore.channels.ChannelUser
         :type args: dict
         """
         toggle = args.get('optset1', None)
         player = args['player']
         if toggle is None:
-            status = ("an {goperator{n" if player in chan.operators
+            status = ("an {goperator{n" if player in this.operators
                       else "{rnot {nan operator")
-            chan.tell(actor, player, ' is ', status, '.')
+            this.tell(actor, player, ' is ', status, '.')
         elif toggle == 'on':
-            if player in chan.operators:
-                chan.tell(actor, '{c', player, " {yis already an operator.")
+            if player in this.operators:
+                this.tell(actor, '{c', player, " {yis already an operator.")
             else:
-                chan.operators.add(player)
-                chan.tell(actor, '{c', player, " {gis now an operator.")
-                chan.tell(player, "{gYou are now an operator.")
+                this.operators.add(player)
+                this.tell(actor, '{c', player, " {gis now an operator.")
+                this.tell(player, "{gYou are now an operator.")
         else:
-            if player not in chan.operators:
-                chan.tell(actor, '{c', player, " {yis not an operator.")
+            if player not in this.operators:
+                this.tell(actor, '{c', player, " {yis not an operator.")
             else:
-                chan.operators.remove(player)
-                chan.tell(actor, '{c', player, " {yis no longer an operator.")
-                chan.tell(player, "{yYou are no longer an operator.")
+                this.operators.remove(player)
+                this.tell(actor, '{c', player, " {yis no longer an operator.")
+                this.tell(player, "{yYou are no longer an operator.")
 
 
 class ChannelVoiceCmd(Command):
@@ -188,9 +188,9 @@ class ChannelVoiceCmd(Command):
         }
         super(ChannelVoiceCmd, self).__init__(*args, **kwargs)
 
-    def run(self, chan, actor, args):
+    def run(self, this, actor, args):
         """
-        :type chan: mudslingcore.channels.Channel
+        :type this: mudslingcore.channels.Channel
         :type actor: mudslingcore.channels.ChannelUser
         :type args: dict
         """
@@ -198,17 +198,17 @@ class ChannelVoiceCmd(Command):
             mode = args['optset1']
             if args['player'] is not None:
                 player = args['player']
-                msg = self._set_player_voice(chan, actor, player, mode)
+                msg = self._set_player_voice(this, actor, player, mode)
             else:
                 # No player, but optset1... that means we are acting on ALL.
-                msg = self._set_all_voice(chan, actor, mode)
+                msg = self._set_all_voice(this, actor, mode)
         else:  # No on/off.
             if args['player'] is not None:
-                msg = self._show_player_voice(chan, actor, args['player'])
+                msg = self._show_player_voice(this, actor, args['player'])
             else:
                 # No on/off, no player... show all voice info!
-                msg = self._show_all_voice(chan, actor)
-        chan.tell(actor, '{mVOICE: {n', msg)
+                msg = self._show_all_voice(this, actor)
+        this.tell(actor, '{mVOICE: {n', msg)
 
     def _set_player_voice(self, chan, actor, player, mode):
         if chan.voice is None:
@@ -276,14 +276,14 @@ class ChannelTopicCmd(Command):
     syntax = "<text>"
     lock = 'operator()'
 
-    def run(self, chan, actor, args):
+    def run(self, this, actor, args):
         """
-        :type chan: mudslingcore.channels.Channel
+        :type this: mudslingcore.channels.Channel
         :type actor: mudslingcore.channels.ChannelUser
         :type args: dict
         """
-        chan.topic = args['text']
-        chan.broadcast("{gTopic set: {n%s" % chan.topic, actor)
+        this.topic = args['text']
+        this.broadcast("{gTopic set: {n%s" % this.topic, actor)
 
 
 class ChannelPrivateCmd(Command):
@@ -299,9 +299,9 @@ class ChannelPrivateCmd(Command):
     }
     lock = 'operator()'
 
-    def run(self, chan, actor, args):
+    def run(self, this, actor, args):
         """
-        :type chan: mudslingcore.channels.Channel
+        :type this: mudslingcore.channels.Channel
         :type actor: mudslingcore.channels.ChannelUser
         :type args: dict
         """
@@ -309,19 +309,19 @@ class ChannelPrivateCmd(Command):
         status = lambda c: "{rPRIVATE" if c.private else "{gPUBLIC"
         if mode is None:
             # Display privacy status.
-            chan.tell(actor, "{yChannel currently: ", status(chan))
+            this.tell(actor, "{yChannel currently: ", status(this))
         elif mode:  # Works because of BoolStaticParser
-            if chan.private:
-                chan.tell(actor, "{yChannel is already ", status(chan))
+            if this.private:
+                this.tell(actor, "{yChannel is already ", status(this))
             else:
-                chan.private = True
-                chan.tell(actor, "{yChannel is now ", status(chan))
+                this.private = True
+                this.tell(actor, "{yChannel is now ", status(this))
         else:
-            if chan.private:
-                chan.private = False
-                chan.tell(actor, "{yChannel is now ", status(chan))
+            if this.private:
+                this.private = False
+                this.tell(actor, "{yChannel is now ", status(this))
             else:
-                chan.tell(actor, "{yChannel is already ", status(chan))
+                this.tell(actor, "{yChannel is already ", status(this))
 
 
 class ChannelBootCmd(Command):
@@ -342,24 +342,24 @@ class ChannelBootCmd(Command):
         }
         super(ChannelBootCmd, self).__init__(*args, **kwargs)
 
-    def run(self, chan, actor, args):
+    def run(self, this, actor, args):
         """
-        :type chan: mudslingcore.channels.Channel
+        :type this: mudslingcore.channels.Channel
         :type actor: mudslingcore.channels.ChannelUser
         :type args: dict
         """
         player = args['player']
-        if player in chan._participants:  # Can boot even if offline.
+        if player in this._participants:  # Can boot even if offline.
             reason = args.get('reason', None) or None
             if reason is not None:
-                chan.tell(player, "{c", actor,
+                this.tell(player, "{c", actor,
                           "{n has {rbooted {nyou because: {y", reason)
             else:
-                chan.tell(player, "{c", actor, "{n has {rbooted {nyou.")
-            chan.left_by(player)
-            chan.tell(actor, "{yYou have booted {c", player)
+                this.tell(player, "{c", actor, "{n has {rbooted {nyou.")
+            this.left_by(player)
+            this.tell(actor, "{yYou have booted {c", player)
         else:
-            chan.tell(actor, "{c", player, "{y is not on this channel.")
+            this.tell(actor, "{c", player, "{y is not on this channel.")
 
 
 class ChannelInfoCmd(Command):
@@ -371,32 +371,32 @@ class ChannelInfoCmd(Command):
     aliases = ('info',)
     lock = locks.all_pass
 
-    def run(self, chan, actor, args):
+    def run(self, this, actor, args):
         """
-        :type chan: mudslingcore.channels.Channel
+        :type this: mudslingcore.channels.Channel
         :type actor: mudslingcore.channels.ChannelUser
         :type args: dict
         """
-        if chan.voice is None:
+        if this.voice is None:
             voice = 'Everyone'
         else:
-            voices = map(actor.name_for, chan.voice)
+            voices = map(actor.name_for, this.voice)
             voice = utils.string.english_list(voices, nothingstr="Nobody")
-        ops = map(actor.name_for, chan.operators)
+        ops = map(actor.name_for, this.operators)
         ops = utils.string.english_list(ops, nothingstr="Nobody")
-        log = '{rENABLED' if chan.log_enabled else '{gdisabled'
+        log = '{rENABLED' if this.log_enabled else '{gdisabled'
         # noinspection PyListCreation
         msg = [
             'Channel info:',
-            '    Topic: %s' % chan.topic or "Not set",
+            '    Topic: %s' % this.topic or "Not set",
             '    Voice: %s' % voice,
-            '  Private: %s' % ('{rYes' if chan.private else '{gNo'),
+            '  Private: %s' % ('{rYes' if this.private else '{gNo'),
             '  Logging: %s' % log,
-            'Join Lock: %s' % chan.get_lock('join'),
+            'Join Lock: %s' % this.get_lock('join'),
             'Operators: %s' % ops,
         ]
         for line in msg:
-            chan.tell(actor, line)
+            this.tell(actor, line)
 
 
 class ChannelInviteCmd(Command):
@@ -417,9 +417,9 @@ class ChannelInviteCmd(Command):
         }
         super(ChannelInviteCmd, self).__init__(*args, **kwargs)
 
-    def run(self, chan, actor, args):
+    def run(self, this, actor, args):
         """
-        :type chan: mudslingcore.channels.Channel
+        :type this: mudslingcore.channels.Channel
         :type actor: mudslingcore.channels.ChannelUser
         :type args: dict
         """
@@ -427,16 +427,16 @@ class ChannelInviteCmd(Command):
         if player is None:
             # Display list of invitees.
             invitees = utils.string.english_list(
-                actor.list_of_names(chan.invitees), nothingstr="Nobody")
-            chan.tell(actor, '{mInvitees: {n', invitees)
+                actor.list_of_names(this.invitees), nothingstr="Nobody")
+            this.tell(actor, '{mInvitees: {n', invitees)
         else:
-            if player in chan.invitees:
-                chan.tell(actor, '{c', player, "{y is already invited.")
+            if player in this.invitees:
+                this.tell(actor, '{c', player, "{y is already invited.")
             else:
-                chan.invitees.add(player)
-                chan.tell(player, '{c', actor,
+                this.invitees.add(player)
+                this.tell(player, '{c', actor,
                           "{g has invited you to this channel.")
-                chan.tell(actor, '{c', player, "{g has been invited.")
+                this.tell(actor, '{c', player, "{g has been invited.")
 
 
 class ChannelUninviteCmd(Command):
@@ -457,18 +457,18 @@ class ChannelUninviteCmd(Command):
         }
         super(ChannelUninviteCmd, self).__init__(*args, **kwargs)
 
-    def run(self, chan, actor, args):
+    def run(self, this, actor, args):
         """
-        :type chan: mudslingcore.channels.Channel
+        :type this: mudslingcore.channels.Channel
         :type actor: mudslingcore.channels.ChannelUser
         :type args: dict
         """
         player = args['player']
-        if player in chan.invitees:
-            chan.invitees.remove(player)
-            chan.tell(actor, '{c', player, '{y has been UNinvited.')
+        if player in this.invitees:
+            this.invitees.remove(player)
+            this.tell(actor, '{c', player, '{y has been UNinvited.')
         else:
-            chan.tell(actor, '{c', player, '{r is not invited.')
+            this.tell(actor, '{c', player, '{r is not invited.')
 
 
 class ChannelLogCmd(Command):
@@ -481,21 +481,21 @@ class ChannelLogCmd(Command):
     syntax = '{on|off}'
     lock = 'operator()'
 
-    def run(self, chan, actor, args):
+    def run(self, this, actor, args):
         """
-        :type chan: mudslingcore.channels.Channel
+        :type this: mudslingcore.channels.Channel
         :type actor: mudslingcore.channels.ChannelUser
         :type args: dict
         """
         enable = (args['optset1'] == 'on')
-        if enable == chan.log_enabled:
-            chan.tell(actor, 'Logging already ',
+        if enable == this.log_enabled:
+            this.tell(actor, 'Logging already ',
                       'enabled' if enable else 'disabled', '.')
         else:
-            chan.log_enabled = enable
+            this.log_enabled = enable
             msg = 'This channel is now '
             msg += '{rON THE RECORD' if enable else '{gOFF THE RECORD'
-            chan.broadcast(msg, who=actor)
+            this.broadcast(msg, who=actor)
 
 
 class Channel(NamedObject):

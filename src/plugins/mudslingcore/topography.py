@@ -286,17 +286,17 @@ class ExitCmd(Command):
 
     Proceed through the named exit.
     """
-    def run(self, exit, actor, args):
+    def run(self, this, actor, args):
         """
-        @param exit: The exit object.
-        @type exit: L{Exit}
+        @param this: The exit object.
+        @type this: L{Exit}
 
         @param actor: The object moving through the exit.
         @type actor: L{Object}
 
         @param args: Unused.
         """
-        exit.invoke(actor)
+        this.invoke(actor)
 
 
 class MatchExit(parsers.MatchObject):
