@@ -16,6 +16,7 @@ class Organization(ConfigurableObject, InspectableObject):
     """
     abbreviation = ''
     sovereign = False
+    _autonomous = False
     parent_org = None
     child_orgs = []
     rank_grades = {}
@@ -27,6 +28,8 @@ class Organization(ConfigurableObject, InspectableObject):
         ObjSetting(name='abbreviation', type=str, attr='abbreviation'),
         ObjSetting(name='sovereign', type=bool, attr='sovereign',
                    parser=parsers.BoolStaticParser),
+        ObjSetting(name='autonomous', type=bool, attr='_autonomous',
+                   parser=parsers.BoolStaticParser),
         ObjSetting(name='inherit_rank_grades', type=bool,
                    attr='inherit_rank_grades', parser=parsers.BoolStaticParser)
     }
@@ -37,6 +40,11 @@ class Organization(ConfigurableObject, InspectableObject):
         if self.abbreviation:
             names += (self.abbreviation,)
         return names
+
+    @property
+    def autonomous(self):
+        """:rtype: bool"""
+        return self.sovereign or self._autonomous
 
     @property
     def managers(self):
@@ -119,11 +127,16 @@ class Organization(ConfigurableObject, InspectableObject):
     @property
     def all_rank_grades(self):
         """:rtype: mudsling.utils.sequence.CaselessDict"""
-        parents = list(self.org_parentage)
-        parents.reverse()
+        orgs = [self]
+        if not self.autonomous:
+            for org in self.org_parentage:
+                orgs.append(org)
+                if org.autonomous:
+                    break
+        orgs.reverse()
         grades = {}
-        for parent in parents:
-            grades.update(parent.rank_grades)
+        for org in orgs:
+            grades.update(org.rank_grades)
         return seq_utils.CaselessDict(grades)
 
     def get_rank_grade(self, code, inherited=True):
@@ -171,9 +184,12 @@ class RankGrade(object):
     __slots__ = ('code', 'seniority', 'pay')
 
     def __init__(self, code, seniority=0, pay=0.0):
-        self.code = code
+        self.code = code.upper()
         self.seniority = seniority
         self.pay = pay
+
+    def __repr__(self):
+        return '%s: S%d P%f' % (self.code, self.seniority, self.pay)
 
 
 class Rank(object):

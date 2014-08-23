@@ -532,6 +532,47 @@ class SetGradeCmd(OrgCommand):
         :type seniority: int
         :type org: orgs.Organization
         """
+        try:
+            #: :type: orgs.RankGrade
+            grade = org.get_rank_grade(grade_code)
+        except errors.GradeNotFound:
+            grade = org.create_rank_grade(grade_code, seniority)
+        else:
+            if grade.code not in org.rank_grades:
+                raise self._err('You cannot override seniority of a rank'
+                                ' grade that is inherited from a parent org.')
+            grade.seniority = seniority
+        actor.tell('Grade {g', grade.code, '{n set to seniority {y',
+                   grade.seniority, '{n for {c', org, '{n.')
+
+
+class DelGradeCmd(OrgCommand):
+    """
+    @del-grade <grade> [from <org>]
+
+    Delete a rank grade.
+    """
+    aliases = ('@del-grade',)
+    syntax = '<grade_code> [\w{for|from|of}\w<org>]'
+    arg_parsers = {
+        'org': match_org
+    }
+    org_manager = True
+
+    def run(self, actor, grade_code, org):
+        """
+        :type actor: Member
+        :type grade_code: str
+        :type org: orgs.Organization
+        """
+        try:
+            org.delete_rank_grade(grade_code)
+        except errors.GradeNotFound:
+            raise self._err(actor.name_for(org) + ' does not provide rank '
+                            'grade "%s".' % grade_code.upper())
+        else:
+            actor.tell('Grade {g', grade_code.upper(), '{n deleted from {c',
+                       org, '{n.')
 
 
 class AddRankCmd(OrgCommand):
