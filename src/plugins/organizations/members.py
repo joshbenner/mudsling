@@ -575,6 +575,29 @@ class DelGradeCmd(OrgCommand):
                        org, '{n.')
 
 
+class RankGradesCmd(OrgCommand):
+    """
+    @rank-grades <org>
+
+    List the rank grades defined for an organization.
+    """
+    aliases = ('@rank-grades',)
+    syntax = '<org>'
+    arg_parsers = {
+        'org': match_org
+    }
+
+    def run(self, actor, org):
+        """
+        :type actor: Member
+        :type org: orgs.Organization
+        """
+        actor.tell('Rank Grades for {c', org, '{n:')
+        actor.msg('\n'.join('  {g%s {n({y%d{n)' % (g.code, g.seniority)
+                            for g in sorted(org.all_rank_grades.itervalues(),
+                                            key=lambda o: o.seniority)))
+
+
 class AddRankCmd(OrgCommand):
     """
     @add-rank <name> (<abbrev>) [seniority <seniority>] [to <org>]
