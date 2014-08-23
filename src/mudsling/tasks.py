@@ -162,7 +162,6 @@ class IntervalTask(BaseTask):
             self._args = args
         if kwargs is not None:
             self._kwargs = kwargs
-        self._schedule()
 
     def __str__(self):
         return "%s (%s)" % (self.__class__.__name__, self._callback.__name__)
@@ -211,6 +210,9 @@ class IntervalTask(BaseTask):
             self._schedule(self._interval - elapsed)
 
     def _run(self):
+        if not self.alive:
+            self._kill_looper()
+            return
         self.run_count += 1
         self._last_run_time = time.time()
         #noinspection PyBroadException
@@ -261,6 +263,7 @@ class DelayedTask(IntervalTask):
     def __init__(self, callback, delay=0, *args, **kwargs):
         super(DelayedTask, self).__init__(callback, delay, iterations=1,
                                           args=args, kwargs=kwargs)
+        self._schedule()
 
 
 class Task(IntervalTask):

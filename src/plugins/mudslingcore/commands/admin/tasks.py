@@ -74,7 +74,7 @@ class KillTaskCmd(Command):
         if task.alive:
             actor.msg("{rSomething didn't work: Task is still alive.")
         else:
-            actor.msg("{c%s {mhas been {ykilled." % task.name())
+            actor.msg("{c%s {mhas been {ykilled." % task.name)
 
 
 class PauseTaskCmd(Command):
