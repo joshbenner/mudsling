@@ -25,11 +25,19 @@ class NotManager(OrgError):
     pass
 
 
+class RankNotFound(OrgError):
+    pass
+
+
 class DuplicateRank(OrgError):
     pass
 
 
 class InvalidRank(OrgError):
+    pass
+
+
+class RankInUse(OrgError):
     pass
 
 

@@ -56,7 +56,10 @@ class Member(mudsling.objects.BaseCharacter):
         return self._match(search, candidates, exactOnly=exactOnly, err=err)
 
     def get_org_membership(self, org):
-        """:rtype: organizations.orgs.Membership"""
+        """
+        :type org: orgs.Organization
+        :rtype: organizations.orgs.Membership
+        """
         for membership in self.org_memberships:
             if membership.org == org:
                 return membership
@@ -600,25 +603,31 @@ class RankGradesCmd(OrgCommand):
 
 class AddRankCmd(OrgCommand):
     """
-    @add-rank <name> (<abbrev>) [seniority <seniority>] [to <org>]
+    @add-rank <grade>:<name> (<abbreviation>) [to <org>]
 
     Add a rank to an organization.
     """
     aliases = ('@add-rank',)
-    syntax = '<name> (<abbrev>) [{seniority|sr|at|as}\w<seniority>] [to <org>]'
+    syntax = '<grade_code> {:} <name> (<abbrev>) [to <org>]'
     arg_parsers = {
-        'seniority': mudsling.parsers.IntStaticParser,
         'org': match_org
     }
 
-    def run(self, actor, name, abbrev, seniority, org):
+    def run(self, actor, name, abbrev, grade_code, org):
         """
         :type actor: Member
         :type name: str
         :type abbrev: str
-        :type seniority: int
+        :type grade_code: str
         :type org: orgs.Organization
         """
+        try:
+            rank = org.create_rank(name, abbrev, grade_code)
+        except errors.OrgError as e:
+            raise self._err(e.message)
+        actor.tell('Rank {m', rank.name, ' (', rank.abbreviation,
+                   '){n added in grade {g', rank.grade.code, '{n to {c',
+                   org, '{n.')
 
 
 

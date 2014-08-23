@@ -22,6 +22,8 @@ class Organization(ConfigurableObject, InspectableObject):
     rank_grades = {}
     inherit_rank_grades = True
     ranks = {}
+
+    #: :type: list of organizations.members.Member
     members = []
 
     object_settings = {
@@ -167,17 +169,29 @@ class Organization(ConfigurableObject, InspectableObject):
         return match.match_objlist(search, self.ranks, exact=exact, err=err)
 
     def create_rank(self, name, abbrev, grade_code=None):
-        if name.lower() in [r.name.lower() for r in self.ranks]:
+        ranks = self.ranks.values()
+        if name.lower() in [r.name.lower() for r in ranks]:
             raise errors.DuplicateRank('Rank name already in use.')
-        if abbrev.lower() in [r.abbreviation.lower() for r in self.ranks]:
+        if abbrev.lower() in [r.abbreviation.lower() for r in ranks]:
             raise errors.DuplicateRank('Rank abbreviation already in use.')
+        if grade_code is not None:
+            self.get_rank_grade(grade_code)  # Call to get error.
         rank = Rank(self.ref(), name, abbrev, grade_code)
         if 'ranks' not in self.__dict__:
-            self.ranks = {}
+            self.ranks = seq_utils.CaselessDict()
         self.ranks[abbrev] = rank
         return rank
 
-    #def delete_rank(self, ):
+    def delete_rank(self, abbrev):
+        if abbrev not in self.ranks:
+            raise errors.RankNotFound('Rank not found')
+        rank = self.ranks[abbrev]
+        for member in self.members:
+            membership = member.get_org_membership(self)
+            if membership.rank == rank:
+                raise errors.RankInUse('Cannot delete ranks that are in use')
+        del self.ranks[abbrev]
+        return rank
 
 
 class RankGrade(object):
@@ -212,6 +226,9 @@ class Rank(object):
         if self.grade_code is None:
             return None
         return self.org.get_rank_grade(self.grade_code)
+
+    def __repr__(self):
+        return '%s (%s)' % (self.name, self.abbreviation)
 
 
 class Membership(object):
