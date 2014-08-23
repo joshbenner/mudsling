@@ -1,5 +1,8 @@
 import cPickle as pickle
 import re
+import tempfile
+import shutil
+import os
 
 from mudsling import utils
 import mudsling.utils.modules
@@ -32,7 +35,7 @@ def register_external_type(cls, persistent_id, persistent_load):
 
 
 def _persistent_id(obj):
-    cls = obj.__class__
+    cls = getattr(obj, '__class__', None)
     if cls in _external_types:
         f = _external_types[cls][0]
         return "%s~%s~%s" % (cls.__module__, cls.__name__, f(obj))
@@ -54,10 +57,19 @@ def _persistent_load(id):
 
 
 def dump(filepath, obj):
-    with open(filepath, 'wb') as file:
-        p = pickle.Pickler(file, pickle.HIGHEST_PROTOCOL)
-        p.persistent_id = _persistent_id
+    dir, base = os.path.split(filepath)
+    tmp = tempfile.NamedTemporaryFile(prefix=base, dir=dir, delete=False)
+    p = pickle.Pickler(tmp, pickle.HIGHEST_PROTOCOL)
+    p.persistent_id = _persistent_id
+    try:
         p.dump(obj)
+        if os.name != 'posix' and os.path.isfile(filepath):
+            os.remove(filepath)
+        os.rename(tmp.name, filepath)
+    finally:
+        tmp.close()
+        if os.path.isfile(tmp.name):
+            os.remove(tmp.name)
 
 
 def load(filepath):
