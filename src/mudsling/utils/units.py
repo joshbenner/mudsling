@@ -2,10 +2,8 @@
 import sys
 import re
 import pkg_resources
-import math
 
 import pint
-from pint.unit import PrefixDefinition, UnitDefinition, ScaleConverter
 from pint.unit import UnitsContainer
 from pint import UndefinedUnitError, DimensionalityError
 from pint.quantity import _Quantity as __Quantity
@@ -106,27 +104,14 @@ class UnitRegistry(pint.UnitRegistry):
     # Override init so we can use our own Quantity which is smaller in memory
     # and will pickle efficiently.
     def __init__(self, filename='', default_to_delta=True):
+        super(UnitRegistry, self).__init__(filename=None,
+                                           default_to_delta=default_to_delta)
+
         class Quantity(_Quantity):
             __slots__ = ()
             _REGISTRY = self
 
         self.Quantity = Quantity
-        #: Map dimension name (string) to its definition (DimensionDefinition).
-        self._dimensions = {}
-
-        #: Map unit name (string) to its definition (UnitDefinition).
-        self._units = {}
-
-        #: Map prefix name (string) to its definition (PrefixDefinition).
-        self._prefixes = {'': PrefixDefinition('', '', (), 1)}
-
-        #: Map suffix name (string) to canonical, and unit alias to canonical
-        # unit name
-        self._suffixes = {'': None, 's': ''}
-
-        #: In the context of a multiplication of units, interpret
-        #: non-multiplicative units as their *delta* counterparts.
-        self.default_to_delta = default_to_delta
 
         if filename == '':
             # Purposefully *not* using resource_stream as it may return a
@@ -137,8 +122,6 @@ class UnitRegistry(pint.UnitRegistry):
             self.load_definitions(data.splitlines())
         elif filename is not None:
             self.load_definitions(filename)
-
-        self.define(UnitDefinition('pi', 'π', (), ScaleConverter(math.pi)))
 
     def parse(self, input):
         """
@@ -184,7 +167,7 @@ class UnitRegistry(pint.UnitRegistry):
 
         :return: the formula as a string.
         """
-        _join = self._pint.util._join
+        _join = self._pint.formatting._join
         if as_ratio:
             fun = lambda x: exp_call(abs(x))
         else:

@@ -71,7 +71,9 @@ class Dimensions(namedtuple('Dimensions', 'l w h units')):
             new_units = kw['units']
             for dim in dims:
                 if dim[0] not in kw:
-                    kw[dim[0]] = getattr(self, dim).ito(new_units).magnitude
+                    q = getattr(self, dim)
+                    q.ito(new_units)
+                    kw[dim[0]] = q.magnitude
         return super(Dimensions, self)._replace(**kw)
 
     def smallest_dimension(self):
