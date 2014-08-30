@@ -8,3 +8,4 @@ out
 *.pid
 Thumbs.db
 DS_Store
+MUDSling.egg-info
