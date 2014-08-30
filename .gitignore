@@ -1,6 +1,3 @@
-syntax: glob
-.idea/workspace.xml
-.idea/dictionaries*
 *.pyc
 game
 *dropin.cache*
@@ -9,3 +6,5 @@ game
 out
 *.log
 *.pid
+Thumbs.db
+DS_Store
