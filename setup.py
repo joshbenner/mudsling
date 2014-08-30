@@ -3,9 +3,7 @@
 import os
 from setuptools import setup
 
-version_file = open(os.path.join(os.path.dirname(__file__),
-                                 'mudsling',
-                                 'VERSION'))
+version_file = open(os.path.join(os.path.dirname(__file__), 'VERSION'))
 version = version_file.read().strip()
 version_file.close()
 del version_file
