@@ -1,0 +1,5 @@
+name = MUDSling Core Plugin
+description = Core game elements. Canonical GamePlugin example.
+author = Josh Benner
+version = 0.1
+module = MUDSlingCorePlugin.py

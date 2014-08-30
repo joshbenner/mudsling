@@ -1,6 +1,0 @@
-name = Organizations
-description = Provides organizations of which characters can be members.
-dependencies = mudslingcore, ictime
-author = Josh Benner
-version = 0.1
-module = organizations_plugin.py
