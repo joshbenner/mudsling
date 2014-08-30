@@ -109,8 +109,8 @@ def run():
     options = get_options()
     options['gamedir'] = init_game_dir(options['gamedir'])
 
-    # Debugger means we want to keep everything in a single process.
-    if '--debugger' in sys.argv:
+    # Simple means we want to keep everything in a single process.
+    if options['simple']:
         from server import run_server
         os.chdir(options['gamedir'])
         run_server(options)

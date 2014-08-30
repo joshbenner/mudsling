@@ -31,45 +31,49 @@ from mudsling import utils
 import mudsling.utils.modules
 import mudsling.utils.sequence
 import mudsling.utils.time
-import mudsling.utils.file as file_utils
 
 
 class MUDSling(MultiService):
-    #: @type: C{str}
+    #: :type: str
     game_dir = "game"
 
-    #: @type: L{PluginManager}
+    #: :type: mudsling.options.Options
+    options = None
+
+    #: :type: PluginManager
     plugins = None
 
-    #: @type: L{mudsling.storage.Database}
+    #: :type: mudsling.storage.Database
     db = None
     db_file_path = ""
 
-    #: @type: L{SessionHandler}
+    #: :type: SessionHandler
     session_handler = None
     start_time = 0
     restart_time = 0
     exit_code = 0
 
-    #: @type: L{mudsling.plugins.LoginScreenPlugin}
+    #: :type: mudsling.plugins.LoginScreenPlugin
     login_screen = None
 
-    #: @type: C{types.ClassType}
+    #: :type: types.ClassType
     player_class = None
     character_class = None
     room_class = None
 
-    def __init__(self, gameDir, configPaths):
+    def __init__(self, options):
         """
-        @type gameDir: C{str}
-        @type configPaths: C{list}
+        :type options: mudsling.options.Options
         """
         MultiService.__init__(self)
+        
+        self.options = options
 
-        self.game_dir = gameDir  # Should already be init'd by run.py.
+        # Should already be initialized by run.py.
+        self.game_dir = options['gamedir']
 
         # Load configuration.
-        config.read(configPaths)
+        config.read(options.configPaths())
 
         # Apply any global date/time configurations.
         for fmt_name, fmt in config['Time Formats'].items(raw=True):
@@ -83,7 +87,7 @@ class MUDSling(MultiService):
         self.session_handler = SessionHandler(self)
 
         # Load plugin manager. Locates, filters, and loads plugins.
-        self.plugins = PluginManager(self)
+        self.plugins = PluginManager(self, self.options.pluginPaths())
         self.invoke_hook('plugins_loaded')
 
         self.init_locks()
@@ -163,20 +167,20 @@ class MUDSling(MultiService):
         self.db.initialized = True
 
         # Create first player.
-        #: @type: mudsling.objects.BasePlayer
+        #: :type: mudsling.objects.BasePlayer
         player = self.player_class.create(names=['admin'],
                                           email='admin@localhost',
                                           password='pass')
         player.superuser = True
 
-        #: @type: mudsling.objects.BaseCharacter
+        #: :type: mudsling.objects.BaseCharacter
         char = self.character_class.create(names=['Admin'])
         char.possessable_by = [player]
 
         player.default_object = char
         player.possess_object(char)
 
-        #: @type: mudsling.topography.Room
+        #: :type: mudsling.topography.Room
         room = self.room_class.create(names=['The First Room'])
         self.db.set_setting('player start', room)
         char.move_to(room)
@@ -226,11 +230,11 @@ class MUDSling(MultiService):
         These hooks are intended for system- and game-wide events and should
         not be used for object-specific events.
 
-        @param hook: The hook (function) to execute.
-        @param args: Positional args to pass to the hook.
-        @param kwargs: Keyword args to pass to the hook.
-        @return: Dictionary of hook results keyed by plugin info.
-        @rtype: C{dict}
+        :param hook: The hook (function) to execute.
+        :param args: Positional args to pass to the hook.
+        :param kwargs: Keyword args to pass to the hook.
+        :return: Dictionary of hook results keyed by plugin info.
+        :rtype: dict
         """
         return self.plugins.invoke_hook('GamePlugin', hook, *args, **kwargs)
 

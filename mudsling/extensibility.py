@@ -29,11 +29,11 @@ class Plugin(object):
     @ivar options: Plugin's config section from the game-specific config.
     @ivar game: Reference to the game object.
     """
-    #: @type: PluginInfo
+    #: :type: PluginInfo
     info = None
-    #: @type: mudsling.config.ConfigSection
+    #: :type: mudsling.config.ConfigSection
     options = None
-    #: @type: mudsling.core.MUDSling
+    #: :type: mudsling.core.MUDSling
     game = None
     #: :type: PluginManager
     manager = None
@@ -76,19 +76,19 @@ class LoginScreenPlugin(Plugin):
     def session_connected(self, session):
         """
         Called when a new session is connected.
-        @param session: The session that has connected.
-        @type session: mudsling.sessions.Session
+        :param session: The session that has connected.
+        :type session: mudsling.sessions.Session
         """
 
     def process_input(self, session, input):
         """
         Called when a command is entered by the session.
 
-        @param session: The session which sent the command
-        @type session: mudsling.sessions.Session
+        :param session: The session which sent the command
+        :type session: mudsling.sessions.Session
 
-        @param input: The string sent by the session.
-        @type input: str
+        :param input: The string sent by the session.
+        :type input: str
         """
 
 
@@ -108,7 +108,7 @@ class GamePlugin(Plugin):
         """
         This hook is invoked as the first step in the shutdown process.
 
-        @param reload: If True, the server intends to reload.
+        :param reload: If True, the server intends to reload.
         """
 
     def object_classes(self):
@@ -117,8 +117,8 @@ class GamePlugin(Plugin):
         to inform it of object classes the plugin provides which can be
         instantiated via tools like @create.
 
-        @return: (pretty name, class) pairs
-        @rtype: list
+        :return: (pretty name, class) pairs
+        :rtype: list
         """
 
     def pattern_paths(self):
@@ -127,7 +127,7 @@ class GamePlugin(Plugin):
         plugin. Default implementation looks for "patterns" directory within
         the plugin's directory.
 
-        @rtype: list
+        :rtype: list
         """
         path = os.path.join(self.info.path, 'patterns')
         if os.path.exists(path) and os.path.isdir(path):
@@ -139,8 +139,8 @@ class GamePlugin(Plugin):
         This hook is called to get a list of functions that can be used in
         lock strings.
 
-        @return: Map of function name to the function to run.
-        @rtype: C{dict}
+        :return: Map of function name to the function to run.
+        :rtype: dict
         """
         return {}
 
@@ -149,7 +149,7 @@ class GamePlugin(Plugin):
         This hook is called when performing initial setup of a database, giving
         GamePlugin instances the opportunity to perform setup of their own.
 
-        @param db: The database being setup.
+        :param db: The database being setup.
         """
 
     def help_paths(self):
@@ -158,7 +158,7 @@ class GamePlugin(Plugin):
         plugin. Default implementation looks for "help" directory within the
         plugin's directory.
 
-        @rtype: list
+        :rtype: list
         """
         path = os.path.join(self.info.path, 'help')
         if os.path.exists(path) and os.path.isdir(path):
@@ -168,13 +168,13 @@ class GamePlugin(Plugin):
 
 class PluginManager(object):
 
-    #: @cvar: Config section identifying enabled plugins.
+    #: :cvar: Config section identifying enabled plugins.
     PLUGIN_ENABLE_SECTION = "Plugins"
 
-    #: @cvar: Config values for plugins that indicate plugin is enabled.
+    #: :cvar: Config values for plugins that indicate plugin is enabled.
     PLUGIN_ENABLE_VALUES = ['on', 'enabled', 'enable', 'yes', '1', 'true']
 
-    #: @cvar: Plugin category mappings.
+    #: :cvar: Plugin category mappings.
     PLUGIN_CATEGORIES = {
         "TwistedService": TwistedServicePlugin,
         "LoginScreen": LoginScreenPlugin,
@@ -183,20 +183,23 @@ class PluginManager(object):
 
     INFO_EXT = '.plugin-info'
 
-    #: @type: L{mudsling.core.MUDSling}
+    #: :type: mudsling.core.MUDSling
     game = None
 
-    def __init__(self, game):
+    def __init__(self, game, paths):
         """
         Initialize plugin manager based on game directory and loaded config.
 
         Walk plugin paths looking for info files matching enabled plugins.
 
-        @param game: The MUDSling game object.
-        @type game: L{mudsling.core.MUDSling}
+        :param game: The MUDSling game object.
+        :type game: mudsling.core.MUDSling
+
+        :param paths: A list of paths to look for plugins.
+        :type paths: list of str
         """
         self.game = game
-        plugin_infos = self.find_plugins(self.plugin_paths(game.game_dir))
+        plugin_infos = self.find_plugins(paths)
         self.plugins = self.load_plugins(plugin_infos)
         self.check_dependencies()
         self.categories = self.categorize_plugins(self.plugins)
@@ -280,11 +283,6 @@ class PluginManager(object):
                     categories[name].append(plugin)
         return categories
 
-    def plugin_paths(self, game_dir):
-        mudsling_root = os.path.dirname(os.path.dirname(__file__))
-        return [os.path.join(mudsling_root, 'plugins'),
-                "%s/plugins" % game_dir]
-
     def active_plugins(self, category=None):
         if category is None:
             return self.plugins.values()
@@ -295,10 +293,10 @@ class PluginManager(object):
         """
         Retrieve an active plugin using its machine name.
 
-        @param name: The machine name of the plugin to retrieve.
-        @param category: Limit which plugins are searched by category.
+        :param name: The machine name of the plugin to retrieve.
+        :param category: Limit which plugins are searched by category.
 
-        @rtype: L{Plugin}
+        :rtype: Plugin
         """
         name = name.lower()
         for plugin in self.active_plugins(category):
@@ -310,12 +308,12 @@ class PluginManager(object):
         """
         Invoke an arbitrary hook on all activated plugins of a category.
 
-        @param category: The category of plugin to invoke the hook on.
-        @param hook: The hook (function) to execute.
-        @param args: Positional args to pass to the hook.
-        @param kwargs: Keyword args to pass to the hook.
-        @return: Dictionary of hook results keyed by plugin info.
-        @rtype: dict
+        :param category: The category of plugin to invoke the hook on.
+        :param hook: The hook (function) to execute.
+        :param args: Positional args to pass to the hook.
+        :param kwargs: Keyword args to pass to the hook.
+        :return: Dictionary of hook results keyed by plugin info.
+        :rtype: dict
         """
         result = {}
         for plugin in self.active_plugins(category):
