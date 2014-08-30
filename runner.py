@@ -9,7 +9,6 @@ from twisted.internet.error import ProcessDone
 processes = {}
 shutting_down = False
 mudsling_root = os.path.dirname(__file__)
-#src = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'src')
 
 
 def process_ended(process, exit_code):
@@ -38,7 +37,8 @@ class MUDSlingProcess(protocol.ProcessProtocol):
 
     def spawn(self):
         logging.info("Spawning %s process..." % self.name)
-        scriptpath = os.path.join(mudsling_root, "%s.py" % self.name)
+        scriptpath = os.path.join(os.path.abspath(mudsling_root),
+                                  "%s.py" % self.name)
         args = [sys.executable, scriptpath]
         args.extend(self.args)
         reactor.spawnProcess(self,
