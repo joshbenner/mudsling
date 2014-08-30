@@ -6,9 +6,7 @@ parse the same arguments.
 import os
 import sys
 
-# Prefer libs we ship with. Put here because every process includes this early.
 mudsling_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-sys.path.insert(1, os.path.join(mudsling_path, 'lib'))
 
 from twisted.python import usage
 
