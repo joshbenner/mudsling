@@ -1,10 +1,18 @@
 #!/usr/bin/env python
 
+import os
 from setuptools import setup
+
+version_file = open(os.path.join(os.path.dirname(__file__),
+                                 'mudsling',
+                                 'VERSION'))
+version = version_file.read().strip()
+version_file.close()
+del version_file
 
 setup(
     name='MUDSling',
-    version='1.0.dev1',
+    version=version,
     description='Python MUD engine',
     author='Joshua Benner',
     author_email='josh@bennerweb.com',
