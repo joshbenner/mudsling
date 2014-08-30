@@ -10,7 +10,6 @@ from pint.quantity import _Quantity as __Quantity
 
 
 class _Quantity(__Quantity):
-    __slots__ = ()
     _REGISTRY = None
     force_ndarray = False
 
@@ -108,7 +107,6 @@ class UnitRegistry(pint.UnitRegistry):
                                            default_to_delta=default_to_delta)
 
         class Quantity(_Quantity):
-            __slots__ = ()
             _REGISTRY = self
 
         self.Quantity = Quantity
