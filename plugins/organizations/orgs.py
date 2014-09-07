@@ -66,11 +66,20 @@ class Organization(ConfigurableObject, InspectableObject):
         return tuple(m for m in self.members
                      if m.get_org_membership(self).manager)
 
+    @property
+    def all_managers(self):
+        managers = set(self.managers)
+        if not self.autonomous and self.has_parent:
+            managers.update(self.parent_org.all_managers)
+        return tuple(managers)
+
     def is_manager(self, who):
         """
         :type who: organizations.members.Member
         """
-        return who in self.managers or who.has_perm('manage orgs')
+        return (who in self.managers  # Try this first for efficiency.
+                or who.has_perm('manage orgs')
+                or who in self.all_managers)
 
     def add_manager(self, who):
         """
