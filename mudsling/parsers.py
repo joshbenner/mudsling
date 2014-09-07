@@ -344,4 +344,4 @@ class MatchDescendants(MatchObject):
     Parser to match an object among the descendants of a given type.
     """
     def _match(self, obj, input):
-        return obj.db.match_descendants(input, self.objClass)
+        return obj.match_obj_of_type(input, self.objClass)

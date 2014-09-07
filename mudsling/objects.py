@@ -560,15 +560,17 @@ class BaseObject(PossessableObject):
 
     def match_obj_of_type(self, search, cls=None):
         """
-        Match against all objects of a given class. Uses aliases, NOT namesFor.
+        Match against all objects of a given class.
 
-        @param search: The string to match on.
-        @param cls: The class whose descendants to search.
+        :param search: The string to match on.
+        :param cls: The class whose descendants to search.
         :return: A list of matches.
         :rtype: list
         """
         cls = cls or BaseObject
-        return match_objlist(search, self.game.db.descendants(cls))
+        if search.lower() == 'me' and self.isa(cls):
+            return [self.ref()]
+        return self._match(search, self.game.db.descendants(cls))
 
     def gained_input_capture(self, session):
         pass  # Here to implement IInputProcessor
@@ -1657,12 +1659,6 @@ class BasePlayer(BaseObject):
                 self.msg('256 color support {gENABLED{n.')
             else:
                 self.msg('256 color support {rDISABLED{n.')
-
-    def match_obj_of_type(self, search, cls=None):
-        if inspect.isclass(cls) and issubclass(cls, BasePlayer):
-            if search.lower() == 'me':
-                return [self.ref()]
-        return super(BasePlayer, self).match_obj_of_type(search, cls=cls)
 
     def match_object(self, search, cls=None, err=False):
         """
