@@ -72,6 +72,12 @@ class StringListStaticParser(StaticParser):
         return cls.delimiter.join(val)
 
 
+class StringTupleStaticParser(StringListStaticParser):
+    @classmethod
+    def parse(cls, input):
+        return tuple(super(StringTupleStaticParser, cls).parse(input))
+
+
 class ObjClassStaticParser(StaticParser):
     """
     Converts a MUDSling "pretty" class name to a game object class.
