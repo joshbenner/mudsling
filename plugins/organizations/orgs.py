@@ -168,12 +168,32 @@ class Organization(ConfigurableObject, InspectableObject):
         return seq_utils.CaselessDict(grades)
 
     def get_rank_grade(self, code, inherited=True):
+        """
+        :param code: The grade code to retrieve.
+        :type code: str
+        :param inherited: Whether to include inherited rank grades or not.
+        :type inherited: bool
+        :return: The rank grade.
+        :rtype: RankGrade
+        """
         grades = self.all_rank_grades if inherited else self.rank_grades
         if code not in grades:
             raise errors.GradeNotFound('Grade not found.')
         return grades[code]
 
     def create_rank_grade(self, code, seniority=0, pay=0.0):
+        """
+        Create a rank grade on this organization.
+
+        :param code: The code name for the rank grade.
+        :type code: str
+        :param seniority: What level of seniority to give the new rank grade.
+        :type seniority: int
+        :param pay: The pay scale to apply to the rank grade.
+        :type pay: float
+        :return: The new rank grade.
+        :rtype: RankGrade
+        """
         if 'rank_grades' not in self.__dict__:
             self.rank_grades = seq_utils.CaselessDict()
         code = code.upper()
