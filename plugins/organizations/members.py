@@ -750,6 +750,11 @@ class RemoveRankCmd(OrgCommand):
                                                   err=True)[0]
 
     def run(self, actor, org, rank):
+        """
+        :type actor: Member
+        :type org: orgs.Organization
+        :type rank: orgs.Rank
+        """
         try:
             org.delete_rank(rank.abbreviation)
         except errors.RankInUse:
@@ -760,6 +765,38 @@ class RemoveRankCmd(OrgCommand):
         else:
             actor.tell('{yRank "{m', rank, '{y" has been deleted from {c',
                        org, '{y.')
+
+
+class RanksCmd(OrgCommand):
+    """
+    @ranks [<org>]
+
+    Display the rank structure for an org.
+    """
+    aliases = ('@ranks',)
+    syntax = ('{for|in} <org>', '[<org>]')
+    arg_parsers = {'org': match_org}
+    org_manager = False
+
+    def run(self, actor, org):
+        """
+        :type actor: Member
+        :type org: orgs.Organization
+        """
+        ui = self.ui
+        table = ui.Table([
+            ui.Column('Name', align='l', data_key='name'),
+            ui.Column('Abbrev', align='l', data_key='abbreviation'),
+            ui.Column('Grade (Sr)', align='l',
+                      cell_formatter=self.format_grade)
+        ])
+        table.add_rows(*sorted(org.ranks.itervalues(),
+                               key=lambda r: r.grade.seniority))
+        actor.msg(ui.report('Ranks for %s' % actor.name_for(org), table))
+
+    def format_grade(self, rank):
+        grade = rank.grade
+        return '%s (%d)' % (grade.code, grade.seniority)
 
 
 Member.private_commands = mudsling.commands.all_commands(sys.modules[__name__])
