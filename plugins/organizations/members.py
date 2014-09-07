@@ -181,7 +181,7 @@ class CreateOrgCmd(mudsling.commands.Command):
         #: :type: orgs.Organization
         org = orgtype.create(names=(name,), owner=actor)
         org.abbreviation = abbrev
-        actor.tell('{gCreated ', orgtype.__name__, ' {c', org,
+        actor.tell('{gCreated ', orgtype.__name__.lower(), ' {c', org,
                    '{g. Parent: {m', parent, '{g.')
 
 
@@ -518,7 +518,7 @@ class TopOrgsCmd(mudsling.commands.Command):
         actor.msg('\n'.join(top))
 
 
-class SetGradeCmd(OrgCommand):
+class SetSeniorityCmd(OrgCommand):
     """
     @set-seniority <grade>=<seniority> [for <org>]
 
