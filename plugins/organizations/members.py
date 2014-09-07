@@ -553,6 +553,40 @@ class SetSeniorityCmd(OrgCommand):
                    grade.seniority, '{n for {c', org, '{n.')
 
 
+class SetGradesCmd(OrgCommand):
+    """
+    @set-grades [for <org>] to <grade1>,<grade2>,...,<gradeN>
+
+    Set all grade seniorities at once, starting at seniority 1.
+    """
+    aliases = ('@set-grades',)
+    syntax = '[for <org>] to <gradelist>'
+    arg_parsers = {
+        'org': match_org,
+        'gradelist': mudsling.parsers.StringListStaticParser,
+    }
+    org_manager = True
+
+    def run(self, actor, org, gradelist):
+        """
+        :type actor: Member
+        :type org: orgs.Organization
+        :type gradelist: list of str
+        """
+        msg = ['{gSetting seniority levels for {c%s{y:' % actor.name_for(org)]
+        seniority = 0
+        for grade_code in gradelist:
+            seniority += 1
+            try:
+                grade = org.get_rank_grade(grade_code)
+            except errors.GradeNotFound:
+                grade = org.create_rank_grade(grade_code, seniority)
+            else:
+                grade.seniority = seniority
+            msg.append('  {c%s{n = {y%d' % (grade.code, grade.seniority))
+        actor.msg('\n'.join(msg))
+
+
 class DelGradeCmd(OrgCommand):
     """
     @del-grade <grade> [from <org>]
