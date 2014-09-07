@@ -668,5 +668,66 @@ class AddRankCmd(OrgCommand):
                    org, '{n.')
 
 
+class EditRankCmd(OrgCommand):
+    """
+    @edit-rank <rank> [for <org>] set <field>=<value>
+
+    Edit a rank.
+    """
+    aliases = ('@edit-rank',)
+    syntax = '<rank> [for <org>] set <field>=<value>'
+    arg_parsers = {
+        'org': match_org
+    }
+
+    @property
+    def valid_rank_fields(self):
+        return [m[10:] for m in dir(self)
+                if m.startswith('set_field_') and callable(getattr(self, m))]
+
+    def before_run(self):
+        super(EditRankCmd, self).before_run()
+        rank = self.parsed_args['rank']
+        org = self.parsed_args['org']
+        try:
+            self.parsed_args['rank'] = org.match_rank(rank)[0]
+        except errors.RankNotFound:
+            raise self._err("No '%s' rank found for %s."
+                            % (rank, self.actor.name_for(org)))
+        field = self.parsed_args['field'].lower()
+        valid_fields = self.valid_rank_fields
+        if field not in valid_fields:
+            raise self._err('Invalid rank field. Valid fields: %s'
+                            % (', '.join(valid_fields)))
+
+    def run(self, actor, org, rank, field, value):
+        func = getattr(self, 'set_field_%s' % field.lower(), None)
+        if func is None:
+            raise self._err('Invalid rank field.')
+        output = func(rank, value)
+        actor.tell('{c', org, '{n / {m', rank, '{n: {y', field.lower(),
+                   ' {n={g ', repr(output))
+
+    def set_field_abbreviation(self, rank, input):
+        rank.abbreviation = input.upper()
+        return rank.abbreviation
+
+    set_field_abbrev = set_field_abbreviation
+
+    def set_field_name(self, rank, input):
+        rank.name = input
+        return input
+
+    def set_field_grade_code(self, rank, input):
+        try:
+            rank.org.get_rank_grade(input)
+        except errors.GradeNotFound:
+            raise self._err('No "%s" grade found for %s.'
+                            % (input, self.actor.name_for(rank.org)))
+        rank.grade_code = input
+        return rank.grade.code
+
+    set_field_grade = set_field_grade_code
+
 
 Member.private_commands = mudsling.commands.all_commands(sys.modules[__name__])

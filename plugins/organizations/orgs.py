@@ -212,7 +212,8 @@ class Organization(ConfigurableObject, InspectableObject):
         del self.rank_grades[code]
 
     def match_rank(self, search, exact=False, err=False):
-        return match.match_objlist(search, self.ranks, exact=exact, err=err)
+        return match.match_objlist(search, self.ranks.values(), exact=exact,
+                                   err=err)
 
     def create_rank(self, name, abbrev, grade_code=None):
         ranks = self.ranks.values()
