@@ -1,3 +1,4 @@
+import re
 import time
 import traceback
 import mudsling
@@ -67,12 +68,15 @@ class EvalCmd(Command):
     syntax = "<code>"
     lock = "perm(eval code)"
 
+    objref = re.compile(r"#(\d+)")
+
     def run(self, this, actor, args):
         """
         Execute and time the code.
 
         @type actor: mudslingcore.objects.Player
         """
+        import os
         import sys
         import datetime
         import calendar
@@ -94,6 +98,7 @@ class EvalCmd(Command):
         available_vars = {
             'eval_cmd': self,
             'sys': sys,
+            'os': os,
             'time': time,
             'datetime': datetime,
             'calendar': calendar,
@@ -114,6 +119,9 @@ class EvalCmd(Command):
                 mn = plugin.info.machine_name
                 if mn in sys.modules:
                     available_vars[mn] = sys.modules[mn]
+
+        # Support MOO-style objrefs in eval code.
+        code = self.objref.sub(r'ref(\1)', code)
 
         inMsg = string.parse_ansi('{y>>> ') + code + string.parse_ansi("{n")
         actor.msg(inMsg, {'raw': True})
