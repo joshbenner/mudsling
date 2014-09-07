@@ -709,7 +709,10 @@ class EditRankCmd(OrgCommand):
                    ' {n={g ', repr(output))
 
     def set_field_abbreviation(self, rank, input):
-        rank.abbreviation = input.upper()
+        abbrev = input.upper()
+        if abbrev in rank.org.ranks:
+            raise errors.DuplicateRank('Abbreviation already in use')
+        rank.abbreviation = abbrev
         return rank.abbreviation
 
     set_field_abbrev = set_field_abbreviation
@@ -728,6 +731,35 @@ class EditRankCmd(OrgCommand):
         return rank.grade.code
 
     set_field_grade = set_field_grade_code
+
+
+class RemoveRankCmd(OrgCommand):
+    """
+    @remove-rank <rank> [from <org>]
+
+    Removes a rank from an org.
+    """
+    aliases = ('@remove-rank', '@del-rank')
+    syntax = '<rank> [from <org>]'
+    arg_parsers = {'org': match_org}
+    org_manager = True
+
+    def before_run(self):
+        org = self.parsed_args['org']
+        self.parsed_args['rank'] = org.match_rank(self.parsed_args['rank'],
+                                                  err=True)[0]
+
+    def run(self, actor, org, rank):
+        try:
+            org.delete_rank(rank.abbreviation)
+        except errors.RankInUse:
+            holders = [actor.name_for(m) for m in org.members
+                       if m.get_org_membership(org).rank == rank]
+            raise self._err('Cannot delete rank while it is assigned: %s'
+                            % ', '.join(holders))
+        else:
+            actor.tell('{yRank "{m', rank, '{y" has been deleted from {c',
+                       org, '{y.')
 
 
 Member.private_commands = mudsling.commands.all_commands(sys.modules[__name__])
