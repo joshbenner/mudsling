@@ -405,31 +405,42 @@ class Command(object):
                 parsed[argName] = self.obj
             if argName not in args or args[argName] is None:
                 continue
-            elif isinstance(valid, parsers.Parser):
-                parsed[argName] = valid.parse(args[argName], actor=self.actor)
-            elif (inspect.isclass(valid)
-                  and issubclass(valid, parsers.StaticParser)):
-                parsed[argName] = valid.parse(args[argName])
-            elif inspect.isclass(valid) and issubclass(valid, StoredObject):
-                argVal = args[argName]
-                matches = self.actor.match_object(argVal)
-                if self.match_failed(matches, argVal):
-                    parsed[argName] = None
-                    continue
-                match = matches[0]
-                if match.is_valid(valid):
-                    parsed[argName] = match
-                else:
-                    parsed[argName] = TypeError("Object is wrong type.")
-            elif callable(valid) or isinstance(valid, tuple):
-                if isinstance(valid, tuple):
-                    callback = valid[0]
-                    cb_args = valid[1:]
-                else:
-                    callback = valid
-                    cb_args = ()
-                parsed[argName] = callback(args[argName], *cb_args)
+            else:
+                parsed[argName] = self.parse_arg(args[argName], valid)
         return parsed
+
+    def parse_arg(self, input, parser):
+        """
+        Parse a single argument.
+
+        :param input: The input to parse.
+        :param parser: A parser class, object, or other valid specification.
+        """
+        val = input
+        if isinstance(parser, parsers.Parser):
+            val = parser.parse(input, actor=self.actor)
+        elif (inspect.isclass(parser)
+              and issubclass(parser, parsers.StaticParser)):
+            val = parser.parse(input)
+        elif inspect.isclass(parser) and issubclass(parser, StoredObject):
+            matches = self.actor.match_object(input)
+            if self.match_failed(matches, input):
+                val = None
+            else:
+                match = matches[0]
+                if match.is_valid(parser):
+                    val = match
+                else:
+                    val = TypeError("Object is wrong type.")
+        elif callable(parser) or isinstance(parser, tuple):
+            if isinstance(parser, tuple):
+                callback = parser[0]
+                cb_args = parser[1:]
+            else:
+                callback = parser
+                cb_args = ()
+            val = callback(input, *cb_args)
+        return val
 
     def prepare(self):
         """
