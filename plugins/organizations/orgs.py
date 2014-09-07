@@ -21,7 +21,9 @@ class Organization(ConfigurableObject, InspectableObject):
     child_orgs = []
     rank_grades = {}
     inherit_rank_grades = True
+    inherit_tags = False
     ranks = {}
+    _tags = ()
 
     #: :type: list of organizations.members.Member
     members = []
@@ -32,8 +34,12 @@ class Organization(ConfigurableObject, InspectableObject):
                    parser=parsers.BoolStaticParser),
         ObjSetting(name='autonomous', type=bool, attr='_autonomous',
                    parser=parsers.BoolStaticParser),
-        ObjSetting(name='inherit_rank_grades', type=bool,
-                   attr='inherit_rank_grades', parser=parsers.BoolStaticParser)
+        ObjSetting(name='inherit_rank_grades', attr='inherit_rank_grades',
+                   type=bool, parser=parsers.BoolStaticParser),
+        ObjSetting(name='inherit_tags', type=bool, attr='inherit_tags',
+                   parser=parsers.BoolStaticParser),
+        ObjSetting(name='tags', type=tuple, attr='_tags',
+                   parser=parsers.StringTupleStaticParser)
     }
 
     @property
@@ -47,6 +53,13 @@ class Organization(ConfigurableObject, InspectableObject):
     def autonomous(self):
         """:rtype: bool"""
         return self.sovereign or self._autonomous
+
+    @property
+    def tags(self):
+        tags = list(self._tags)
+        if self.inherit_tags and self.has_parent:
+            tags.extend(self.parent_org.tags)
+        return tuple(tags)
 
     @property
     def managers(self):
@@ -92,6 +105,10 @@ class Organization(ConfigurableObject, InspectableObject):
         self.members.remove(who.ref())
 
     @property
+    def has_parent(self):
+        return self.game.db.is_valid(self.parent_org, Organization)
+
+    @property
     def org_parentage(self):
         """
         List of parent organization structure.
@@ -130,10 +147,10 @@ class Organization(ConfigurableObject, InspectableObject):
     def all_rank_grades(self):
         """:rtype: mudsling.utils.sequence.CaselessDict"""
         orgs = [self]
-        if not self.autonomous:
+        if self.inherit_rank_grades:
             for org in self.org_parentage:
                 orgs.append(org)
-                if org.autonomous:
+                if not org.inherit_rank_grades:
                     break
         orgs.reverse()
         grades = {}
@@ -192,6 +209,66 @@ class Organization(ConfigurableObject, InspectableObject):
                 raise errors.RankInUse('Cannot delete ranks that are in use')
         del self.ranks[abbrev]
         return rank
+
+
+class Nation(Organization):
+    sovereign = True
+    _autonomous = True
+    inherit_rank_grades = False
+    _tags = ('political',)
+
+
+class Province(Organization):
+    sovereign = False
+    _autonomous = True
+    inherit_rank_grades = False
+    _tags = ('political',)
+
+
+class Military(Organization):
+    sovereign = False
+    _autonomous = False
+    inherit_rank_grades = False
+    _tags = ('military',)
+
+
+class Company(Organization):
+    sovereign = False
+    _autonomous = True
+    inherit_rank_grades = False
+    _tags = ('commercial',)
+
+
+class Department(Organization):
+    sovereign = False
+    _autonomous = False
+    inherit_rank_grades = True
+    inherit_tags = True
+
+
+class Division(Organization):
+    sovereign = False
+    _autonomous = False
+    inherit_rank_grades = True
+    inherit_tags = True
+
+
+org_types = [
+    Organization,
+    Nation,
+    Province,
+    Military,
+    Company,
+    Department,
+    Division,
+]
+
+
+def match_org_type(name, exact=False, err=False, case_sensitive=False):
+    stringlists = dict(tuple((t, (t.__name__,)) for t in org_types))
+    return match.match_stringlists(name, stringlists, exact=exact, err=err,
+                                   case_sensitive=case_sensitive,
+                                   ordinal=False)
 
 
 class RankGrade(object):

@@ -146,7 +146,7 @@ class OrgCommand(mudsling.commands.Command):
 
 class CreateOrgCmd(mudsling.commands.Command):
     """
-    @create-org[/sovereign] <name> (<abbrev>) [under <parent>]
+    @create-org[/type=<type>] <name> (<abbr>) [under <parent>]
 
     Create a new organization.
     """
@@ -155,30 +155,34 @@ class CreateOrgCmd(mudsling.commands.Command):
     arg_parsers = {
         'parent': match_org,
     }
-    switch_defaults = {'sovereign': False}
-    switch_parsers = {'sovereign': mudsling.parsers.BoolStaticParser}
+    switch_defaults = {'type': orgs.Organization}
+    switch_parsers = {'type': lambda n: orgs.match_org_type(n, err=True)[0]}
     lock = mudsling.locks.Lock('perm(create orgs)')
 
-    def run(self, this, actor, args):
+    def syntax_help(self):
+        text = super(CreateOrgCmd, self).syntax_help()
+        d = self.switch_defaults['type']
+        names = sorted([t.__name__ + (' {n(default)' if t == d else '')
+                        for t in orgs.org_types])
+        names = '\n{c  '.join(names)
+        text += '\n\n{gAvailable Org Types{y:{n\n  {c%s' % names
+        return text
+
+    def run(self, actor, name, abbrev, parent):
         """
-        :type this: Member
         :type actor: Member
-        :type args: dict
+        :type name: str
+        :type abbrev: str
+        :type parent: orgs.Organization
         """
-        name = args['name']
-        abbrev = args['abbrev']
+        orgtype = self.switches['type']
         if len(abbrev) < 2:
             raise self._err('Abbreviations must be at least 2 characters.')
         #: :type: orgs.Organization
-        parent = args['parent']
-        #: :type: orgs.Organization
-        org = orgs.Organization.create(names=(name,), owner=actor)
+        org = orgtype.create(names=(name,), owner=actor)
         org.abbreviation = abbrev
-        org.sovereign = self.switches['sovereign']
-        if parent:
-            org.make_child_org(parent)
-        actor.tell('{gCreated ', '{ysovereign {g' if org.sovereign else '',
-                   'org {c', org, '{g. Parent: {m', parent, '{g.')
+        actor.tell('{gCreated ', orgtype.__name__, ' {c', org,
+                   '{g. Parent: {m', parent, '{g.')
 
 
 class MakeSuborgCmd(mudsling.commands.Command):
