@@ -4,6 +4,7 @@ import mudsling.commands
 import mudsling.objects
 import mudsling.parsers
 import mudsling.locks
+import mudsling.match
 
 import mudslingcore.ui
 
@@ -797,6 +798,59 @@ class RanksCmd(OrgCommand):
     def format_grade(self, rank):
         grade = rank.grade
         return '%s (%d)' % (grade.code, grade.seniority)
+
+
+class PromoteDemoteCmd(OrgCommand):
+    """
+    @promote <char> [to <rank>] [in <org>]
+    @demote <char> [to <rank>] [in <org>]
+
+    Promote or demote a character in rank.
+    """
+    aliases = ('@promote', '@demote')
+    syntax = '<char> [to <rankname>]\w{in}\w<org>'
+    arg_parsers = {
+        'char': match_char,
+        'org': match_org,
+    }
+    org_manager = True
+
+    def run(self, actor, org, char, rankname):
+        """
+        :type actor: Member
+        :type org: orgs.Organization
+        :type char: Member
+        :type rankname: str
+        """
+        promote = 'pro' in self.cmdstr
+        membership = char.get_org_membership(org)
+        if membership is None:
+            raise self._err("%s is not in %s." % (actor.name_for(char),
+                                                  actor.name_for(org)))
+        if rankname:
+            matches = org.match_rank(rankname, err=True)
+            failed = mudsling.match.match_failed(matches, rankname,
+                                                 search_for='rank', show=True,
+                                                 names=lambda r: r.name)
+            if failed:
+                raise self._err(failed)
+            rank = matches[0]
+        else:
+            if membership.rank is None:
+                raise self._err('%s holds no rank in %s, so you must specify '
+                                'the new rank to be held.'
+                                % (actor.name_for(char), actor.name_for(org)))
+            next = getattr(org, 'next_rank' if promote else 'previous_rank')
+            rank = next(membership.rank)
+            if isinstance(rank, tuple):
+                poss = ', '.join(rank)
+                raise self._err('{yYou must specify the rank because there '
+                                'are more than one possible rank: %s' % poss)
+            elif rank is None:
+                raise self._err('There is no rank available for that action.')
+        membership.set_rank(rank)
+        actor.tell('You have ', '{gpro' if promote else '{rde', 'moted {y',
+                   char, '{n to the rank of {m', rank, '{n in {c', org, '{n!')
 
 
 Member.private_commands = mudsling.commands.all_commands(sys.modules[__name__])

@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from mudsling import parsers, match
 
 import mudsling.utils.sequence as seq_utils
@@ -240,6 +242,65 @@ class Organization(ConfigurableObject, InspectableObject):
         del self.ranks[abbrev]
         return rank
 
+    @property
+    def grade_ranks(self):
+        """
+        Returns an ordered dictionary mapping rank grades to the ranks in each
+        grade.
+        :rtype: OrderedDict
+        """
+        sorted_grades = sorted(self.all_rank_grades.values(),
+                               key=lambda x: x.seniority)
+        grades = OrderedDict((g, []) for g in sorted_grades)
+        for rank in self.ranks.itervalues():
+            grades[rank.grade].append(rank)
+        return grades
+
+    def _next_rank(self, rank, rankset):
+        if isinstance(rank, basestring):
+            rank = self.match_rank(rank, err=True)[0]
+        found_current = False
+        for nextranks in rankset:
+            if found_current:
+                if not nextranks:
+                    continue
+                if len(nextranks) == 1:
+                    return nextranks[0]
+                return tuple(nextranks)
+            if rank in nextranks:
+                found_current = True
+        return None
+
+    def next_rank(self, rank):
+        """
+        Get the rank that comes after the given rank in seniority.
+
+        Returns a tuple of multiple ranks if the next Rank is ambiguous, or
+        None if there is no next rank.
+
+        :param rank: The rank whose next senior rank to find.
+        :type rank: Rank or str
+        :return: The next rank in seniority.
+        :rtype: None or Rank or tuple of Rank
+        """
+        return self._next_rank(rank, self.grade_ranks.values())
+
+    def previous_rank(self, rank):
+        """
+        Get the rank that comes before the given rank in seniority.
+
+        Returns a tuple of multiple ranks if the previous Rank is ambiguous, or
+        None if there is no previous rank.
+
+        :param rank: The rank whose previous senior rank to find.
+        :type rank: Rank or str
+        :return: The previous rank in seniority.
+        :rtype: None or Rank or tuple of Rank
+        """
+        rankset = self.grade_ranks.values()
+        rankset.reverse()
+        return self._next_rank(rank, rankset)
+
 
 class Nation(Organization):
     sovereign = True
@@ -310,7 +371,7 @@ class RankGrade(object):
         self.pay = pay
 
     def __repr__(self):
-        return '%s: S%d P%f' % (self.code, self.seniority, self.pay)
+        return '%s: S%d P%0.2f' % (self.code, self.seniority, self.pay)
 
 
 class Rank(object):
@@ -359,10 +420,10 @@ class Membership(object):
         return '%s in %s' % (self.member.name, self.org.name)
 
     def set_rank(self, rank):
-        if rank not in self.org.ranks:
+        if rank != self.org.ranks.get(rank.abbreviation, None):
             raise errors.InvalidRank('Invalid rank for organization.')
+        #: :type: Rank
         self.rank = rank
         self.rank_timestamp = ictime.Timestamp()
-        self.member.tell('You now hold the rank of {m', rank.name, ' (',
-                         rank.abbreviation, ') [', rank.seniority, ']{n in {c',
+        self.member.tell('You now hold the rank of {m', rank.name, '{n in {c',
                          self.org, '{n.')
