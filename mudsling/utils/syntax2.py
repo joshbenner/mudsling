@@ -1,3 +1,4 @@
+import sys
 from pyparsing import *
 
 __all__ = ['Syntax', 'SyntaxParseError']
@@ -46,7 +47,7 @@ class SyntaxLiteral(SyntaxToken):
         if self.text in printables and self.text not in alphanums:
             return CaselessLiteral(self.text)
         else:
-            return CaselessKeyword(self.text)
+            return WordStart() + CaselessKeyword(self.text)
 
 
 class WhiteSpaceAssertion(SyntaxToken):
@@ -220,68 +221,92 @@ class Syntax(object):
 # Conform to Syntax API.
 SyntaxParseError = ParseException
 
-if __name__ == '__main__':
-    import time
-    ssp = syntax_grammar()
+if 'pytest' in sys.modules or __name__ == '__main__':
+    import pytest
 
-    test = [
+    FAIL = None
+
+    test_cases = (
         ('<exitSpec> to <room>', [
-            'In,i|Out,o to My New Room',
-            '"Room to Delete"',  # Should error.
+            ('In,i|Out,o to My New Room', dict(exitSpec='In,i|Out,o',
+                                               room='My New Room')),
+            ('"room to delete"', FAIL)
         ]),
         ('look [[at] <something>]', [
-            'look',
-            'look at that',
-            'look "at another thing"',
-            ]),
+            ('look', {'something': None}),
+            ('look at that', {'something': 'that'}),
+            ('look "at another thing"', {'something': 'at another thing'})
+        ]),
         ('<class> {named|called|=} <names>', [
-            'thing called Foo',
-            'another thing named Foo Too'
+            ('thing called Foo', {'class': 'thing', 'names': 'Foo'}),
+            ('another thing named Foo Too', {'class': 'another thing',
+                                             'names': 'Foo Too'})
         ]),
         ('<newRoomName>', [
-            'My New Room'
+            ('My New Room', {'newRoomName': 'My New Room'})
         ]),
         ('<something> [to <somewhere>]', [
-            'me',
-            'me to there',
-            'to',  # Should error
+            ('me', {'something': 'me', 'somewhere': None}),
+            ('me to there', {'something': 'me', 'somewhere': 'there'}),
+            ('to', FAIL)
         ]),
         ('<foo> [to <bar>] as <baz>', [
-            'foo to bar as baz',
-            'foo as baz',
+            ('foo to bar as baz', {'foo': 'foo', 'bar': 'bar', 'baz': 'baz'}),
+            ('foo as baz', {'foo': 'foo', 'bar': None, 'baz': 'baz'})
         ]),
         ('[<foo>] for <bar>', [
-            'for bar',
-            'foo for bar',
+            ('for bar', {'foo': None, 'bar': 'bar'}),
+            ('foo for bar', {'foo': 'foo', 'bar': 'bar'})
         ]),
         ('<names> [<password>]', [
-            'hesterly',
-            'hesterly test',
-            '"Mr. Hesterly" test',
-            'hesterly,blah test',
-            '"just a long name"',
+            ('hesterly', {'names': 'hesterly', 'password': None}),
+            ('hesterly test', {'names': 'hesterly', 'password': 'test'}),
+            ('"Mr. Hesterly" test', {'names': 'Mr. Hesterly',
+                                     'password': 'test'}),
+            ('hesterly,blah test', {'names': 'hesterly,blah',
+                                    'password': 'test'}),
+            ('"just a long name"', {'names': 'just a long name',
+                                    'password': None})
         ]),
         ('<foo> [<bar> to] <baz>', [
-            'foo bar to baz',
-            'foo to baz',
-            'foo baz',
+            ('foo bar to baz', {'foo': 'foo', 'bar': 'bar', 'baz': 'baz'}),
+            ('foo to baz', {'foo': 'foo', 'bar': None, 'baz': 'baz'}),
+            ('foo baz', {'foo': 'foo', 'bar': None, 'baz': 'baz'})
         ]),
         ('for <duration>', [
-            'for 1h',
-            'forever',
+            ('for 1h', {'duration': '1h'}),
+            ('forever', FAIL)
         ]),
-    ]
+        ('[to <rank>] [in <org>]', [
+            ('to crewman in sf', {'rank': 'crewman', 'org': 'sf'}),
+            ('to captain in sf', {'rank': 'captain', 'org': 'sf'})
+        ]),
+        ('<foo>=<bar>', [
+            ('foo=bar', {'foo': 'foo', 'bar': 'bar'}),
+            ('foo = bar', {'foo': 'foo', 'bar': 'bar'})
+        ]),
+        ('<foo> to <bar>', [
+            ('foo to bar', {'foo': 'foo', 'bar': 'bar'}),
+            ('footobar', FAIL)
+        ])
+    )
 
-    for spec, tests in test:
-        syntax = Syntax(spec)
-        print spec, '->', repr(syntax.parser)
-        for t in tests:
-            #noinspection PyUnresolvedReferences
-            start = time.clock()
-            r = syntax.parse(t)
-            #noinspection PyUnresolvedReferences
-            duration = (time.clock() - start) * 1000
-            print '  ', t, '->', r
-            if not r:
-                print '    ERROR:', syntax.err
-            print '  (%.3fms)\n' % duration
+    params = []
+    for spec, cases in test_cases:
+        for raw, result in cases:
+            if result == FAIL:
+                params.append(pytest.mark.xfail((spec, raw, {})))
+            else:
+                params.append((spec, raw, result))
+
+    @pytest.mark.parametrize('spec,raw,result', params)
+    def test_syntax(spec, raw, result):
+        parser = Syntax(spec)
+        out = parser.parse(raw)
+        assert out is not False, parser.err
+        for k, v in result.iteritems():
+            assert out[k] == v, '%s = %r' % (k, out[k])
+
+if __name__ == '__main__':
+    import pytest
+    pytest.main([__file__])
