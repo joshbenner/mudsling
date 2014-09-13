@@ -420,10 +420,15 @@ class Membership(object):
         return '%s in %s' % (self.member.name, self.org.name)
 
     def set_rank(self, rank):
-        if rank != self.org.ranks.get(rank.abbreviation, None):
-            raise errors.InvalidRank('Invalid rank for organization.')
-        #: :type: Rank
-        self.rank = rank
-        self.rank_timestamp = ictime.Timestamp()
-        self.member.tell('You now hold the rank of {m', rank.name, '{n in {c',
-                         self.org, '{n.')
+        if rank is None:
+            self.rank = None
+            self.member.tell('{yYou have been stripped of rank in {c',
+                             self.org, '{y!')
+        else:
+            if rank != self.org.ranks.get(rank.abbreviation, None):
+                raise errors.InvalidRank('Invalid rank for organization.')
+            #: :type: Rank
+            self.rank = rank
+            self.rank_timestamp = ictime.Timestamp()
+            self.member.tell('You now hold the rank of {m', rank.name,
+                             '{n in {c', self.org, '{n.')
