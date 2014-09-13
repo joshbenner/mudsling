@@ -808,7 +808,7 @@ class PromoteDemoteCmd(OrgCommand):
     Promote or demote a character in rank.
     """
     aliases = ('@promote', '@demote')
-    syntax = '<char> [to <rankname>]\w{in}\w<org>'
+    syntax = '<char> [to <rankname>] [in <org>]'
     arg_parsers = {
         'char': match_char,
         'org': match_org,
