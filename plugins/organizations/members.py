@@ -110,6 +110,19 @@ class OrgCommand(mudsling.commands.Command):
     lock = mudsling.locks.all_pass
     ui = mudslingcore.ui.ClassicUI()
 
+    def require_org_membership(self, char, org):
+        """
+        :type char: Member
+        :type org: orgs.Organization
+        :rtype: orgs.Membership
+        """
+        membership = char.get_org_membership(org)
+        if membership is None:
+            a = self.actor
+            raise self._err('%s is not a member of %s' % (a.name_for(char),
+                                                          a.name_for(org)))
+        return membership
+
     def prepare(self):
         """
         If there is an 'org' arg, but no org has been specified, then this
@@ -823,10 +836,7 @@ class PromoteDemoteCmd(OrgCommand):
         :type rankname: str
         """
         promote = 'pro' in self.cmdstr
-        membership = char.get_org_membership(org)
-        if membership is None:
-            raise self._err("%s is not in %s." % (actor.name_for(char),
-                                                  actor.name_for(org)))
+        membership = self.require_org_membership(char, org)
         if rankname:
             matches = org.match_rank(rankname, err=True)
             failed = mudsling.match.match_failed(matches, rankname,
@@ -851,6 +861,32 @@ class PromoteDemoteCmd(OrgCommand):
         membership.set_rank(rank)
         actor.tell('You have ', '{gpro' if promote else '{rde', 'moted {y',
                    char, '{n to the rank of {m', rank, '{n in {c', org, '{n!')
+
+
+class StripRankCmd(OrgCommand):
+    """
+    @strip-rank from <char> [in <org>]
+
+    Strip all rank from a character in an organization.
+    """
+    aliases = ('@strip-rank',)
+    syntax = 'from <char> [in <org>]'
+    arg_parsers = {'char': match_char, 'org': match_org}
+    org_manager = True
+
+    def run(self, actor, char, org):
+        """
+        :type actor: Member
+        :type char: Member
+        :type org: orgs.Organization
+        """
+        membership = self.require_org_membership(char, org)
+        if membership.rank is None:
+            actor.tell('{y', char, '{n has no rank in {c', org, '{n.')
+        else:
+            membership.set_rank(None)
+            actor.tell('{y', char, '{n has been striped of rank in {c', org,
+                       '{n.')
 
 
 Member.private_commands = mudsling.commands.all_commands(sys.modules[__name__])
