@@ -249,28 +249,28 @@ if __name__ == '__main__':
         ('<foo> [to <bar>] as <baz>', [
             'foo to bar as baz',
             'foo as baz',
-            ]),
+        ]),
         ('[<foo>] for <bar>', [
             'for bar',
             'foo for bar',
-            ]),
+        ]),
         ('<names> [<password>]', [
             'hesterly',
             'hesterly test',
             '"Mr. Hesterly" test',
             'hesterly,blah test',
             '"just a long name"',
-            ]),
+        ]),
         ('<foo> [<bar> to] <baz>', [
             'foo bar to baz',
             'foo to baz',
             'foo baz',
-            ]),
+        ]),
         ('for <duration>', [
             'for 1h',
             'forever',
-            ]),
-        ]
+        ]),
+    ]
 
     for spec, tests in test:
         syntax = Syntax(spec)
