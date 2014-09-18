@@ -63,6 +63,7 @@ def dump(filepath, obj):
     p.persistent_id = _persistent_id
     try:
         p.dump(obj)
+        tmp.close()
         if os.name != 'posix' and os.path.isfile(filepath):
             os.remove(filepath)
         os.rename(tmp.name, filepath)
