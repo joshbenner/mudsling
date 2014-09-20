@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 import zope.interface
 
+import mudsling
 from mudsling.storage import StoredObject, ObjRef
 from mudsling import errors
 from mudsling import locks
@@ -24,21 +25,35 @@ import mudsling.utils.internet
 dbref_re = re.compile(r"#(\d+)")
 
 
-def parse_dbref_literal(search):
+# noinspection PyUnusedLocal
+def parse_dbref_literal(searcher, search):
     """
     Translate from pattern '#\d+' into an object.
 
+    :param searcher: Object looking for the literal.
     :param search: The text used to specify the object literal.
     :returns: The referenced object.
     """
     m = dbref_re.match(search)
     if m is None:
-        return None
+        return []
     else:
-        return ObjRef(int(m.group(1)))
+        return [ObjRef(int(m.group(1)))]
+
+
+def parse_character_literal(searcher, search):
+    """
+    Translate '~<character>' into an object.
+
+    :param searcher: Object looking for the character.
+    :param search: The character search string.
+    :return: A character reference.
+    """
+    return searcher.match_obj_of_type(search[1:], BaseCharacter)
 
 literal_parsers = {
-    '#': lambda s: [m for m in [parse_dbref_literal(s)] if m is not None]
+    '#': parse_dbref_literal,
+    '~': parse_character_literal
 }
 
 
@@ -598,7 +613,7 @@ class BaseObject(PossessableObject):
             prefix = search[0]
             if prefix in literal_parsers:
                 matches = utils.object.filter_by_class(
-                    literal_parsers[prefix](search), cls)
+                    literal_parsers[prefix](self, search), cls)
         if err:
             if not matches:
                 raise errors.FailedMatch(query=search)
