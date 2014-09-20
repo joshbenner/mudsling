@@ -68,7 +68,8 @@ class EvalCmd(Command):
     syntax = "<code>"
     lock = "perm(eval code)"
 
-    objref = re.compile(r"#(\d+)")
+    objref = re.compile(r"(?<!#)#(\d+)")
+    objref_escape_fix = re.compile(r"##(\d+)")
 
     def run(self, this, actor, args):
         """
@@ -122,6 +123,7 @@ class EvalCmd(Command):
 
         # Support MOO-style objrefs in eval code.
         code = self.objref.sub(r'ref(\1)', code)
+        code = self.objref_escape_fix.sub(r'#\1', code)
 
         inMsg = string.parse_ansi('{y>>> ') + code + string.parse_ansi("{n")
         actor.msg(inMsg, {'raw': True})
