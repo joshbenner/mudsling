@@ -686,3 +686,6 @@ class Database(Persistent):
 
     def set_setting(self, name, value):
         self.settings[name] = value
+
+    def has_setting(self, name):
+        return name in self.settings
