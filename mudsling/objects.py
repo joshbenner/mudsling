@@ -1,4 +1,3 @@
-import inspect
 import re
 from collections import OrderedDict
 
@@ -8,7 +7,7 @@ from mudsling.storage import StoredObject, ObjRef
 from mudsling import errors
 from mudsling import locks
 from mudsling import registry
-from mudsling.match import match_objlist, match_stringlists
+from mudsling.match import match_stringlists
 from mudsling.sessions import IInputProcessor
 from mudsling.messages import IHasMessages, Messages
 from mudsling.commands import IHasCommands, CommandSet
@@ -20,6 +19,27 @@ import mudsling.utils.sequence
 import mudsling.utils.object
 import mudsling.utils.string
 import mudsling.utils.internet
+
+
+dbref_re = re.compile(r"#(\d+)")
+
+
+def parse_dbref_literal(search):
+    """
+    Translate from pattern '#\d+' into an object.
+
+    :param search: The text used to specify the object literal.
+    :returns: The referenced object.
+    """
+    m = dbref_re.match(search)
+    if m is None:
+        return None
+    else:
+        return ObjRef(int(m.group(1)))
+
+literal_parsers = {
+    '#': lambda s: [m for m in [parse_dbref_literal(s)] if m is not None]
+}
 
 
 class LockableObject(StoredObject):
@@ -227,12 +247,12 @@ class NamedObject(LockableObject):
 
         :param obj: The object whose "known" names to retrieve.
         :type obj: NamedObject or ObjRef
-        :rtype: list
+        :rtype: tuple
         """
         try:
             return obj.names
         except (TypeError, AttributeError):
-            return []
+            return ()
 
     def name_for(self, obj):
         """
@@ -417,7 +437,7 @@ class PossessableObject(MessagedObject):
         * ObjRef, StoredObject -> self.nameFor(obj)
 
         :param parts: List of values to interpret into the message text.
-        :type parts: list or str
+        :type parts: list or tuple or str
 
         :rtype: str
         """
@@ -498,6 +518,15 @@ class BaseObject(PossessableObject):
         super(BaseObject, self).__init__(**kwargs)
         self.owner = kwargs.get('owner', None)
 
+    def matchable_names_for(self, obj):
+        names = list(self.names_for(obj))
+        try:
+            names.append('#%d' % obj.obj_id)
+            if obj == self:
+                names.append('me')
+        finally:
+            return tuple(names)
+
     def _match(self, search, objlist, exactOnly=False, err=False):
         """
         A matching utility. Essentially a duplicate of match_objlist(), but
@@ -506,7 +535,8 @@ class BaseObject(PossessableObject):
         """
         # Use OrderedDict to preserve order of options. This is important
         # because the search string might use ordinals to avoid ambiguity.
-        strings = OrderedDict(zip(objlist, map(self.names_for, objlist)))
+        strings = OrderedDict(zip(objlist, map(self.matchable_names_for,
+                                               objlist)))
         return match_stringlists(search, strings, exact=exactOnly, err=err)
 
     def match_context(self, search, cls=None, err=False):
@@ -517,7 +547,7 @@ class BaseObject(PossessableObject):
         :type search: str
 
         :param cls: A class to limit potential matches.
-        :type cls: type
+        :type cls: tuple or type
 
         :param err: Whether or not to raise match errors.
         :type err: bool
@@ -525,16 +555,15 @@ class BaseObject(PossessableObject):
         :return: List of matches.
         :rtype: list of Object
         """
-        index = dict((o, o.names + ('#%d' % o.obj_id,))
-                     for o in utils.object.filter_by_class(self.context, cls))
-        if self in index:
-            index[self] += ('me',)
-        return match_stringlists(search, index, exact=False, err=err)
+        return self._match(search,
+                           utils.object.filter_by_class(self.context, cls),
+                           err=err)
 
     def match_object(self, search, cls=None, err=False):
         """
-        A general object match for this object. Uses .namesFor() values in the
-        match rather than direct aliases.
+        A general object match for this object. This match will first attempt
+        to match literals, then will fall back to matching objects in the
+        context of the matcher.
 
         :param search: The search string.
         :param cls: Limit potential matches to descendants of the given class
@@ -544,19 +573,38 @@ class BaseObject(PossessableObject):
 
         :rtype: list
         """
-        candidate = None
-        if search[0] == '#' and re.match(r"#\d+", search):
-            candidate = self.game.db.get_ref(int(search[1:]))
-        if search.lower() == 'me':
-            candidate = self.ref()
+        m = self.match_literals(search, cls=cls, err=err)
+        if m:
+            return m
+        return self.match_context(search, cls=cls, err=err)
 
-        if (candidate is not None
-                and utils.object.filter_by_class([candidate], cls)):
-            return [candidate]
+    def match_literals(self, search, cls=None, err=False):
+        """
+        Perform a match against registered literal parsers.
 
-        return self._match(search,
-                           utils.object.filter_by_class([self.ref()], cls),
-                           err=err)
+        :param search: The text to attempt to parse as a literal.
+        :type search: str
+
+        :param cls: An optional class or classes to limit valid results.
+        :type cls: tuple or type or None
+
+        :param err: Whether or not to throw match errors.
+        :type err: bool
+
+        :rtype: list
+        """
+        matches = []
+        if len(search) > 1:
+            prefix = search[0]
+            if prefix in literal_parsers:
+                matches = utils.object.filter_by_class(
+                    literal_parsers[prefix](search), cls)
+        if err:
+            if not matches:
+                raise errors.FailedMatch(query=search)
+            elif len(matches) > 1:
+                raise errors.AmbiguousMatch(query=search, matches=matches)
+        return matches
 
     def match_obj_of_type(self, search, cls=None):
         """
@@ -812,59 +860,11 @@ class Object(BaseObject):
             if o.location == this:
                 o.move_to(None)
 
-    def match_context(self, search, cls=None, err=False):
-        """
-        Match an object, but only match objects in this object's context. This
-        excludes matching of any objects not in this object's contents or
-        location.
-
-        :param search: The search text.
-        :type search: str
-
-        :param cls: A class to limit potential matches.
-        :type cls: type
-
-        :param err: Whether or not to raise match errors.
-        :type err: bool
-
-        :return: List of matches.
-        :rtype: list of Object
-        """
-        index = dict((o, o.names + ('#%d' % o.obj_id,))
-                     for o in utils.object.filter_by_class(self.context, cls))
-        if self.location in index:
-            index[self.location] += ('here',)
-        if self in index:
-            index[self] += ('me',)
-        return match_stringlists(search, index, exact=False, err=err)
-
-    def match_object(self, search, cls=None, err=False):
-        """
-        :type search: str
-        :rtype: list
-        """
-        # Any match in parent bypasses further matching. This means, in theory,
-        # that if parent matched something, something else that could match in
-        # contents or location will not match. Fortunately, all we match in
-        # BaseObject.match_object is object literals and self, so this sould
-        # not really be an issue.
-        matches = super(Object, self).match_object(search, cls=cls)
-        if not matches:
-            if search.lower() == 'here' and self.location is not None:
-                if utils.object.filter_by_class([self.location], cls):
-                    return [self.location]
-
-            objects = list(self.contents)  # Copy is important!
-            if self.has_location:
-                objects.extend(self.location.contents)
-            matches = self._match(search,
-                                  utils.object.filter_by_class(objects, cls),
-                                  err=err)
-
-        if err and len(matches) > 1:
-            raise errors.AmbiguousMatch(matches=matches)
-
-        return matches
+    def matchable_names_for(self, obj):
+        names = super(Object, self).matchable_names_for(obj)
+        if self.has_location and obj == self.location:
+            names += ('here',)
+        return names
 
     def match_contents(self, search, cls=None, err=False):
         candidate = None
