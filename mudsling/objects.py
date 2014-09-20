@@ -48,11 +48,11 @@ class LockableObject(StoredObject):
         they possess skip the check entirely. If who has control access,
         then they are a superuser for this object.
 
-        @param who: The object attempting the operation.
-        @type who: PossessableObject or BasePlayer
+        :param who: The object attempting the operation.
+        :type who: PossessableObject or BasePlayer
 
-        @param op: The operation (lock type) being checked.
-        @type op: str
+        :param op: The operation (lock type) being checked.
+        :type op: str
 
         :rtype: bool
         """
@@ -68,8 +68,8 @@ class LockableObject(StoredObject):
 
         If no lock is found, then a Lock that always fails will be returned.
 
-        @param lockType: The lock type to retrieve.
-        @type lockType: str
+        :param lockType: The lock type to retrieve.
+        :type lockType: str
 
         :rtype: mudsling.locks.Lock
         """
@@ -86,9 +86,9 @@ class LockableObject(StoredObject):
         """
         Set a lock for the given type on the object to the given expression.
 
-        @param lock_type: The lock type to set.
-        @param lock_expr: The lock expression to set.
-        @type lock_expr: basestring or mudsling.locks.Lock
+        :param lock_type: The lock type to set.
+        :param lock_expr: The lock expression to set.
+        :type lock_expr: basestring or mudsling.locks.Lock
         """
         if ('locks' not in self.__dict__
                 or not isinstance(self.locks, locks.LockSet)):
@@ -157,9 +157,9 @@ class NamedObject(LockableObject):
         Low-level method for maintaining the object's names. Should only be
         called by setName or setAliases.
 
-        @param name: The new name. If None, do not change name.
-        @param aliases: The new aliases. If None, do not change aliases.
-        @param names: All names in one shot. If not None, other parameters are
+        :param name: The new name. If None, do not change name.
+        :param aliases: The new aliases. If None, do not change aliases.
+        :param names: All names in one shot. If not None, other parameters are
             ignored and only this paramter is used.
         :return: Old names tuple.
         :rtype: tuple
@@ -190,7 +190,7 @@ class NamedObject(LockableObject):
         Canonical method for changing the object's name. Children can override
         to attach other logic/actions to name changes.
 
-        @param name: The new name.
+        :param name: The new name.
         :return: The old name.
         """
         oldNames = self._set_names(name=name)
@@ -201,8 +201,8 @@ class NamedObject(LockableObject):
         Canonical method fo changing the object's aliases. Children can
         override to attach other logic/actions to alias changes.
 
-        @param aliases: The new aliases.
-        @type aliases: list or tuple
+        :param aliases: The new aliases.
+        :type aliases: list or tuple
         :return: The old aliases.
         """
         return self._set_names(aliases=aliases)[1:]
@@ -212,7 +212,7 @@ class NamedObject(LockableObject):
         Sets name and aliases is one shot, using a single list or tuple where
         the first element is the name, and the other elements are the aliases.
 
-        @param names: The new names to use.
+        :param names: The new names to use.
         :return: Old names.
         """
         oldNames = self.names
@@ -225,8 +225,8 @@ class NamedObject(LockableObject):
         Returns a list of names representing the passed object as known by
         self. Default implementation is to just return all aliases.
 
-        @param obj: The object whose "known" names to retrieve.
-        @type obj: NamedObject or ObjRef
+        :param obj: The object whose "known" names to retrieve.
+        :type obj: NamedObject or ObjRef
         :rtype: list
         """
         try:
@@ -238,8 +238,8 @@ class NamedObject(LockableObject):
         """
         Returns a string representation of the given object as known by self.
 
-        @param obj: The object to name.
-        @type obj: NamedObject or ObjRef
+        :param obj: The object to name.
+        :type obj: NamedObject or ObjRef
 
         :return: String name of passed object as known by this object.
         :rtype: str
@@ -340,7 +340,7 @@ class PossessableObject(MessagedObject):
     def is_possessable_by(self, player):
         """
         Returns True if the player can possess this object.
-        @param player: The player.
+        :param player: The player.
         :return: bool
         """
         return (player in self.possessable_by
@@ -349,8 +349,8 @@ class PossessableObject(MessagedObject):
     def become_possessed(self, player):
         """
         Become possessed by a player.
-        @param player: The player possessing this object.
-        @type player: BasePlayer
+        :param player: The player possessing this object.
+        :type player: BasePlayer
         """
         # TODO: Refactor this into a property?
         if self.possessed_by is not None:
@@ -370,16 +370,16 @@ class PossessableObject(MessagedObject):
     def on_possessed(self, player):
         """
         Event hook called when this object has been possessed by a BasePlayer.
-        @param player: BasePlayer which has possessed the object.
-        @type player: BasePlayer
+        :param player: BasePlayer which has possessed the object.
+        :type player: BasePlayer
         """
         pass
 
     def on_dispossessed(self, player):
         """
         Event hook called when this object has been dispossessed by a player.
-        @param player: The player that previously possessed this object.
-        @type player: BasePlayer
+        :param player: The player that previously possessed this object.
+        :type player: BasePlayer
         """
         pass
 
@@ -400,10 +400,10 @@ class PossessableObject(MessagedObject):
         Primary method of emitting text to an object (and any players/sessions
         which are attached to it).
 
-        @param text: The text to send to the object.
-        @type text: str or list or tuple
+        :param text: The text to send to the object.
+        :type text: str or list or tuple
 
-        @param flags: Flags to modify how text is handled.
+        :param flags: Flags to modify how text is handled.
         """
         if self.possessed_by is not None:
             self.possessed_by.msg(self._format_msg(text), flags=flags)
@@ -416,8 +416,8 @@ class PossessableObject(MessagedObject):
         Default conversions:
         * ObjRef, StoredObject -> self.nameFor(obj)
 
-        @param parts: List of values to interpret into the message text.
-        @type parts: list or str
+        :param parts: List of values to interpret into the message text.
+        :type parts: list or str
 
         :rtype: str
         """
@@ -450,8 +450,8 @@ class PossessableObject(MessagedObject):
         Return the name for normal users, or the name and ObjID for privileged
         players possessing this object.
 
-        @param obj: The object to name.
-        @type obj: NamedObject or ObjRef
+        :param obj: The object to name.
+        :type obj: NamedObject or ObjRef
 
         :return: String name of passed object as known by this object.
         :rtype: str
@@ -536,11 +536,11 @@ class BaseObject(PossessableObject):
         A general object match for this object. Uses .namesFor() values in the
         match rather than direct aliases.
 
-        @param search: The search string.
-        @param cls: Limit potential matches to descendants of the given class
+        :param search: The search string.
+        :param cls: Limit potential matches to descendants of the given class
             or classes.
-        @type cls: tuple or type
-        @param err: If true, can raise search result errors.
+        :type cls: tuple or type
+        :param err: If true, can raise search result errors.
 
         :rtype: list
         """
@@ -648,8 +648,8 @@ class BaseObject(PossessableObject):
         """
         Match a command based on name (and access).
 
-        @param cmd_name: The name of the command being search for.
-        @type cmd_name: str
+        :param cmd_name: The name of the command being search for.
+        :type cmd_name: str
 
         :return: A list of tuples of (object, command class).
         :rtype: list
@@ -668,7 +668,7 @@ class BaseObject(PossessableObject):
         returns 'public_commands'. The full list of commands is built by
         ascending the MRO and adding commands from any IHasCommands class.
 
-        @param actor: The object that wishes to use a command.
+        :param actor: The object that wishes to use a command.
         :rtype: CommandSet
         """
         if self.ref() == actor.ref():
@@ -698,8 +698,8 @@ class BaseObject(PossessableObject):
         else, the command parser assumes the command was handled and takes no
         further action.
 
-        @param raw: The raw input to handle
-        @type raw: str
+        :param raw: The raw input to handle
+        :type raw: str
 
         :return: None, a command class, or another value.
         :rtype: type
@@ -711,8 +711,8 @@ class BaseObject(PossessableObject):
         Lets an object attempt to do its own parsing on command raw that was
         not handled by normal command matching.
 
-        @param raw: The raw input to handle
-        @type raw: str
+        :param raw: The raw input to handle
+        :type raw: str
 
         :return: A command *instance* or None.
         :rtype: mudsling.commands.Command
@@ -1098,7 +1098,7 @@ class Object(BaseObject):
         classes should be very reluctant to override this. Unexpected return
         results may yield unexpected behaviors.
 
-        @param exclude_invalid: If true, does not consider an invalid ObjRef to
+        :param exclude_invalid: If true, does not consider an invalid ObjRef to
             be a valid location, and will not include it in the list.
 
         :return: List of nested locations, from deepest to shallowest.
@@ -1131,8 +1131,8 @@ class Object(BaseObject):
         """
         Emit a message template to object's location.
 
-        @param key: The key of the message to emit.
-        @param keywords: The keywords for the template.
+        :param key: The key of the message to emit.
+        :param keywords: The keywords for the template.
 
         :return: List of objects notified.
         :rtype: list
@@ -1146,12 +1146,12 @@ class Object(BaseObject):
         """
         Send a message to the contents of this object.
 
-        @param msg: The message to send. This can be a string, dynamic message
+        :param msg: The message to send. This can be a string, dynamic message
             list, or a dict from MessagedObject.get_message.
-        @type msg: str or dict or list
+        :type msg: str or dict or list
 
-        @param exclude: List of objects to exclude from receiving the message.
-        @type exclude: list or None
+        :param exclude: List of objects to exclude from receiving the message.
+        :type exclude: list or None
 
         :return: List of objects that received some form of notice.
         :rtype: list
@@ -1249,11 +1249,11 @@ class BasePlayer(BaseObject):
         """
         Create a player.
 
-        @raise errors.PlayerNameError: When no names given or names parameter
+        :raise errors.PlayerNameError: When no names given or names parameter
             is of the wrong type.
-        @raise errors.InvalidPlayerName: When first name is invalid.
-        @raise errors.DuplicatePlayerName: When player name is already used.
-        @raise errors.InvalidEmail: When provided email is not valid.
+        :raise errors.InvalidPlayerName: When first name is invalid.
+        :raise errors.DuplicatePlayerName: When player name is already used.
+        :raise errors.InvalidEmail: When provided email is not valid.
 
         :return: A new player.
         :rtype: BasePlayer or mudsling.storage.ObjRef
@@ -1420,8 +1420,8 @@ class BasePlayer(BaseObject):
         Captures a single line of input from the player and pass it to the
         callback.
 
-        @param callback: The callback to receive the line of input.
-        @param args: Any extra arguments to send to the callback.
+        :param callback: The callback to receive the line of input.
+        :param args: Any extra arguments to send to the callback.
         """
         def _callback(lines):
             return callback(lines[0], *args)
@@ -1439,9 +1439,9 @@ class BasePlayer(BaseObject):
         Slight improvement on read_line which specifies a list of options. Note
         that the options are case insensitive.
 
-        @param options: Tuple of valid values. Can be strings or compiled regex
+        :param options: Tuple of valid values. Can be strings or compiled regex
             objects.
-        @type options: tuple
+        :type options: tuple
         """
         if not options:
             raise ValueError("No options specified for prompt.")
@@ -1467,10 +1467,10 @@ class BasePlayer(BaseObject):
         Capture player input for a prompt, and call the callback corresponding
         to the option entered.
 
-        @param options: Dict of valid responses (keys) and the callback to call
+        :param options: Dict of valid responses (keys) and the callback to call
             for each option (values). Response keys can be strings or compiled
             regular expressions.
-        @param invalidCallback: The callback to be called upon invalid input.
+        :param invalidCallback: The callback to be called upon invalid input.
         """
         if not options:
             raise ValueError("No options specified for prompt.")
@@ -1501,11 +1501,11 @@ class BasePlayer(BaseObject):
         Prompt user to enter 'yes' or 'no', then call the corresponding
         callback function.
 
-        @param prompt: Text to prompt the user. Can pass False to suppress the
+        :param prompt: Text to prompt the user. Can pass False to suppress the
             default prompt.
-        @param yes_callback: The callback to call upon entering 'yes'.
-        @param no_callback: The callback to call upon entering 'no'.
-        @param invalid_callback: The callback to be called upon invalid input.
+        :param yes_callback: The callback to call upon entering 'yes'.
+        :param no_callback: The callback to call upon entering 'no'.
+        :param invalid_callback: The callback to be called upon invalid input.
         """
         def __show_prompt():
             if prompt is not False:
@@ -1530,9 +1530,9 @@ class BasePlayer(BaseObject):
         Emit text to a player (and thereby to the session attach to the player,
         if any).
 
-        @param text: Text to send.
-        @param flags: Flags to modify how text is handled.
-        @type text: str
+        :param text: Text to send.
+        :param flags: Flags to modify how text is handled.
+        :type text: str
         """
         if self.session is not None and text is not None:
             self.session.send_output(self._format_msg(text), flags=flags)
@@ -1540,8 +1540,8 @@ class BasePlayer(BaseObject):
     def possess_object(self, obj):
         """
         Possess an object.
-        @param obj: The object to possess.
-        @type obj: BaseObject
+        :param obj: The object to possess.
+        :type obj: BaseObject
         """
         if self.possessing is not None:
             self.dispossess_object(self.possessing)
@@ -1561,15 +1561,15 @@ class BasePlayer(BaseObject):
     def on_object_possessed(self, obj):
         """
         Event hook that fires right after BasePlayer has possessed an object.
-        @param obj: The object that is now possessed by the player.
-        @type obj: BaseObject
+        :param obj: The object that is now possessed by the player.
+        :type obj: BaseObject
         """
 
     def on_object_dispossessed(self, obj):
         """
         Event hook that fires right after player has dispossessed an object.
-        @param obj: The object that was previously possessed.
-        @type obj: BaseObject
+        :param obj: The object that was previously possessed.
+        :type obj: BaseObject
         """
 
     def process_input(self, raw, err=True):
