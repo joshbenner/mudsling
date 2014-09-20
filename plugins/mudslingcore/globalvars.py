@@ -7,7 +7,7 @@ from mudsling.errors import Error
 db = None
 
 global_re = re.compile(
-    r"^\$(?:(?P<prefix>[a-zA-Z_][a-zA-Z0-9_]+)\.)?(?P<name>.+)$")
+    r"^\$(?:(?P<prefix>[a-zA-Z_][a-zA-Z0-9_]+):)?(?P<name>.+)$")
 
 
 class GlobalVarsNoDatabase(Error):
