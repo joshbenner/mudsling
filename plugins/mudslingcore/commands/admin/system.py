@@ -98,8 +98,6 @@ class EvalCmd(Command):
 
         available_vars = {
             'eval_cmd': self,
-            'sys': sys,
-            'os': os,
             'time': time,
             'datetime': datetime,
             'calendar': calendar,
@@ -111,15 +109,10 @@ class EvalCmd(Command):
             'me': char,
             'here': (char.location if self.game.db.is_valid(char, Object)
                      else None),
-            'mudsling': mudsling,
             'utils': mudsling.utils,
             'math': math,
         }
-        for plugin in self.game.plugins:
-            if plugin.info.module is not None:
-                mn = plugin.info.machine_name
-                if mn in sys.modules:
-                    available_vars[mn] = sys.modules[mn]
+        available_vars.update(sys.modules)
 
         # Support MOO-style objrefs in eval code.
         code = self.objref.sub(r'ref(\1)', code)
