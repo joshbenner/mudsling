@@ -82,7 +82,7 @@ def filter_by_class(objects, cls):
 
     :param cls: Class(es) that objects must be descendant from. If None is
         passed, then no filtering is done.
-    :type: type or None
+    :type: type or tuple or None
 
     :return: List of filtered objects.
     :rtype: list
