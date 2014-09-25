@@ -12,6 +12,14 @@ class Error(Exception):
         return repr(self.message)
 
 
+class InvalidClassPath(Error):
+    pass
+
+
+class ClassLoadFailed(Error):
+    pass
+
+
 class AccessDenied(Error):
     """
     Generic access denied error.
