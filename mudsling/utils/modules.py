@@ -46,6 +46,8 @@ import imp
 import random
 import inspect
 
+import mudsling.errors as errors
+
 
 def make_iter(obj):
     """
@@ -168,17 +170,17 @@ def class_from_path(class_path):
 
     Raises exception if it cannot load the class.
 
-    @param class_path: Dot-notation python path to class.
+    :param class_path: Dot-notation python path to class.
 
-    @rtype: type
+    :rtype: type
     """
     try:
         module_path, class_name = class_path.rsplit('.', 1)
     except ValueError:
-        raise Exception("Invalid class path: %s" % class_path)
+        raise errors.InvalidClassPath("Invalid class path: %s" % class_path)
 
     classObj = variable_from_module(module_path, class_name)
     if inspect.isclass(classObj):
         return classObj
 
-    raise Exception("Unable to load class %s" % class_path)
+    raise errors.ClassLoadFailed("Unable to load class %s" % class_path)
