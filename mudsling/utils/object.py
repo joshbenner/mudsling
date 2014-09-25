@@ -157,3 +157,12 @@ def dict_inherit(obj, member, key):
         if isinstance(d, dict) and key in d:
             return d[key]
     raise KeyError
+
+
+def has_callable(obj, member):
+    """
+    Return true if object has a callable member with the specified name.
+
+    :rtype: bool
+    """
+    return hasattr(obj, member) and callable(getattr(obj, member))
