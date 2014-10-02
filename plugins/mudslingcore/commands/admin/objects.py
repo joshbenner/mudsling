@@ -123,7 +123,7 @@ class ChangeClassCmd(Command):
     aliases = ('@chclass', '@change-class', '@chparent')
     syntax = '<object> to <class>'
     arg_parsers = {
-        'object': parsers.MatchObject(show=True),
+        'object': parsers.MatchObject(show=True, context=False),
         'class': parsers.ObjClassStaticParser
     }
     lock = 'perm(create objects)'
@@ -239,7 +239,7 @@ class GoCmd(Command):
     syntax = "<where>"
     lock = 'perm(teleport)'
     arg_parsers = {
-        'where': parsers.MatchObject(cls=LocatedObject,
+        'where': parsers.MatchObject(cls=LocatedObject, context=False,
                                      search_for='location', show=True)
     }
 
@@ -271,9 +271,9 @@ class MoveCmd(Command):
     syntax = "<what> to <where>"
     lock = "perm(teleport)"
     arg_parsers = {
-        'what':  parsers.MatchObject(cls=LocatedObject,
+        'what':  parsers.MatchObject(cls=LocatedObject, context=False,
                                      search_for='locatable object', show=True),
-        'where': parsers.MatchObject(cls=LocatedObject,
+        'where': parsers.MatchObject(cls=LocatedObject, context=False,
                                      search_for='location', show=True),
     }
 
@@ -296,7 +296,8 @@ class MoveCmd(Command):
 match_configurable_obj = parsers.MatchObject(
     cls=mudslingcore.objsettings.ConfigurableObject,
     search_for='configurable object',
-    show=True
+    show=True,
+    context=False
 )
 
 
