@@ -223,7 +223,7 @@ class MUDSling(MultiService):
         else:
             return time.time() - self.start_time
 
-    def invoke_hook(self, hook, *args, **kwargs):
+    def invoke_hook(self, hook, plugin_type='GamePlugin', *args, **kwargs):
         """
         Invoke an arbitrary hook on all activated GamePlugins.
 
@@ -236,7 +236,7 @@ class MUDSling(MultiService):
         :return: Dictionary of hook results keyed by plugin info.
         :rtype: dict
         """
-        return self.plugins.invoke_hook('GamePlugin', hook, *args, **kwargs)
+        return self.plugins.invoke_hook(plugin_type, hook, *args, **kwargs)
 
     @property
     def tasks(self):
