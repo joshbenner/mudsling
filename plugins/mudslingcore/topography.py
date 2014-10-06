@@ -33,6 +33,14 @@ class Room(DescribableObject):
         #: :type: list of Exit
         self.exits = []
 
+    def exposed_context(self):
+        """
+        Expose exits as context.
+        """
+        context = super(Room, self).exposed_context()
+        context.extend(self.exits)
+        return context
+
     def match_exits(self, search, exactOnly=True):
         return self._match(search, self.exits, exactOnly=exactOnly)
 

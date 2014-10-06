@@ -719,8 +719,9 @@ class BaseObject(PossessableObject):
         """
         commands = []
         for obj in self.context:
-            matches = obj.commands_for(self).match(cmd_name, obj, self)
-            commands.extend(zip([obj] * len(matches), matches))
+            if obj.isa(BaseObject):
+                matches = obj.commands_for(self).match(cmd_name, obj, self)
+                commands.extend(zip([obj] * len(matches), matches))
         return commands
 
     def commands_for(self, actor):
