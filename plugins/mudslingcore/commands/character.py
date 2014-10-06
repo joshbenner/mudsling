@@ -50,7 +50,7 @@ class LookCmd(Command):
         #: :type: Object
         target = args['something']
 
-        if target in actor._get_context() or actor.has_perm('remote look'):
+        if target in actor.primary_context() or actor.has_perm('remote look'):
             if self._is_lookable(target):
                 actor.msg(target.seen_by(actor))
             else:

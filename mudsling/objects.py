@@ -785,17 +785,25 @@ class BaseObject(PossessableObject):
     @property
     def context(self):
         """
-        The same as self._get_context(), but with duplicates removed.
+        The same as self.primary_context(), but with duplicates removed.
         :return:
         """
-        return utils.sequence.unique(self._get_context())
+        objects = []
+        for obj in self.primary_context():
+            objects.extend(obj.exposed_context())
+        return utils.sequence.unique(objects)
 
-    def _get_context(self):
+    def exposed_context(self):
         """
-        Return a list of objects which will be checked, in order, for commands
-        or object matches when parsing command arguments.
+        Objects added to the context this object is included in (including
+        self).
+        """
+        return [self.ref()]
 
-        :rtype: list
+    def primary_context(self):
+        """
+        The objects available to this object for command and other matching.
+        :rtype: list of Object
         """
         return [self.ref()]
 
@@ -901,21 +909,22 @@ class Object(BaseObject):
         """
         return self.location is not None and self.location.is_valid(Object)
 
-    def _get_context(self):
+    def primary_context(self):
         """
         Add the object's location after self.
         :rtype: list
         """
-        hosts = super(Object, self)._get_context()
+        context = super(Object, self).primary_context()
         if self.location is not None:
-            hosts.append(self.location)
-        if isinstance(self.contents, list):
-            hosts.extend(self.contents)
-        if (self.location is not None and
-                isinstance(self.location.contents, list)):
-            hosts.extend(self.location.contents)
+            context.append(self.location)
+        return context
 
-        return hosts
+    def exposed_context(self):
+        context = super(Object, self).exposed_context()
+        contents = self.contents
+        if isinstance(contents, list):
+            context.extend(contents)
+        return context
 
     def handle_unmatched_input(self, raw):
         # Let location offer commands at this stage, too.
