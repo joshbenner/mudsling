@@ -128,7 +128,7 @@ class DigCmd(Command):
 
         @rtype: L{mudsling.topography.Room}
         """
-        roomClass = actor.get_obj_setting('building.room_class')
+        roomClass = actor.get_obj_setting_value('building.room_class')
         if roomClass is not None and issubclass(roomClass, Room):
             room = roomClass.create(names=names, owner=actor)
             actor.msg(["{gCreated {c", room, "{g."])
@@ -148,7 +148,7 @@ class DigCmd(Command):
         @rtype: L{mudslingcore.topography.Exit}
         """
         if isinstance(names, list):
-            exitClass = actor.get_obj_setting('building.exit_class')
+            exitClass = actor.get_obj_setting_value('building.exit_class')
             if exitClass is not None and issubclass(exitClass, Exit):
                 exit = exitClass.create(names=names, owner=actor)
             else:
