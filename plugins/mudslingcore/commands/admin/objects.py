@@ -81,30 +81,28 @@ class CreateCmd(Command):
 
 class RenameCmd(Command):
     """
-    @rename <object> to|as <new-names>
+    @rename <object> to <new-names>
 
     Renames an object to the new name.
     """
     aliases = ('@rename',)
-    syntax = "<object> {to|as} <newNames>"
+    syntax = "<obj> {to|as} <names>"
     arg_parsers = {
-        'object': NamedObject,
-        'newNames': parsers.StringListStaticParser,
+        'obj': parsers.MatchObject(NamedObject, search_for='named object',
+                                   show=True, context=False),
+        'names': parsers.StringListStaticParser,
     }
     lock = locks.all_pass  # Everyone can use @rename -- access check within.
 
-    def run(self, this, actor, args):
+    def run(self, actor, obj, names):
         """
-        @type this: mudslingcore.objects.Player
-        @type actor: mudslingcore.objects.Player
-        @type args: dict
+        :type actor: mudslingcore.objects.Player
+        :type obj: NamedObject
+        :type names: list of str
         """
-        #: @type: BaseObject
-        obj = args['object']
         if not obj.allows(actor, 'rename'):
             actor.tell("{yYou are not allowed to rename {c", obj, "{y.")
             return
-        names = args['newNames']
         oldNames = obj.set_names(names)
         msg = "{{gName of {{c#{id}{{g changed to '{{m{name}{{g'"
         keys = {'id': obj.obj_id, 'name': obj.name}
