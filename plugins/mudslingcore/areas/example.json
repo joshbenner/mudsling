@@ -1,13 +1,43 @@
 {
-  "__class__": "mudslingcore.topography.RoomGroup",
-  "__id__": "f6b2ae93-0270-4da9-a18d-5c8faf3f1edd",
+  "class": "mudslingcore.topography.RoomGroup",
+  "id": "9a1dde04-6658-4d07-bb0f-d26c0bf56397",
   "name": "Test Area",
   "contents": [
     {
-      "__class__": "mudslingcore.topography.Room",
-      "__id__": "f6a9448e-0074-43f8-b156-c66b738c3585",
+      "class": "mudslingcore.topography.Room",
+      "id": "435b7393-b624-4f96-954b-0e20d450b763",
       "name": "Area Lobby",
-      "contents": []
+      "exits": [
+        {
+          "class": "mudslingcore.topography.Exit",
+          "id": "3ea71b6d-42ff-4548-a1e0-a25656e708d4",
+          "name": "Corridor",
+          "aliases": [
+            "c",
+            "in"
+          ],
+          "source": "435b7393-b624-4f96-954b-0e20d450b763",
+          "dest": "155af660-5530-4f9e-93fe-0b0bd16946f6"
+        }
+      ]
+    },
+    {
+      "class": "mudslingcore.topography.Room",
+      "id": "155af660-5530-4f9e-93fe-0b0bd16946f6",
+      "name": "Corridor",
+      "exits": [
+        {
+          "class": "mudslingcore.topography.Exit",
+          "id": "6943b313-fbc8-4ecb-a6a0-fed3ae7df948",
+          "name": "Lobby",
+          "aliases": [
+            "lo",
+            "out"
+          ],
+          "source": "155af660-5530-4f9e-93fe-0b0bd16946f6",
+          "dest": "435b7393-b624-4f96-954b-0e20d450b763"
+        }
+      ]
     }
   ]
 }

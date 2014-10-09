@@ -131,7 +131,12 @@ class DigCmd(Command):
         roomClass = actor.get_obj_setting_value('building.room_class')
         if roomClass is not None and issubclass(roomClass, Room):
             room = roomClass.create(names=names, owner=actor)
-            actor.msg(["{gCreated {c", room, "{g."])
+            actor.tell("{gCreated {c", room, "{g.")
+            current_room = actor.location
+            room_group = current_room.room_group
+            if room_group is not None:
+                room.move_to(room_group)
+                actor.tell('{yAdded {c', room, '{y to {m', room_group, '{y.')
         else:
             raise self._err("Invalid building.room_class: %r" % roomClass)
         return room

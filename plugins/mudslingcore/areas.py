@@ -66,13 +66,13 @@ def import_area_object(data, sandbox):
     :type data: dict
     """
     try:
-        cls = mod_utils.class_from_path(data['__class__'])
+        cls = mod_utils.class_from_path(data['class'])
     except errors.Error as e:
         raise AreaImportFailed(e.message)
     except KeyError:
-        raise AreaImportFailed('Invalid area file: missing __class__')
-    if '__id__' in data:
-        external_id = data['__id__']
+        raise AreaImportFailed('Invalid area file: missing class')
+    if 'id' in data:
+        external_id = data['id']
         if 'objmap' not in sandbox:
             sandbox['objmap'] = {}
         objmap = sandbox['objmap']
@@ -81,8 +81,8 @@ def import_area_object(data, sandbox):
     obj = cls()
     obj.area_import(data, sandbox)
     obj = obj.ref() if isinstance(obj, AreaExportableBaseObject) else obj
-    if '__id__' in data:
-        sandbox['objmap'][data['__id__']] = obj
+    if 'id' in data:
+        sandbox['objmap'][data['id']] = obj
     return obj
 
 
@@ -150,8 +150,8 @@ class AreaExportable(object):
         :rtype: dict
         """
         return OrderedDict({
-            '__class__': "%s.%s" % (self.__class__.__module__,
-                                    self.__class__.__name__)
+            'class': "%s.%s" % (self.__class__.__module__,
+                                self.__class__.__name__)
         })
 
     def area_import(self, data, sandbox):
@@ -183,7 +183,7 @@ class AreaExportableBaseObject(AreaExportable, mudsling.objects.BaseObject):
 
     def area_export(self, sandbox):
         export = super(AreaExportableBaseObject, self).area_export(sandbox)
-        export['__id__'] = self.area_export_id
+        export['id'] = self.area_export_id
         if 'objmap' not in sandbox:
             sandbox['objmap'] = {}
         sandbox['objmap'][self.area_export_id] = self.ref()
@@ -197,8 +197,8 @@ class AreaExportableBaseObject(AreaExportable, mudsling.objects.BaseObject):
 
     def area_import(self, data, sandbox):
         super(AreaExportableBaseObject, self).area_import(data, sandbox)
-        if '__id__' in data:
-            self.area_import_id = data['__id__']
+        if 'id' in data:
+            self.area_import_id = data['id']
         mudsling.game.db.register_object(self)
         if 'objmap' not in sandbox:
             sandbox['objmap'] = {}
