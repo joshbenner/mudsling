@@ -1,0 +1,13 @@
+{
+  "__class__": "mudslingcore.topography.RoomGroup",
+  "__id__": "f6b2ae93-0270-4da9-a18d-5c8faf3f1edd",
+  "name": "Test Area",
+  "contents": [
+    {
+      "__class__": "mudslingcore.topography.Room",
+      "__id__": "f6a9448e-0074-43f8-b156-c66b738c3585",
+      "name": "Area Lobby",
+      "contents": []
+    }
+  ]
+}

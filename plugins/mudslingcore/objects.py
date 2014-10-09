@@ -16,6 +16,7 @@ from mudslingcore.channels import ChannelUser
 import mudslingcore.genders
 from mudslingcore import senses
 import mudslingcore.errors
+from mudslingcore.areas import AreaExportableBaseObject
 
 from mudslingcore import commands
 
@@ -39,7 +40,8 @@ class InspectableObject(BaseObject):
         return details
 
 
-class CoreObject(senses.SensoryMedium, InspectableObject):
+class CoreObject(senses.SensoryMedium, InspectableObject,
+                 AreaExportableBaseObject):
     """
     The most basic object used by MUDSling Core.
 
@@ -48,6 +50,20 @@ class CoreObject(senses.SensoryMedium, InspectableObject):
     :type obscure: bool
     """
     obscure = False
+
+    # Only special objects should be flagged as exportable to area files.
+    area_exportable = False
+
+    def area_export(self, sandbox):
+        export = super(CoreObject, self).area_export(sandbox)
+        if 'obscure' in self.__dict__:
+            export['obscure'] = self.obscure
+        return export
+
+    def area_import(self, data, sandbox):
+        super(CoreObject, self).area_import(data, sandbox)
+        if 'obscure' in data:
+            self.obscure = data['obscure']
 
     def show_in_contents_to(self, obj):
         return not self.obscure
@@ -123,6 +139,17 @@ class DescribableObject(CoreObject):
         self.desc_mods = []
         super(DescribableObject, self).__init__(**kwargs)
 
+    def area_export(self, sandbox):
+        export = super(DescribableObject, self).area_export(sandbox)
+        if 'desc' in self.__dict__:
+            export['desc'] = self.desc
+        return export
+
+    def area_import(self, data, sandbox):
+        super(DescribableObject, self).area_import(data, sandbox)
+        if 'desc' in data:
+            self.desc = data['desc']
+
     def seen_by(self, obj):
         """
         Return the string describing what the object sees when it looks at this
@@ -180,12 +207,14 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser):
     import commands.admin.tasks
     import commands.admin.objects
     import commands.admin.players
+    import commands.admin.areas
     private_commands = all_commands(
         commands.admin.system,
         commands.admin.perms,
         commands.admin.tasks,
         commands.admin.objects,
         commands.admin.players,
+        commands.admin.areas,
         player_commands
     )
     del player_commands
@@ -232,6 +261,9 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser):
 class Character(BaseCharacter, DescribableObject, ConfigurableObject,
                 senses.SensingObject, mudslingcore.genders.HasGender):
     """Core character class."""
+
+    # Do not export characters to area files.
+    area_exportable = False
 
     import commands.admin.building as building_commands
     import commands.character as character_commands

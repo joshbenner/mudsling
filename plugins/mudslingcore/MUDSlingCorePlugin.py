@@ -12,14 +12,22 @@ from mudslingcore.topography import Room, Exit
 from mudslingcore.help import help_db
 from mudslingcore import bans
 from mudslingcore import globalvars
+import mudslingcore.areas as areas
 
 
-class MUDSlingCorePlugin(GamePlugin):
+class MUDSlingCorePlugin(GamePlugin, areas.AreaProviderPlugin):
     """
     Upon activation of this module, its directory will be added to the python
     search path, such that modules and packages within it can be imported, used
     when specifying classes in configs, etc.
     """
+
+    def __init__(self, game, info, manager):
+        super(MUDSlingCorePlugin, self).__init__(game, info, manager)
+        # Register the AreaProviderPlugin type so we can query the plugin
+        # manager for a list of them later to compile a list of areas.
+        manager.PLUGIN_CATEGORIES['AreaProviderPlugin'] \
+            = areas.AreaProviderPlugin
 
     def server_startup(self):
         # Init subsystems.

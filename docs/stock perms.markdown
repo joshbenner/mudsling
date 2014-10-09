@@ -32,6 +32,8 @@ mudslingcore
 * join any channel -- Can join any channel, even private channels.
 * global operator -- Operator on all channels.
 * inspect objects -- @show any object.
+* import areas -- Can import area files.
+* export areas -- Can export areas to JSON.
 
 ## Object Lock types
 * control

@@ -1,7 +1,8 @@
 """
 Rooms and exits.
 """
-from mudsling.objects import MessagedObject
+import itertools
+
 from mudsling.objects import Object as LocatedObject
 from mudsling.messages import Messages
 from mudsling.commands import Command
@@ -11,7 +12,8 @@ from mudsling import parsers
 from mudsling import utils
 import mudsling.utils.string
 
-from mudslingcore.objects import DescribableObject
+from mudslingcore.objects import DescribableObject, InspectableObject
+import mudslingcore.areas as areas
 
 
 # noinspection PyShadowingBuiltins
@@ -28,10 +30,24 @@ class Room(DescribableObject):
     exits = []
     senses = {'hearing', 'vision'}
 
+    area_exportable = True
+
     def __init__(self, **kwargs):
         super(Room, self).__init__(**kwargs)
         #: :type: list of Exit
         self.exits = []
+
+    def area_export(self, sandbox):
+        export = super(Room, self).area_export(sandbox)
+        if 'exits' in self.__dict__:
+            export['exits'] = areas.export_object_list(self.exits, sandbox)
+        return export
+
+    def area_import(self, data, sandbox):
+        super(Room, self).area_import(data, sandbox)
+        for exit_record in data.get('exits', []):
+            exit = areas.import_area_object(exit_record, sandbox)
+            self.exits.append(exit)
 
     def exposed_context(self):
         """
@@ -168,14 +184,14 @@ class Room(DescribableObject):
 
 
 # noinspection PyShadowingBuiltins
-class Exit(MessagedObject):
+class Exit(areas.AreaExportableBaseObject):
     """
     Core exit class.
 
     Transisions an object between two rooms.
 
-    @ivar source: The room where this exit exists.
-    @ivar dest: The room to which this exit leads.
+    :ivar source: The room where this exit exists.
+    :ivar dest: The room to which this exit leads.
     """
 
     #: @type: L{Room}
@@ -194,6 +210,22 @@ class Exit(MessagedObject):
             '*': "$actor has arrived."
         },
     })
+
+    def area_export(self, sandbox):
+        export = super(Exit, self).area_export(sandbox)
+        if self.game.db.is_valid(self.source, areas.AreaExportableBaseObject):
+            export['source'] = areas.export_weak_ref(self.source)
+        if self.game.db.is_valid(self.dest, areas.AreaExportableBaseObject):
+            export['dest'] = areas.export_object(self.dest, sandbox)
+        return export
+
+    def area_import(self, data, sandbox):
+        super(Exit, self).area_import(data, sandbox)
+        if 'source' in data:
+            areas.import_weak_ref(self.ref(), 'source', data['source'],
+                                  sandbox)
+        if 'dest' in data:
+            areas.import_weak_ref(self.ref(), 'dest', data['dest'], sandbox)
 
     @property
     def counterpart(self):
@@ -328,3 +360,65 @@ class MatchExit(parsers.MatchObject):
         #: @type: Room
         room = obj.location
         return room.match_exits(input)
+
+
+class RoomGroup(areas.AreaExportableObject, InspectableObject):
+    """
+    Room groups are used to represent physical groups of rooms, such as a
+    building, a floor in a building, or a wing of a building. Groupings are
+    arbitrary, and subclasses may be more opinionated.
+
+    Room groups are physical objects that can be located somewhere, and can
+    have other objects located within them. A room or other room group is a
+    child of a room group by being located directly within it.
+    """
+
+    @property
+    def parent_room_group(self):
+        loc = self.location
+        return loc if self.has_location and loc.isa(RoomGroup) else None
+
+    @property
+    def all_parent_room_groups(self):
+        parent = self.parent_room_group
+        parents = []
+        while parent is not None:
+            parents.append(parent)
+            parent = parent.parent_room_group
+        return parents
+
+    @property
+    def child_rooms(self):
+        """
+        :return: List of area-compatible rooms contained within the room group.
+        :rtype: list
+        """
+        return [r for r in self._contents if r.isa(Room)]
+
+    @property
+    def child_room_groups(self):
+        """
+        :return: List of room groups contained directly within this group.
+        :rtype: list
+        """
+        return [g for g in self._contents if g.isa(RoomGroup)]
+
+    @property
+    def all_room_groups(self):
+        """
+        :return: List of all room groups contained at any level.
+        :rtype: list
+        """
+        groups = self.child_room_groups
+        groups.extend(itertools.chain.from_iterable(g.all_room_groups
+                                                    for g in groups))
+        return groups
+
+    @property
+    def all_rooms(self):
+        """
+        :return: List of all rooms contained at any level.
+        :rtype: list
+        """
+        return itertools.chain.from_iterable(g.child_rooms
+                                             for g in self.all_room_groups)
