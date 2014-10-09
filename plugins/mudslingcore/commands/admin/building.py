@@ -58,15 +58,15 @@ class DigCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.objects.Character}
-        @type actor: L{mudslingcore.objects.Character}
-        @type args: C{dict}
+        :type this: mudslingcore.objects.Character
+        :type actor: mudslingcore.objects.Character
+        :type args: dict
         """
         if 'exitSpec' in args:  # exit-spec syntax was used, require location.
             if not actor.has_location or not actor.location.is_valid(Room):
                 raise self._err("You may only dig exits from within a room.")
 
-        #: @type: L{Room}
+        #: :type: Room
         currentRoom = actor.location
         room = self._get_room(actor, args)
         if 'exitSpec' in args:
@@ -95,12 +95,12 @@ class DigCmd(Command):
 
     def _get_room(self, actor, args):
         """
-        @type actor: L{mudslingcore.objects.Character}
-        @type args: C{dict}
+        :type actor: mudslingcore.objects.Character
+        :type args: dict
 
-        @raise L{AmbiguousMatch}: When specified room matches multiple rooms.
+        :raise AmbiguousMatch: When specified room matches multiple rooms.
 
-        @rtype: L{mudslingcore.topography.Room}
+        :rtype: mudslingcore.topography.Room
         """
         if 'room' in args:
             # Attempt match.
@@ -121,12 +121,12 @@ class DigCmd(Command):
         """
         Create and return a room.
 
-        @type actor: L{mudsling.object.Character}
-        @type names: C{list}
+        :type actor: mudsling.object.Character
+        :type names: list
 
-        @raise L{CommandInvalid}: When player has invalid room class setting.
+        :raise CommandInvalid: When player has invalid room class setting.
 
-        @rtype: L{mudsling.topography.Room}
+        :rtype: mudsling.topography.Room
         """
         roomClass = actor.get_obj_setting_value('building.room_class')
         if roomClass is not None and issubclass(roomClass, Room):
@@ -140,12 +140,12 @@ class DigCmd(Command):
         """
         Create an exit or return None.
 
-        @type actor: L{mudslingcore.objects.Character}
-        @type names: C{list} or C{None}
+        :type actor: mudslingcore.objects.Character
+        :type names: list or None
 
-        @raise L{CommandInvalid}: When player has invalid exit class setting.
+        :raise CommandInvalid: When player has invalid exit class setting.
 
-        @rtype: L{mudslingcore.topography.Exit}
+        :rtype: mudslingcore.topography.Exit
         """
         if isinstance(names, list):
             exitClass = actor.get_obj_setting_value('building.exit_class')
@@ -181,11 +181,11 @@ class UndigCmd(Command):
 
     def run(self, this, actor, args):
         """
-        @type this: L{mudslingcore.objects.Character}
-        @type actor: L{mudslingcore.objects.Character}
-        @type args: C{dict}
+        :type this: mudslingcore.objects.Character
+        :type actor: mudslingcore.objects.Character
+        :type args: dict
         """
-        #: @type: Room
+        #: :type: Room
         room = actor.location
         if not self.game.db.is_valid(room, Room):
             raise errors.CommandError("You must be in a room.")
@@ -235,7 +235,7 @@ class RenameExitCmd(Command):
         room = actor.location
         if not self.game.db.is_valid(room, Room):
             raise errors.CommandError("You must be in a room.")
-        #: @type: Exit
+        #: :type: Exit
         exit = args['exit']
         if not exit.allows(actor, 'rename'):
             actor.tell('{yYou are not allowed to rename {c', exit, '{y.')
