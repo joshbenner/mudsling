@@ -31,6 +31,7 @@ mudslingcore
 * delete channels -- Can delete channels via +chandel.
 * join any channel -- Can join any channel, even private channels.
 * global operator -- Operator on all channels.
+* inspect objects -- @show any object.
 
 ## Object Lock types
 * control

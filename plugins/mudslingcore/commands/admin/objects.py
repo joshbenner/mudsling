@@ -373,7 +373,7 @@ class ShowCmd(mudsling.commands.Command):
     """
     aliases = ('@show',)
     syntax = '<obj>[.<setting>]'
-    lock = locks.all_pass
+    lock = locks.Lock('has_perm(inspect objects) or can_configure()')
 
     def execute(self):
         # Just to avoid circular imports!
@@ -384,11 +384,6 @@ class ShowCmd(mudsling.commands.Command):
                                        show=True, context=False)
         }
         super(ShowCmd, self).execute()
-
-    def before_run(self):
-        if not mudslingcore.objsettings.lock_can_configure(
-                self.parsed_args['obj'], self.actor):
-            raise self._err('Permission denied.')
 
     def run(self, this, actor, args):
         """
