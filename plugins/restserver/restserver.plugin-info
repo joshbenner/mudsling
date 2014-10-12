@@ -1,0 +1,5 @@
+name = REST Server
+description = Provides a framework for REST APIs in MUDSling.
+author = Josh Benner
+version = 0.1
+module = restserver_plugin.py
