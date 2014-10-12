@@ -244,11 +244,14 @@ class PluginManager(object):
         sorter = lambda e: enabled_in_config.index(e)
         for machine_name in sorted(plugin_infos.keys(), key=sorter):
             info = plugin_infos[machine_name]
+            # Read default settings.
+            defaults = os.path.join(info.path, 'defaults.cfg')
+            if os.path.exists(defaults):
+                config.read_defaults(defaults)
             if os.path.isfile(os.path.join(info.path, '__init__.py')):
                 # Import the entire plugin as a module.
                 plugin_mod = utils.modules.mod_import(info.path)
                 sys.modules[machine_name] = plugin_mod
-
             module_filepath = os.path.join(info.path, 'plugin.py')
             if info.has_option('', 'module'):
                 config_mod = info.get('', 'module').strip()

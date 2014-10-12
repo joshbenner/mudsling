@@ -173,6 +173,17 @@ class Config(ConfigParser.SafeConfigParser):
                 if isinstance(val, list):
                     options[name] = '\n'.join(val)
 
+    def read_defaults(self, filename):
+        """Like .read(), but only import options not already imported."""
+        reader = Config()
+        reader.read(filename)
+        for section in reader.sections():
+            if not self.has_section(section):
+                self.add_section(section)
+            for option in reader.options(section):
+                if not self.has_option(section, option):
+                    self.set(section, option, reader.get(section, option))
+
     # Modified to support blank section.
     def has_option(self, section, option):
         """Check for the existence of a given option in a given section."""
