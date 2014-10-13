@@ -6,7 +6,8 @@ from mudsling.config import config
 from mudsling.extensibility import TwistedServicePlugin
 from mudsling.utils.sequence import flatten
 
-from restserver import *
+import restserver
+from restserver import RESTResource, RESTService, route, authenticate, APIKey
 
 
 class RESTServer(Site):
@@ -17,8 +18,7 @@ class RESTServer(Site):
 class RESTServerPlugin(TwistedServicePlugin):
     def get_service(self):
         RESTService.game = self.game
-        factory = RESTServer(self.game.invoke_hook('rest_services',
-                                                   plugin_type=None))
+        factory = RESTServer(self.game.invoke_hook('rest_services'))
         service = TCPServer(self.options.getint('port'), factory)
         service.setName('REST Server')
         return service
@@ -29,6 +29,11 @@ class RESTServerPlugin(TwistedServicePlugin):
         """
         return StatusRESTService(),
 
+    def database_loaded(self):
+        if not self.game.has_setting('api keys'):
+            self.game.set_setting('api keys', {})
+        restserver.apikeys = self.game.get_setting('api keys')
+
 
 class StatusRESTService(RESTService):
     """
@@ -37,6 +42,7 @@ class StatusRESTService(RESTService):
     path = '/status'
 
     @route('/')
+    @authenticate
     def get(self, request):
         return {
             'site name': config['Main']['name'],
