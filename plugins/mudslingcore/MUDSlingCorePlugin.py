@@ -6,6 +6,7 @@ new capabilities to the game world.
 """
 
 from mudsling.extensibility import GamePlugin
+from mudsling.commands import all_commands
 
 from mudslingcore.objects import Thing, Character, Player, Container
 from mudslingcore.topography import Room, Exit
@@ -38,6 +39,11 @@ class MUDSlingCorePlugin(GamePlugin, areas.AreaProviderPlugin):
             for path in paths:
                 help_db.load_help_path(path, rebuild_name_map=False)
         help_db.rebuild_name_map()
+
+    def plugins_loaded(self):
+        if 'restserver' in self.game.plugins.plugins:
+            import mudslingcore.commands.apikeys as api_commands
+            Player.private_commands.extend(all_commands(api_commands))
 
     def object_classes(self):
         # List of tuples because we like to keep the order.
