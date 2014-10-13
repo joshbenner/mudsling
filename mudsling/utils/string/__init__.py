@@ -13,10 +13,12 @@ inflection = inflect.engine()
 from .ansi import *
 from .table import *
 
+more_random = random.SystemRandom()
+
 
 def random_string(length, candidates=None):
     candidates = candidates or string.ascii_letters + string.digits
-    return ''.join(random.choice(candidates) for _ in xrange(length))
+    return ''.join(more_random.choice(candidates) for _ in xrange(length))
 
 
 def trim_docstring(docstring):
