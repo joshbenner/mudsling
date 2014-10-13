@@ -161,6 +161,7 @@ class MUDSling(MultiService):
         self.db = Database.load(self.db_file_path, self)
         # Build the player registry.
         registry.players.register_players(self.db.descendants(BasePlayer))
+        self.invoke_hook('database_loaded')
 
     # TODO: Refactor this into hooks, especially room handling.
     def init_database(self):
@@ -223,7 +224,7 @@ class MUDSling(MultiService):
         else:
             return time.time() - self.start_time
 
-    def invoke_hook(self, hook, plugin_type='GamePlugin', *args, **kwargs):
+    def invoke_hook(self, hook, plugin_type=None, *args, **kwargs):
         """
         Invoke an arbitrary hook on all activated GamePlugins.
 
@@ -250,6 +251,9 @@ class MUDSling(MultiService):
 
     def set_setting(self, key, value):
         return self.db.set_setting(key, value)
+
+    def has_setting(self, key):
+        return self.db.has_setting(key)
 
     def makedirs(self, subpath):
         os.makedirs(self.game_file_path(subpath))
