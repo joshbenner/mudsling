@@ -14,6 +14,10 @@ class RESTServer(Site):
     def __init__(self, services, *a, **kw):
         Site.__init__(self, RESTResource(flatten(services), *a, **kw))
 
+    def getResourceFor(self, request):
+        request.setHeader('Server', 'MUDSling/%s' % mudsling.version)
+        return Site.getResourceFor(self, request)
+
 
 class RESTServerPlugin(TwistedServicePlugin):
     def get_service(self):
