@@ -95,10 +95,6 @@ def authenticate_request(request):
     return False
 
 
-def parse_http_date(datestring):
-    dt = get_datetime(stringToDatetime(datestring))
-
-
 class AccessDeniedException(RESTException):
     def __init__(self, resourceName):
         if isinstance(resourceName, Request):
