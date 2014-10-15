@@ -1,6 +1,7 @@
-import hashlib
+from hashlib import sha1
+import hmac
 
-from twisted.web.http import Request
+from twisted.web.http import Request, stringToDatetime
 
 # For convenient imports in implementing code.
 from corepost import *
@@ -8,7 +9,8 @@ from corepost.web import *
 
 import mudsling
 from mudsling.utils.string import random_string
-from mudsling.utils.time import nowutc
+from mudsling.utils.time import nowutc, get_datetime, unixtime
+from mudsling.errors import FailedMatch
 
 
 # Key store injected by plugin upon load.
@@ -25,12 +27,26 @@ def get_player_api_keys(player):
     return [k for k in apikeys.itervalues() if k.player == player]
 
 
+def get_api_key(id):
+    if id in apikeys:
+        key = apikeys[id]
+        return key
+    raise InvalidAPIKey()
+
+
+class InvalidAPIKey(FailedMatch):
+    pass
+
+
 def authenticate(func):
     """
     Decorator to flag a method as requiring authentication.
     """
     def func_wrapper(service, request, *a, **kw):
-        authenticate_request(request)
+        if not authenticate_request(request):
+            msg = 'Access Denied to %s %s' % (request.method, request.uri)
+            return Response(403, msg,
+                            headers={'Content-Type': MediaType.TEXT_PLAIN})
         return func(service, request, *a, **kw)
     return func_wrapper
 
@@ -41,7 +57,7 @@ def authenticate_request(request):
 
     Calls will result in request having additional attributes:
     - authenticated: bool
-    - player: None or Player
+    - apikey: None or Player
 
     :param request: The request to authenticate.
     :type request: Request
@@ -50,8 +66,37 @@ def authenticate_request(request):
     :rtype: bool
     """
     request.authenticated = False
-    request.player = None
-    raise NotImplementedError()
+    request.apikey = None
+    signature = request.getHeader('Signature')
+    if signature is not None:
+        (key_id, nonce, signed) = signature.split(':')
+        try:
+            apikey = get_api_key(key_id)
+        except InvalidAPIKey:
+            pass  # Fall through to Access Denied
+        else:
+            request.apikey = apikey
+            date_header = request.getHeader('Date')
+            if apikey.valid and date_header:
+                timestamp = stringToDatetime(date_header)
+                offset = abs(unixtime() - timestamp)
+                if offset <= 600:
+                    tosign = '\n'.join((
+                        request.method,
+                        request.uri,
+                        date_header,
+                        nonce
+                    ))
+                    hashed = hmac.new(apikey.key, tosign, sha1)
+                    verify = hashed.digest().encode('base64')
+                    if verify == signed:
+                        request.authenticated = True
+                        return True
+    return False
+
+
+def parse_http_date(datestring):
+    dt = get_datetime(stringToDatetime(datestring))
 
 
 class AccessDeniedException(RESTException):
