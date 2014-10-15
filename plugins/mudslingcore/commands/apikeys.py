@@ -3,7 +3,6 @@ from mudsling.commands import Command
 from mudsling.locks import Lock
 from mudsling.parsers import MatchObject
 from mudsling.objects import BasePlayer
-from mudsling.utils.time import datetime_format
 
 import restserver
 
@@ -33,7 +32,7 @@ class APIKeysCmd(Command):
 
     def run(self, actor, player, switches):
         """
-        :type actor: BasePlayer
+        :type actor: mudslingcore.object.Player
         :type player: BasePlayer
         :type switches: dict
         """
@@ -67,6 +66,33 @@ class APIKeysCmd(Command):
         return table
 
 
+class APIKeyCmd(Command):
+    """
+    @apikey <id>
+
+    Display details on a single API Key.
+    """
+    aliases = ('@apikey', '@apikey-info', '@show-apikey')
+    syntax = '<apikey>'
+    arg_parsers = {'apikey': restserver.get_api_key}
+    lock = administer_api
+
+    def run(self, actor, apikey):
+        """
+        :type actor: mudslingcore.object.Player
+        :type apikey: restserver.APIKey
+        """
+        # noinspection PyTypeChecker
+        table = ui.keyval_table((
+            ('Owner', actor.name_for(apikey.player)),
+            ('ID', apikey.id),
+            ('Secret', apikey.key),
+            ('Date Issued', ui.format_timestamp(apikey.date_issued)),
+            ('Valid', '{gYes' if apikey.valid else '{rNo')
+        ))
+        actor.msg(ui.report('API Key Details for %s' % apikey.id, table))
+
+
 class APIKeyAddCmd(Command):
     """
     @apikey-add <player>
@@ -80,10 +106,34 @@ class APIKeyAddCmd(Command):
 
     def run(self, actor, player):
         """
-        :type actor: BasePlayer
+        :type actor: mudslingcore.object.Player
         :type player: BasePlayer
         """
         key = restserver.APIKey(player)
         restserver.register_api_key(key)
         actor.tell('API Key ({y', key.id, '{n) generated for {c',
                    player, '{n.')
+
+
+class APIKeyRevokeCmd(Command):
+    """
+    @apikey-revoke <id>
+
+    Revoke an API Key.
+    """
+    aliases = ('@apikey-revoke', '@revoke-apikey')
+    syntax = '<apikey>'
+    arg_parsers = {'apikey': restserver.get_api_key}
+    lock = administer_api
+
+    def run(self, actor, apikey):
+        """
+        :type actor: mudslingcore.object.Player
+        :type apikey: restserver.APIKey
+        """
+        if apikey.valid:
+            apikey.valid = False
+            actor.tell('API Key {y', apikey.id, '{n ({c', apikey.player, '{n)',
+                       ' has been revoked.')
+        else:
+            raise self._err('Key is already invalid.')
