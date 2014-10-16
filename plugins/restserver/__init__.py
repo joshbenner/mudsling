@@ -98,7 +98,7 @@ def authenticate_request(request, authorizations=()):
                             nonce
                         ))
                         hashed = hmac.new(apikey.key, tosign, sha1)
-                        verify = hashed.digest().encode('base64')
+                        verify = hashed.digest().encode('base64').rstrip('\n')
                         if verify == signed:
                             request.authenticated = True
                             return True
