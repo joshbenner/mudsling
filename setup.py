@@ -41,7 +41,8 @@ setup(
         'yoyo-migrations>=4.2.2',
         'pint>=0.5.2',
         'mailer',
-        'simple-pbkdf2'
+        'simple-pbkdf2',
+        'corepost'
     ],
     entry_points={
         'console_scripts': [
