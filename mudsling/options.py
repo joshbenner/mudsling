@@ -33,7 +33,7 @@ class Options(usage.Options):
         paths = [defaults, "%s/settings.cfg" % self['gamedir']]
         if self['config'] is not None:
             paths.append(self['config'])
-        return paths
+        return [os.path.abspath(p) for p in paths]
 
     def pluginPaths(self):
         paths = [os.path.join(mudsling_path, 'plugins'),
