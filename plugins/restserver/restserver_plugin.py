@@ -7,7 +7,7 @@ from mudsling.extensibility import TwistedServicePlugin
 from mudsling.utils.sequence import flatten
 
 import restserver
-from restserver import RESTResource, RESTService, route, authenticate, APIKey
+from restserver import RESTResource, RESTService, route
 
 
 class RESTServer(Site):
