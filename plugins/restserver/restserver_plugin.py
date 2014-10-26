@@ -46,7 +46,6 @@ class StatusRESTService(RESTService):
     path = '/status'
 
     @route('/')
-    @authenticate()
     def get(self, request):
         return {
             'site name': config['Main']['name'],
