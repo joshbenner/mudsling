@@ -55,7 +55,7 @@ class APIKeysCmd(Command):
         col = ui.Column
         table = ui.Table([
             col('Owner', align='l', data_key='player',
-                cell_formatter=actor.name_for),
+                cell_formatter=self.key_owner),
             col('ID', align='l', data_key='id'),
             col('Date Issued', align='l', data_key='date_issued',
                 cell_formatter=ui.format_timestamp,
@@ -63,6 +63,12 @@ class APIKeysCmd(Command):
         ])
         table.add_rows(*keys)
         return table
+
+    def key_owner(self, owner):
+        if owner is None:
+            return '{rSYSTEM'
+        else:
+            return self.actor.name_for(owner)
 
 
 class APIKeyCmd(Command):
@@ -84,9 +90,10 @@ class APIKeyCmd(Command):
         if apikey.player == actor or actor.has_perm('administer api'):
             # noinspection PyTypeChecker
             table = ui.keyval_table((
-                ('Owner', actor.name_for(apikey.player)),
+                ('Owner', ('{rSYSTEM' if apikey.player is None
+                           else actor.name_for(apikey.player))),
                 ('ID', apikey.id),
-                ('Secret', apikey.key),
+                ('Secret', apikey.secret),
                 ('Date Issued', ui.format_timestamp(apikey.date_issued)),
                 ('Valid', '{gYes' if apikey.valid else '{rNo'),
                 ('Authorizations', ', '.join(apikey.authorizations))
@@ -136,7 +143,9 @@ class APIKeyInvalidateCmd(Command):
         """
         if apikey.valid:
             apikey.valid = False
-            actor.tell('API Key {y', apikey.id, '{n ({c', apikey.player, '{n)',
+            owner = ('SYSTEM' if apikey.player is None
+                     else actor.name_for(apikey.player))
+            actor.tell('API Key {y', apikey.id, '{n ({c', owner, '{n)',
                        ' has been revoked.')
         else:
             raise self._err('Key is already invalid.')

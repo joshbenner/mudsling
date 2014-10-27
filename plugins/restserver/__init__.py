@@ -1,3 +1,9 @@
+import logging
+
+logger = logging.getLogger('REST Server')
+logger.info('Initializing REST Server')
+
+import os
 from hashlib import sha1
 import hmac
 
@@ -7,6 +13,7 @@ from twisted.web.http import Request, stringToDatetime
 from corepost import *
 from corepost.web import *
 
+import mudsling
 from mudsling.utils.string import random_string
 from mudsling.utils.time import nowutc, unixtime
 from mudsling.errors import FailedMatch
@@ -31,6 +38,66 @@ def get_api_key(id):
         key = apikeys[id]
         return key
     raise InvalidAPIKey()
+
+
+def generate_autokeys(autokeys):
+    """
+    Autokeys are named API keys that are assured to be registered.
+
+    Autokeys are owned by None (called 'System').
+    """
+    for name, auths in autokeys.iteritems():
+        try:
+            get_api_key(name)
+        except InvalidAPIKey:
+            # Does not exist, so create it!
+            _create_autokey(name)
+        _authorize_autokey(name, auths)
+        # Assure that file has same secret.
+        _export_autokey(name)
+
+
+def _autokey_filename(name):
+    return os.path.join(mudsling.game.game_dir, '%s.apikey' % name)
+
+
+def _autokey_file_secret(name):
+    filename = _autokey_filename(name)
+    try:
+        with open(filename, 'r') as f:
+            secret = f.read().strip('\n')
+    except IOError:
+        return None
+    return secret
+
+
+def _create_autokey(name):
+    filename = _autokey_filename(name)
+    secret = None
+    if os.path.exists(filename):
+        secret = _autokey_file_secret(name)
+    key = APIKey(id=name, secret=secret)
+    register_api_key(key)
+    return key
+
+
+def _authorize_autokey(name, auths):
+    key = get_api_key(name)
+    key.revoke_all_authorizations()
+    for auth in auths:
+        key.grant_authorization(auth)
+
+
+def _export_autokey(name):
+    key = get_api_key(name)
+    stored_secret = _autokey_file_secret(name)
+    if stored_secret != key.secret:
+        filename = _autokey_filename(name)
+        try:
+            with open(filename, 'w') as f:
+                f.write(key.secret)
+        except IOError:
+            logger.exception('Failed exporting autokey %s' % name)
 
 
 class InvalidAPIKey(FailedMatch):
@@ -96,7 +163,7 @@ def authenticate_request(request, authorizations=()):
                             date_header,
                             nonce
                         ))
-                        hashed = hmac.new(apikey.key, tosign, sha1)
+                        hashed = hmac.new(apikey.secret, tosign, sha1)
                         verify = hashed.digest().encode('base64').rstrip('\n')
                         if verify == signed:
                             request.authenticated = True
@@ -128,15 +195,16 @@ class APIKey(object):
     """
     player = None
     id = None
-    key = None
+    secret = None
     valid = False
     date_issued = None
     authorizations = ()
 
-    def __init__(self, player):
-        self.player = player.ref()
-        self.id = random_string(16)
-        self.key = random_string(32)
+    def __init__(self, id=None, secret=None, player=None):
+        if player is not None:
+            self.player = player.ref()
+        self.id = id or random_string(16)
+        self.secret = secret or random_string(32)
         self.valid = True
         self.date_issued = nowutc()
 
@@ -150,3 +218,6 @@ class APIKey(object):
 
     def is_authorized(self, authorization):
         return authorization.lower() in self.authorizations
+
+    def revoke_all_authorizations(self):
+        self.authorizations = ()

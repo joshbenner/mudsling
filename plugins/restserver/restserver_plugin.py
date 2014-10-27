@@ -37,6 +37,9 @@ class RESTServerPlugin(TwistedServicePlugin):
         if not self.game.has_setting('api keys'):
             self.game.set_setting('api keys', {})
         restserver.apikeys = self.game.get_setting('api keys')
+        autokeys = {k: map(str.strip, a.split(','))
+                    for k, a in config['autokeys']}
+        restserver.generate_autokeys(autokeys)
 
 
 class StatusRESTService(RESTService):
