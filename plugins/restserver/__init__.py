@@ -7,9 +7,8 @@ from twisted.web.http import Request, stringToDatetime
 from corepost import *
 from corepost.web import *
 
-import mudsling
 from mudsling.utils.string import random_string
-from mudsling.utils.time import nowutc, get_datetime, unixtime
+from mudsling.utils.time import nowutc, unixtime
 from mudsling.errors import FailedMatch
 
 
