@@ -46,7 +46,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'mudsling = runner:run'
+            'mudsling = mudsling.runner:run'
         ]
     }
 )
