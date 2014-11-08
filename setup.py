@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 
 version_file = open(os.path.join(os.path.dirname(__file__), 'VERSION'))
 version = version_file.read().strip()
@@ -27,7 +27,7 @@ setup(
         'Programming Language :: Python :: 2.7',
         'Topic :: Games/Entertainment :: Multi-User Dungeons (MUD)',
     ],
-    packages=['mudsling'],
+    packages=find_packages(),
     install_requires=[
         'pyparsing>=1.5',
         'twisted>=12',

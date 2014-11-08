@@ -1,268 +1,242 @@
-from twisted.internet.protocol import ServerFactory
+import logging
+import time
+import os
+
+from twisted.application.service import MultiService
+from twisted.conch.telnet import Telnet
+from twisted.internet.protocol import ServerFactory, ReconnectingClientFactory
 from twisted.application import internet
-from twisted.protocols import amp
+from twisted.protocols import amp, basic
 from twisted.internet import reactor
-from twisted.internet import defer
 
-from mudsling.sessions import Session
+from mudsling.options import get_options
 
-proxy_sessions = {}
+from mudsling import proxy_sessions
+from mudsling.config import config
+from mudsling.utils.string import mxp
+from mudsling.logs import open_log
+from mudsling.pid import check_pid
 
+from mudsling import utils
+import mudsling.utils.internet
 
-class InvalidSession(Exception):
-    pass
-
-
-class ProxySession(Session):
-    """
-    A server-side session that is coming in via the Proxy AMP channel.
-
-    @cvar amp: Reference to the active AMP protocol session with proxy.
-
-    @ivar proxy_session_id: The ID that associates this instance with the
-        corresponding instance in the Proxy process.
-    """
-    amp = None  # Set by AMPServerProtocol upon instantiation (connection).
-    proxy_session_id = None
-
-    input_buffer = []
-
-    def __init__(self, id, ip, delim):
-        self.ip = ip
-        self.hostname = ip  # Until we resolve it.
-        self.line_delimiter = delim
-        self.proxy_session_id = id
-        proxy_sessions[id] = self
-        self.input_buffer = []
-
-    def call_remote(self, *args, **kwargs):
-        kwargs['sessId'] = self.proxy_session_id
-        d = self.amp.callRemote(*args, **kwargs).addErrback(self.amp._on_error)
-        return d
-
-    def raw_send_output(self, text):
-        chunks = message_chunks(text)
-        nchunks = len(chunks)
-        calls = [self.call_remote(ServerToProxy, nchunks=nchunks, chunk=chunk)
-                 for chunk in chunks]
-        return defer.DeferredList(calls)
-
-    def receive_multipart_input(self, nchunks, chunk):
-        if nchunks > 1:
-            self.input_buffer.append(chunk)
-            if len(self.input_buffer) < nchunks:
-                return
-            else:
-                line = ''.join(self.input_buffer)
-                self.input_buffer = []
-        else:
-            line = chunk
-        self.receive_input(line)
-
-    def disconnect(self, reason):
-        self.send_output(reason)
-        self.call_remote(EndSession)
-
-    def attach_to_player(self, player, report=True):
-        super(ProxySession, self).attach_to_player(player)
-        if report:
-            player_id = player.id if self.game.db.is_valid(player) else -1
-            self.call_remote(AttachPlayer, playerId=player_id)
+start_time = time.time()
+max_session_id = 0
+sessions = {}
 
 
-class SetUptime(amp.Command):
-    arguments = [
-        ('start_time', amp.Float()),
-    ]
-    response = []
-    errors = {Exception: 'EXCEPTION'}
+def session_id():
+    global max_session_id
+    max_session_id += 1
+    return max_session_id
 
 
-class NewSession(amp.Command):
-    arguments = [
-        ('sessId', amp.Integer()),
-        ('ip', amp.String()),
-        ('delim', amp.String()),
-    ]
-    response = []
-    errors = {Exception: 'EXCEPTION'}
-
-
-class SetHostname(amp.Command):
-    arguments = [
-        ('sessId', amp.Integer()),
-        ('hostname', amp.String()),
-    ]
-    response = []
-    errors = {Exception: 'EXCEPTION'}
-
-
-class AttachPlayer(amp.Command):
-    arguments = [
-        ('sessId', amp.Integer()),
-        ('playerId', amp.Integer())
-    ]
-    response = []
-    errors = {Exception: 'EXCEPTION'}
-
-
-class ReSyncSession(amp.Command):
-    arguments = [
-        ('sessId', amp.Integer()),
-        ('ip', amp.String()),
-        ('hostname', amp.String()),
-        ('delim', amp.String()),
-        ('playerId', amp.Integer()),
-        ('time_connected', amp.Integer()),
-        ('last_activity', amp.Float()),
-        ('mxp', amp.Boolean())
-    ]
-    response = []
-    errors = {Exception: 'EXCEPTION'}
-
-
-class SessionOption(amp.Command):
-    arguments = [
-        ('sessId', amp.Integer()),
-        ('optName', amp.String()),
-        ('optVal', amp.Integer())
-    ]
-    response = []
-    errors = {Exception: 'EXCEPTION'}
-
-
-class EndSession(amp.Command):
-    arguments = [
-        ('sessId', amp.Integer())
-    ]
-    response = []
-    errors = {Exception: 'EXCEPTION'}
-
-
-class ProxyToServer(amp.Command):
-    arguments = [
-        ('sessId', amp.Integer()),
-        ('nchunks', amp.Integer()),
-        ('chunk', amp.String())
-    ]
-    response = []
-    errors = {Exception: 'EXCEPTION'}
-
-
-class ServerToProxy(amp.Command):
-    arguments = [
-        ('sessId', amp.Integer()),
-        ('nchunks', amp.Integer()),
-        ('chunk', amp.String())
-    ]
-    response = []
-    errors = {Exception: 'EXCEPTION'}
-
-
-class Shutdown(amp.Command):
-    arguments = []
-    response = []
-    errors = {Exception: 'EXCEPTION'}
-
-
-class AMPServerProtocol(amp.AMP):
+class ProxyTelnetSession(Telnet, basic.LineReceiver):
     factory = None
 
-    def __init__(self):
-        super(AMPServerProtocol, self).__init__()
-        ProxySession.amp = self
-        reactor.addSystemEventTrigger('before', 'shutdown', self._on_shutdown)
+    session_id = None
+    time_connected = 0
+    last_activity = 0
+    hostname = ''
+    ip = ''
+    playerId = 0
+    amp = None  # Set by AmpClientProtocol on class when it is instantiated.
 
-    def _on_shutdown(self):
-        if self.factory.game.exit_code != 10:
-            self.callRemote(Shutdown).addErrback(self._on_error)
+    output_buffer = []
+    delimiter = '\n'
+
+    mxp = False
+
+    def __init__(self):
+        Telnet.__init__(self)
+        self.session_id = session_id()
+        sessions[self.session_id] = self
+        self.output_buffer = []
+        self.MAX_LENGTH = amp.MAX_VALUE_LENGTH * 8
+        self.idle_cmd = config.get('Main', 'idle command')
+
+    def enableRemote(self, option):
+        return False
+
+    def enableLocal(self, option):
+        if option == mxp.TELNET_OPT:
+            self.mxp = True
+            self.call_remote(proxy_sessions.SessionOption, optName="mxp", optVal=1)
+            return True
+        return False
+
+    def disableLocal(self, option):
+        if option == mxp.TELNET_OPT:
+            self.mxp = False
+            self.call_remote(proxy_sessions.SessionOption, optName="mxp", optVal=0)
+            return True
+        return False
+
+    def call_remote(self, *args, **kwargs):
+        kwargs['sessId'] = self.session_id
+        self.amp.callRemote(*args, **kwargs).addErrback(self.amp._on_error)
+
+    def connectionMade(self):
+        # If not in session list, then disconnect may have originated on
+        # the server side, or there is some very fast disconnect.
+        self.ip = self.transport.client[0]
+        self.hostname = self.ip  # Until we resolve it.
+        self.time_connected = time.time()
+
+        def saveHost(hostname):
+            self.hostname = hostname
+            self.call_remote(proxy_sessions.SetHostname, hostname=hostname)
+
+        def noHost(err):
+            msg = "Unable to resolve hostname for %r: %s"
+            logging.warning(msg % (self.ip, err.message))
+
+        utils.internet.reverse_dns(self.ip).addCallbacks(saveHost, noHost)
+
+        if self.session_id in sessions:
+            self.call_remote(proxy_sessions.NewSession, ip=self.ip, delim=self.delimiter)
+
+    def negotiate_mxp(self):
+        def enable_mxp(opt):
+            self.requestNegotiation(mxp.TELNET_OPT, '')
+
+        def no_mxp(opt):
+            pass
+
+        return self.will(mxp.TELNET_OPT).addCallbacks(enable_mxp, no_mxp)
+
+    def connectionLost(self, reason):
+        self.call_remote(proxy_sessions.EndSession)
+        basic.LineReceiver.connectionLost(self, reason)
+        Telnet.connectionLost(self, reason)
+        if self.session_id in sessions:
+            del sessions[self.session_id]
+
+    def applicationDataReceived(self, bytes):
+        basic.LineReceiver.dataReceived(self, bytes)
+
+    def lineReceived(self, line):
+        if line == self.idle_cmd:
+            return
+        self.last_activity = time.time()
+        parts = proxy_sessions.message_chunks(line)
+        for part in parts:
+            self.call_remote(proxy_sessions.ProxyToServer,
+                             nchunks=len(parts),
+                             chunk=part)
+
+    def receive_multipart_output(self, nchunks, chunk):
+        if nchunks > 1:
+            self.output_buffer.append(chunk)
+            if len(self.output_buffer) < nchunks:
+                return
+            else:
+                text = ''.join(self.output_buffer)
+                self.output_buffer = []
+        else:
+            text = chunk
+        self.transport.write(text)
+
+    def disconnect(self):
         self.transport.loseConnection()
+
+    def resync(self):
+        self.call_remote(proxy_sessions.ReSyncSession,
+                         ip=self.ip,
+                         hostname=self.hostname,
+                         delim=self.delimiter,
+                         playerId=self.playerId,
+                         time_connected=self.time_connected,
+                         last_activity=self.last_activity,
+                         mxp=self.mxp)
+
+
+class AmpClientProtocol(amp.AMP):
+    def __init__(self):
+        super(AmpClientProtocol, self).__init__()
+        ProxyTelnetSession.amp = self
+
+    def connectionMade(self):
+        # noinspection PyUnresolvedReferences
+        self.factory.resetDelay()
+        # noinspection PyTypeChecker
+        d = self.callRemote(proxy_sessions.SetUptime, start_time=start_time)
+        d.addErrback(self._on_error)
+        # If we already have telnet sessions up connect, it's because the
+        # server restarted, and we need to re-establish sessions via AMP.
+        for session in sessions.itervalues():
+            session.resync()
 
     def _on_error(self, error):
         error.trap(Exception)
-        # print 'AMPServerProtocol', dir(error)
-        error.printDetailedTraceback()
+        print 'AmpClientProtocol', error.__dict__
 
-    @SetUptime.responder
-    def set_uptime(self, start_time):
-        self.factory.game.start_time = start_time
-        return {}
-
-    @NewSession.responder
-    def new_session(self, sessId, ip, delim):
-        session = ProxySession(sessId, ip, delim)
-        session.game = self.factory.game
-        session.open_session()
-        return {}
-
-    @SetHostname.responder
-    def set_hostname(self, sessId, hostname):
+    @proxy_sessions.ServerToProxy.responder
+    def server_to_proxy(self, sessId, nchunks, chunk):
         try:
-            session = proxy_sessions[sessId]
+            session = sessions[sessId]
         except KeyError:
-            raise InvalidSession()
-        session.hostname = hostname
+            raise proxy_sessions.InvalidSession(str(sessId))
+            #session.transport.write(chunk)
+        session.receive_multipart_output(nchunks, chunk)
         return {}
 
-    @EndSession.responder
+    @proxy_sessions.Shutdown.responder
+    def shutdown_proxy(self):
+        print "Proxy received Shutdown signal from server"
+        reactor.stop()
+        return {}
+
+    @proxy_sessions.EndSession.responder
     def end_session(self, sessId):
         try:
-            session = proxy_sessions[sessId]
-            del proxy_sessions[sessId]
+            session = sessions[sessId]
         except KeyError:
-            return {}
-        session.session_closed()
+            raise proxy_sessions.InvalidSession(str(sessId))
+        session.disconnect()
         return {}
 
-    @ProxyToServer.responder
-    def proxy_to_server(self, sessId, nchunks, chunk):
+    @proxy_sessions.AttachPlayer.responder
+    def attach_player(self, sessId, playerId):
         try:
-            session = proxy_sessions[sessId]
+            session = sessions[sessId]
         except KeyError:
-            raise InvalidSession()
-        session.receive_multipart_input(nchunks, chunk)
+            raise proxy_sessions.InvalidSession(str(sessId))
+        session.playerId = playerId
+        session.negotiate_mxp()
         return {}
 
-    @ReSyncSession.responder
-    def resync_session(self, sessId, ip, hostname, delim, playerId,
-                       time_connected, last_activity, mxp):
-        """
-        Create a server session that corresponds to an already-established
-        session on the proxy-side.
-        """
-        session = ProxySession(sessId, ip, delim)
-        session.hostname = hostname
-        session.last_activity = last_activity
-        session.mxp = mxp
-        session.game = self.factory.game
-        session.open_session(resync=True)
-        session.time_connected = time_connected
-        player = session.game.db.get_ref(playerId)
-        if player.is_valid():
-            session.attach_to_player(player)
-        else:
-            self.factory.game.login_screen.session_connected(session)
-        return {}
 
-    @SessionOption.responder
-    def session_option(self, sessId, optName, optVal):
+def run_proxy(args=None):
+    service = MultiService()
+    options = get_options(args)
+    open_log(os.path.join(options['gamedir'], 'proxy.log'))
+    pidfile = os.path.join(options['gamedir'], 'proxy.pid')
+    check_pid(pidfile)
+    config.read(options.configPaths())
+
+    port = config.getint('Proxy', 'AMP port')
+    factory = ReconnectingClientFactory()
+    factory.maxDelay = 1
+    factory.protocol = AmpClientProtocol
+    client = internet.TCPClient('127.0.0.1', port, factory)
+    service.addService(client)
+
+    ports_str = config.get('Proxy', 'telnet ports')
+    for portVal in ports_str.split(','):
         try:
-            session = proxy_sessions[sessId]
-        except KeyError:
-            raise InvalidSession()
-        session.set_option(optName, optVal)
-        return {}
+            port = int(portVal)
+        except ValueError:
+            continue
+        factory = ServerFactory()
+        factory.protocol = ProxyTelnetSession
+        child = internet.TCPServer(port, factory)
+        child.setName("ProxyTelnet%d" % port)
+        service.addService(child)
 
+    service.startService()
+    reactor.run()
+    os.remove(pidfile)
 
-def message_chunks(text):
-    return [text[i:i + amp.MAX_VALUE_LENGTH]
-            for i in range(0, len(text), amp.MAX_VALUE_LENGTH)]
-
-
-def AMP_server(game, port):
-    factory = ServerFactory()
-    factory.protocol = AMPServerProtocol
-    factory.game = game
-    service = internet.TCPServer(port, factory)
-    service.setName("AMPServer")
-    return service
+if __name__ == '__main__':
+    run_proxy()
