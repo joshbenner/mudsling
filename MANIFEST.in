@@ -1,0 +1,3 @@
+include defaults.cfg
+include VERSION
+recursive-include plugins *
