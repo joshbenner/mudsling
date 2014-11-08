@@ -67,11 +67,9 @@ class MUDSlingProcess(protocol.ProcessProtocol):
         self.transport.closeStdin()
 
     def outReceived(self, data):
-        print self.name, 'out:'
         sys.stdout.write(data)
 
     def errReceived(self, data):
-        print self.name, "err:"
         sys.stderr.write(data)
 
     def processExited(self, reason):
