@@ -21,7 +21,7 @@ from mudsling.extensibility import PluginManager
 from mudsling.sessions import SessionHandler
 from mudsling.storage import Database, ObjRef
 from mudsling.objects import BasePlayer
-from mudsling import proxy
+from mudsling import proxy_sessions
 from mudsling import tasks
 from mudsling import registry
 from mudsling import locks
@@ -123,8 +123,8 @@ class MUDSling(MultiService):
 
         # Setup the AMP server if we are using proxy.
         if config.getboolean('Proxy', 'enabled'):
-            service = proxy.AMP_server(self,
-                                       config.getint('Proxy', 'AMP port'))
+            service = proxy_sessions.AMP_server(
+                self, config.getint('Proxy', 'AMP port'))
             self.addService(service)
 
         # Fire server startup hooks.
