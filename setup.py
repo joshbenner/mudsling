@@ -27,7 +27,7 @@ setup(
         'Programming Language :: Python :: 2.7',
         'Topic :: Games/Entertainment :: Multi-User Dungeons (MUD)',
     ],
-    packages=find_packages(),
+    packages=find_packages() + find_packages('plugins'),
     install_requires=[
         'pyparsing>=1.5',
         'twisted>=12',
