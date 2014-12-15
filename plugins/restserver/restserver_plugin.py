@@ -1,5 +1,7 @@
-from twisted.application.internet import TCPServer
+from twisted.application.internet import TCPServer, SSLServer
 from twisted.web.server import Site
+from twisted.internet import ssl
+from OpenSSL import SSL
 
 import mudsling
 from mudsling.config import config
@@ -23,7 +25,16 @@ class RESTServerPlugin(TwistedServicePlugin):
     def get_service(self):
         RESTService.game = self.game
         factory = RESTServer(self.game.invoke_hook('rest_services'))
-        service = TCPServer(self.options.getint('port'), factory)
+        port = self.options.getint('port')
+        if self.options.getboolean('ssl'):
+            ctx_factory = ssl.DefaultOpenSSLContextFactory(
+                self.game.game_file_path(self.options.get('private key')),
+                self.game.game_file_path(self.options.get('certificate')),
+                sslmethod=SSL.TLSv1_METHOD
+            )
+            service = SSLServer(port, factory, ctx_factory)
+        else:
+            service = TCPServer(port, factory)
         service.setName('REST Server')
         return service
 
