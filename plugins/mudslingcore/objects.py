@@ -17,6 +17,7 @@ import mudslingcore.genders
 from mudslingcore import senses
 import mudslingcore.errors
 from mudslingcore.areas import AreaExportableBaseObject
+from mudslingcore.editor import EditorSessionHost
 
 from mudslingcore import commands
 
@@ -197,7 +198,7 @@ class DescribableObject(CoreObject):
         return '\n'.join(desc.itervalues())
 
 
-class Player(BasePlayer, ConfigurableObject, ChannelUser):
+class Player(BasePlayer, ConfigurableObject, ChannelUser, EditorSessionHost):
     """
     Core player class.
     """
