@@ -2,10 +2,6 @@ from mudsling.storage import PersistentSlots
 from mudsling.objects import BaseObject
 from mudsling.commands import Command
 from mudsling import errors
-from mudsling import locks
-
-from mudslingcore.commands.admin.objects import match_configurable_obj
-from mudslingcore.commands.admin.objects import SettingsCommand
 
 
 class EditorError(errors.Error):
@@ -20,43 +16,12 @@ class InvalidSessionKey(EditorError):
     pass
 
 
-class EditCmd(SettingsCommand):
-    """
-    @edit <object>.<setting>
-
-    Open the line editor for a string setting.
-    """
-    aliases = ('@edit',)
-    syntax = '<obj> {.} <setting>'
-    arg_parsers = {'obj': match_configurable_obj}
-
-    def run(self, actor, obj, setting):
-        """
-        :type actor: EditorSessionHost
-        :type obj: mudslingcore.objsettings.ConfigurableObject
-        :type setting: str
-        """
-        objsetting = obj.get_obj_setting(setting)
-        if objsetting.type != str:
-            raise self._err('You can only @edit strings!')
-        session = SettingEditorSession(actor, obj, setting)
-        try:
-            actor.register_editor_session(session, activate=True)
-        except EditorError as e:
-            raise self._err(e.message)
-        actor.tell('You are now editing ', session.description, '.')
-
-
 class EditorSessionHost(BaseObject):
     """
     Stores editor sessions.
     """
     editor_sessions = []
     active_editor_session = None
-
-    private_commands = (
-        EditCmd,
-    )
 
     def process_input(self, raw, err=True):
         handled = super(EditorSessionHost, self).process_input(raw, err=False)
@@ -182,36 +147,3 @@ class EditorSession(PersistentSlots):
             return False
         syntax_matches[0].execute()
         return True
-
-
-class SettingEditorSession(EditorSession):
-    """
-    An editor session that can modify an object setting.
-    """
-    __slots__ = ('setting_obj', 'setting_name')
-
-    def __init__(self, owner, setting_obj, setting_name):
-        """
-        :param owner: The owner of the editor session.
-        :type owner: EditorSessionHost
-
-        :param setting_obj: The object where the setting is located.
-        :type setting_obj: mudslingcore.objsettings.ConfigurableObject
-
-        :param setting_name: The name of the setting to edit.
-        :type setting_name: str
-        """
-        value = setting_obj.get_obj_setting_value(setting_name)
-        super(SettingEditorSession, self).__init__(owner, preload=value)
-        self.setting_obj = setting_obj
-        self.setting_name = setting_name
-
-    @property
-    def session_key(self):
-        return '%s:#%s.%s' % (self.__class__.__name__, self.setting_obj.obj_id,
-                              self.setting_name)
-
-    @property
-    def description(self):
-        objname = self.owner.name_for(self.setting_obj)
-        return "'%s' setting on %s" % (self.setting_name, objname)

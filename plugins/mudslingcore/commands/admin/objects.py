@@ -13,8 +13,11 @@ from mudsling import utils
 import mudsling.utils.string
 import mudsling.utils.modules as mod_utils
 
+from mudslingcore.objects import DescribableObject
 from mudslingcore import misc
-import mudslingcore.objsettings
+from mudslingcore.objsettings import ConfigurableObject, lock_can_configure
+from mudslingcore.objsettings import SettingEditorSession
+from mudslingcore.editor import EditorError
 
 from mudslingcore.commands.admin import ui
 
@@ -290,7 +293,7 @@ class MoveCmd(Command):
 
 
 match_configurable_obj = parsers.MatchObject(
-    cls=mudslingcore.objsettings.ConfigurableObject,
+    cls=ConfigurableObject,
     search_for='configurable object',
     show=True,
     context=False
@@ -308,7 +311,7 @@ class SettingsCommand(mudsling.commands.Command):
 
     def before_run(self):
         obj = self.parsed_args['obj']
-        if not mudslingcore.objsettings.lock_can_configure(obj, self.actor):
+        if not lock_can_configure(obj, self.actor):
             n = self.actor.name_for(obj)
             raise errors.AccessDenied('Access denied to %s configuration.' % n)
 
@@ -411,7 +414,7 @@ class ShowCmd(SettingsCommand):
         """
         obj = args['obj']
         if args['setting'] is not None:
-            if obj.isa(mudslingcore.objsettings.ConfigurableObject):
+            if obj.isa(ConfigurableObject):
                 #: :type: mudslingcore.objsettings.ObjSetting
                 setting = obj.get_obj_setting(args['setting'])
                 val = mudsling.utils.string.escape_ansi_tokens(
@@ -425,7 +428,7 @@ class ShowCmd(SettingsCommand):
             out = mudsling.utils.string.columnize(
                 str(ui.keyval_table(details)).splitlines(), 2,
                 width=ui.table_settings['width'])
-            if obj.isa(mudslingcore.objsettings.ConfigurableObject):
+            if obj.isa(ConfigurableObject):
                 out += '\n\n' + ui.h2('Settings') + '\n'
                 out += str(self.settings_table(obj))
             actor.tell(ui.report('Showing %s' % actor.name_for(obj), out))
@@ -462,3 +465,68 @@ class ShowCmd(SettingsCommand):
                                   property):
             return '(alias)'
         return default
+
+
+class EditCmd(SettingsCommand):
+    """
+    @edit <object>.<setting>
+
+    Open the line editor for a string setting.
+    """
+    aliases = ('@edit',)
+    syntax = '<obj> {.} <setting>'
+    arg_parsers = {'obj': match_configurable_obj}
+
+    def run(self, actor, obj, setting):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type obj: mudslingcore.objsettings.ConfigurableObject
+        :type setting: str
+        """
+        self._edit(actor, obj, setting)
+
+    def _edit(self, actor, obj, setting):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type obj: mudslingcore.objsettings.ConfigurableObject
+        :type setting: str
+        """
+        objsetting = obj.get_obj_setting(setting)
+        if objsetting.type != str:
+            raise self._err('You can only @edit strings!')
+        session = SettingEditorSession(actor, obj, setting)
+        try:
+            actor.register_editor_session(session, activate=True)
+        except EditorError as e:
+            raise self._err(e.message)
+        actor.tell('You are now editing ', session.description, '.')
+
+
+class DescribeCmd(EditCmd):
+    """
+    @describe <object> [as <description>]
+
+    Describe a describable object.
+    """
+    aliases = ('@describe', '@desc')
+    syntax = '<obj> [as <text>]'
+    arg_parsers = {
+        'obj': parsers.MatchObject(
+            cls=DescribableObject,
+            search_for='describable object',
+            show=True,
+            context=False
+        )
+    }
+
+    def run(self, actor, obj, text=None):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type obj: mudslingcore.objects.DescribableObject
+        :type text: str
+        """
+        if text is not None:
+            obj.set_obj_setting('desc', text)
+            actor.tell(obj, ' description set.')
+        else:
+            self._edit(actor, obj, 'desc')

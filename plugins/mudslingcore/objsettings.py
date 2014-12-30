@@ -11,6 +11,8 @@ import mudsling.parsers
 
 from mudsling.utils.sequence import CaselessDict
 
+from mudslingcore.editor import EditorSession
+
 
 def lock_can_configure(obj, who):
     """
@@ -253,3 +255,36 @@ class ConfigurableObject(mudsling.objects.BaseObject):
 
     def obj_setting_is_default(self, name):
         return self.get_obj_setting(name).is_default(self)
+
+
+class SettingEditorSession(EditorSession):
+    """
+    An editor session that can modify an object setting.
+    """
+    __slots__ = ('setting_obj', 'setting_name')
+
+    def __init__(self, owner, setting_obj, setting_name):
+        """
+        :param owner: The owner of the editor session.
+        :type owner: EditorSessionHost
+
+        :param setting_obj: The object where the setting is located.
+        :type setting_obj: mudslingcore.objsettings.ConfigurableObject
+
+        :param setting_name: The name of the setting to edit.
+        :type setting_name: str
+        """
+        value = setting_obj.get_obj_setting_value(setting_name)
+        super(SettingEditorSession, self).__init__(owner, preload=value)
+        self.setting_obj = setting_obj
+        self.setting_name = setting_name
+
+    @property
+    def session_key(self):
+        return '%s:#%s.%s' % (self.__class__.__name__, self.setting_obj.obj_id,
+                              self.setting_name)
+
+    @property
+    def description(self):
+        objname = self.owner.name_for(self.setting_obj)
+        return "'%s' setting on %s" % (self.setting_name, objname)

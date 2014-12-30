@@ -13,8 +13,9 @@ import mudsling.utils.string
 from objsettings import ObjSetting, ConfigurableObject
 from mudslingcore import bans
 from mudslingcore.channels import ChannelUser
-import mudslingcore.genders
-from mudslingcore import senses
+from mudslingcore.genders import HasGender
+from mudslingcore.senses import SensingObject, SensoryMedium
+from mudslingcore.senses import Sensation, Sight, Speech
 import mudslingcore.errors
 from mudslingcore.areas import AreaExportableBaseObject
 from mudslingcore.editor import EditorSessionHost
@@ -41,8 +42,7 @@ class InspectableObject(BaseObject):
         return details
 
 
-class CoreObject(senses.SensoryMedium, InspectableObject,
-                 AreaExportableBaseObject):
+class CoreObject(SensoryMedium, InspectableObject, AreaExportableBaseObject):
     """
     The most basic object used by MUDSling Core.
 
@@ -119,15 +119,15 @@ class CoreObject(senses.SensoryMedium, InspectableObject,
         if location is None:
             location = self.location
         if isinstance(msg, (basestring, dict, list)):
-            msg = senses.Sight(msg)
-        if isinstance(msg, senses.Sensation):
-            if location is not None and location.isa(senses.SensoryMedium):
+            msg = Sight(msg)
+        if isinstance(msg, Sensation):
+            if location is not None and location.isa(SensoryMedium):
                 return location.propagate_sensation(msg, exclude=exclude)
         else:
             return super(CoreObject, self).emit(msg, exclude, location)
 
 
-class DescribableObject(CoreObject):
+class DescribableObject(CoreObject, ConfigurableObject):
     """
     An object that has a description and can be seen.
 
@@ -135,6 +135,10 @@ class DescribableObject(CoreObject):
     :type desc: str
     """
     desc = ""
+
+    object_settings = (
+        ObjSetting('desc', attr='desc', default=''),
+    )
 
     def __init__(self, **kwargs):
         self.desc_mods = []
@@ -259,8 +263,7 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser, EditorSessionHost):
         return None
 
 
-class Character(BaseCharacter, DescribableObject, ConfigurableObject,
-                senses.SensingObject, mudslingcore.genders.HasGender):
+class Character(BaseCharacter, DescribableObject, SensingObject, HasGender):
     """Core character class."""
 
     # Do not export characters to area files.
@@ -347,7 +350,7 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject,
 
     def hearing_sense(self, sensation):
         content = self._format_msg(sensation.content_for(self))
-        if isinstance(sensation, senses.Speech):
+        if isinstance(sensation, Speech):
             msg = [sensation.origin, ' says, "{c', content, '{n".']
         elif 'bare' in sensation.traits:
             msg = content
@@ -356,8 +359,8 @@ class Character(BaseCharacter, DescribableObject, ConfigurableObject,
         self.msg(msg)
 
     def say(self, speech):
-        if not isinstance(speech, senses.Speech):
-            speech = senses.Speech(str(speech), origin=self.ref())
+        if not isinstance(speech, Speech):
+            speech = Speech(str(speech), origin=self.ref())
         self.emit(speech, exclude=(self.ref(),))
         self.tell('You say, "{g', speech.content, '{n".')
 
