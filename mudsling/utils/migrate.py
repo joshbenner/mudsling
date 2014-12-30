@@ -3,7 +3,7 @@ Migration utilities.
 """
 
 
-def forward_class(newClass):
+def forward_class(new_class):
     """
     Creates a dynamic class whose sole function is to forward to another class.
     This is useful when renaming or changing the location of a class.
@@ -13,16 +13,23 @@ def forward_class(newClass):
         >>> from mudsling.utils.migrate import forward_class
         >>> Bar = forward_class(Baz)
 
-    @param newClass: The class to forward to.
-    @return: A dynamically-created class which will forward instantiations of
+    :param new_class: The class to forward to.
+    :type new_class: type or str
+
+    :return: A dynamically-created class which will forward instantiations of
         the old class to the new class transparently.
     """
     class _class(object):
         def __new__(cls, *args, **kwargs):
-            return newClass.__new__(newClass, *args, **kwargs)
+            if isinstance(new_class, str):
+                from mudsling.utils.modules import class_from_path
+                new_cls = class_from_path(new_class)
+            else:
+                new_cls = new_class
+            return new_cls.__new__(new_cls, *args, **kwargs)
 
         def __setstate__(self, state):
             self.__dict__.update(state)
-            self.__class__ = newClass
+            self.__class__ = new_class
 
     return _class
