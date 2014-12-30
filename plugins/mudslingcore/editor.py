@@ -5,7 +5,7 @@ from mudsling import errors
 from mudsling import locks
 
 from mudslingcore.commands.admin.objects import match_configurable_obj
-from mudslingcore.commands.admin.objects import can_configure
+from mudslingcore.commands.admin.objects import SettingsCommand
 
 
 class EditorError(errors.Error):
@@ -20,7 +20,7 @@ class InvalidSessionKey(EditorError):
     pass
 
 
-class EditCmd(Command):
+class EditCmd(SettingsCommand):
     """
     @edit <object>.<setting>
 
@@ -29,7 +29,6 @@ class EditCmd(Command):
     aliases = ('@edit',)
     syntax = '<obj> {.} <setting>'
     arg_parsers = {'obj': match_configurable_obj}
-    lock = can_configure
 
     def run(self, actor, obj, setting):
         """
@@ -95,7 +94,7 @@ class EditorSessionHost(BaseObject):
         key = session.session_key
         if key in self.keyed_editor_sessions:
             w = session.description
-            raise DuplicateSession("Editor session for '%s' already open." % w)
+            raise DuplicateSession("Editor session for %s already open." % w)
         self.editor_sessions.append(session)
         if activate:
             self.activate_editor_session(key)

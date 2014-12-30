@@ -18,8 +18,6 @@ import mudslingcore.objsettings
 
 from mudslingcore.commands.admin import ui
 
-can_configure = mudsling.locks.Lock('can_configure()')
-
 
 class CreateCmd(Command):
     """
@@ -299,7 +297,23 @@ match_configurable_obj = parsers.MatchObject(
 )
 
 
-class SetCmd(mudsling.commands.Command):
+class SettingsCommand(mudsling.commands.Command):
+    """
+    Special command type which checks access after instantiation based on a
+    specially-named parameter. Actor must be able to configure the 'obj'
+    parameter.
+    """
+    abstract = True
+    lock = locks.all_pass
+
+    def before_run(self):
+        obj = self.parsed_args['obj']
+        if not mudslingcore.objsettings.lock_can_configure(obj, self.actor):
+            n = self.actor.name_for(obj)
+            raise errors.AccessDenied('Access denied to %s configuration.' % n)
+
+
+class SetCmd(SettingsCommand):
     """
     @set <obj>.<setting>=<value>
 
@@ -313,7 +327,6 @@ class SetCmd(mudsling.commands.Command):
     arg_parsers = {
         'obj': match_configurable_obj
     }
-    lock = can_configure
 
     def run(self, this, actor, args):
         """
@@ -334,7 +347,7 @@ class SetCmd(mudsling.commands.Command):
                        ' (previous value: %s)' % previous)
 
 
-class ResetCmd(mudsling.commands.Command):
+class ResetCmd(SettingsCommand):
     """
     @reset <obj>.<setting>
 
@@ -345,7 +358,6 @@ class ResetCmd(mudsling.commands.Command):
     arg_parsers = {
         'obj': match_configurable_obj
     }
-    lock = can_configure
 
     def run(self, this, actor, args):
         """
@@ -365,7 +377,7 @@ class ResetCmd(mudsling.commands.Command):
                        % obj.get_obj_setting_value(args['setting']))
 
 
-class ShowCmd(mudsling.commands.Command):
+class ShowCmd(SettingsCommand):
     """
     @show <obj>[.<setting>]
 
@@ -373,7 +385,6 @@ class ShowCmd(mudsling.commands.Command):
     """
     aliases = ('@show',)
     syntax = '<obj>[.<setting>]'
-    lock = locks.Lock('has_perm(inspect objects) or can_configure()')
 
     def execute(self):
         # Just to avoid circular imports!
@@ -384,6 +395,13 @@ class ShowCmd(mudsling.commands.Command):
                                        show=True, context=False)
         }
         super(ShowCmd, self).execute()
+
+    def before_run(self):
+        try:
+            super(ShowCmd, self).before_run()
+        except errors.AccessDenied:
+            if not self.actor.has_perm('inspect objects'):
+                raise
 
     def run(self, this, actor, args):
         """
