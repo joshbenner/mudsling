@@ -21,6 +21,7 @@ from mudslingcore.areas import AreaExportableBaseObject
 from mudslingcore.editor import EditorSessionHost
 
 from mudslingcore import commands
+from mudslingcore import ui
 
 
 class InspectableObject(BaseObject):
@@ -42,7 +43,8 @@ class InspectableObject(BaseObject):
         return details
 
 
-class CoreObject(SensoryMedium, InspectableObject, AreaExportableBaseObject):
+class CoreObject(SensoryMedium, InspectableObject, AreaExportableBaseObject,
+                 ui.UsesUI):
     """
     The most basic object used by MUDSling Core.
 
@@ -202,7 +204,8 @@ class DescribableObject(CoreObject, ConfigurableObject):
         return '\n'.join(desc.itervalues())
 
 
-class Player(BasePlayer, ConfigurableObject, ChannelUser, EditorSessionHost):
+class Player(BasePlayer, ConfigurableObject, ChannelUser, EditorSessionHost,
+             ui.UsesUI):
     """
     Core player class.
     """
