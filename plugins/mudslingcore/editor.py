@@ -3,6 +3,7 @@ from mudsling.objects import BaseObject
 from mudsling.commands import Command
 from mudsling import errors
 from mudsling import locks
+from mudsling import parsers
 
 
 class EditorError(errors.Error):
@@ -36,9 +37,50 @@ class EditorsCmd(Command):
         active = this.active_editor_session
         for session in this.editor_sessions:
             c += 1
-            a = '{y*{n' if (session == active) else ' '
+            a = '{g(active){n' if (session == active) else '        '
             show.append('%s %d. %s' % (a, c, session.description))
         actor.msg('\n'.join(show))
+
+
+class SwitchEditorCmd(Command):
+    """
+    @switch-editor <session-num>|off
+
+    Switch to another editor session, or deactivate all editors.
+    """
+    aliases = ('@switch-editor',)
+    syntax = ("off", "<num>")
+    arg_parsers = {'num': parsers.IntStaticParser}
+    lock = locks.all_pass
+
+    def run(self, this, actor, num=None):
+        """
+        :type this: EditorSessionHost
+        :type actor: EditorSessionHost
+        :type num: int or None
+        """
+        if isinstance(num, int):
+            sessions = this.editor_sessions
+            if 0 < num <= len(sessions):
+                session = sessions[num - 1]
+                if session == this.active_editor_session:
+                    actor.tell('{yYou are already editing ',
+                               session.description, '.')
+                else:
+                    prev = this.activate_editor_session(session.session_key)
+                    if prev is not None:
+                        actor.tell('No longer editing ', prev.description, '.')
+                    actor.tell('{gYou are now editing ', session.description,
+                               '.')
+            else:
+                raise self._err('Invalid editor session number.')
+        elif self.argstr == 'off':
+            session = this.deactivate_editor_session()
+            if session is not None:
+                d = session.description
+                actor.tell("Editor session deactivated. Was editing ", d, '.')
+            else:
+                actor.tell('{yNo editor session is active.')
 
 
 class EditorSessionHost(BaseObject):
@@ -51,6 +93,7 @@ class EditorSessionHost(BaseObject):
 
     private_commands = (
         EditorsCmd,
+        SwitchEditorCmd
     )
 
     def process_input(self, raw, err=True):
@@ -105,13 +148,24 @@ class EditorSessionHost(BaseObject):
         :return: The session that was previously active.
         :rtype: EditorSession
         """
-        previous = self.active_editor_session
         sessions = self.keyed_editor_sessions
         if key in sessions:
+            previous = self.deactivate_editor_session()
             #: :type: EditorSession
-            self.active_editor_session = self.keyed_editor_sessions[key]
+            self.active_editor_session = sessions[key]
+            return previous
         else:
             raise InvalidSessionKey()
+
+    def deactivate_editor_session(self):
+        """
+        Deactivates the currently-active session.
+
+        :returns: The previously-active session, if any.
+        :rtype: EditorSession or None
+        """
+        previous = self.active_editor_session
+        self.active_editor_session = None
         return previous
 
 

@@ -505,7 +505,7 @@ class EditCmd(SettingsCommand):
             actor.register_editor_session(session, activate=True)
         except EditorError as e:
             raise self._err(e.message)
-        actor.tell('You are now editing ', session.description, '.')
+        actor.tell('{gYou are now editing ', session.description, '.')
 
     def _paste(self, actor, obj, setting):
         """
