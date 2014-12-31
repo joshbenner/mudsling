@@ -31,6 +31,10 @@ class PlayerNotConnected(Error):
     pass
 
 
+class NoPlayerAttached(Error):
+    pass
+
+
 class InvalidTask(Error):
     pass
 

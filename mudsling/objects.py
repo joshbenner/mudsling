@@ -362,15 +362,25 @@ class PossessableObject(MessagedObject):
         super(PossessableObject, self).__init__(**kwargs)
         self.possessable_by = []
 
+    def player_passthru(self, method_name, *args, **kwargs):
+        """
+        Passes the call through to the player object if it is attached, else
+        raises an exception.
+
+        :raises: errors.NoPlayerAttached
+        """
+        if self.player is not None:
+            return getattr(self.player, method_name)(*args, **kwargs)
+        else:
+            raise errors.NoPlayerAttached()
+
     @property
     def player(self):
         """
         Return ObjRef to the player object possessing this object.
         :rtype: BasePlayer or ObjRef
         """
-        if self.possessed_by is not None:
-            return self.possessed_by.player
-        return None
+        return self.possessed_by.player if self.is_possessed else None
 
     def is_possessable_by(self, player):
         """
@@ -381,14 +391,17 @@ class PossessableObject(MessagedObject):
         return (player in self.possessable_by
                 or player.has_perm("possess anything"))
 
+    @property
+    def is_possessed(self):
+        return self.game.db.is_valid(self.possessed_by, cls=BasePlayer)
+
     def become_possessed(self, player):
         """
         Become possessed by a player.
         :param player: The player possessing this object.
         :type player: BasePlayer
         """
-        # TODO: Refactor this into a property?
-        if self.possessed_by is not None:
+        if self.is_possessed:
             self.possessed_by.dispossess_object(self.ref())
         self.possessed_by = player
         self.on_possessed(player)
@@ -440,7 +453,7 @@ class PossessableObject(MessagedObject):
 
         :param flags: Flags to modify how text is handled.
         """
-        if self.possessed_by is not None:
+        if self.is_possessed:
             self.possessed_by.msg(self._format_msg(text), flags=flags)
 
     def _format_msg(self, parts):
@@ -476,7 +489,7 @@ class PossessableObject(MessagedObject):
         return ''.join(map(str, parts))
 
     def on_object_deleted(self):
-        if self.possessed_by is not None:
+        if self.is_possessed:
             self.possessed_by.dispossess_object(self.ref())
         super(PossessableObject, self).on_object_deleted()
 
