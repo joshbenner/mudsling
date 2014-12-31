@@ -2,6 +2,7 @@ from mudsling.storage import PersistentSlots
 from mudsling.objects import BaseObject
 from mudsling.commands import Command
 from mudsling import errors
+from mudsling import locks
 
 
 class EditorError(errors.Error):
@@ -16,12 +17,41 @@ class InvalidSessionKey(EditorError):
     pass
 
 
+class EditorsCmd(Command):
+    """
+    @editors
+
+    List all the open editor sessions for a session host.
+    """
+    aliases = ('@editors',)
+    lock = locks.all_pass
+
+    def run(self, this, actor):
+        """
+        :type this: EditorSessionHost
+        :type actor: EditorSessionHost
+        """
+        show = ['{cCurrent editor sessions:']
+        c = 0
+        active = this.active_editor_session
+        for session in this.editor_sessions:
+            c += 1
+            a = '{y*{n' if (session == active) else ' '
+            show.append('%s %d. %s' % (a, c, session.description))
+        actor.msg('\n'.join(show))
+
+
 class EditorSessionHost(BaseObject):
     """
     Stores editor sessions.
     """
+    #: :type: list of EditorSession
     editor_sessions = []
     active_editor_session = None
+
+    private_commands = (
+        EditorsCmd,
+    )
 
     def process_input(self, raw, err=True):
         handled = super(EditorSessionHost, self).process_input(raw, err=False)
@@ -55,6 +85,7 @@ class EditorSessionHost(BaseObject):
         :type session: EditorSession
         """
         if 'editor_sessions' not in self.__dict__:
+            #: :type: list of EditorSession
             self.editor_sessions = []
         key = session.session_key
         if key in self.keyed_editor_sessions:
@@ -77,6 +108,7 @@ class EditorSessionHost(BaseObject):
         previous = self.active_editor_session
         sessions = self.keyed_editor_sessions
         if key in sessions:
+            #: :type: EditorSession
             self.active_editor_session = self.keyed_editor_sessions[key]
         else:
             raise InvalidSessionKey()
