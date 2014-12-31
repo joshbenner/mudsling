@@ -1,3 +1,5 @@
+import re
+
 from mudsling.storage import PersistentSlots
 from mudsling.objects import BaseObject
 from mudsling.commands import Command
@@ -15,6 +17,14 @@ class DuplicateSession(EditorError):
 
 
 class InvalidSessionKey(EditorError):
+    pass
+
+
+class InvalidRangeSyntax(errors.ParseError):
+    pass
+
+
+class InvalidLineSyntax(errors.ParseError):
     pass
 
 
@@ -168,25 +178,240 @@ class EditorSessionHost(BaseObject):
         self.active_editor_session = None
         return previous
 
+    def terminate_editor_session(self, key):
+        """
+        Remove the session from the list of sessions and return it.
 
-class InlineCommand(Command):
+        Deactivates session if it is currently active.
+
+        :returns: The session
+        :rtype: EditorSession
+        """
+        sessions = self.keyed_editor_sessions
+        if key in sessions:
+            session = sessions[key]
+            if self.active_editor_session == session:
+                self.deactivate_editor_session()
+            self.editor_sessions.remove(session)
+            return session
+        else:
+            raise InvalidSessionKey()
+
+
+class EditorSessionCommand(Command):
     """
     Specialized command for editors which optionally does not match on only the
     command name, but the entire syntax.
     """
     match_prefix = ''
     abstract = True
+    lock = locks.all_pass
+
+    @property
+    def session(self):
+        """
+        :rtype: EditorSession
+        """
+        return self.obj
 
     @classmethod
     def matches(cls, cmdstr):
         return cmdstr.startswith(cls.match_prefix)
 
     def match_syntax(self, argstr):
+        if self.syntax == '':
+            return True
+        self._insert_session_parsers()
         full_command = ('%s %s' % (self.cmdstr, argstr)).strip()
-        return super(InlineCommand, self).match_syntax(full_command)
+        return super(EditorSessionCommand, self).match_syntax(full_command)
+
+    def _insert_session_parsers(self):
+        session_parsers = self.session.parsers
+        for argname, parser in self.arg_parsers.iteritems():
+            if parser in session_parsers:
+                self.arg_parsers[argname] = session_parsers[parser]
 
 
+class InsertTextCmd(EditorSessionCommand):
+    """
+    '<text>
 
+    Insert text at current position.
+    """
+    match_prefix = "'"
+    syntax = "'[<text>]"
+
+    def run(self, this, actor, text):
+        """
+        :type this: EditorSession
+        :type actor: BaseObject
+        """
+        if text is None:
+            text = ''
+        line_num = this.insert_line(text)
+        actor.tell('Line ', line_num, ' added.')
+
+
+class DeleteTextCmd(EditorSessionCommand):
+    """
+    .del<range>
+
+    Deletes specified line(s) of text.
+    """
+    match_prefix = '.d'
+    syntax = '{.d|.del|.delete}<range>'
+    arg_parsers = {'range': 'range'}
+
+    def run(self, this, actor, range):
+        """
+        :type this: EditorSession
+        :type actor: BaseObject
+        :type range: tuple of (int, int)
+        """
+        deleted = this.delete_range(*range)
+        show = [this.format_line(*d, caret=-1) for d in deleted]
+        actor.msg('\n'.join(show), flags={'raw': True})
+        actor.tell('{y---Line(s) deleted. {nInsertion point is at line ',
+                   this.caret, '.')
+
+
+class MoveCaretCmd(EditorSessionCommand):
+    """
+    .i[^|_]<line>
+
+    Change the insertion point.
+    """
+    match_prefix = '.i'
+    syntax = '{.i|.ins|.insert}[{_|^}]<line>'
+    arg_parsers = {'line': 'line'}
+
+    def run(self, this, actor, line):
+        """
+        :type this: EditorSession
+        :type actor: BaseObject
+        :type line: int
+        """
+        if 'optset2' in self.parsed_args:
+            if self.parsed_args['optset2'] == '_':
+                line += 1
+        if self.args['line'] == '$':
+            line = len(this.lines) + 1
+        this.move_caret(line)
+        actor.msg(this.list_lines(line - 1, line))
+
+
+class ListCmd(EditorSessionCommand):
+    """
+    .list [<range>]
+
+    List text.
+    """
+    match_prefix = '.l'
+    syntax = '{.l|.li|.lis|.list}[<range>]'
+    arg_parsers = {'range': 'range'}
+
+    def run(self, this, actor, range):
+        """
+        :type this: EditorSession
+        :type actor: BaseObject
+        :type range: tuple of (int, int)
+        """
+        if len(this.lines):
+            if range is None:
+                range = (1, len(this.lines))
+            actor.msg(this.list_lines(*range))
+        else:
+            actor.msg('(no lines)')
+
+
+class PrintCmd(EditorSessionCommand):
+    """
+    .print [<range>]
+
+    Print text without line numbers and insertion point indicators.
+    """
+    match_prefix = '.p'
+    syntax = '{.p|.pr|.print}[<range>]'
+    arg_parsers = {'range': 'range'}
+
+    def run(self, this, actor, range):
+        """
+        :type this: EditorSession
+        :type actor: BaseObject
+        :type range: tuple of (int, int)
+        """
+        if range is None:
+            range = (1, len(this.lines))
+        actor.msg('\n'.join(this.lines))
+
+
+class EnterCmd(EditorSessionCommand):
+    """
+    .enter
+
+    Accept lines of input to insert into editor's buffer.
+    """
+    match_prefix = '.e'
+    syntax = '{.e|.ent|.enter}'
+
+    def run(self, this, actor):
+        """
+        :type this: EditorSession
+        :type actor: BaseObject
+        """
+        actor.read_lines(self.insert_lines)
+
+    def insert_lines(self, lines):
+        session = self.session
+        for line in lines:
+            session.insert_line(line)
+        self.actor.tell('{g', len(lines), ' line(s) inserted. ',
+                        '{n Insertion point is at line ', session.caret, '.')
+
+
+class PasteCmd(EditorSessionCommand):
+    """
+    .paste
+
+    Alias of .enter.
+    """
+    match_prefix = '.paste'
+    syntax = ''
+
+
+class WhatCmd(EditorSessionCommand):
+    """
+    .what
+
+    Output a description of what is currently being edited.
+    """
+    match_prefix = '.w'
+    syntax = '{.w|.what}'
+
+    def run(self, this, actor):
+        """
+        :type this: EditorSession
+        :type actor: BaseObject
+        """
+        actor.tell('Currently editing: ', this.description)
+
+
+class AbortCmd(EditorSessionCommand):
+    """
+    .abort
+
+    Closes the editor without saving.
+    """
+    match_prefix = '.abort'
+
+    def run(self, this, actor):
+        """
+        :type this: EditorSession
+        :type actor: BaseObject
+        """
+        this.owner.terminate_editor_session(this.session_key)
+        actor.tell('{yYou have closed the session for editing ',
+                   this.description, '.')
 
 
 class EditorSession(PersistentSlots):
@@ -195,12 +420,34 @@ class EditorSession(PersistentSlots):
     """
     __slots__ = ('lines', 'caret', 'owner')
 
-    commands = ()
+    commands = (
+        InsertTextCmd,
+        DeleteTextCmd,
+        MoveCaretCmd,
+        ListCmd,
+        PrintCmd,
+        EnterCmd,
+        PasteCmd,
+        WhatCmd,
+        AbortCmd
+    )
 
     def __init__(self, owner, preload=''):
+        """
+        :type owner: EditorSessionHost
+        :type preload: str
+        """
+        #: :type: EditorSessionHost
         self.owner = owner.ref()
         self.lines = preload.splitlines() if isinstance(preload, str) else []
-        self.caret = len(self.lines)
+        self.caret = len(self.lines) + 1
+
+    @property
+    def parsers(self):
+        return {
+            'line': self.parse_line,
+            'range': self.parse_range,
+        }
 
     @property
     def session_key(self):
@@ -219,7 +466,7 @@ class EditorSession(PersistentSlots):
 
     def process_command(self, raw, game):
         cmdstr, _, argstr = raw.partition(' ')
-        cmd_matches = [c(raw, cmdstr, argstr, game, None, self.owner)
+        cmd_matches = [c(raw, cmdstr, argstr, game, self, self.owner)
                        for c in self.commands if c.matches(raw)]
         syntax_matches = [c for c in cmd_matches if c.match_syntax(argstr)]
         if len(syntax_matches) > 1:
@@ -233,3 +480,111 @@ class EditorSession(PersistentSlots):
             return False
         syntax_matches[0].execute()
         return True
+
+    def format_line(self, line_num, text, caret=None):
+        if caret is None:
+            caret = self.caret
+        if caret == (line_num + 1):
+            p = s = '_'
+        elif caret == line_num:
+            p = s = '^'
+        else:
+            p = ' '
+            s = ':'
+        pad = len(str(len(self.lines)))
+        fmt = '{p}{n:>%d}{s} {t}' % pad
+        return fmt.format(n=line_num, t=text, p=p, s=s)
+
+    def list_lines(self, start, end):
+        start = max(1, start)
+        end = min(len(self.lines), end)
+        show = [self.format_line(n + start, t)
+                for n, t in enumerate(self.lines[start - 1:end])]
+        if end == len(self.lines) and self.caret > end:
+            show.append('^' * (len(str(end)) + 2))
+        return '\n'.join(show)
+
+    def parse_line(self, input):
+        try:
+            if input == '$':
+                return len(self.lines)
+            elif input == '.':
+                return self.caret
+            elif input.startswith('^'):
+                return int(input[1:])
+            elif input.startswith('_'):
+                return int(input[1:]) + 1
+            else:
+                return int(input)
+        except ValueError:
+            raise InvalidLineSyntax("Invalid line format: %s" % input)
+
+    range_re = re.compile(
+        '(?P<start>\$|\.|(?:[_^]?\d+))(?: *- *(?P<end>\$|\.|(?:[_^]?\d+)))?')
+
+    def parse_range(self, input):
+        m = self.range_re.match(input)
+        if m:
+            start = self.parse_line(m.group('start'))
+            _end = m.group('end')
+            end = self.parse_line(_end) if _end is not None else start
+            return (start, end) if start <= end else (end, start)
+        else:
+            raise InvalidRangeSyntax("Invalid range: %s" % input)
+
+    def which_line(self, line_num=None):
+        """
+        Given an optional explicit number, determine which line to act on.
+        """
+        return line_num if line_num is not None else self.caret
+
+    def insert_line(self, text, line_num=None, update_caret=True):
+        """
+        Insert a line of text at the specified line number. Defaults to the
+        location of the caret.
+
+        Defaults to moving the caret to just after the newly inserted line.
+
+        :param text: The text to insert.
+        :type text: str
+
+        :param line_num: The line number to be inserted at.
+        :type line_num: int
+
+        :return: The number of the line that was inserted.
+        :rtype: int
+        """
+        line_num = self.which_line(line_num)
+        self.lines.insert(line_num - 1, ''.join(text.splitlines()))
+        if update_caret:
+            self.move_caret(line_num + 1)
+        return line_num
+
+    def delete_line(self, line_num=None, update_caret=True):
+        """
+        Delete the specified line (or the line above the caret).
+
+        Optionally move caret to where delete occurred. If caret is past where
+        delete happened, caret will be updated regardless of this parameter.
+
+        :param line_num: The line to delete.
+        :param update_caret: Whether or not to move the caret to deleted line.
+
+        :return: The line number that was deleted, and the text that was there.
+        :rtype: tuple of (int, str)
+        """
+        line_num = self.which_line(line_num)
+        text = self.lines[line_num - 1]
+        del self.lines[line_num - 1]
+        if update_caret or self.caret > len(self.lines):
+            self.move_caret(line_num)
+        return line_num, text
+
+    def delete_range(self, start, end):
+        deleted = tuple(self.delete_line(n) for n in range(end, start - 1, -1))
+        return reversed(deleted)
+
+    def move_caret(self, line_num):
+        previous = self.caret
+        self.caret = line_num
+        return previous
