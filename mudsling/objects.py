@@ -362,23 +362,18 @@ class PossessableObject(MessagedObject):
         super(PossessableObject, self).__init__(**kwargs)
         self.possessable_by = []
 
-    def player_passthru(self, method_name, *args, **kwargs):
+    def require_player(self):
         """
-        Passes the call through to the player object if it is attached, else
-        raises an exception.
-
-        :raises: errors.NoPlayerAttached
+        Raises an exception if no player is attached.
         """
-        if self.player is not None:
-            return getattr(self.player, method_name)(*args, **kwargs)
-        else:
+        if self.player is None:
             raise errors.NoPlayerAttached()
 
     @property
     def player(self):
         """
         Return ObjRef to the player object possessing this object.
-        :rtype: BasePlayer or ObjRef
+        :rtype: BasePlayer
         """
         return self.possessed_by.player if self.is_possessed else None
 
@@ -510,6 +505,28 @@ class PossessableObject(MessagedObject):
                 name += " (#%d)" % obj.obj_id
         finally:
             return name
+
+    def read_line(self, callback, args=()):
+        self.require_player()
+        self.player.read_line(callback, args)
+
+    def read_lines(self, callback, args=(), max_lines=None, end_tokens=None):
+        self.require_player()
+        self.player.read_lines(callback, args, max_lines, end_tokens)
+
+    def prompt(self, callback, options, args=()):
+        self.require_player()
+        self.player.prompt(callback, options, args)
+
+    def prompt_callbacks(self, options, invalidCallback=None):
+        self.require_player()
+        self.player.prompt_callbacks(options, invalidCallback)
+
+    def prompt_yes_no(self, prompt=None, yes_callback=None, no_callback=None,
+                      invalid_callback=None):
+        self.require_player()
+        self.player.prompt_yes_no(prompt, yes_callback, no_callback,
+                                  invalid_callback)
 
 
 class BaseObject(PossessableObject):
