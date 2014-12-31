@@ -81,6 +81,14 @@ def english_list(things, nothingstr="nothing", andstr=" and ", commastr=", ",
     return commastr.join(things[:-1]) + finalcommastr + andstr + things[-1]
 
 
+def and_list(things, formatter=str):
+    return english_list(things, formatter=formatter)
+
+
+def or_list(things, formatter=str):
+    return english_list(things, andstr=' or ', formatter=formatter)
+
+
 def columnize(items, numCols, width=79, align='l'):
     items = list(items)
     numRows = (len(items) + numCols - 1) / numCols
