@@ -469,21 +469,27 @@ class ShowCmd(SettingsCommand):
 
 class EditCmd(SettingsCommand):
     """
-    @edit <object>.<setting>
+    @edit[/paste] <object>.<setting>
 
-    Open the line editor for a string setting.
+    Open the line editor for a string setting. If /paste switch is used, then
+    prompt for a paste.
     """
     aliases = ('@edit',)
     syntax = '<obj> {.} <setting>'
     arg_parsers = {'obj': match_configurable_obj}
+    switch_defaults = {'paste': False}
 
-    def run(self, actor, obj, setting):
+    def run(self, actor, obj, setting, switches):
         """
         :type actor: mudslingcore.objects.Player
         :type obj: mudslingcore.objsettings.ConfigurableObject
         :type setting: str
+        :type switches: dict of (str, bool)
         """
-        self._edit(actor, obj, setting)
+        if switches['paste']:
+            self._paste(actor, obj, setting)
+        else:
+            self._edit(actor, obj, setting)
 
     def _edit(self, actor, obj, setting):
         """
@@ -501,10 +507,27 @@ class EditCmd(SettingsCommand):
             raise self._err(e.message)
         actor.tell('You are now editing ', session.description, '.')
 
+    def _paste(self, actor, obj, setting):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type obj: mudslingcore.objsettings.ConfigurableObject
+        :type setting: str
+        """
+        def _set_setting(lines):
+            obj.set_obj_setting(setting, '\n'.join(lines))
+            self._notify_set(actor, obj, setting)
+        try:
+            actor.read_lines(callback=_set_setting)
+        except errors.PlayerNotConnected:
+            raise self._err('Cannot paste with a disconnect player.')
+
+    def _notify_set(self, actor, obj, setting):
+        actor.tell(obj, '.', setting, ' has been set.')
+
 
 class DescribeCmd(EditCmd):
     """
-    @describe <object> [as <description>]
+    @describe[/paste] <object> [as <description>]
 
     Describe a describable object.
     """
@@ -518,15 +541,23 @@ class DescribeCmd(EditCmd):
             context=False
         )
     }
+    switch_defaults = {'paste': False}
 
-    def run(self, actor, obj, text=None):
+    # noinspection PyMethodOverriding
+    def run(self, actor, obj, switches, text=None):
         """
         :type actor: mudslingcore.objects.Player
         :type obj: mudslingcore.objects.DescribableObject
+        :type switches: dict of (str, bool)
         :type text: str
         """
-        if text is not None:
+        if switches['paste']:
+            self._paste(actor, obj, 'desc')
+        elif text is not None:
             obj.set_obj_setting('desc', text)
-            actor.tell(obj, ' description set.')
+            self._notify_set(actor, obj, 'desc')
         else:
             self._edit(actor, obj, 'desc')
+
+    def _notify_set(self, actor, obj, setting):
+        actor.tell(obj, ' description set.')
