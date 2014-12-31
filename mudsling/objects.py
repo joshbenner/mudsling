@@ -510,7 +510,8 @@ class PossessableObject(MessagedObject):
         self.require_player()
         self.player.read_line(callback, args)
 
-    def read_lines(self, callback, args=(), max_lines=None, end_tokens=None):
+    def read_lines(self, callback, args=(), max_lines=None, end_tokens=None,
+                   prompt=None, show_prompt=True):
         self.require_player()
         self.player.read_lines(callback, args, max_lines, end_tokens)
 
@@ -1482,9 +1483,20 @@ class BasePlayer(BaseObject):
             return callback(lines[0], *args)
         self.redirect_input(utils.input.LineReader(_callback, max_lines=1))
 
-    def read_lines(self, callback, args=(), max_lines=None, end_tokens=None):
+    def read_lines(self, callback, args=(), max_lines=None, end_tokens=None,
+                   prompt=None, show_prompt=True):
         if end_tokens is None:
-            end_tokens = ('.', '@end', '@abort')
+            end_tokens = ('.', '@end')
+        if show_prompt:
+            if prompt is None:
+                prompt = '{c[{nEnter lines of text. '
+                prompt += 'End input on separate line with: '
+                prompt += mudsling.utils.string.or_list(end_tokens)
+                prompt += '{c]'
+            if isinstance(prompt, str):
+                self.msg(prompt)
+            else:
+                self.tell(*prompt)
         self.redirect_input(utils.input.LineReader(callback, args=args,
                                                    max_lines=max_lines,
                                                    end_tokens=end_tokens))
