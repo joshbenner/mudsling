@@ -222,8 +222,7 @@ class EditorSessionCommand(Command):
         if self.syntax == '':
             return True
         self._insert_session_parsers()
-        full_command = ('%s %s' % (self.cmdstr, argstr)).strip()
-        return super(EditorSessionCommand, self).match_syntax(full_command)
+        return super(EditorSessionCommand, self).match_syntax(self.raw)
 
     def _insert_session_parsers(self):
         session_parsers = self.session.parsers
@@ -414,6 +413,97 @@ class AbortCmd(EditorSessionCommand):
                    this.description, '.')
 
 
+class ReplaceCmd(EditorSessionCommand):
+    """
+    .replace[/i] <search>=<replace> [<range>]
+
+    Replace all instances of 'search' with 'replace' across an optional range.
+    """
+    match_prefix = '.r'
+    syntax = (
+        '{.r|.rep|.repl|.replace}\w<search>{=}<replace> [<range>]',
+        '{.r/i|.rep/i|.repl/i|.replace/i}\w<search>{=}<replace> [<range>]'
+    )
+    arg_parsers = {'range': 'range'}
+    switch_defaults = {'i': False}
+
+    def run(self, this, actor, search, replace, range):
+        """
+        :type this: EditorSession
+        :type actor: BaseObject
+        :type search: str
+        :type replace: str
+        :type range: tuple of int
+        """
+        case = not self.switches['i']
+        if range is None:
+            # Insert 1 and insert 2 both perform replace on line 1.
+            caret = max(this.caret - 1, 1)
+            range = (caret, caret)
+        affected = this.substitute(re.escape(search), replace, range,
+                                   all=True, case_matters=case)
+        total = 0
+        for line in affected:
+            total += line[2]
+        actor.tell(total, " replacements completed.")
+
+
+class SubstituteCmd(EditorSessionCommand):
+    """
+    .substitute/<search>/<replace[/[g][i][<range>]]
+
+    Perform regex-based substitution.
+    """
+    match_prefix = '.s'
+    syntax = '{.s|.sub|.subst|.substitute}<subst>'
+
+    def execute(self):
+        """Custom parsing!"""
+        self.parsed_args = self.parse_subst(self.args['subst'])
+        if self.prepare():
+            self.before_run()
+            self.run(**self.prepare_run_args())
+            self.after_run()
+
+    def parse_subst(self, subst):
+        sep = subst[0]
+        frompat, tostr, laststr = (subst[1:].split(sep) + [''] * 3)[:3]
+        flagstr = ''
+        while len(laststr) and laststr[0] in ('g', 'i'):
+            flagstr += laststr[0]
+            laststr = laststr[1:]
+        rangestr = laststr
+        if not len(rangestr):
+            caret = max(self.session.caret - 1, 1)
+            line_range = (caret, caret)
+        else:
+            line_range = self.session.parse_range(rangestr)
+        return {
+            'all': 'g' in flagstr,
+            'case': 'i' not in flagstr,
+            'search': frompat,
+            'replace': tostr,
+            'line_range': line_range
+        }
+
+    def run(self, this, actor, search, replace, all, case, line_range):
+        """
+        :type this: EditorSession
+        :type actor: BaseObject
+        :type search: str
+        :type replace: str
+        :type all: bool
+        :type case: bool
+        :type line_range: tuple of int
+        """
+        affected = this.substitute(search, replace, line_range=line_range,
+                                   all=all, case_matters=case)
+        total = 0
+        for line in affected:
+            total += line[2]
+        actor.tell(total, " replacements completed.")
+
+
 class EditorSession(PersistentSlots):
     """
     An editor session, storing the current state of the editor.
@@ -429,7 +519,9 @@ class EditorSession(PersistentSlots):
         EnterCmd,
         PasteCmd,
         WhatCmd,
-        AbortCmd
+        AbortCmd,
+        ReplaceCmd,
+        SubstituteCmd
     )
 
     def __init__(self, owner, preload=''):
@@ -581,10 +673,64 @@ class EditorSession(PersistentSlots):
         return line_num, text
 
     def delete_range(self, start, end):
+        """
+        Delete a series of lines.
+
+        :param start: First line to delete.
+        :param end: Last line to delete.
+        :return: Tuples of the line number and text for each deleted line.
+        """
         deleted = tuple(self.delete_line(n) for n in range(end, start - 1, -1))
         return reversed(deleted)
 
     def move_caret(self, line_num):
+        """
+        Move the caret.
+
+        :param line_num: The new position of the caret.
+        :return: The previous position of the caret.
+        """
         previous = self.caret
         self.caret = line_num
         return previous
+
+    def substitute(self, pattern, replacement, line_range=None, all=False,
+                   case_matters=True):
+        """
+        Perform a regular-expression replacement across the specified range.
+
+        :param pattern: A regular expression string whose matches to replace.
+        :type: str
+
+        :param replacement: The regex replacement string.
+        :type: str
+
+        :param line_range: A tuple of the first and last line to search.
+        :type: tuple or None
+
+        :param all: Whether to replace all occurrences on each line or not. If
+            False, then only replace first occurrence on each line.
+        :type: bool
+
+        :param case_matters: Whether or not case matters.
+        :type: bool
+
+        :return: A list of tuples of the line number, previous text, and the
+            number of replacements performed on that line for the each affected
+            line.
+        :rtype: list of tuple of (int, str, int)
+        """
+        if line_range is None:
+            start = end = self.caret
+        else:
+            start, end = line_range
+        flags = 0 if case_matters else re.IGNORECASE
+        count = 0 if all else 1
+        regex = re.compile(pattern, flags=flags)
+        old_lines = []
+        for index in range(start - 1, end):
+            old_line = self.lines[index]
+            self.lines[index], n = regex.subn(replacement, self.lines[index],
+                                              count=count)
+            old_lines.append((index + 1, old_line, n))
+        return old_lines
