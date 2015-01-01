@@ -325,4 +325,3 @@ class SettingEditorSession(EditorSession):
     def save_setting(self):
         self.setting_obj.set_obj_setting(self.setting_name,
                                          '\n'.join(self.lines))
-
