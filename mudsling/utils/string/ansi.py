@@ -830,8 +830,12 @@ ANSI_PARSER = ANSIParser()
 class AnsiWrapper(textwrap.TextWrapper):
     ansi_parser = ANSI_PARSER
 
+    @property
+    def _length_func(self):
+        return self.ansi_parser.length
+
     def _wrap_chunks(self, chunks):
-        length = self.ansi_parser.length
+        length = self._length_func
 
         lines = []
         if self.width <= 0:

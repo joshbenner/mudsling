@@ -156,8 +156,8 @@ class LimitedWidthUI(BaseUI):
     _wrapper = None
 
     def __init__(self):
-        self._wrapper = utils.string.AnsiWrapper(width=self.body_width,
-                                                 subsequent_indent=self.indent)
+        self._wrapper = utils.string.MUDWrapper(width=self.body_width,
+                                                subsequent_indent=self.indent)
 
     @property
     def body_width(self):

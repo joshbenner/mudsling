@@ -12,6 +12,7 @@ inflection = inflect.engine()
 
 from .ansi import *
 from .table import *
+from . import mxp
 
 more_random = random.SystemRandom()
 
@@ -221,3 +222,23 @@ decamelcase = re.compile(r'((?<=[a-z])[A-Z]|(?<!\A)[A-Z](?=[a-z]))')
 
 def camelcase_to_spaces(text):
     return decamelcase.sub(r' \1', text)
+
+
+class MUDWrapper(AnsiWrapper):
+    """
+    TextWrapper that considers both ANSI and MXP.
+    """
+    wordsep_re = re.compile(
+        '(' + mxp.TAG_PAT + '|' + mxp.ENTITY_PAT +  # MXP tags & entities
+        r'|\s+|'                                    # any whitespace
+        r'[^\s\w]*\w+[^0-9\W]-(?=\w+[^0-9\W])|'     # hyphenated words
+        r'(?<=[\w\!\"\'\&\.\,\?])-{2,}(?=\w))')     # em-dash
+
+    @property
+    def _length_func(self):
+        return self._length
+
+    def _length(self, string):
+        if string.startswith(mxp.LT) or string.startswith(mxp.AMP):
+            return 0
+        return self.ansi_parser.length(string)
