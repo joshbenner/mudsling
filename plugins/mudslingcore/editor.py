@@ -351,7 +351,8 @@ class PrintCmd(EditorSessionCommand):
         """
         if range is None:
             range = (1, len(this.lines))
-        actor.msg('\n'.join(this.lines))
+        start, end = range
+        actor.msg('\n'.join(this.lines[start - 1:end]))
 
 
 class EnterCmd(EditorSessionCommand):
