@@ -4,14 +4,13 @@ from mudsling import errors
 from mudsling.storage import StoredObject, ObjRef
 import mudsling.commands
 import mudsling.match
-import mudsling.errors
 import mudsling.locks
 import mudsling.objects
 import mudsling.parsers
 
 from mudsling.utils.sequence import CaselessDict
 
-from mudslingcore.editor import EditorSession
+from mudslingcore.editor import EditorSession, EditorSessionCommand, AbortCmd
 
 
 def lock_can_configure(obj, who):
@@ -257,11 +256,45 @@ class ConfigurableObject(mudsling.objects.BaseObject):
         return self.get_obj_setting(name).is_default(self)
 
 
+class SettingEditorSaveCmd(EditorSessionCommand):
+    """
+    .save
+
+    Saves the current buffer to the targeted setting.
+    """
+    key = 'save'
+    match_prefix = '.save'
+
+    def run(self, this, actor):
+        """
+        :type this: SettingEditorSession
+        :type actor: mudslingcore.objects.Player
+        """
+        try:
+            this.save_setting()
+        except AttributeError as e:
+            raise self._err(e.message)
+        actor.tell('{gSaved new text for ', this.description,
+                   '. {yUse .done to close editor.')
+
+
+class SettingEditorDoneCmd(AbortCmd):
+    """
+    .done
+
+    Closes the active editor session.
+    """
+    key = 'done'
+    match_prefix = '.done'
+
+
 class SettingEditorSession(EditorSession):
     """
     An editor session that can modify an object setting.
     """
     __slots__ = ('setting_obj', 'setting_name')
+
+    commands = (SettingEditorSaveCmd, SettingEditorDoneCmd)
 
     def __init__(self, owner, setting_obj, setting_name):
         """
@@ -288,3 +321,8 @@ class SettingEditorSession(EditorSession):
     def description(self):
         objname = self.owner.name_for(self.setting_obj)
         return "'%s' setting on %s" % (self.setting_name, objname)
+
+    def save_setting(self):
+        self.setting_obj.set_obj_setting(self.setting_name,
+                                         '\n'.join(self.lines))
+

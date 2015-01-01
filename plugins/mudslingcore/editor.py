@@ -6,6 +6,7 @@ from mudsling.commands import Command
 from mudsling import errors
 from mudsling import locks
 from mudsling import parsers
+from mudsling.utils import object as obj_utils
 
 
 class EditorError(errors.Error):
@@ -218,6 +219,10 @@ class EditorSessionCommand(Command):
     def matches(cls, cmdstr):
         return cmdstr.startswith(cls.match_prefix)
 
+    @classmethod
+    def exactly_matches(cls, cmdstr):
+        return cls.match_prefix == cmdstr
+
     def match_syntax(self, argstr):
         if self.syntax == '':
             return True
@@ -237,6 +242,7 @@ class InsertTextCmd(EditorSessionCommand):
 
     Insert text at current position.
     """
+    key = 'addline'
     match_prefix = "'"
     syntax = "'[<text>]"
 
@@ -257,6 +263,7 @@ class DeleteTextCmd(EditorSessionCommand):
 
     Deletes specified line(s) of text.
     """
+    key = 'delete'
     match_prefix = '.d'
     syntax = '{.d|.del|.delete}<range>'
     arg_parsers = {'range': 'range'}
@@ -280,6 +287,7 @@ class MoveCaretCmd(EditorSessionCommand):
 
     Change the insertion point.
     """
+    key = 'caret'
     match_prefix = '.i'
     syntax = '{.i|.ins|.insert}[{_|^}]<line>'
     arg_parsers = {'line': 'line'}
@@ -305,6 +313,7 @@ class ListCmd(EditorSessionCommand):
 
     List text.
     """
+    key = 'list'
     match_prefix = '.l'
     syntax = '{.l|.li|.lis|.list}[<range>]'
     arg_parsers = {'range': 'range'}
@@ -329,6 +338,7 @@ class PrintCmd(EditorSessionCommand):
 
     Print text without line numbers and insertion point indicators.
     """
+    key = 'print'
     match_prefix = '.p'
     syntax = '{.p|.pr|.print}[<range>]'
     arg_parsers = {'range': 'range'}
@@ -350,6 +360,7 @@ class EnterCmd(EditorSessionCommand):
 
     Accept lines of input to insert into editor's buffer.
     """
+    key = 'enter'
     match_prefix = '.e'
     syntax = '{.e|.ent|.enter}'
 
@@ -374,6 +385,7 @@ class PasteCmd(EditorSessionCommand):
 
     Alias of .enter.
     """
+    key = 'paste'
     match_prefix = '.paste'
     syntax = ''
 
@@ -384,6 +396,7 @@ class WhatCmd(EditorSessionCommand):
 
     Output a description of what is currently being edited.
     """
+    key = 'what'
     match_prefix = '.w'
     syntax = '{.w|.what}'
 
@@ -401,6 +414,7 @@ class AbortCmd(EditorSessionCommand):
 
     Closes the editor without saving.
     """
+    key = 'abort'
     match_prefix = '.abort'
 
     def run(self, this, actor):
@@ -419,6 +433,7 @@ class ReplaceCmd(EditorSessionCommand):
 
     Replace all instances of 'search' with 'replace' across an optional range.
     """
+    key = 'replace'
     match_prefix = '.r'
     syntax = (
         '{.r|.rep|.repl|.replace}\w<search>{=}<replace> [<range>]',
@@ -454,6 +469,7 @@ class SubstituteCmd(EditorSessionCommand):
 
     Perform regex-based substitution.
     """
+    key = 'subst'
     match_prefix = '.s'
     syntax = '{.s|.sub|.subst|.substitute}<subst>'
 
@@ -556,10 +572,23 @@ class EditorSession(PersistentSlots):
         """
         raise NotImplementedError()
 
+    @classmethod
+    @obj_utils.memoize()
+    def all_commands(cls):
+        commands = {}
+        for c in obj_utils.descend_mro(cls):
+            if issubclass(c, EditorSession) and 'commands' in c.__dict__:
+                commands.update({cmd.key: cmd for cmd in c.commands})
+        return commands.values()
+
     def process_command(self, raw, game):
         cmdstr, _, argstr = raw.partition(' ')
+        all_commands = self.all_commands()
+        exact_matches = [c for c in all_commands if c.exactly_matches(raw)]
+        if exact_matches:
+            all_commands = exact_matches
         cmd_matches = [c(raw, cmdstr, argstr, game, self, self.owner)
-                       for c in self.commands if c.matches(raw)]
+                       for c in all_commands if c.matches(raw)]
         syntax_matches = [c for c in cmd_matches if c.match_syntax(argstr)]
         if len(syntax_matches) > 1:
             raise errors.AmbiguousMatch(msg="Ambiguous Command", query=raw,
