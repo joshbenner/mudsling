@@ -13,6 +13,24 @@ import mudsling.utils.file
 from mudsling.utils.string import mxp
 
 
+def load_help_files(game):
+    """
+    Load help files into a HelpManager.
+
+    :param game: The game object whose plugins to poll for help files.
+    :type game: mudsling.core.MUDSling
+
+    :return: A newly-loaded HelpManager instance.
+    :rtype: HelpManager
+    """
+    manager = HelpManager()
+    for paths in game.invoke_hook('help_paths').itervalues():
+        for path in paths:
+            manager.load_help_path(path, rebuild_name_map=False)
+    manager.rebuild_name_map()
+    return manager
+
+
 md = markdown.Markdown(extensions=['meta', 'wikilinks'])
 
 

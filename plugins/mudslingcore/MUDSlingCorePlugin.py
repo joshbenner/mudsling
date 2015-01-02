@@ -10,7 +10,7 @@ from mudsling.commands import all_commands
 
 from mudslingcore.objects import Thing, Character, Player, Container
 from mudslingcore.topography import Room, Exit
-from mudslingcore.help import help_db
+from mudslingcore import help
 from mudslingcore import bans
 from mudslingcore import globalvars
 import mudslingcore.areas as areas
@@ -35,10 +35,7 @@ class MUDSlingCorePlugin(GamePlugin, areas.AreaProviderPlugin):
         bans.game = self.game
         globalvars.db = self.game.db
         # Load help files to form an in-memory database of the entries.
-        for paths in self.game.invoke_hook('help_paths').itervalues():
-            for path in paths:
-                help_db.load_help_path(path, rebuild_name_map=False)
-        help_db.rebuild_name_map()
+        help.help_db = help.load_help_files(self.game)
 
     def plugins_loaded(self):
         if 'restserver' in self.game.plugins.plugins:
