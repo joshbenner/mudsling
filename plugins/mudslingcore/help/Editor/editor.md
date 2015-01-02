@@ -23,11 +23,11 @@ You may have more or less commands available, depending on which kind of data yo
 
 Inserting a new line of text is done by typing the single quote (') character, followed by the text to insert. No space is needed between the single quote and the text to insert.
 
-* `.what`
-* `.abort`, `.done`
-* `.save`
-* `.enter`, `.paste`
-* `.insert`
-* `.delete`
-* `.list`, `.print`
-* `.replace`, `.subst`
+* [[`.what`]]
+* [[`.abort`]], [[`.done`]]
+* [[`.save`]]
+* [[`.enter`]], [[`.paste`]]
+* [[`.insert`]]
+* [[`.delete`]]
+* [[`.list`]], [[`.print`]]
+* [[`.replace`]], [[`.subst`]]
