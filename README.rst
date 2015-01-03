@@ -24,17 +24,17 @@ Bundled Plugins
 MUDSling also includes several bundled plugins:
 
 * **MUDSling Core**
-* * Base set of game commands
-* * UI system
-* * Import/export JSON area files
-* * Help system
-* * Gender system
-* * Global object system
-* * IP Banning
-* * Line editor
-* * Object Settings system
-* * Senses (sight, sound)
-* * Building: Rooms/exits
+    + Base set of game commands
+    + UI system
+    + Import/export JSON area files
+    + Help system
+    + Gender system
+    + Global object system
+    + IP Banning
+    + Line editor
+    + Object Settings system
+    + Senses (sight, sound)
+    + Building: Rooms/exits
 * **My Objects**: personal global objects
 * **Dice**: Comprehensive dice rolling system and language
 * **Furniture**: Interactive furniture objects
