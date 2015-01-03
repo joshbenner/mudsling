@@ -11,6 +11,7 @@ from mudsling import locks
 from mudsling import utils
 import mudsling.utils.file
 from mudsling.utils.string import mxp
+from mudsling.utils.string import ansi
 
 
 def load_help_files(game):
@@ -35,6 +36,7 @@ md = markdown.Markdown(extensions=['meta', 'wikilinks'])
 
 
 def mxp_link(text, topic):
+    topic = ansi.strip_ansi_tokens(topic)
     return mxp.send(text, "?%s" % topic, "Get help for %s" % topic)
 
 
@@ -78,12 +80,12 @@ class HelpEntry(object):
     lock = locks.all_pass  # Help entries universally viewable by default.
 
     mud_text_transforms = (
-        (re.compile(r"\[(?P<title>.*?)\]\((?P<link>.*?)\)"), _mxp_topic_link),
-        (re.compile(r"\[\[(?P<link>.*?)\]\]"), _mxp_wiki_link),
         (re.compile(r"`(.*?)`"), r'{c\1{n'),
         (re.compile(r"^#+\s*(?P<text>.+)$", re.MULTILINE), r"{y\1"),
         (re.compile(r"(\*\*|__)(?P<text>.*?)\1"), _mxp_bold),
-        (re.compile(r"(\*|_)(?P<text>.*?)\1"), _mxp_italic)
+        (re.compile(r"(\*|_)(?P<text>.*?)\1"), _mxp_italic),
+        (re.compile(r"\[(?P<title>.*?)\]\((?P<link>.*?)\)"), _mxp_topic_link),
+        (re.compile(r"\[\[(?P<link>.*?)\]\]"), _mxp_wiki_link)
     )
 
     def __init__(self, filepath):
