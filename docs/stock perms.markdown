@@ -34,6 +34,7 @@ mudslingcore
 * inspect objects -- @show any object.
 * import areas -- Can import area files.
 * export areas -- Can export areas to JSON.
+* use mail -- Can use @mail commands.
 
 ## Object Lock types
 * control
