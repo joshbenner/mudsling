@@ -76,6 +76,25 @@ class CommandSet(object):
                 matches.append(cmdcls)
         return matches
 
+    def command_parser(self, raw_input, host, actor, game):
+        cmd_and_switches, _, argstr = raw_input.partition(' ')
+        cmdstr, _, switchstr = cmd_and_switches.partition('/')
+        name_matches = self.match(cmdstr, host, actor)
+        instances = [c(raw_input, cmdstr, argstr, game, host, actor)
+                     for c in name_matches]
+        syntax_matches = [c for c in instances if c.match_syntax(argstr)]
+        if len(syntax_matches) > 1:
+            raise mudsling.errors.AmbiguousMatch(msg="Ambiguous Command",
+                                                 query=raw_input,
+                                                 matches=syntax_matches)
+        elif not syntax_matches and name_matches:
+            m = '\n'.join(c.failed_command_match_help() for c in name_matches)
+            raise mudsling.errors.CommandError(msg=m)
+        elif not syntax_matches:
+            return None
+        else:
+            return syntax_matches[0]
+
 
 class Command(object):
     """
@@ -521,6 +540,42 @@ class Command(object):
             raise self._err("That makes no sense!")
         """
         return mudsling.errors.CommandInvalid(cmdline=self.raw, msg=msg)
+
+
+class SwitchCommandHost(Command):
+    """
+    A special type of command that has other sub-commands attached to it, which
+    are activated by the host command's switches.
+    """
+    default_switch = None
+    subcommands = ()
+
+    @classmethod
+    @mudsling.utils.object.memoize
+    def _command_set(cls):
+        """:rtype: CommandSet"""
+        return CommandSet(cls.subcommands)
+
+    def match_syntax(self, argstr):
+        # Assume syntax matches, and let subcommands actually parse.
+        return True
+
+    def execute(self):
+        # Don't do any parsing, since subcommands will handle that.
+        if self.prepare():
+            self.before_run()
+            self.run(self.obj, self.actor)
+            self.after_run()
+
+    def prepare(self):
+        super(SwitchCommandHost, self).prepare()
+        if not self.switchstr and self.default_switch is not None:
+            self.switchstr = self.default_switch
+
+    def run(self, obj, actor):
+        raw = ('%s %s' % (self.switchstr, self.argstr)).strip()
+        subcmd = self._command_set().command_parser(raw, obj, actor, self.game)
+        subcmd.execute()
 
 
 class IHasCommands(zope.interface.Interface):
