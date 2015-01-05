@@ -1,6 +1,8 @@
 import yoyo
 import yoyo.connections
 import sqlite3
+from twisted.enterprise import adbapi
+from twisted.internet.defer import inlineCallbacks, returnValue
 
 
 def migrate(db_uri, migrations_path):
@@ -32,13 +34,16 @@ class ExternalDatabase(object):
     """
 
     migrations_path = None
+    _dbtype = None
+    _pool = None
 
-    def __init__(self):
+    def __init__(self, *a, **kw):
         """
         Initialize the connection in child implementations.
         :return:
         """
         self.run_migrations(self.migrations_path)
+        self.connect(*a, **kw)
 
     @property
     def db_uri(self):
@@ -72,16 +77,23 @@ class ExternalDatabase(object):
         """
         pass
 
+    def connect(self, *a, **kw):
+        self._pool = adbapi.ConnectionPool(self._dbtype, *a, **kw)
+
+    @inlineCallbacks
+    def query(self, sql, *a, **kw):
+        result = yield self._pool.runQuery(sql, *a, **kw)
+        returnValue(result)
+
 
 class SQLiteDB(ExternalDatabase):
     """
     Encapsulate the connection to an SQLite database.
     """
 
-    def __init__(self, filepath):
+    def __init__(self, filepath, *a, **kw):
         self.filepath = filepath
-        self.connection = sqlite3.connect(filepath)
-        super(SQLiteDB, self).__init__()
+        super(SQLiteDB, self).__init__(*a, **kw)
 
     @property
     def db_uri(self):

@@ -4,6 +4,8 @@ Basic MUD @mail system.
 import re
 from collections import OrderedDict
 
+from twisted.internet.defer import inlineCallbacks, returnValue
+
 from mudsling.utils.db import SQLiteDB
 from mudsling.utils.time import parse_datetime, unixtime
 from mudsling.objects import BaseObject, NamedObject
@@ -24,6 +26,10 @@ class InvalidMessageSequence(MailError):
 
 
 class InvalidMessageSet(MailError):
+    pass
+
+
+class InvalidMessageFilter(MailError):
     pass
 
 
@@ -50,10 +56,12 @@ class MailDB(SQLiteDB):
         self.filter_re = re.compile(r'^(?:<filter>%s)(?::(?P<param>.*))?$'
                                     % ('|'.join(self.sequence_filters.keys())))
 
+    @inlineCallbacks
     def get_message(self, message_id):
+        # results = yield self.query("SELECT * FROM messages")
         pass
 
-    def _message_query(self, conditions, joins=(), order=None, limit=None):
+    def _message_query(self, txn, conditions, joins=(), order=None, limit=None):
         """
         Execute a query for messages using the provided conditions.
 
@@ -102,10 +110,10 @@ class MailDB(SQLiteDB):
                 query += ' LIMIT %d' % limit
             elif isinstance(limit, str):
                 query += ' LIMIT %s' % limit
-        c = self.connection.cursor()
-        c.execute(query, params)
-        return c
+        txn.execute(query, params)
+        return txn.fetchall()
 
+    @inlineCallbacks
     def message_query(self, conditions, joins=(), order=None, limit=None,
                       mailbox_id=None):
         """
@@ -133,9 +141,11 @@ class MailDB(SQLiteDB):
         :return: The messages.
         :rtype: dict of Message
         """
-        c = self._message_query(conditions, joins, order, limit)
+        rows = yield self._pool.runInteraction(
+            self._message_query, conditions, joins=joins, order=order,
+            limit=limit, mailbox_id=mailbox_id)
         messages = OrderedDict()
-        for row in c.fetchone():
+        for row in rows:
             if row['message_id'] in messages:
                 # This is an additional row for extra recipient.
                 messages[row['message_id']].add_recipient(
@@ -145,64 +155,67 @@ class MailDB(SQLiteDB):
                 message.add_recipient(row['recipient_id'],
                                       row['recipient_name'])
                 messages[message.message_id] = message
-        return messages
+        returnValue(messages)
 
-    def max_mailbox_index(self, recipient_id):
-        r = self.connection.execute("""
+    def max_mailbox_index(self, txn, recipient_id):
+        r = txn.execute("""
                 SELECT MAX(mailbox_index) max_index
                 FROM message_recipient
                 WHERE recipient_id = ?
             """, (recipient_id,))
         return r.fetchone()[0]
 
-    def min_mailbox_index(self, recipient_id):
-        r = self.connection.execute("""
+    def min_mailbox_index(self, txn, recipient_id):
+        r = txn.execute("""
                 SELECT MIN(mailbox_index) min_index
                 FROM message_recipient
                 WHERE recipient_id = ?
             """, (recipient_id,))
         return r.fetchone()[0]
 
-    def sequence_query_params(self, recipient_id, set, filter):
+    def sequence_query_params(self, txn, recipient_id, set, filter):
         """
         Get the query parameters for messages in a recipient's mailbox that
         match a specific message set and optional filter.
         """
         query = {
             'joins': [("""INNER JOIN message_recipient mailbox
-                          ON (mailbox.message_id = m.message_id)""")],
+                          ON (mailbox.message_id = m.message_id)""",)],
             'conditions': [('AND mailbox.recipient_id = ?', recipient_id)],
             'order': 'm.timestamp ASC',
             'limit': 15
         }
         if set[0] == 'explicit':
-            self._explicit_set(recipient_id, query, *set[1:])
+            self._explicit_set(txn, recipient_id, query, *set[1:])
         elif set[0] == 'named':
-            self.named_sets[set[1]](recipient_id, query)
+            self.named_sets[set[1]](txn, recipient_id, query)
+        if filter is not None:
+            self.sequence_filters[filter[0]](txn, recipient_id, query)
+        return query
 
-    def _explicit_set(self, recipient_id, query, start, end=None):
+    def _explicit_set(self, txn, recipient_id, query, start, end=None):
         start = int(start)
         if end is None:
             end = start
         elif end == '$':
-            end = self.max_mailbox_index(recipient_id) or 0
+            end = self.max_mailbox_index(txn, recipient_id) or 0
         else:
             end = int(end)
         query['conditions'].append(('mailbox.mailbox_index BETWEEN ? AND ?',
                                     start, end))
 
-    def _named_set_first(self, recipient_id, query):
-        index = self.min_mailbox_index(recipient_id)
+    def _named_set_first(self, txn, recipient_id, query):
+        index = self.min_mailbox_index(txn, recipient_id)
         query['conditions'].append(('AND mailbox.mailbox_index = ?', index))
 
-    def _named_set_last(self, recipient_id, query):
-        index = self.max_mailbox_index(recipient_id)
+    def _named_set_last(self, txn, recipient_id, query):
+        index = self.max_mailbox_index(txn, recipient_id)
         query['conditions'].append(('AND mailbox.mailbox_index = ?', index))
 
-    def _named_set_unread(self, recipient_id, query):
+    def _named_set_unread(self, txn, recipient_id, query):
         query['conditions'].append(('AND mailbox.read = 0',))
 
-    def _named_set_next(self, recipient_id, query):
+    def _named_set_next(self, txn, recipient_id, query):
         query['limit'] = 1
         query['conditoins'].append(('AND mailbox.read = 0',))
 
@@ -396,7 +409,7 @@ class MailBox(object):
         """
         if default is not None and not input.strip():
             input = default
-        m = self.set_re.match(input)
+        m = self.mail_db.set_re.match(input)
         if m:
             groups = m.groupdict()
             if groups['explicit'] is not None:
@@ -406,7 +419,13 @@ class MailBox(object):
         else:
             raise InvalidMessageSet("Invalid message range: %s" % input)
 
-    # def
+    def parse_filter(self, filterstr):
+        m = self.mail_db.filter_re.match(filterstr)
+        if m:
+            g = m.groupdict()
+            return g['filter'], g['param']
+        else:
+            raise InvalidMessageFilter('Invalid message filter: %s' % filterstr)
 
     def get_message(self, index):
         pass
