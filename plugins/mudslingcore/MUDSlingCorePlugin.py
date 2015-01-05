@@ -37,7 +37,8 @@ class MUDSlingCorePlugin(GamePlugin, areas.AreaProviderPlugin):
         globalvars.db = self.game.db
         # Load help files to form an in-memory database of the entries.
         help.help_db = help.load_help_files(self.game)
-        mail.mail_db = mail.MailDB(self.game.game_file_path('mail.sqlite'))
+        mail.mail_db = mail.MailDB(self.game.game_file_path('mail.sqlite'),
+                                   self.game)
 
     def plugins_loaded(self):
         if 'restserver' in self.game.plugins.plugins:

@@ -5,6 +5,7 @@ import re
 from collections import OrderedDict
 
 from mudsling.utils.db import SQLiteDB
+from mudsling.utils.time import parse_datetime, unixtime
 from mudsling.objects import BaseObject, NamedObject
 from mudsling.commands import Command, SwitchCommandHost
 from mudsling.storage import ObjRef
@@ -32,7 +33,15 @@ class MailDB(SQLiteDB):
     """
     migrations_path = mudslingcore.migrations_path('mail')
 
-    def __init__(self, filepath):
+    #: :type: mudsling.core.MUDSling
+    game = None
+
+    def __init__(self, filepath, game):
+        """
+        :type filepath: str
+        :type game: mudsling.core.MUDSling
+        """
+        self.game = game
         super(MailDB, self).__init__(filepath)
 
         self.set_re = re.compile(
@@ -146,6 +155,14 @@ class MailDB(SQLiteDB):
             """, (recipient_id,))
         return r.fetchone()[0]
 
+    def min_mailbox_index(self, recipient_id):
+        r = self.connection.execute("""
+                SELECT MIN(mailbox_index) min_index
+                FROM message_recipient
+                WHERE recipient_id = ?
+            """, (recipient_id,))
+        return r.fetchone()[0]
+
     def sequence_query_params(self, recipient_id, set, filter):
         """
         Get the query parameters for messages in a recipient's mailbox that
@@ -161,7 +178,7 @@ class MailDB(SQLiteDB):
         if set[0] == 'explicit':
             self._explicit_set(recipient_id, query, *set[1:])
         elif set[0] == 'named':
-            self.named_sets[set[1]](query)
+            self.named_sets[set[1]](recipient_id, query)
 
     def _explicit_set(self, recipient_id, query, start, end=None):
         start = int(start)
@@ -174,17 +191,18 @@ class MailDB(SQLiteDB):
         query['conditions'].append(('mailbox.mailbox_index BETWEEN ? AND ?',
                                     start, end))
 
-    def _named_set_first(self, query):
-        query['limit'] = 1
+    def _named_set_first(self, recipient_id, query):
+        index = self.min_mailbox_index(recipient_id)
+        query['conditions'].append(('AND mailbox.mailbox_index = ?', index))
 
-    def _named_set_last(self, query):
-        query['limit'] = 1
-        query['order'] = 'm.timestamp DESC'
+    def _named_set_last(self, recipient_id, query):
+        index = self.max_mailbox_index(recipient_id)
+        query['conditions'].append(('AND mailbox.mailbox_index = ?', index))
 
-    def _named_set_unread(self, query):
+    def _named_set_unread(self, recipient_id, query):
         query['conditions'].append(('AND mailbox.read = 0',))
 
-    def _named_set_next(self, query):
+    def _named_set_next(self, recipient_id, query):
         query['limit'] = 1
         query['conditoins'].append(('AND mailbox.read = 0',))
 
@@ -206,13 +224,79 @@ class MailDB(SQLiteDB):
             'until': self._filter_until,
             'from': self._filter_from,
             'to': self._filter_to,
-            '%from': self._filter_from_str,
-            '%to': self._filter_to_str,
+            '%from': self._filter_fromstr,
+            '%to': self._filter_tostr,
             'subject': self._filter_subject,
             'body': self._filter_body,
             'first': self._filter_first,
             'last': self._filter_last
         }
+
+    def _parse_filter_date(self, input):
+        return unixtime(parse_datetime(input))
+
+    def _filter_before(self, query, datestr):
+        ut = self._parse_filter_date(datestr)
+        query['conditions'].append(('AND m.timestamp < ?', ut))
+
+    def _filter_after(self, query, datestr):
+        ut = self._parse_filter_date(datestr)
+        query['conditions'].append(('AND m.timestamp > ?', ut))
+
+    def _filter_since(self, query, datestr):
+        ut = self._parse_filter_date(datestr)
+        query['conditions'].append(('AND m.timestamp >= ?', ut))
+
+    def _filter_until(self, query, datestr):
+        ut = self._parse_filter_date(datestr)
+        query['conditions'].append(('AND m.timestamp <= ?', ut))
+
+    def _parse_recipient(self, whostr):
+        matches = self.game.db.match_descendants(whostr, MailRecipient)
+        if len(matches) > 1:
+            raise errors.AmbiguousMatch('Ambiguous recipient: %s' % whostr)
+        elif not matches:
+            raise errors.FailedMatch('No such recipient: %s' % whostr)
+        return matches[0]
+
+    def _filter_from(self, query, whostr):
+        r = self._parse_recipient(whostr)
+        query['conditions'].append(('AND m.from_id = ?', r.obj_id))
+
+    def _filter_to(self, query, whostr):
+        r = self._parse_recipient(whostr)
+        query['conditions'].append(("""
+            AND m.message_id IN (SELECT message_id
+                                 FROM message_recipient mr_to
+                                 WHERE mr_to.recipient_id = ?)
+            """, r.obj_id))
+
+    def _filter_fromstr(self, query, whostr):
+        search = "%%%s%%" % whostr
+        query['conditions'].append(('AND m.from_name LIKE ?', search))
+
+    def _filter_tostr(self, query, whostr):
+        search = "%%%s%%" % whostr
+        query['conditions'].append(("""
+            AND m.message_id IN (SELECT message_id
+                                 FROM message_recipient mr_tostr
+                                 WHERE mr_tostr.recipient_name LIKE ?)
+            """, search))
+
+    def _filter_subject(self, query, text):
+        search = '%%%s%%' % text
+        query['conditions'].append(('AND m.subject LIKE ?', search))
+
+    def _filter_body(self, query, text):
+        search = '%%%s%%' % text
+        query['conditions'].append(('AND m.body LIKE ?', search))
+
+    def _filter_first(self, query, num):
+        query['limit'] = int(num)
+
+    def _filter_last(self, query, num):
+        query['limit'] = int(num)
+        query['order'] = 'm.timestamp DESC'
 
 
 # Initialized by MUDSlingCorePlugin.
