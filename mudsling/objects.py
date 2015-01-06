@@ -684,11 +684,11 @@ class BaseObject(PossessableObject):
         """
         try:
             cmd = self.find_command(raw)
+            if cmd is not None:
+                cmd.execute()
+                return True
         except errors.CommandError as e:
             self.msg(e.message)
-            return True
-        if cmd is not None:
-            cmd.execute()
             return True
         if err:
             raise errors.CommandInvalid(raw)
