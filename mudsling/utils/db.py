@@ -90,6 +90,7 @@ class SQLiteDB(ExternalDatabase):
     """
     Encapsulate the connection to an SQLite database.
     """
+    _dbtype = 'sqlite3'
 
     def __init__(self, filepath, *a, **kw):
         self.filepath = filepath

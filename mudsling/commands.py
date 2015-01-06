@@ -551,7 +551,7 @@ class SwitchCommandHost(Command):
     subcommands = ()
 
     @classmethod
-    @mudsling.utils.object.memoize
+    @mudsling.utils.object.memoize()
     def _command_set(cls):
         """:rtype: CommandSet"""
         return CommandSet(cls.subcommands)
@@ -567,15 +567,17 @@ class SwitchCommandHost(Command):
             self.run(self.obj, self.actor)
             self.after_run()
 
-    def prepare(self):
-        super(SwitchCommandHost, self).prepare()
+    def before_run(self):
         if not self.switchstr and self.default_switch is not None:
             self.switchstr = self.default_switch
 
     def run(self, obj, actor):
         raw = ('%s %s' % (self.switchstr, self.argstr)).strip()
         subcmd = self._command_set().command_parser(raw, obj, actor, self.game)
-        subcmd.execute()
+        if subcmd is not None:
+            subcmd.execute()
+        else:
+            raise mudsling.errors.CommandInvalid()
 
 
 class IHasCommands(zope.interface.Interface):

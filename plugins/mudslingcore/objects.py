@@ -19,6 +19,7 @@ from mudslingcore.senses import Sensation, Sight, Speech
 import mudslingcore.errors
 from mudslingcore.areas import AreaExportableBaseObject
 from mudslingcore.editor import EditorSessionHost
+from mudslingcore.mail import MailRecipient
 
 from mudslingcore import commands
 from mudslingcore import ui
@@ -266,7 +267,8 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser, EditorSessionHost,
         return None
 
 
-class Character(BaseCharacter, DescribableObject, SensingObject, HasGender):
+class Character(BaseCharacter, DescribableObject, SensingObject, HasGender,
+                MailRecipient):
     """Core character class."""
 
     # Do not export characters to area files.

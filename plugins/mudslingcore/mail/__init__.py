@@ -173,17 +173,40 @@ class MailDB(SQLiteDB):
             """, (recipient_id,))
         return r.fetchone()[0]
 
-    def sequence_query_params(self, txn, recipient_id, set, filter):
+    def parse_set(self, input, default='all'):
         """
-        Get the query parameters for messages in a recipient's mailbox that
-        match a specific message set and optional filter.
+        A message set specifies a group of messages, either by explicit index
+        numbers, or via a special named set.
         """
+        if default is not None and not input.strip():
+            input = default
+        m = self.set_re.match(input)
+        if m:
+            groups = m.groupdict()
+            if groups['explicit'] is not None:
+                return 'explicit', (groups['start'], groups['end'])
+            else:
+                return 'named', groups['name']
+        else:
+            raise InvalidMessageSet("Invalid message range: %s" % input)
+
+    def parse_filter(self, filterstr):
+        m = self.filter_re.match(filterstr)
+        if m:
+            g = m.groupdict()
+            return g['filter'], g['param']
+        else:
+            raise InvalidMessageFilter('Invalid message filter: %s'
+                                       % filterstr)
+
+    def _sequence_query_params(self, txn, recipient_id, set, filter):
         query = {
             'joins': [("""INNER JOIN message_recipient mailbox
                           ON (mailbox.message_id = m.message_id)""",)],
             'conditions': [('AND mailbox.recipient_id = ?', recipient_id)],
             'order': 'm.timestamp ASC',
-            'limit': 15
+            'limit': 15,
+            'mailbox_id': recipient_id
         }
         if set[0] == 'explicit':
             self._explicit_set(txn, recipient_id, query, *set[1:])
@@ -192,6 +215,16 @@ class MailDB(SQLiteDB):
         if filter is not None:
             self.sequence_filters[filter[0]](txn, recipient_id, query)
         return query
+
+    def sequence_query_params(self, recipient_id, set, filter):
+        """
+        Get the query parameters for messages in a recipient's mailbox that
+        match a specific message set and optional filter.
+
+        :rtype: twisted.internet.defer.Deferred
+        """
+        return self._pool.runInteraction(self._sequence_query_params,
+                                         recipient_id, set, filter)
 
     def _explicit_set(self, txn, recipient_id, query, start, end=None):
         start = int(start)
@@ -349,7 +382,7 @@ class Message(object):
         keys = row.keys()
         message = Message(**{k: row[k] for k in fields if k in keys})
         if (mailbox_id is not None and 'recipient_id' in keys
-                and row['recipient_id'] == mailbox_id):
+            and row['recipient_id'] == mailbox_id):
             for k in ('mailbox_index', 'read'):
                 if k in keys:
                     setattr(message, k, row[k])
@@ -394,38 +427,21 @@ class MailBox(object):
         m = self.sequence_re.match(input)
         if m:
             groups = m.groupdict()
-            set = self.parse_set(groups['set'])
-            filter = groups['filter'] if groups['filter'] is not None else None
-            filter = self.parse_filter(filter)
+            set = self.mail_db.parse_set(groups['set'])
+            filter = (self.mail_db.parse_filter(groups['filter'])
+                      if groups['filter'] is not None else None)
             return {'set': set, 'filter': filter}
         else:
             raise InvalidMessageSequence(
                 "Invalid message sequence: %s" % input)
 
-    def parse_set(self, input, default='all'):
-        """
-        A message set specifies a group of messages, either by explicit index
-        numbers, or via a special named set.
-        """
-        if default is not None and not input.strip():
-            input = default
-        m = self.mail_db.set_re.match(input)
-        if m:
-            groups = m.groupdict()
-            if groups['explicit'] is not None:
-                return 'explicit', (groups['start'], groups['end'])
-            else:
-                return 'named', groups['name']
-        else:
-            raise InvalidMessageSet("Invalid message range: %s" % input)
-
-    def parse_filter(self, filterstr):
-        m = self.mail_db.filter_re.match(filterstr)
-        if m:
-            g = m.groupdict()
-            return g['filter'], g['param']
-        else:
-            raise InvalidMessageFilter('Invalid message filter: %s' % filterstr)
+    @inlineCallbacks
+    def get_messages_from_sequence(self, seqstr):
+        sequence = self.parse_sequence(seqstr)
+        query_params = yield self.mail_db.sequence_query_params(
+            self.recipient_id, **sequence)
+        messages = yield self.mail_db.message_query(**query_params)
+        returnValue(messages)
 
     def get_message(self, index):
         pass
@@ -446,23 +462,43 @@ class MailSubCommand(Command):
 
     @property
     def mailbox(self):
+        """:rtype: MailBox"""
         return self.obj.mailbox
 
-    def _insert_mailbox_parsers(self):
+    def match_syntax(self, argstr):
         parsers = self.mailbox.parsers
+        for argname, parser in self.arg_parsers.iteritems():
+            if parser in parsers:
+                self.arg_parsers[argname] = parsers[parser]
+        return super(MailSubCommand, self).match_syntax(argstr)
 
 
 class MailListCmd(MailSubCommand):
     """
-    @mail[/list] [<range>]
+    @mail[/list] [<sequence>]
 
     List the specified range of messages, or the most recent 15 messages.
     """
     aliases = ('list',)
-    syntax = '[<range>]'
+    syntax = '[<seq>]'
+    arg_parsers = {'seq': 'sequence'}
+
+    @inlineCallbacks
+    def run(self, this, actor, seq):
+        """
+        :type this: MailRecipient
+        :type actor: MailRecipient
+        :type seq: dict
+        """
+        actor.tell(repr(seq))
 
 
-    # def run(self, ):
+class MailSendCmd(MailSubCommand):
+    """
+    @mail/send <recipients>[=<subject>]
+
+    Open mail editor.
+    """
 
 
 class MailCommand(SwitchCommandHost):
@@ -474,7 +510,7 @@ class MailCommand(SwitchCommandHost):
     aliases = ('@mail',)
     lock = use_mail
     default_switch = 'list'
-    subcommands = ()
+    subcommands = (MailListCmd,)
 
 
 class MailRecipient(BaseObject):
@@ -483,6 +519,7 @@ class MailRecipient(BaseObject):
     """
     _transient_vars = ('_mailbox',)
     _mailbox = None
+    private_commands = (MailCommand,)
 
     @property
     def mailbox(self):
