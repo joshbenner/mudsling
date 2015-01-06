@@ -573,6 +573,10 @@ class EditorSession(PersistentSlots):
         """
         raise NotImplementedError()
 
+    @property
+    def text(self):
+        return '\n'.join(self.lines)
+
     @classmethod
     @obj_utils.memoize()
     def all_commands(cls):

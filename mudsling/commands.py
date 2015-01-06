@@ -88,7 +88,7 @@ class CommandSet(object):
                                                  query=raw_input,
                                                  matches=syntax_matches)
         elif not syntax_matches and name_matches:
-            m = '\n'.join(c.failed_command_match_help() for c in name_matches)
+            m = '\n'.join(c.failed_command_match_help() for c in instances)
             raise mudsling.errors.CommandError(msg=m)
         elif not syntax_matches:
             return None

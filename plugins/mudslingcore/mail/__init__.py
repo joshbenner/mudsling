@@ -9,9 +9,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from mudsling.utils.db import SQLiteDB
 from mudsling.utils.time import parse_datetime, unixtime
 from mudsling.objects import BaseObject, NamedObject
-from mudsling.commands import Command, SwitchCommandHost
 from mudsling.storage import ObjRef
-import mudsling.locks as locks
 import mudsling.errors as errors
 
 import mudslingcore
@@ -344,6 +342,54 @@ class MailDB(SQLiteDB):
         query['limit'] = int(num)
         query['order'] = 'm.timestamp DESC'
 
+    @inlineCallbacks
+    def save_message(self, message):
+        """
+        Save a message to the database.
+
+        :param message: The message to save.
+        :type message: Message
+
+        :rtype: twisted.internet.defer.Deferred
+        """
+        def _insert_message(txn, message):
+            sql = """
+                INSERT INTO messages (
+                    timestamp, from_id, from_name, subject, body)
+                VALUES (:timestamp, :from_id, :from_name, :subject, :body)
+            """
+            txn.execute(sql, {
+                'timestamp': message.timestamp,
+                'from_id': message.from_id,
+                'from_name': message.from_name,
+                'subject': message.subject,
+                'body': message.body
+            })
+            return txn.lastrowid
+
+        def _insert_recipients(txn, message):
+            index_sql = """
+                SELECT IFNULL(MAX(mailbox_index), 0) + 1
+                FROM message_recipient mr
+                WHERE mr.recipient_id = :recipient_id"""
+            sql = """
+                INSERT INTO message_recipient (
+                    message_id, recipient_id, recipient_name, mailbox_index
+                ) VALUES (
+                    :message_id, :recipient_id, :recipient_name, (%s)
+                )
+            """ % index_sql
+            params = ({'message_id': message.message_id,
+                       'recipient_id': k,
+                       'recipient_name': v}
+                      for k, v in message.recipients.iteritems())
+            txn.executemany(sql, params)
+
+        message.message_id = yield self._pool.runInteraction(_insert_message,
+                                                             message)
+        yield self._pool.runInteraction(_insert_recipients, message)
+        returnValue(message)
+
 
 # Initialized by MUDSlingCorePlugin.
 mail_db = None
@@ -365,7 +411,7 @@ class Message(object):
         self.from_name = from_name
         self.subject = subject
         self.body = body
-        self.recipients = OrderedDict if recipients is None else recipients
+        self.recipients = OrderedDict() if recipients is None else recipients
 
     @staticmethod
     def from_row(row, mailbox_id=None):
@@ -382,7 +428,7 @@ class Message(object):
         keys = row.keys()
         message = Message(**{k: row[k] for k in fields if k in keys})
         if (mailbox_id is not None and 'recipient_id' in keys
-            and row['recipient_id'] == mailbox_id):
+                and row['recipient_id'] == mailbox_id):
             for k in ('mailbox_index', 'read'):
                 if k in keys:
                     setattr(message, k, row[k])
@@ -446,80 +492,49 @@ class MailBox(object):
     def get_message(self, index):
         pass
 
-
-use_mail = locks.Lock('has_perm(use mail)')
-
-
-class MailSubCommand(Command):
-    """
-    Generic mail subcommand.
-    """
-    abstract = True
-    lock = use_mail
-
-    #: :type: MailRecipient
-    obj = None
-
-    @property
-    def mailbox(self):
-        """:rtype: MailBox"""
-        return self.obj.mailbox
-
-    def match_syntax(self, argstr):
-        parsers = self.mailbox.parsers
-        for argname, parser in self.arg_parsers.iteritems():
-            if parser in parsers:
-                self.arg_parsers[argname] = parsers[parser]
-        return super(MailSubCommand, self).match_syntax(argstr)
-
-
-class MailListCmd(MailSubCommand):
-    """
-    @mail[/list] [<sequence>]
-
-    List the specified range of messages, or the most recent 15 messages.
-    """
-    aliases = ('list',)
-    syntax = '[<seq>]'
-    arg_parsers = {'seq': 'sequence'}
-
-    @inlineCallbacks
-    def run(self, this, actor, seq):
+    def send_message(self, from_name, recipients, subject, body):
         """
-        :type this: MailRecipient
-        :type actor: MailRecipient
-        :type seq: dict
+        Create a Message object from the mailbox owner and save it.
+
+        :param from_name: The name to use for the sender.
+        :type from_name: str
+
+        :param recipients: Who is to receive the message. Keys are recipient id
+            numbers and values are strings identifying them (or None to allow
+            Message object to obtain name itself).
+        :type recipients: dict of (int, str)
+
+        :param subject: The subject of the message.
+        :type subject: str
+
+        :param body: The body of the message.
+        :type body: str
+
+        :rtype: twisted.internet.defer.Deferred
         """
-        actor.tell(repr(seq))
-
-
-class MailSendCmd(MailSubCommand):
-    """
-    @mail/send <recipients>[=<subject>]
-
-    Open mail editor.
-    """
-
-
-class MailCommand(SwitchCommandHost):
-    """
-    @mail[/<subcommand>] [<subcommand parameters>]
-
-    Issue a mail command.
-    """
-    aliases = ('@mail',)
-    lock = use_mail
-    default_switch = 'list'
-    subcommands = (MailListCmd,)
+        message = Message(
+            timestamp=unixtime(),
+            from_id=self.recipient_id,
+            from_name=from_name,
+            subject=subject,
+            body=body
+        )
+        for recipient_id, recipient_name in recipients.iteritems():
+            message.add_recipient(recipient_id, recipient_name)
+        return self.mail_db.save_message(message)
 
 
 class MailRecipient(BaseObject):
     """
     An object which can receive mail, and has commands for managing a mailbox.
+    Basically a thin interface layer on top of MailBox.
     """
     _transient_vars = ('_mailbox',)
     _mailbox = None
-    private_commands = (MailCommand,)
+
+    from . import commands as mail_commands
+    private_commands = (mail_commands.MailCommand,)
+    del mail_commands
 
     @property
     def mailbox(self):
@@ -527,3 +542,23 @@ class MailRecipient(BaseObject):
         if self._mailbox is None:
             self._mailbox = MailBox(self.obj_id, mail_db)
         return self._mailbox
+
+    def send_message(self, recipients, subject, body):
+        """
+        Send a message from this recipient.
+
+        :param recipients: The recipients who will receive the message.
+        :type recipients: list of MailRecipient
+
+        :param subject: The subject of the message.
+        :type subject: str
+
+        :param body: The body of the message.
+        :type body: str
+
+        :return: A Deferred instance for the sending of the message.
+        :rtype: twisted.internet.defer.Deferred
+        """
+        # Use None for names and Message class handles names itself.
+        ids_names = {r.obj_id: None for r in recipients}
+        return self.mailbox.send_message(self.name, ids_names, subject, body)

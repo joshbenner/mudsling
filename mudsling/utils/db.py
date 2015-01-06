@@ -94,8 +94,12 @@ class SQLiteDB(ExternalDatabase):
 
     def __init__(self, filepath, *a, **kw):
         self.filepath = filepath
-        super(SQLiteDB, self).__init__(*a, **kw)
+        super(SQLiteDB, self).__init__(filepath, *a, **kw)
 
     @property
     def db_uri(self):
         return 'sqlite:///%s' % self.filepath
+
+    def connect(self, *a, **kw):
+        kw['check_same_thread'] = False
+        return super(SQLiteDB, self).connect(*a, **kw)
