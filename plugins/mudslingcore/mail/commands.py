@@ -3,6 +3,7 @@ from twisted.internet.defer import inlineCallbacks
 from mudsling.commands import Command, SwitchCommandHost
 from mudsling import locks
 from mudsling import parsers
+from mudsling.utils.time import format_timestamp
 
 from mudslingcore.editor import EditorError
 from mudslingcore.mail.editor import MailEditorSession
@@ -36,6 +37,9 @@ class MailSubCommand(Command):
     #: :type: MailRecipient
     obj = None
 
+    #: :type: MailRecipient
+    actor = None
+
     @property
     def mailbox(self):
         """:rtype: MailBox"""
@@ -47,6 +51,30 @@ class MailSubCommand(Command):
             if parser in parsers:
                 self.arg_parsers[argname] = parsers[parser]
         return super(MailSubCommand, self).match_syntax(argstr)
+
+    def execute(self):
+        from mudslingcore.mail import MailError
+        try:
+            return super(MailSubCommand, self).execute()
+        except MailError as e:
+            raise self._err('{r' + e.message)
+
+    def list_messages(self, messages, footer=''):
+        ui = self.actor.get_ui()
+        c = ui.Column
+        t = ui.Table([
+            c('ID', align='r', data_key='mailbox_index'),
+            c('Date', align='l', data_key='timestamp',
+              cell_formatter=format_timestamp, formatter_args=('short',)),
+            c('From', align='l', data_key='from_name'),
+            c('Subject', align='l', data_key='subject')
+        ])
+        if messages:
+            t.add_rows(*messages.itervalues())
+        else:
+            t.add_row('(no messages found matching query)')
+        self.actor.msg(ui.report('@mail: %d Messages' % len(messages), t,
+                                 footer))
 
 
 class MailListCmd(MailSubCommand):
@@ -65,7 +93,15 @@ class MailListCmd(MailSubCommand):
         :type actor: MailRecipient
         :type seq: dict
         """
-        actor.tell(repr(seq))
+        from mudslingcore.mail import MailError
+        f = 'Sequence: %s' % self.args['seq'] if seq is not None else ''
+        if not seq:
+            seq = '1-$ last:15'
+        try:
+            d = self.mailbox.get_messages_from_sequence(seq)
+        except MailError as e:
+            raise self._err(e.message)
+        d.addCallback(self.list_messages, f)
 
 
 class MailSendCmd(MailSubCommand):

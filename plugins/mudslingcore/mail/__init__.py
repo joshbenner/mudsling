@@ -13,6 +13,7 @@ from mudsling.storage import ObjRef
 import mudsling.errors as errors
 
 import mudslingcore
+from mudslingcore.ui import UsesUI
 
 
 class MailError(errors.Error):
@@ -142,7 +143,7 @@ class MailDB(SQLiteDB):
         """
         rows = yield self._pool.runInteraction(
             self._message_query, conditions, joins=joins, order=order,
-            limit=limit, mailbox_id=mailbox_id)
+            limit=limit)
         messages = OrderedDict()
         for row in rows:
             if row['message_id'] in messages:
@@ -183,7 +184,7 @@ class MailDB(SQLiteDB):
         if m:
             groups = m.groupdict()
             if groups['explicit'] is not None:
-                return 'explicit', (groups['start'], groups['end'])
+                return 'explicit', groups['start'], groups['end']
             else:
                 return 'named', groups['name']
         else:
@@ -198,7 +199,7 @@ class MailDB(SQLiteDB):
             raise InvalidMessageFilter('Invalid message filter: %s'
                                        % filterstr)
 
-    def _sequence_query_params(self, txn, recipient_id, set, filter):
+    def sequence_query_params(self, recipient_id, set, filter):
         query = {
             'joins': [("""INNER JOIN message_recipient mailbox
                           ON (mailbox.message_id = m.message_id)""",)],
@@ -208,50 +209,48 @@ class MailDB(SQLiteDB):
             'mailbox_id': recipient_id
         }
         if set[0] == 'explicit':
-            self._explicit_set(txn, recipient_id, query, *set[1:])
+            self._explicit_set(query, *set[1:])
         elif set[0] == 'named':
-            self.named_sets[set[1]](txn, recipient_id, query)
+            self.named_sets[set[1]](recipient_id, query)
         if filter is not None:
-            self.sequence_filters[filter[0]](txn, recipient_id, query)
+            self.sequence_filters[filter[0]](query, *filter[1:])
         return query
 
-    def sequence_query_params(self, recipient_id, set, filter):
-        """
-        Get the query parameters for messages in a recipient's mailbox that
-        match a specific message set and optional filter.
-
-        :rtype: twisted.internet.defer.Deferred
-        """
-        return self._pool.runInteraction(self._sequence_query_params,
-                                         recipient_id, set, filter)
-
-    def _explicit_set(self, txn, recipient_id, query, start, end=None):
+    def _explicit_set(self, query, start, end=None):
         start = int(start)
         if end is None:
             end = start
         elif end == '$':
-            end = self.max_mailbox_index(txn, recipient_id) or 0
+            end = 9223372036854775807
         else:
             end = int(end)
-        query['conditions'].append(('mailbox.mailbox_index BETWEEN ? AND ?',
-                                    start, end))
+        query['conditions'].append(
+            ('AND mailbox.mailbox_index BETWEEN ? AND ?', start, end))
 
-    def _named_set_first(self, txn, recipient_id, query):
-        index = self.min_mailbox_index(txn, recipient_id)
-        query['conditions'].append(('AND mailbox.mailbox_index = ?', index))
+    def _named_set_first(self, recipient_id, query):
+        query['conditions'].append(("""
+            AND mailbox.mailbox_index = (
+                SELECT MIN(mailbox_index)
+                FROM message_recipient
+                WHERE recipient_id = ?)
+        """, recipient_id))
 
-    def _named_set_last(self, txn, recipient_id, query):
-        index = self.max_mailbox_index(txn, recipient_id)
-        query['conditions'].append(('AND mailbox.mailbox_index = ?', index))
+    def _named_set_last(self, recipient_id, query):
+        query['conditions'].append(("""
+            AND mailbox.mailbox_index = (
+                SELECT MAX(mailbox_index)
+                FROM message_recipient
+                WHERE recipient_id = ?)
+        """, recipient_id))
 
-    def _named_set_unread(self, txn, recipient_id, query):
+    def _named_set_unread(self, recipient_id, query):
         query['conditions'].append(('AND mailbox.read = 0',))
 
-    def _named_set_next(self, txn, recipient_id, query):
+    def _named_set_next(self, recipient_id, query):
         query['limit'] = 1
         query['conditions'].append(('AND mailbox.read = 0',))
 
-    def _named_set_all(self, txn, recipient_id, query):
+    def _named_set_all(self, recipient_id, query):
         pass
 
     @property
@@ -496,10 +495,15 @@ class MailBox(object):
                 "Invalid message sequence: %s" % input)
 
     @inlineCallbacks
-    def get_messages_from_sequence(self, seqstr):
-        sequence = self.parse_sequence(seqstr)
-        query_params = yield self.mail_db.sequence_query_params(
-            self.recipient_id, **sequence)
+    def get_messages_from_sequence(self, seq):
+        if isinstance(seq, str):
+            sequence = self.parse_sequence(seq)
+        elif seq is None:
+            sequence = self.parse_sequence('')
+        else:
+            sequence = seq
+        query_params = self.mail_db.sequence_query_params(self.recipient_id,
+                                                          **sequence)
         messages = yield self.mail_db.message_query(**query_params)
         returnValue(messages)
 
@@ -538,7 +542,7 @@ class MailBox(object):
         return self.mail_db.save_message(message)
 
 
-class MailRecipient(BaseObject):
+class MailRecipient(BaseObject, UsesUI):
     """
     An object which can receive mail, and has commands for managing a mailbox.
     Basically a thin interface layer on top of MailBox.

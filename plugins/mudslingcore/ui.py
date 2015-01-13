@@ -304,6 +304,7 @@ class UsesUI(PersistentSlots):
     ui_cache = {}
 
     def get_ui(self, default=ClassicUI):
+        """:rtype: BaseUI"""
         cls = default
         if getattr(self, 'force_ui', None) is not None:
             cls = self.force_ui
