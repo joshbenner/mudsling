@@ -59,7 +59,6 @@ class MailListCmd(MailSubCommand):
     syntax = '[<seq>]'
     arg_parsers = {'seq': 'sequence'}
 
-    @inlineCallbacks
     def run(self, this, actor, seq):
         """
         :type this: MailRecipient

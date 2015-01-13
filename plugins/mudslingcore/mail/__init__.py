@@ -51,7 +51,7 @@ class MailDB(SQLiteDB):
         self.set_re = re.compile(
             r'(?P<explicit>(?:(?P<start>\d+)(?:(?:\.\.|-)(?P<end>\d+|\$))?))'
             r'|(?P<name>%s)' % ('|'.join(self.named_sets.keys())))
-        self.filter_re = re.compile(r'^(?:<filter>%s)(?::(?P<param>.*))?$'
+        self.filter_re = re.compile(r'(?P<filter>%s)(?::(?P<param>.*))?'
                                     % ('|'.join(self.sequence_filters.keys())))
 
     @inlineCallbacks
@@ -59,7 +59,8 @@ class MailDB(SQLiteDB):
         # results = yield self.query("SELECT * FROM messages")
         pass
 
-    def _message_query(self, txn, conditions, joins=(), order=None, limit=None):
+    def _message_query(self, txn, conditions, joins=(), order=None,
+                       limit=None):
         """
         Execute a query for messages using the provided conditions.
 
@@ -176,7 +177,7 @@ class MailDB(SQLiteDB):
         A message set specifies a group of messages, either by explicit index
         numbers, or via a special named set.
         """
-        if default is not None and not input.strip():
+        if default is not None and (input is None or not input.strip()):
             input = default
         m = self.set_re.match(input)
         if m:
@@ -186,7 +187,7 @@ class MailDB(SQLiteDB):
             else:
                 return 'named', groups['name']
         else:
-            raise InvalidMessageSet("Invalid message range: %s" % input)
+            raise InvalidMessageSet("Invalid message set: %s" % input)
 
     def parse_filter(self, filterstr):
         m = self.filter_re.match(filterstr)
@@ -248,7 +249,10 @@ class MailDB(SQLiteDB):
 
     def _named_set_next(self, txn, recipient_id, query):
         query['limit'] = 1
-        query['conditoins'].append(('AND mailbox.read = 0',))
+        query['conditions'].append(('AND mailbox.read = 0',))
+
+    def _named_set_all(self, txn, recipient_id, query):
+        pass
 
     @property
     def named_sets(self):
@@ -256,7 +260,8 @@ class MailDB(SQLiteDB):
             'first': self._named_set_first,
             'last': self._named_set_last,
             'unread': self._named_set_unread,
-            'next': self._named_set_next
+            'next': self._named_set_next,
+            'all': self._named_set_all
         }
 
     @property
@@ -445,6 +450,11 @@ class MailBox(object):
     """
     Transient object representing an mailbox, backed by a MailDB instance.
     """
+    _named_group_re = re.compile('\(\?P<.*?>')
+
+    @classmethod
+    def _unname_groups(cls, pattern):
+        return cls._named_group_re.sub('(?:', pattern)
 
     def __init__(self, recipient_id, mail_db):
         """
@@ -456,14 +466,18 @@ class MailBox(object):
         """
         self.recipient_id = recipient_id
         self.mail_db = mail_db
+        # Use the mail_db's parsers to generate a sequence parser.
+        seq_pat = '^(?P<set>{set_pat})? *(?P<filter>{filter_pat})?$'.format(
+            set_pat=self._unname_groups(mail_db.set_re.pattern),
+            filter_pat=self._unname_groups(mail_db.filter_re.pattern)
+        )
+        self.sequence_re = re.compile(seq_pat)
 
     @property
     def parsers(self):
         return {
             'sequence': self.parse_sequence
         }
-
-    sequence_re = re.compile(r'^(?P<set>[^ ]*)(?: +(?P<filter>.*))?$')
 
     def parse_sequence(self, input):
         """
