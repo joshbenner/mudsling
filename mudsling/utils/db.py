@@ -102,4 +102,9 @@ class SQLiteDB(ExternalDatabase):
 
     def connect(self, *a, **kw):
         kw['check_same_thread'] = False
+        kw['cp_openfun'] = self._set_row_factory
         return super(SQLiteDB, self).connect(*a, **kw)
+
+    @staticmethod
+    def _set_row_factory(conn):
+        conn.row_factory = sqlite3.Row
