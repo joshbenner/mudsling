@@ -25,3 +25,6 @@ class Role(object):
 
     def has_perm(self, perm):
         return perm in self.perms
+
+    def reset_perms(self, perms=()):
+        self.perms = set(perms)
