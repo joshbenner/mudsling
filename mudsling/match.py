@@ -50,6 +50,8 @@ def match_stringlists(search, stringlists, exact=False, err=False,
     for key, names in stringlists.iteritems():
         if len(names) == 0:
             continue
+        if isinstance(names, basestring):
+            names = [names]
         # Lowercase everything if this is case-insensitive
         if not case_sensitive:
             names = [s.lower() for s in names]
@@ -98,8 +100,7 @@ def match_objlist(search, objlist, varname="names", exact=False, err=False):
 
     :rtype: list
     """
-    strings = dict(zip(objlist, map(lambda v: v() if callable(v) else v,
-                                    [getattr(o, varname) for o in objlist])))
+    strings = {o: getattr(o, varname) for o in objlist}
     return match_stringlists(search, strings, exact=exact, err=err)
 
 
