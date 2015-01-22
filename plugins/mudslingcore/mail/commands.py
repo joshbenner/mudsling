@@ -1,9 +1,8 @@
-from twisted.internet.defer import inlineCallbacks
-
 from mudsling.commands import Command, SwitchCommandHost
 from mudsling import locks
 from mudsling import parsers
 from mudsling.utils.time import format_timestamp
+from mudsling.utils.string import plural_noun
 
 from mudslingcore.editor import EditorError
 from mudslingcore.mail.editor import MailEditorSession
@@ -59,7 +58,7 @@ class MailSubCommand(Command):
         except MailError as e:
             raise self._err('{r' + e.message)
 
-    def list_messages(self, messages, footer=''):
+    def list_messages(self, messages, title=None, footer=''):
         ui = self.actor.get_ui()
         c = ui.Column
         t = ui.Table([
@@ -70,11 +69,13 @@ class MailSubCommand(Command):
             c('Subject', align='l', data_key='subject')
         ])
         if messages:
-            t.add_rows(*messages.itervalues())
+            t.add_rows(*sorted(messages.itervalues(),
+                               key=lambda m: m.mailbox_index))
         else:
             t.add_row('(no messages found matching query)')
-        self.actor.msg(ui.report('@mail: %d Messages' % len(messages), t,
-                                 footer))
+        if title is None:
+            title = '@mail: %d messages' % len(messages)
+        self.actor.msg(ui.report(title, t, footer))
 
 
 class MailListCmd(MailSubCommand):
@@ -101,7 +102,15 @@ class MailListCmd(MailSubCommand):
             d = self.mailbox.get_messages_from_sequence(seq)
         except MailError as e:
             raise self._err(e.message)
-        d.addCallback(self.list_messages, f)
+        d.addCallback(self._show_messages,
+                      self.args['seq'] if seq is not None else None)
+
+    def _show_messages(self, messages, seqstr):
+        n = len(messages)
+        title = '@mail: %d %s' % (n, plural_noun('message', n))
+        if seqstr is not None:
+            title += ' (%s)' % seqstr
+        self.list_messages(messages, title=title)
 
 
 class MailSendCmd(MailSubCommand):
