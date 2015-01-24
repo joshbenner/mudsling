@@ -32,6 +32,7 @@ class InvalidMessageFilter(MailError):
     pass
 
 
+# noinspection PyUnusedLocal
 class MailDB(SQLiteDB):
     """
     Wrapper around the mail SQLite database.
@@ -213,7 +214,7 @@ class MailDB(SQLiteDB):
         elif set[0] == 'named':
             self.named_sets[set[1]](recipient_id, query)
         if filter is not None:
-            self.sequence_filters[filter[0]](query, *filter[1:])
+            self.sequence_filters[filter[0]](recipient_id, query, *filter[1:])
         return query
 
     def _explicit_set(self, query, start, end=None):
@@ -283,47 +284,50 @@ class MailDB(SQLiteDB):
     def _parse_filter_date(self, input):
         return unixtime(parse_datetime(input))
 
-    def _filter_before(self, query, datestr):
+    def _filter_before(self, recipient_id, query, datestr):
         ut = self._parse_filter_date(datestr)
         query['conditions'].append(('AND m.timestamp < ?', ut))
 
-    def _filter_after(self, query, datestr):
+    def _filter_after(self, recipient_id, query, datestr):
         ut = self._parse_filter_date(datestr)
         query['conditions'].append(('AND m.timestamp > ?', ut))
 
-    def _filter_since(self, query, datestr):
+    def _filter_since(self, recipient_id, query, datestr):
         ut = self._parse_filter_date(datestr)
         query['conditions'].append(('AND m.timestamp >= ?', ut))
 
-    def _filter_until(self, query, datestr):
+    def _filter_until(self, recipient_id, query, datestr):
         ut = self._parse_filter_date(datestr)
         query['conditions'].append(('AND m.timestamp <= ?', ut))
 
-    def _parse_recipient(self, whostr):
-        matches = self.game.db.match_descendants(whostr, MailRecipient)
+    def _parse_recipient(self, recipient_id, whostr):
+        if whostr == 'me':
+            matches = (ObjRef(recipient_id),)
+        else:
+            matches = self.game.db.match_descendants(whostr, MailRecipient)
         if len(matches) > 1:
             raise errors.AmbiguousMatch('Ambiguous recipient: %s' % whostr)
         elif not matches:
             raise errors.FailedMatch('No such recipient: %s' % whostr)
         return matches[0]
 
-    def _filter_from(self, query, whostr):
-        r = self._parse_recipient(whostr)
+    def _filter_from(self, recipient_id, query, whostr):
+        r = self._parse_recipient(recipient_id, whostr)
         query['conditions'].append(('AND m.from_id = ?', r.obj_id))
 
-    def _filter_to(self, query, whostr):
-        r = self._parse_recipient(whostr)
+    def _filter_to(self, recipient_id, query, whostr):
+        r = self._parse_recipient(recipient_id, whostr)
         query['conditions'].append(("""
             AND m.message_id IN (SELECT message_id
                                  FROM message_recipient mr_to
                                  WHERE mr_to.recipient_id = ?)
             """, r.obj_id))
 
-    def _filter_fromstr(self, query, whostr):
+    def _filter_fromstr(self, recipient_id, query, whostr):
         search = "%%%s%%" % whostr
         query['conditions'].append(('AND m.from_name LIKE ?', search))
 
-    def _filter_tostr(self, query, whostr):
+    def _filter_tostr(self, recipient_id, query, whostr):
         search = "%%%s%%" % whostr
         query['conditions'].append(("""
             AND m.message_id IN (SELECT message_id
@@ -331,18 +335,18 @@ class MailDB(SQLiteDB):
                                  WHERE mr_tostr.recipient_name LIKE ?)
             """, search))
 
-    def _filter_subject(self, query, text):
+    def _filter_subject(self, recipient_id, query, text):
         search = '%%%s%%' % text
         query['conditions'].append(('AND m.subject LIKE ?', search))
 
-    def _filter_body(self, query, text):
+    def _filter_body(self, recipient_id, query, text):
         search = '%%%s%%' % text
         query['conditions'].append(('AND m.body LIKE ?', search))
 
-    def _filter_first(self, query, num):
+    def _filter_first(self, recipient_id, query, num):
         query['limit'] = int(num)
 
-    def _filter_last(self, query, num):
+    def _filter_last(self, recipient_id, query, num):
         query['limit'] = int(num)
         query['order'] = 'm.timestamp DESC'
 

@@ -1,6 +1,7 @@
 from mudsling.commands import Command, SwitchCommandHost
 from mudsling import locks
 from mudsling import parsers
+from mudsling import errors
 from mudsling.utils.time import format_timestamp
 from mudsling.utils.string import plural_noun
 
@@ -104,6 +105,7 @@ class MailListCmd(MailSubCommand):
             raise self._err(e.message)
         d.addCallback(self._show_messages,
                       self.args['seq'] if seq is not None else None)
+        d.addErrback(self._show_error)
 
     def _show_messages(self, messages, seqstr):
         n = len(messages)
@@ -111,6 +113,11 @@ class MailListCmd(MailSubCommand):
         if seqstr is not None:
             title += ' (%s)' % seqstr
         self.list_messages(messages, title=title)
+
+    def _show_error(self, err):
+        err.trap(errors.MatchError)
+        if err.check(errors.MatchError):
+            self.actor.tell(err.getErrorMessage().strip("'"))
 
 
 class MailSendCmd(MailSubCommand):
