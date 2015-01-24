@@ -79,6 +79,13 @@ class MailDB(SQLiteDB):
         row = txn.fetchone()
         return row['body']
 
+    def mark_message_read(self, message_id, recipient_id, read=True):
+        """:rtype: twisted.internet.defer.Deferred"""
+        val = 1 if read else 0
+        sql = '''UPDATE message_recipient SET read = ?
+                 WHERE message_id = ? AND recipient_id = ?'''
+        return self._pool.runQuery(sql, (val, message_id, recipient_id))
+
     def _message_query(self, txn, conditions, joins=(), order=None,
                        limit=None):
         """
@@ -473,6 +480,10 @@ class Message(object):
         self.body = str(body)
         returnValue(self)
 
+    def mark_read(self, recipient_id, read=True):
+        """:rtype: twisted.internet.defer.Deferred"""
+        return mail_db.mark_message_read(self.message_id, recipient_id, read)
+
 
 class MailBox(object):
     """
@@ -552,6 +563,22 @@ class MailBox(object):
         else:
             raise InvalidMessageIndex('Invalid message number: %s' % index)
 
+    @inlineCallbacks
+    def get_next_unread_message(self):
+        """:rtype: twisted.internet.defer.Deferred"""
+        conditions = (('''AND m.message_id IN (SELECT message_id
+                                               FROM message_recipient mr2
+                                               WHERE mr2.recipient_id = ? AND
+                                                     mr2.read = 0
+                                               LIMIT 1)''',
+                       self.recipient_id),)
+        results = yield self.mail_db.message_query(
+            conditions, mailbox_id=self.recipient_id)
+        if len(results):
+            returnValue(results.itervalues().next())
+        else:
+            returnValue(None)
+
     def send_message(self, from_name, recipients, subject, body):
         """
         Create a Message object from the mailbox owner and save it.
@@ -626,3 +653,7 @@ class MailRecipient(BaseObject, UsesUI):
     def get_mail_message(self, message_index):
         """:rtype: twisted.internet.defer.Deferred"""
         return self.mailbox.get_message(message_index)
+
+    def get_next_unread_message(self):
+        """:rtype: twisted.internet.defer.Deferred"""
+        return self.mailbox.get_next_unread_message()

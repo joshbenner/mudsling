@@ -70,9 +70,10 @@ class MailSubCommand(Command):
     def list_messages(self, messages, title=None, footer=''):
         ui = self.actor.get_ui()
         name = lambda m, na, ia: self._whostr(getattr(m, na), getattr(m, ia))
+        mid = lambda m: str(m.mailbox_index) + (' ' if m.read else '{y*{n')
         c = ui.Column
         t = ui.Table([
-            c('ID', align='r', data_key='mailbox_index'),
+            c('ID', align='r', cell_formatter=mid),
             c('Date', align='l', data_key='timestamp',
               cell_formatter=format_timestamp, formatter_args=('short',)),
             c('From', align='l', cell_formatter=name,
@@ -100,6 +101,39 @@ class MailSubCommand(Command):
         if self.see_obj_nums:
             out += ' (#%d)' % id
         return str(out)
+
+    @inlineCallbacks
+    def _load_body(self, message):
+        yield message.load_body()
+        returnValue(message)
+
+    def _show_message(self, message):
+        """
+        :type message: mudslingcore.mail.Message
+        """
+        ui = self.actor.get_ui()
+        tostr = '; '.join(self._whostr(rname, rid)
+                          for rid, rname in message.recipients.iteritems())
+        #: :type: list of (str, str)
+        headers = [
+            ('Date', format_timestamp(message.timestamp, 'long')),
+            ('From', self._whostr(message.from_name, message.from_id)),
+            ('To', tostr),
+            ('Subject', message.subject)
+        ]
+        t = ui.keyval_table(headers)
+        body = '%s\n\n%s' % (t, message.body)
+        title = 'Message %d' % message.mailbox_index
+        self.actor.msg(ui.report(title, body))
+        return message
+
+    def _mark_read(self, message):
+        message.mark_read(self.obj.obj_id)
+
+    def read_message_callbacks(self, deferred):
+        deferred.addCallback(self._load_body)
+        deferred.addCallback(self._show_message)
+        deferred.addCallback(self._mark_read)
 
 
 class MailListCmd(MailSubCommand):
@@ -135,6 +169,19 @@ class MailListCmd(MailSubCommand):
         if seqstr is not None:
             title += ' (%s)' % seqstr
         self.list_messages(messages, title=title)
+
+
+class MailNewCmd(MailSubCommand):
+    """
+    @mail/new
+
+    List all new messages.
+    """
+    aliases = ('new',)
+
+    def run(self, this, actor):
+        d = self.mailbox.get_messages_from_sequence('unread')
+        d.addCallback(self.list_messages, title='New Messages')
 
 
 class MailSendCmd(MailSubCommand):
@@ -174,34 +221,32 @@ class MailReadCmd(MailSubCommand):
         :type actor: MailRecipient
         :type num: int
         """
-        self.see_obj_nums = actor.has_perm('see object numbers')
         d = this.get_mail_message(num)
-        d.addCallback(self._load_body).addCallback(self._show_message)
+        self.read_message_callbacks(d)
         d.addErrback(self._show_error)
 
-    @inlineCallbacks
-    def _load_body(self, message):
-        yield message.load_body()
-        returnValue(message)
 
-    def _show_message(self, message):
-        """
-        :type message: mudslingcore.mail.Message
-        """
-        ui = self.actor.get_ui()
-        tostr = '; '.join(self._whostr(rname, rid)
-                          for rid, rname in message.recipients.iteritems())
-        #: :type: list of (str, str)
-        headers = [
-            ('Date', format_timestamp(message.timestamp, 'long')),
-            ('From', self._whostr(message.from_name, message.from_id)),
-            ('To', tostr),
-            ('Subject', message.subject)
-        ]
-        t = ui.keyval_table(headers)
-        body = '%s\n\n%s' % (t, message.body)
-        title = 'Message %d' % message.mailbox_index
-        self.actor.msg(ui.report(title, body))
+class MailNextCmd(MailReadCmd):
+    """
+    @mail/next
+
+    Read the oldest unread message.
+    """
+    aliases = ('next',)
+    syntax = ''
+    arg_parsers = {}
+
+    def run(self, **kw):
+        d = self.mailbox.get_next_unread_message()
+        d.addCallback(self._validate_next)
+        self.read_message_callbacks(d)
+        d.addErrback(self._show_error)
+
+    def _validate_next(self, message):
+        if message is None:
+            from mudslingcore.mail import MailError
+            raise MailError("There are no new messages.")
+        return message
 
 
 class MailCommand(SwitchCommandHost):
@@ -213,4 +258,5 @@ class MailCommand(SwitchCommandHost):
     aliases = ('@mail',)
     lock = use_mail
     default_switch = 'list'
-    subcommands = (MailListCmd, MailSendCmd, MailReadCmd)
+    subcommands = (MailListCmd, MailNewCmd, MailSendCmd, MailReadCmd,
+                   MailNextCmd)
