@@ -55,5 +55,4 @@ class MailEditorSession(EditorSession):
 
     def send_message(self):
         """:rtype: twisted.internet.defer.Deferred"""
-        return self.sender.send_message(self.recipients, self.subject,
-                                        self.text)
+        return self.sender.send_mail(self.recipients, self.subject, self.text)

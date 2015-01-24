@@ -32,6 +32,10 @@ class InvalidMessageFilter(MailError):
     pass
 
 
+class InvalidMessageIndex(MailError):
+    pass
+
+
 # noinspection PyUnusedLocal
 class MailDB(SQLiteDB):
     """
@@ -58,8 +62,22 @@ class MailDB(SQLiteDB):
 
     @inlineCallbacks
     def get_message(self, message_id):
-        # results = yield self.query("SELECT * FROM messages")
-        pass
+        conditions = (('m.message_id = ?', message_id),)
+        results = yield self.message_query(conditions)
+        if len(results):
+            returnValue(results[message_id])
+        else:
+            returnValue(None)
+
+    def load_message_body(self, message_id):
+        """:rtype: twisted.internet.defer.Deferred"""
+        return self._pool.runInteraction(self._load_message_body, message_id)
+
+    def _load_message_body(self, txn, message_id):
+        query = "SELECT m.body FROM messages m WHERE m.message_id = ?"
+        txn.execute(query, (message_id,))
+        row = txn.fetchone()
+        return row['body']
 
     def _message_query(self, txn, conditions, joins=(), order=None,
                        limit=None):
@@ -139,8 +157,7 @@ class MailDB(SQLiteDB):
             load into the message objects.
         :type mailbox_id: int
 
-        :return: The messages.
-        :rtype: dict of Message
+        :rtype: twisted.internet.defer.Deferred
         """
         rows = yield self._pool.runInteraction(
             self._message_query, conditions, joins=joins, order=order,
@@ -400,6 +417,7 @@ class MailDB(SQLiteDB):
 
 
 # Initialized by MUDSlingCorePlugin.
+#: :type: MailDB
 mail_db = None
 
 
@@ -447,6 +465,13 @@ class Message(object):
         if recipient_name is None and recipient.is_valid(NamedObject):
             recipient_name = recipient.name
         self.recipients[recipient_id] = recipient_name
+
+    @inlineCallbacks
+    def load_body(self):
+        """:rtype: twisted.internet.defer.Deferred"""
+        body = yield mail_db.load_message_body(self.message_id)
+        self.body = str(body)
+        returnValue(self)
 
 
 class MailBox(object):
@@ -500,6 +525,7 @@ class MailBox(object):
 
     @inlineCallbacks
     def get_messages_from_sequence(self, seq):
+        """:rtype: twisted.internet.defer.Deferred"""
         if isinstance(seq, str):
             sequence = self.parse_sequence(seq)
         elif seq is None:
@@ -511,8 +537,20 @@ class MailBox(object):
         messages = yield self.mail_db.message_query(**query_params)
         returnValue(messages)
 
+    @inlineCallbacks
     def get_message(self, index):
-        pass
+        """:rtype: twisted.internet.defer.Deferred"""
+        conditions = (('''AND m.message_id IN (SELECT message_id
+                                               FROM message_recipient mr2
+                                               WHERE mr2.recipient_id = ? AND
+                                                     mr2.mailbox_index = ?)''',
+                       self.recipient_id, index),)
+        results = yield self.mail_db.message_query(
+            conditions, mailbox_id=self.recipient_id)
+        if len(results):
+            returnValue(results.itervalues().next())
+        else:
+            raise InvalidMessageIndex('Invalid message number: %s' % index)
 
     def send_message(self, from_name, recipients, subject, body):
         """
@@ -565,7 +603,7 @@ class MailRecipient(BaseObject, UsesUI):
             self._mailbox = MailBox(self.obj_id, mail_db)
         return self._mailbox
 
-    def send_message(self, recipients, subject, body):
+    def send_mail(self, recipients, subject, body):
         """
         Send a message from this recipient.
 
@@ -584,3 +622,7 @@ class MailRecipient(BaseObject, UsesUI):
         # Use None for names and Message class handles names itself.
         ids_names = {r.obj_id: None for r in recipients}
         return self.mailbox.send_message(self.name, ids_names, subject, body)
+
+    def get_mail_message(self, message_index):
+        """:rtype: twisted.internet.defer.Deferred"""
+        return self.mailbox.get_message(message_index)

@@ -1,3 +1,5 @@
+from twisted.internet.defer import inlineCallbacks, returnValue
+
 from mudsling.commands import Command, SwitchCommandHost
 from mudsling import locks
 from mudsling import parsers
@@ -40,6 +42,8 @@ class MailSubCommand(Command):
     #: :type: MailRecipient
     actor = None
 
+    see_obj_nums = False
+
     @property
     def mailbox(self):
         """:rtype: MailBox"""
@@ -52,6 +56,10 @@ class MailSubCommand(Command):
                 self.arg_parsers[argname] = parsers[parser]
         return super(MailSubCommand, self).match_syntax(argstr)
 
+    def prepare(self):
+        self.see_obj_nums = self.actor.has_perm('see object numbers')
+        return super(MailSubCommand, self).prepare()
+
     def execute(self):
         from mudslingcore.mail import MailError
         try:
@@ -61,12 +69,14 @@ class MailSubCommand(Command):
 
     def list_messages(self, messages, title=None, footer=''):
         ui = self.actor.get_ui()
+        name = lambda m, na, ia: self._whostr(getattr(m, na), getattr(m, ia))
         c = ui.Column
         t = ui.Table([
             c('ID', align='r', data_key='mailbox_index'),
             c('Date', align='l', data_key='timestamp',
               cell_formatter=format_timestamp, formatter_args=('short',)),
-            c('From', align='l', data_key='from_name'),
+            c('From', align='l', cell_formatter=name,
+              formatter_args=('from_name', 'from_id')),
             c('Subject', align='l', data_key='subject')
         ])
         if messages:
@@ -77,6 +87,19 @@ class MailSubCommand(Command):
         if title is None:
             title = '@mail: %d messages' % len(messages)
         self.actor.msg(ui.report(title, t, footer))
+
+    def _show_error(self, err):
+        from mudslingcore.mail import MailError
+        err.trap(errors.MatchError, MailError)
+        if err.check(errors.MatchError, MailError):
+            self.actor.tell('{r', err.getErrorMessage().strip("'"))
+
+    def _whostr(self, text, id):
+        """:rtype: str"""
+        out = text
+        if self.see_obj_nums:
+            out += ' (#%d)' % id
+        return str(out)
 
 
 class MailListCmd(MailSubCommand):
@@ -96,7 +119,6 @@ class MailListCmd(MailSubCommand):
         :type seq: dict
         """
         from mudslingcore.mail import MailError
-        f = 'Sequence: %s' % self.args['seq'] if seq is not None else ''
         if not seq:
             seq = '1-$ last:15'
         try:
@@ -113,11 +135,6 @@ class MailListCmd(MailSubCommand):
         if seqstr is not None:
             title += ' (%s)' % seqstr
         self.list_messages(messages, title=title)
-
-    def _show_error(self, err):
-        err.trap(errors.MatchError)
-        if err.check(errors.MatchError):
-            self.actor.tell(err.getErrorMessage().strip("'"))
 
 
 class MailSendCmd(MailSubCommand):
@@ -141,6 +158,52 @@ class MailSendCmd(MailSubCommand):
         actor.tell('{gYou are now composing ', session.description, '.')
 
 
+class MailReadCmd(MailSubCommand):
+    """
+    @mail/read <message-num>
+
+    Read the specified message.
+    """
+    aliases = ('read',)
+    syntax = '<num>'
+    arg_parsers = {'num': int}
+
+    def run(self, this, actor, num):
+        """
+        :type this: MailRecipient
+        :type actor: MailRecipient
+        :type num: int
+        """
+        self.see_obj_nums = actor.has_perm('see object numbers')
+        d = this.get_mail_message(num)
+        d.addCallback(self._load_body).addCallback(self._show_message)
+        d.addErrback(self._show_error)
+
+    @inlineCallbacks
+    def _load_body(self, message):
+        yield message.load_body()
+        returnValue(message)
+
+    def _show_message(self, message):
+        """
+        :type message: mudslingcore.mail.Message
+        """
+        ui = self.actor.get_ui()
+        tostr = '; '.join(self._whostr(rname, rid)
+                          for rid, rname in message.recipients.iteritems())
+        #: :type: list of (str, str)
+        headers = [
+            ('Date', format_timestamp(message.timestamp, 'long')),
+            ('From', self._whostr(message.from_name, message.from_id)),
+            ('To', tostr),
+            ('Subject', message.subject)
+        ]
+        t = ui.keyval_table(headers)
+        body = '%s\n\n%s' % (t, message.body)
+        title = 'Message %d' % message.mailbox_index
+        self.actor.msg(ui.report(title, body))
+
+
 class MailCommand(SwitchCommandHost):
     """
     @mail[/<subcommand>] [<subcommand parameters>]
@@ -150,4 +213,4 @@ class MailCommand(SwitchCommandHost):
     aliases = ('@mail',)
     lock = use_mail
     default_switch = 'list'
-    subcommands = (MailListCmd, MailSendCmd)
+    subcommands = (MailListCmd, MailSendCmd, MailReadCmd)
