@@ -7,6 +7,7 @@ fuzzywuzzy>=0.1
 pytz
 flufl.enum>=4
 python-dateutil>=2.1
+parsedatetime
 yoyo-migrations>=4.2.2
 pint==0.5.2
 mailer

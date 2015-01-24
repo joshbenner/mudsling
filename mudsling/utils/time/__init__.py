@@ -2,9 +2,17 @@ from __future__ import absolute_import
 import datetime
 import re
 import calendar
+import logging
 
 import dateutil
 import dateutil.parser
+
+import parsedatetime
+#: :type: parsedatetime.Calendar
+pdt_cal = parsedatetime.Calendar()
+
+# Hide debug log messages from library.
+parsedatetime.log.setLevel(logging.WARN)
 
 from .timeschema import TimeSchema, TimeUnit
 from .timezone import *
@@ -69,7 +77,13 @@ def unixtime(dt=None):
 
 
 def parse_datetime(input):
-    return dateutil.parser.parse(input, tzinfos=parser_tzinfo)
+    try:
+        return dateutil.parser.parse(input, tzinfos=parser_tzinfo)
+    except TypeError:
+        dt, kind = pdt_cal.parseDT(input, tzinfo=local_tz())
+        if kind:
+            return dt
+    raise ValueError('Cannot parse "%s" as a date/time' % input)
 
 
 def parse_duration(input):
