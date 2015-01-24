@@ -5,7 +5,7 @@ from mudsling import locks
 from mudsling import parsers
 from mudsling import errors
 from mudsling.utils.time import format_timestamp
-from mudsling.utils.string import plural_noun
+from mudsling.utils.string import plural_noun, and_list
 
 from mudslingcore.editor import EditorError
 from mudslingcore.mail.editor import MailEditorSession
@@ -42,8 +42,6 @@ class MailSubCommand(Command):
     #: :type: MailRecipient
     actor = None
 
-    see_obj_nums = False
-
     @property
     def mailbox(self):
         """:rtype: MailBox"""
@@ -55,10 +53,6 @@ class MailSubCommand(Command):
             if parser in parsers:
                 self.arg_parsers[argname] = parsers[parser]
         return super(MailSubCommand, self).match_syntax(argstr)
-
-    def prepare(self):
-        self.see_obj_nums = self.actor.has_perm('see object numbers')
-        return super(MailSubCommand, self).prepare()
 
     def execute(self):
         from mudslingcore.mail import MailError
@@ -97,10 +91,7 @@ class MailSubCommand(Command):
 
     def _whostr(self, text, id):
         """:rtype: str"""
-        out = text
-        if self.see_obj_nums:
-            out += ' (#%d)' % id
-        return str(out)
+        return self.actor.format_recipient(text, id)
 
     @inlineCallbacks
     def _load_body(self, message):
@@ -226,15 +217,13 @@ class MailReadCmd(MailSubCommand):
         d.addErrback(self._show_error)
 
 
-class MailNextCmd(MailReadCmd):
+class MailNextCmd(MailSubCommand):
     """
     @mail/next
 
     Read the oldest unread message.
     """
     aliases = ('next',)
-    syntax = ''
-    arg_parsers = {}
 
     def run(self, **kw):
         d = self.mailbox.get_next_unread_message()
@@ -249,6 +238,30 @@ class MailNextCmd(MailReadCmd):
         return message
 
 
+class MailQuickCmd(MailSubCommand):
+    """
+    @mail/quick <recipients>[/<subject>]=<text>
+
+    Compose a quick message without using the editor.
+    """
+    aliases = ('quick',)
+    syntax = '<recipients>[{/}<subject>]{=}<text>'
+    arg_parsers = {'recipients': match_recipients}
+
+    def run(self, this, actor, recipients, text, subject):
+        """
+        :type this: MailRecipient
+        :type actor: MailRecipient
+        :type recipients: list of MailRecipient
+        :type text: str
+        :type subject: str
+        """
+        if subject is None:
+            subject = 'Quick message'
+        d = this.send_mail(recipients, subject, text)
+        d.addErrback(self._show_error)
+
+
 class MailCommand(SwitchCommandHost):
     """
     @mail[/<subcommand>] [<subcommand parameters>]
@@ -259,4 +272,4 @@ class MailCommand(SwitchCommandHost):
     lock = use_mail
     default_switch = 'list'
     subcommands = (MailListCmd, MailNewCmd, MailSendCmd, MailReadCmd,
-                   MailNextCmd)
+                   MailNextCmd, MailQuickCmd)

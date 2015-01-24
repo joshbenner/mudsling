@@ -8,6 +8,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 
 from mudsling.utils.db import SQLiteDB
 from mudsling.utils.time import parse_datetime, unixtime
+from mudsling.utils.string import and_list
 from mudsling.objects import BaseObject, NamedObject
 from mudsling.storage import ObjRef
 import mudsling.errors as errors
@@ -174,11 +175,13 @@ class MailDB(SQLiteDB):
             if row['message_id'] in messages:
                 # This is an additional row for extra recipient.
                 messages[row['message_id']].add_recipient(
-                    row['recipient_id'], row['recipient_name'])
+                    row['recipient_id'], row['recipient_name'],
+                    row['mailbox_index'])
             else:
                 message = Message.from_row(row, mailbox_id=mailbox_id)
                 message.add_recipient(row['recipient_id'],
-                                      row['recipient_name'])
+                                      row['recipient_name'],
+                                      row['mailbox_index'])
                 messages[message.message_id] = message
         returnValue(messages)
 
@@ -375,6 +378,18 @@ class MailDB(SQLiteDB):
         query['order'] = 'm.timestamp DESC'
 
     @inlineCallbacks
+    def load_recipients(self, message_id):
+        rows = yield self._pool.runQuery("""SELECT recipient_id AS id,
+                                                   recipient_name AS name,
+                                                   mailbox_index AS idx
+                                              FROM message_recipient
+                                             WHERE message_id = ?""",
+                                         (message_id,))
+        rcp = {r['id']: {'id': r['id'], 'name': r['name'], 'index': r['idx']}
+               for r in rows}
+        returnValue(rcp)
+
+    @inlineCallbacks
     def save_message(self, message):
         """
         Save a message to the database.
@@ -420,6 +435,7 @@ class MailDB(SQLiteDB):
         message.message_id = yield self._pool.runInteraction(_insert_message,
                                                              message)
         yield self._pool.runInteraction(_insert_recipients, message)
+        yield message.load_recipients()
         returnValue(message)
 
 
@@ -434,8 +450,8 @@ class Message(object):
     """
 
     def __init__(self, message_id=None, timestamp=None, mailbox_index=None,
-                 read=None, recipients=None, from_id=None, from_name=None,
-                 subject=None, body=None):
+                 read=None, from_id=None, from_name=None, subject=None,
+                 body=None):
         self.message_id = message_id
         self.timestamp = timestamp
         self.mailbox_index = mailbox_index
@@ -444,7 +460,8 @@ class Message(object):
         self.from_name = from_name
         self.subject = subject
         self.body = body
-        self.recipients = OrderedDict() if recipients is None else recipients
+        self.recipients = OrderedDict()
+        self.recipient_indexes = {}
 
     @staticmethod
     def from_row(row, mailbox_id=None):
@@ -467,17 +484,28 @@ class Message(object):
                     setattr(message, k, row[k])
         return message
 
-    def add_recipient(self, recipient_id, recipient_name=None):
+    def add_recipient(self, recipient_id, recipient_name=None,
+                      mailbox_index=None):
         recipient = ObjRef(id=recipient_id)
         if recipient_name is None and recipient.is_valid(NamedObject):
             recipient_name = recipient.name
         self.recipients[recipient_id] = recipient_name
+        if mailbox_index is not None:
+            self.recipient_indexes[recipient_id] = mailbox_index
 
     @inlineCallbacks
     def load_body(self):
         """:rtype: twisted.internet.defer.Deferred"""
         body = yield mail_db.load_message_body(self.message_id)
         self.body = str(body)
+        returnValue(self)
+
+    @inlineCallbacks
+    def load_recipients(self):
+        """:rtype: twisted.internet.defer.Deferred"""
+        recipients = yield mail_db.load_recipients(self.message_id)
+        for rid, recipient in recipients.iteritems():
+            self.add_recipient(rid, recipient['name'], recipient['index'])
         returnValue(self)
 
     def mark_read(self, recipient_id, read=True):
@@ -608,7 +636,16 @@ class MailBox(object):
         )
         for recipient_id, recipient_name in recipients.iteritems():
             message.add_recipient(recipient_id, recipient_name)
-        return self.mail_db.save_message(message)
+        d = self.mail_db.save_message(message)
+        d.addCallback(self._notify_recipients)
+        return d
+
+    def _notify_recipients(self, message):
+        for rid, rname in message.recipients.iteritems():
+            recipient = ObjRef(rid)
+            if recipient.is_valid(MailRecipient):
+                recipient.notify_new_mail(message)
+        return message
 
 
 class MailRecipient(BaseObject, UsesUI):
@@ -630,6 +667,13 @@ class MailRecipient(BaseObject, UsesUI):
             self._mailbox = MailBox(self.obj_id, mail_db)
         return self._mailbox
 
+    def format_recipient(self, name, id):
+        """:rtype: str"""
+        out = name
+        if self.has_perm('see object numbers'):
+            out += ' (#%d)' % id
+        return str(out)
+
     def send_mail(self, recipients, subject, body):
         """
         Send a message from this recipient.
@@ -648,7 +692,9 @@ class MailRecipient(BaseObject, UsesUI):
         """
         # Use None for names and Message class handles names itself.
         ids_names = {r.obj_id: None for r in recipients}
-        return self.mailbox.send_message(self.name, ids_names, subject, body)
+        d = self.mailbox.send_message(self.name, ids_names, subject, body)
+        d.addCallback(self.notify_sent)
+        return d
 
     def get_mail_message(self, message_index):
         """:rtype: twisted.internet.defer.Deferred"""
@@ -657,3 +703,21 @@ class MailRecipient(BaseObject, UsesUI):
     def get_next_unread_message(self):
         """:rtype: twisted.internet.defer.Deferred"""
         return self.mailbox.get_next_unread_message()
+
+    def notify_new_mail(self, message):
+        whostr = message.from_name
+        if self.has_perm('see object numbers'):
+            whostr += ' (#%d)' % message.from_id
+        m = '{gYou have new mail '
+        index = message.recipient_indexes.get(self.obj_id, None)
+        if index is not None:
+            m += '({y%d{g) ' % index
+        m += 'from {c%s{g.' % whostr
+        self.msg(m)
+
+    def notify_sent(self, message):
+        recips = and_list(['{c%s{g' % self.format_recipient(rname, rid)
+                           for rid, rname in message.recipients.iteritems()])
+        m = '{gMail sent to %s.' % recips
+        self.msg(m)
+        return message

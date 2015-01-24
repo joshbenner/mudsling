@@ -206,7 +206,7 @@ class DescribableObject(CoreObject, ConfigurableObject):
 
 
 class Player(BasePlayer, ConfigurableObject, ChannelUser, EditorSessionHost,
-             ui.UsesUI):
+             MailRecipient):
     """
     Core player class.
     """
@@ -267,8 +267,7 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser, EditorSessionHost,
         return None
 
 
-class Character(BaseCharacter, DescribableObject, SensingObject, HasGender,
-                MailRecipient):
+class Character(BaseCharacter, DescribableObject, SensingObject, HasGender):
     """Core character class."""
 
     # Do not export characters to area files.
