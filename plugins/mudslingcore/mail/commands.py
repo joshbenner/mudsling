@@ -226,7 +226,21 @@ class MailReplyCmd(MailSubCommand):
         d.addCallback(self._reply_to_message)
         d.addErrback(self._show_error)
 
-    def _reply_to_message(self, message):
+    def _reply_subject(self, message):
+        if message.subject.startswith('RE: '):
+            subject = message.subject
+        else:
+            subject = 'RE: ' + message.subject
+        return subject
+
+    def _reply_body(self, message):
+        wrapopts = {'initial_indent': '> ', 'subsequent_indent': '> '}
+        quote = linewrap(strip_ansi(self._message_header(message)), **wrapopts)
+        quote += '\n> \n'
+        quote += linewrap(str(message.body), **wrapopts) + '\n\n'
+        return quote
+
+    def _reply_recipients(self, message):
         recipients = [r for r in message.recipient_objects if r != self.actor]
         from_obj = ObjRef(message.from_id)
         from mudslingcore.mail import MailRecipient
@@ -235,15 +249,32 @@ class MailReplyCmd(MailSubCommand):
                 recipients.append(from_obj)
         elif from_obj in recipients:
             recipients.remove(from_obj)
-        if message.subject.startswith('RE: '):
-            subject = message.subject
-        else:
-            subject = 'RE: ' + message.subject
-        wrapopts = {'initial_indent': '> ', 'subsequent_indent': '> '}
-        quote = linewrap(strip_ansi(self._message_header(message)), **wrapopts)
-        quote += '\n> \n'
-        quote += linewrap(str(message.body), **wrapopts) + '\n\n'
+        return recipients
+
+    def _reply_to_message(self, message):
+        recipients = self._reply_recipients(message)
+        subject = self._reply_subject(message)
+        quote = self._reply_body(message)
         self._start_session(self.actor, recipients, subject, quote)
+
+
+class MailQuickReplyCmd(MailReplyCmd):
+    """
+    @mail/quickreply <message-num>=<text>
+
+    A quick way to reply to a message.
+    """
+    aliases = ('quickreply', 'qreply', 'qr')
+    syntax = "<num>{=}<text>"
+    arg_parsers = {'num': int}
+
+    def _reply_to_message(self, message):
+        recipients = self._reply_recipients(message)
+        subject = self._reply_subject(message)
+        quote = self._reply_body(message)
+        body = quote + self.parsed_args['text']
+        d = self.obj.send_mail(recipients, subject, body)
+        d.addErrback(self._show_error)
 
 
 class MailReadCmd(MailSubCommand):
@@ -322,4 +353,4 @@ class MailCommand(SwitchCommandHost):
     lock = use_mail
     default_switch = 'list'
     subcommands = (MailListCmd, MailNewCmd, MailSendCmd, MailReadCmd,
-                   MailNextCmd, MailQuickCmd, MailReplyCmd)
+                   MailNextCmd, MailQuickCmd, MailReplyCmd, MailQuickReplyCmd)
