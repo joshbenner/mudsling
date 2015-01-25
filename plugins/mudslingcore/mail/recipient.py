@@ -1,3 +1,5 @@
+import logging
+
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 from mudsling.storage import ObjRef
@@ -97,9 +99,12 @@ class MailSubCommand(Command):
         self.actor.msg(ui.report(title, t, footer))
 
     def _show_error(self, err):
-        err.trap(errors.MatchError, MailError)
-        if err.check(errors.MatchError, MailError):
+        err.trap(Exception)
+        if err.check(errors.MatchError, MailError, ValueError):
             self.actor.tell('{r', err.getErrorMessage().strip("'"))
+        else:
+            self.actor.tell('{rInternal Error.')
+            logging.error(err.getTraceback())
 
     def _whostr(self, text, id):
         """:rtype: str"""
