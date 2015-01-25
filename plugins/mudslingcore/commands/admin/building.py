@@ -9,7 +9,7 @@ from mudsling import errors
 from mudsling import utils
 import mudsling.utils.string
 
-from mudslingcore.topography import Room, Exit, MatchExit
+from mudslingcore.rooms import Room, Exit, MatchExit
 
 
 def parse_exit_spec(raw):

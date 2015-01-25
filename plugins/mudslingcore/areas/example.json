@@ -1,15 +1,15 @@
 {
-  "class": "mudslingcore.topography.RoomGroup",
+  "class": "mudslingcore.rooms.RoomGroup",
   "id": "9a1dde04-6658-4d07-bb0f-d26c0bf56397",
   "name": "Test Area",
   "contents": [
     {
-      "class": "mudslingcore.topography.Room",
+      "class": "mudslingcore.rooms.Room",
       "id": "435b7393-b624-4f96-954b-0e20d450b763",
       "name": "Area Lobby",
       "exits": [
         {
-          "class": "mudslingcore.topography.Exit",
+          "class": "mudslingcore.rooms.Exit",
           "id": "3ea71b6d-42ff-4548-a1e0-a25656e708d4",
           "name": "Corridor",
           "aliases": [
@@ -22,12 +22,12 @@
       ]
     },
     {
-      "class": "mudslingcore.topography.Room",
+      "class": "mudslingcore.rooms.Room",
       "id": "155af660-5530-4f9e-93fe-0b0bd16946f6",
       "name": "Corridor",
       "exits": [
         {
-          "class": "mudslingcore.topography.Exit",
+          "class": "mudslingcore.rooms.Exit",
           "id": "6943b313-fbc8-4ecb-a6a0-fed3ae7df948",
           "name": "Lobby",
           "aliases": [

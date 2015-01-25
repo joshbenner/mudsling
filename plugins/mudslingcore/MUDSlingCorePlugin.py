@@ -9,7 +9,7 @@ from mudsling.extensibility import GamePlugin
 from mudsling.commands import all_commands
 
 from mudslingcore.objects import Thing, Character, Player, Container
-from mudslingcore.topography import Room, Exit
+from mudslingcore.rooms import Room, Exit
 from mudslingcore import help
 from mudslingcore import mail
 from mudslingcore import bans

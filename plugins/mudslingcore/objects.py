@@ -94,9 +94,9 @@ class CoreObject(SensoryMedium, InspectableObject, AreaExportableBaseObject,
         :returns: The first room found in this objects list of locations.
         :rtype: mudslingcore.topography.Room
         """
-        import mudslingcore.topography
+        import mudslingcore.rooms
         for loc in self.locations():
-            if loc.isa(mudslingcore.topography.Room):
+            if loc.isa(mudslingcore.rooms.Room):
                 return loc
         return None
 
@@ -288,7 +288,7 @@ class Character(BaseCharacter, DescribableObject, SensingObject, HasGender):
     _look_cmd = character_commands.LookCmd
     del character_commands, building_commands
 
-    from topography import Room, Exit
+    from rooms import Room, Exit
     object_settings = {
         # The classes to use when creating rooms and exits with @dig.
         ObjSetting(name='building.room_class',
