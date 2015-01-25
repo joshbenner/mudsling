@@ -1035,9 +1035,9 @@ def linewrap(text, width=78, linebreaks=True, **kwargs):
 
     Implements same API as textwrap.wrap().
 
-    @param linebreaks: Whether to return text with linebreaks or a list.
-    @return: A list of string lines.
-    @rtype: list
+    :param linebreaks: Whether to return text with linebreaks or a list.
+    :return: Wrapped text.
+    :rtype: str
     """
     w = AnsiWrapper(width=width, **kwargs)
     paragraphs = [w.wrap(p) for p in text.splitlines()]
