@@ -1,4 +1,3 @@
-from mudsling.storage import ObjRef
 from mudsling.utils.string import and_list
 
 from mudslingcore.editor import EditorSession, EditorSessionCommand
@@ -20,13 +19,8 @@ class MailEditorSendCmd(EditorSessionCommand):
         """
         actor.tell('Sending message...')
         d = this.send_message()
-        d.addCallbacks(self._notify_sent, self._notify_error)
+        d.addErrback(self._notify_error)
         this.owner.terminate_editor_session(this.session_key)
-
-    def _notify_sent(self, message):
-        r = and_list(self.actor.name_for(ObjRef(r))
-                     for r in message.recipients)
-        self.actor.tell('{gMessage "{c', message.subject, '{g" sent to: {n', r)
 
     def _notify_error(self, error):
         error.printTraceback()
@@ -37,11 +31,11 @@ class MailEditorSession(EditorSession):
 
     commands = (MailEditorSendCmd,)
 
-    def __init__(self, sender, recipients=(), subject=''):
+    def __init__(self, sender, recipients=(), subject='', body=''):
         self.recipients = list(recipients)
         self.subject = subject
         self.sender = sender
-        super(MailEditorSession, self).__init__(sender.player)
+        super(MailEditorSession, self).__init__(sender.player, preload=body)
 
     @property
     def session_key(self):

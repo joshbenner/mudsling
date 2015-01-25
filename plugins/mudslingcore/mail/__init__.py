@@ -463,6 +463,10 @@ class Message(object):
         self.recipients = OrderedDict()
         self.recipient_indexes = {}
 
+    @property
+    def recipient_objects(self):
+        return tuple(ObjRef(rid) for rid in self.recipients.iterkeys())
+
     @staticmethod
     def from_row(row, mailbox_id=None):
         """

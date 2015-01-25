@@ -1,11 +1,12 @@
 from twisted.internet.defer import inlineCallbacks, returnValue
 
+from mudsling.storage import ObjRef
 from mudsling.commands import Command, SwitchCommandHost
 from mudsling import locks
 from mudsling import parsers
 from mudsling import errors
 from mudsling.utils.time import format_timestamp
-from mudsling.utils.string import plural_noun, and_list
+from mudsling.utils.string import plural_noun, linewrap, strip_ansi
 
 from mudslingcore.editor import EditorError
 from mudslingcore.mail.editor import MailEditorSession
@@ -61,6 +62,16 @@ class MailSubCommand(Command):
         except MailError as e:
             raise self._err('{r' + e.message)
 
+    def _start_session(self, actor, recipients, subject, body=''):
+        session = MailEditorSession(actor, recipients=recipients,
+                                    subject=subject, body=body)
+        try:
+            actor.player.register_editor_session(session, activate=True)
+        except EditorError as e:
+            raise self._err(e.message)
+        actor.tell('{gYou are now composing ', session.description, '.')
+        return session
+
     def list_messages(self, messages, title=None, footer=''):
         ui = self.actor.get_ui()
         name = lambda m, na, ia: self._whostr(getattr(m, na), getattr(m, ia))
@@ -98,10 +109,7 @@ class MailSubCommand(Command):
         yield message.load_body()
         returnValue(message)
 
-    def _show_message(self, message):
-        """
-        :type message: mudslingcore.mail.Message
-        """
+    def _message_header(self, message):
         ui = self.actor.get_ui()
         tostr = '; '.join(self._whostr(rname, rid)
                           for rid, rname in message.recipients.iteritems())
@@ -113,7 +121,15 @@ class MailSubCommand(Command):
             ('Subject', message.subject)
         ]
         t = ui.keyval_table(headers)
-        body = '%s\n\n%s' % (t, message.body)
+        return str(t)
+
+    def _show_message(self, message):
+        """
+        :type message: mudslingcore.mail.Message
+        """
+        ui = self.actor.get_ui()
+        header = self._message_header(message)
+        body = '%s\n\n%s' % (header, message.body)
         title = 'Message %d' % message.mailbox_index
         self.actor.msg(ui.report(title, body))
         return message
@@ -186,14 +202,48 @@ class MailSendCmd(MailSubCommand):
     arg_parsers = {'recipients': match_recipients}
 
     def run(self, this, actor, recipients, subject):
-        session = MailEditorSession(actor,
-                                    recipients=recipients,
-                                    subject=subject)
-        try:
-            actor.player.register_editor_session(session, activate=True)
-        except EditorError as e:
-            raise self._err(e.message)
-        actor.tell('{gYou are now composing ', session.description, '.')
+        self._start_session(actor, recipients, subject)
+
+
+class MailReplyCmd(MailSubCommand):
+    """
+    @mail/reply <message-num>
+
+    Reply to a specific message.
+    """
+    aliases = ('reply',)
+    syntax = '<num>'
+    arg_parsers = {'num': int}
+
+    def run(self, this, actor, num):
+        """
+        :type this: MailRecipient
+        :type actor: MailRecipient
+        :type num: int
+        """
+        d = this.get_mail_message(num)
+        d.addCallback(self._load_body)
+        d.addCallback(self._reply_to_message)
+        d.addErrback(self._show_error)
+
+    def _reply_to_message(self, message):
+        recipients = [r for r in message.recipient_objects if r != self.actor]
+        from_obj = ObjRef(message.from_id)
+        from mudslingcore.mail import MailRecipient
+        if from_obj.is_valid(MailRecipient):
+            if from_obj not in recipients:
+                recipients.append(from_obj)
+        elif from_obj in recipients:
+            recipients.remove(from_obj)
+        if message.subject.startswith('RE: '):
+            subject = message.subject
+        else:
+            subject = 'RE: ' + message.subject
+        wrapopts = {'initial_indent': '> ', 'subsequent_indent': '> '}
+        quote = linewrap(strip_ansi(self._message_header(message)), **wrapopts)
+        quote += '\n> \n'
+        quote += linewrap(str(message.body), **wrapopts) + '\n\n'
+        self._start_session(self.actor, recipients, subject, quote)
 
 
 class MailReadCmd(MailSubCommand):
@@ -272,4 +322,4 @@ class MailCommand(SwitchCommandHost):
     lock = use_mail
     default_switch = 'list'
     subcommands = (MailListCmd, MailNewCmd, MailSendCmd, MailReadCmd,
-                   MailNextCmd, MailQuickCmd)
+                   MailNextCmd, MailQuickCmd, MailReplyCmd)
