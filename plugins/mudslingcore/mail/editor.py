@@ -1,6 +1,7 @@
 from mudsling.utils.string import and_list
 
 from mudslingcore.editor import EditorSession, EditorSessionCommand
+from mudslingcore.mail.recipient import match_recipients
 
 
 class MailEditorSendCmd(EditorSessionCommand):
@@ -34,7 +35,7 @@ class MailEditorSubjectCmd(EditorSessionCommand):
     """
     key = 'subject'
     match_prefix = '.subj'
-    syntax = '{.subj|.subject} [<subject>]'
+    syntax = '{.subj|.subject}\w[<subject>]'
 
     def run(self, this, actor, subject):
         """
@@ -47,6 +48,18 @@ class MailEditorSubjectCmd(EditorSessionCommand):
         else:
             this.subject = subject
             actor.tell('Subject changed to "', subject, '".')
+
+
+class MailEditorToCmd(EditorSessionCommand):
+    """
+    .to [<recipients>]
+
+    Displays or sets the list of recipients for the message in the editor.
+    """
+    key = 'to'
+    match_prefix = '.to'
+    syntax = '.to [<recipients>]'
+    arg_parsers = {'recipients': match_recipients}
 
 
 class MailEditorSession(EditorSession):

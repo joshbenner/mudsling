@@ -2,14 +2,17 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 
 from mudsling.storage import ObjRef
 from mudsling.commands import Command, SwitchCommandHost
+from mudsling.objects import BaseObject
 from mudsling import locks
-from mudsling import parsers
 from mudsling import errors
+from mudsling import parsers
 from mudsling.utils.time import format_timestamp
-from mudsling.utils.string import plural_noun, linewrap, strip_ansi
+from mudsling.utils.string import plural_noun, linewrap, strip_ansi, and_list
 
+from mudslingcore.ui import UsesUI
 from mudslingcore.editor import EditorError
-from mudslingcore.mail.editor import MailEditorSession
+from mudslingcore.mail.storage import MailBox
+from mudslingcore.mail.errors import *
 
 
 use_mail = locks.Lock('has_perm(use mail)')
@@ -17,7 +20,6 @@ use_mail = locks.Lock('has_perm(use mail)')
 
 class RecipientsParser(parsers.Parser):
     def parse(self, input, actor=None):
-        from mudslingcore.mail import MailRecipient
         matcher = parsers.MatchDescendants(cls=MailRecipient,
                                            err=True,
                                            search_for='recipient',
@@ -56,13 +58,13 @@ class MailSubCommand(Command):
         return super(MailSubCommand, self).match_syntax(argstr)
 
     def execute(self):
-        from mudslingcore.mail import MailError
         try:
             return super(MailSubCommand, self).execute()
         except MailError as e:
             raise self._err('{r' + e.message)
 
     def _start_session(self, actor, recipients, subject, body=''):
+        from mudslingcore.mail.editor import MailEditorSession
         session = MailEditorSession(actor, recipients=recipients,
                                     subject=subject, body=body)
         try:
@@ -95,7 +97,6 @@ class MailSubCommand(Command):
         self.actor.msg(ui.report(title, t, footer))
 
     def _show_error(self, err):
-        from mudslingcore.mail import MailError
         err.trap(errors.MatchError, MailError)
         if err.check(errors.MatchError, MailError):
             self.actor.tell('{r', err.getErrorMessage().strip("'"))
@@ -166,7 +167,6 @@ class MailListCmd(MailSubCommand):
         :type actor: MailRecipient
         :type seq: dict
         """
-        from mudslingcore.mail import MailError
         if not seq:
             seq = '1-$ last:15'
         try:
@@ -243,7 +243,6 @@ class MailReplyCmd(MailSubCommand):
     def _reply_recipients(self, message):
         recipients = [r for r in message.recipient_objects if r != self.actor]
         from_obj = ObjRef(message.from_id)
-        from mudslingcore.mail import MailRecipient
         if from_obj.is_valid(MailRecipient):
             if from_obj not in recipients:
                 recipients.append(from_obj)
@@ -367,7 +366,6 @@ class MailNextCmd(MailSubCommand):
 
     def _validate_next(self, message):
         if message is None:
-            from mudslingcore.mail import MailError
             raise MailError("There are no new messages.")
         return message
 
@@ -408,3 +406,77 @@ class MailCommand(SwitchCommandHost):
     subcommands = (MailListCmd, MailNewCmd, MailSendCmd, MailReadCmd,
                    MailNextCmd, MailQuickCmd, MailReplyCmd, MailQuickReplyCmd,
                    MailForwardCmd, MailQuickForwardCmd)
+
+
+class MailRecipient(BaseObject, UsesUI):
+    """
+    An object which can receive mail, and has commands for managing a mailbox.
+    Basically a thin interface layer on top of MailBox.
+    """
+    _transient_vars = ('_mailbox',)
+    _mailbox = None
+
+    private_commands = (MailCommand,)
+
+    @property
+    def mailbox(self):
+        """:rtype: MailBox"""
+        if self._mailbox is None:
+            from mudslingcore.mail import mail_db
+            self._mailbox = MailBox(self.obj_id, mail_db)
+        return self._mailbox
+
+    def format_recipient(self, name, id):
+        """:rtype: str"""
+        out = name
+        if self.has_perm('see object numbers'):
+            out += ' (#%d)' % id
+        return str(out)
+
+    def send_mail(self, recipients, subject, body):
+        """
+        Send a message from this recipient.
+
+        :param recipients: The recipients who will receive the message.
+        :type recipients: list of MailRecipient
+
+        :param subject: The subject of the message.
+        :type subject: str
+
+        :param body: The body of the message.
+        :type body: str
+
+        :return: A Deferred instance for the sending of the message.
+        :rtype: twisted.internet.defer.Deferred
+        """
+        # Use None for names and Message class handles names itself.
+        ids_names = {r.obj_id: None for r in recipients}
+        d = self.mailbox.send_message(self.name, ids_names, subject, body)
+        d.addCallback(self.notify_sent)
+        return d
+
+    def get_mail_message(self, message_index):
+        """:rtype: twisted.internet.defer.Deferred"""
+        return self.mailbox.get_message(message_index)
+
+    def get_next_unread_message(self):
+        """:rtype: twisted.internet.defer.Deferred"""
+        return self.mailbox.get_next_unread_message()
+
+    def notify_new_mail(self, message):
+        whostr = message.from_name
+        if self.has_perm('see object numbers'):
+            whostr += ' (#%d)' % message.from_id
+        m = '{gYou have new mail '
+        index = message.recipient_indexes.get(self.obj_id, None)
+        if index is not None:
+            m += '({y%d{g) ' % index
+        m += 'from {c%s{g.' % whostr
+        self.msg(m)
+
+    def notify_sent(self, message):
+        recips = and_list(['{c%s{g' % self.format_recipient(rname, rid)
+                           for rid, rname in message.recipients.iteritems()])
+        m = '{gMail sent to %s.' % recips
+        self.msg(m)
+        return message
