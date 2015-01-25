@@ -61,11 +61,24 @@ class MailEditorToCmd(EditorSessionCommand):
     syntax = '.to [<recipients>]'
     arg_parsers = {'recipients': match_recipients}
 
+    def run(self, this, actor, recipients):
+        """
+        :type this: MailEditorSession
+        :type actor: BaseObject
+        :type recipients: list of MailRecipient
+        """
+        fmt = lambda lst: '; '.join(actor.name_for(r) for r in lst)
+        if recipients is None:
+            actor.tell('{cTo{y: {n', fmt(this.recipients))
+        else:
+            this.recipients = list(recipients)
+            actor.tell('Message now addressed to: ', fmt(recipients))
+
 
 class MailEditorSession(EditorSession):
     __slots__ = ('recipients', 'subject', 'sender')
 
-    commands = (MailEditorSendCmd, MailEditorSubjectCmd)
+    commands = (MailEditorSendCmd, MailEditorSubjectCmd, MailEditorToCmd)
 
     def __init__(self, sender, recipients=(), subject='', body=''):
         self.recipients = list(recipients)
