@@ -6,6 +6,7 @@ from twisted.internet.defer import inlineCallbacks, returnValue
 from mudsling.storage import ObjRef
 from mudsling.utils.db import SQLiteDB
 from mudsling.utils.time import parse_datetime, unixtime
+from mudsling.utils.string import split_quoted_words
 from mudsling.objects import NamedObject
 
 import mudslingcore
@@ -194,15 +195,18 @@ class MailDB(SQLiteDB):
             raise InvalidMessageSet("Invalid message set: %s" % input)
 
     def parse_filter(self, filterstr):
-        m = self.filter_re.match(filterstr)
-        if m:
-            g = m.groupdict()
-            return g['filter'], g['param']
-        else:
-            raise InvalidMessageFilter('Invalid message filter: %s'
-                                       % filterstr)
+        filters = []
+        for filter_str in split_quoted_words(filterstr):
+            m = self.filter_re.match(filter_str)
+            if m:
+                g = m.groupdict()
+                filters.append((g['filter'], g['param']))
+            else:
+                raise InvalidMessageFilter('Invalid message filter: %s'
+                                           % filter_str)
+        return filters
 
-    def sequence_query_params(self, recipient_id, set, filter):
+    def sequence_query_params(self, recipient_id, set, filters):
         query = {
             'joins': [("""INNER JOIN message_recipient mailbox
                           ON (mailbox.message_id = m.message_id)""",)],
@@ -215,7 +219,7 @@ class MailDB(SQLiteDB):
             self._explicit_set(query, *set[1:])
         elif set[0] == 'named':
             self.named_sets[set[1]](recipient_id, query)
-        if filter is not None:
+        for filter in (filters if filters is not None else ()):
             self.sequence_filters[filter[0]](recipient_id, query, *filter[1:])
         return query
 
@@ -436,9 +440,8 @@ class MailBox(object):
         self.recipient_id = recipient_id
         self.mail_db = mail_db
         # Use the mail_db's parsers to generate a sequence parser.
-        seq_pat = '^(?P<set>{set_pat})? *(?P<filter>{filter_pat})?$'.format(
+        seq_pat = '^(?P<set>{set_pat})? *(?P<filters>.*)?$'.format(
             set_pat=self._unname_groups(mail_db.set_re.pattern),
-            filter_pat=self._unname_groups(mail_db.filter_re.pattern)
         )
         self.sequence_re = re.compile(seq_pat)
 
@@ -457,9 +460,9 @@ class MailBox(object):
         if m:
             groups = m.groupdict()
             set = self.mail_db.parse_set(groups['set'])
-            filter = (self.mail_db.parse_filter(groups['filter'])
-                      if groups['filter'] is not None else None)
-            return {'set': set, 'filter': filter}
+            filters = (self.mail_db.parse_filter(groups['filters'])
+                       if groups['filters'] is not None else None)
+            return {'set': set, 'filters': filters}
         else:
             raise InvalidMessageSequence(
                 "Invalid message sequence: %s" % input)
