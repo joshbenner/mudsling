@@ -50,6 +50,10 @@ class MailEditorSubjectCmd(EditorSessionCommand):
             actor.tell('Subject changed to "', subject, '".')
 
 
+def fmt_recipient_list(recipients, actor):
+    return '; '.join(actor.name_for(r) for r in recipients)
+
+
 class MailEditorToCmd(EditorSessionCommand):
     """
     .to [<recipients>]
@@ -67,18 +71,48 @@ class MailEditorToCmd(EditorSessionCommand):
         :type actor: BaseObject
         :type recipients: list of MailRecipient
         """
-        fmt = lambda lst: '; '.join(actor.name_for(r) for r in lst)
         if recipients is None:
-            actor.tell('{cTo{y: {n', fmt(this.recipients))
+            actor.tell('{cTo{y: {n',
+                       fmt_recipient_list(this.recipients, actor))
         else:
             this.recipients = list(recipients)
-            actor.tell('Message now addressed to: ', fmt(recipients))
+            actor.tell('Message now addressed to: ',
+                       fmt_recipient_list(recipients, actor))
+
+
+class MailEditorAlsoToCmd(EditorSessionCommand):
+    """
+    .also-to <recipients>
+
+    Add more recipients to the message in the editor.
+    """
+    key = 'also-to'
+    match_prefix = '.also-to'
+    syntax = '.also-to <recipients>'
+    arg_parsers = {'recipients': match_recipients}
+
+    def run(self, this, actor, recipients):
+        """
+        :type this: MailEditorSession
+        :type actor: BaseObject
+        :type recipients: list of MailRecipient
+        """
+        before = len(this.recipients)
+        for r in recipients:
+            if r not in this.recipients:
+                this.recipients.append(r)
+        if len(this.recipients) == before:
+            actor.tell('{yNo new recipients.')
+        else:
+            actor.tell('{cTo{y: {n',
+                       fmt_recipient_list(this.recipients, actor))
 
 
 class MailEditorSession(EditorSession):
     __slots__ = ('recipients', 'subject', 'sender')
 
-    commands = (MailEditorSendCmd, MailEditorSubjectCmd, MailEditorToCmd)
+    commands = (MailEditorSendCmd, MailEditorSubjectCmd, MailEditorToCmd,
+                MailEditorAlsoToCmd)
 
     def __init__(self, sender, recipients=(), subject='', body=''):
         self.recipients = list(recipients)
