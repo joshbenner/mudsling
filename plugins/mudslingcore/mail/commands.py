@@ -316,6 +316,20 @@ class MailForwardCmd(MailSubCommand):
         self._start_session(self.actor, recipients, subject, body)
 
 
+class MailQuickForwardCmd(MailForwardCmd):
+    """
+    @mail/quickforward <message-num> to <recipients>
+
+    Quickly forward a message without editing it first.
+    """
+    aliases = ('quickforward', 'qfwd', 'qf')
+
+    def _forward_message(self, message, recipients):
+        subject = self._forward_subject(message)
+        body = self._quote_body(message)
+        self.obj.send_mail(recipients, subject, body)
+
+
 class MailReadCmd(MailSubCommand):
     """
     @mail/read <message-num>
@@ -393,4 +407,4 @@ class MailCommand(SwitchCommandHost):
     default_switch = 'list'
     subcommands = (MailListCmd, MailNewCmd, MailSendCmd, MailReadCmd,
                    MailNextCmd, MailQuickCmd, MailReplyCmd, MailQuickReplyCmd,
-                   MailForwardCmd)
+                   MailForwardCmd, MailQuickForwardCmd)
