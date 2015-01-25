@@ -26,10 +26,33 @@ class MailEditorSendCmd(EditorSessionCommand):
         error.printTraceback()
 
 
+class MailEditorSubjectCmd(EditorSessionCommand):
+    """
+    .subject [<subject>]
+
+    Displays the current subject, or sets a new subject.
+    """
+    key = 'subject'
+    match_prefix = '.subj'
+    syntax = '{.subj|.subject} [<subject>]'
+
+    def run(self, this, actor, subject):
+        """
+        :type this: MailEditorSession
+        :type actor: BaseObject
+        :type subject: str
+        """
+        if subject is None:
+            actor.tell('{cSubject{y: {n', this.subject)
+        else:
+            this.subject = subject
+            actor.tell('Subject changed to "', subject, '".')
+
+
 class MailEditorSession(EditorSession):
     __slots__ = ('recipients', 'subject', 'sender')
 
-    commands = (MailEditorSendCmd,)
+    commands = (MailEditorSendCmd, MailEditorSubjectCmd)
 
     def __init__(self, sender, recipients=(), subject='', body=''):
         self.recipients = list(recipients)
