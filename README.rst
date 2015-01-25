@@ -28,6 +28,7 @@ MUDSling also includes several bundled plugins:
     + UI system
     + Import/export JSON area files
     + Help system
+    + Mail system
     + Gender system
     + Global object system
     + IP Banning
