@@ -142,6 +142,13 @@ class MailSubCommand(Command):
         deferred.addCallback(self._show_message)
         deferred.addCallback(self._mark_read)
 
+    def _quote_body(self, message):
+        wrapopts = {'initial_indent': '> ', 'subsequent_indent': '> '}
+        quote = linewrap(strip_ansi(self._message_header(message)), **wrapopts)
+        quote += '\n> \n'
+        quote += linewrap(str(message.body), **wrapopts) + '\n\n'
+        return quote
+
 
 class MailListCmd(MailSubCommand):
     """
@@ -233,13 +240,6 @@ class MailReplyCmd(MailSubCommand):
             subject = 'RE: ' + message.subject
         return subject
 
-    def _reply_body(self, message):
-        wrapopts = {'initial_indent': '> ', 'subsequent_indent': '> '}
-        quote = linewrap(strip_ansi(self._message_header(message)), **wrapopts)
-        quote += '\n> \n'
-        quote += linewrap(str(message.body), **wrapopts) + '\n\n'
-        return quote
-
     def _reply_recipients(self, message):
         recipients = [r for r in message.recipient_objects if r != self.actor]
         from_obj = ObjRef(message.from_id)
@@ -254,7 +254,7 @@ class MailReplyCmd(MailSubCommand):
     def _reply_to_message(self, message):
         recipients = self._reply_recipients(message)
         subject = self._reply_subject(message)
-        quote = self._reply_body(message)
+        quote = self._quote_body(message)
         self._start_session(self.actor, recipients, subject, quote)
 
 
@@ -271,10 +271,24 @@ class MailQuickReplyCmd(MailReplyCmd):
     def _reply_to_message(self, message):
         recipients = self._reply_recipients(message)
         subject = self._reply_subject(message)
-        quote = self._reply_body(message)
+        quote = self._quote_body(message)
         body = quote + self.parsed_args['text']
         d = self.obj.send_mail(recipients, subject, body)
         d.addErrback(self._show_error)
+
+
+class MailForardCmd(MailSubCommand):
+    """
+    @mail/forward <message-num> to <recipients>
+
+    Opens the mail editor with the quoted message to the recipients.
+    """
+    aliases = ('forward', 'fwd')
+    syntax = '<num> to <recipients>'
+    arg_parsers = {
+        'num': int,
+        'recipients': match_recipients
+    }
 
 
 class MailReadCmd(MailSubCommand):
