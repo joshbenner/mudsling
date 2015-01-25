@@ -277,7 +277,7 @@ class MailQuickReplyCmd(MailReplyCmd):
         d.addErrback(self._show_error)
 
 
-class MailForardCmd(MailSubCommand):
+class MailForwardCmd(MailSubCommand):
     """
     @mail/forward <message-num> to <recipients>
 
@@ -289,6 +289,31 @@ class MailForardCmd(MailSubCommand):
         'num': int,
         'recipients': match_recipients
     }
+
+    def run(self, this, actor, num, recipients):
+        """
+        :type this: MailRecipient
+        :type actor: MailRecipient
+        :type num: int
+        :type recipients: list of MailRecipient
+        """
+        d = this.get_mail_message(num)
+        d.addCallback(self._load_body)
+        d.addCallback(self._forward_message, recipients)
+        d.addErrback(self._show_error)
+
+    def _forward_subject(self, message):
+        original = str(message.subject)
+        if original.startswith('FWD: '):
+            subject = original
+        else:
+            subject = 'FWD: %s' % original
+        return subject
+
+    def _forward_message(self, message, recipients):
+        subject = self._forward_subject(message)
+        body = self._quote_body(message)
+        self._start_session(self.actor, recipients, subject, body)
 
 
 class MailReadCmd(MailSubCommand):
@@ -367,4 +392,5 @@ class MailCommand(SwitchCommandHost):
     lock = use_mail
     default_switch = 'list'
     subcommands = (MailListCmd, MailNewCmd, MailSendCmd, MailReadCmd,
-                   MailNextCmd, MailQuickCmd, MailReplyCmd, MailQuickReplyCmd)
+                   MailNextCmd, MailQuickCmd, MailReplyCmd, MailQuickReplyCmd,
+                   MailForwardCmd)
