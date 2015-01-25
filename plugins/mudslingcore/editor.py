@@ -471,8 +471,8 @@ class SubstituteCmd(EditorSessionCommand):
     Perform regex-based substitution.
     """
     key = 'subst'
-    match_prefix = '.s'
-    syntax = '{.s|.sub|.subst|.substitute}<subst>'
+    match_prefix = '.subst'
+    syntax = '{.subst|.substitute}<subst>'
 
     def execute(self):
         """Custom parsing!"""
