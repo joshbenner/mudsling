@@ -6,6 +6,7 @@ import os
 
 from mudsling import utils
 import mudsling.utils.modules
+from mudsling.utils.migrate import module_name_map, class_name_map
 
 _ext_id_re = re.compile(r"^(.+)~(.+)~(.+)$")
 _external_types = {}
@@ -74,7 +75,27 @@ def dump(filepath, obj):
 
 
 def load(filepath):
+    # Use more flexible Python version for loading.
+    import pickle as _pickle
     with open(filepath, 'rb') as file:
-        p = pickle.Unpickler(file)
+        p = _pickle.Unpickler(file)
         p.persistent_load = _persistent_load
+        p.dispatch[_pickle.GLOBAL] = mapped_load_global
         return p.load()
+
+
+def mapped_load_global(self):
+    _module = self.readline()[:-1]
+    parts = []
+    for part in _module.split('.'):
+        m = '.'.join(parts) + '.' if len(parts) > 1 else '' + part
+        parts.append(module_name_map.get(m, part))
+    module = '.'.join(parts)
+    name = self.readline()[:-1]
+    name_options = ('%s.%s' % (module, name), '%s.%s' % (_module, name))
+    for opt in name_options:
+        if opt in class_name_map:
+            name = name_options[opt].split('.')[-1]
+            break
+    klass = self.find_class(module, name)
+    self.append(klass)

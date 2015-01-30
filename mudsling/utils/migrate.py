@@ -2,6 +2,9 @@
 Migration utilities.
 """
 
+module_name_map = {}
+class_name_map = {}
+
 
 def forward_class(new_class):
     """
@@ -33,3 +36,11 @@ def forward_class(new_class):
             self.__class__ = new_class
 
     return _class
+
+
+def rename_module(oldname, newname):
+    module_name_map[oldname] = newname
+
+
+def rename_class(oldname, newname):
+    class_name_map[oldname] = newname
