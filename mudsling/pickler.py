@@ -86,11 +86,19 @@ def load(filepath):
 
 def mapped_load_global(self):
     _module = self.readline()[:-1]
-    parts = []
-    for part in _module.split('.'):
-        m = '.'.join(parts) + '.' if len(parts) > 1 else '' + part
-        parts.append(module_name_map.get(m, part))
-    module = '.'.join(parts)
+    parts = _module.split('.')
+    suffix = []
+    module = None
+    while len(parts):
+        search = '.'.join(parts)
+        if search in module_name_map:
+            module = module_name_map[search]
+            if len(suffix):
+                module += '.' + '.'.join(suffix)
+            break
+        suffix.append(parts.pop())
+    if module is None:
+        module = _module
     name = self.readline()[:-1]
     name_options = ('%s.%s' % (module, name), '%s.%s' % (_module, name))
     for opt in name_options:
