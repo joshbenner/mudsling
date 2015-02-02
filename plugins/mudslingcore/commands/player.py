@@ -98,7 +98,7 @@ class HelpCmd(Command):
             return e.lock.eval(e, actor)
 
         try:
-            topic = help.help_db.find_topic(search, entryFilter=entryFilter)
+            topic = actor.find_help_topic(search)
         except errors.AmbiguousMatch as e:
             msg = "{yNo topic '%s' found." % search
             if e.matches is not None:

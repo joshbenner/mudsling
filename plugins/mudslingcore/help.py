@@ -10,8 +10,7 @@ from mudsling import errors
 from mudsling import locks
 from mudsling import utils
 import mudsling.utils.file
-from mudsling.utils.string import mxp
-from mudsling.utils.string import ansi
+from mudsling.utils.string import mxp, ansi, trim_docstring
 
 
 def load_help_files(game):
@@ -167,6 +166,31 @@ class MarkdownFileHelpEntry(MarkdownHelpEntry):
             raw_text = f.read()
 
         super(MarkdownFileHelpEntry, self).__init__(id, text=raw_text)
+
+
+class CommandHelpEntry(HelpEntry):
+    """
+    Specialized help entry for command docstrings. Treats first group of un-
+    broken lines as the syntax usage.
+    """
+    def __init__(self, cmd_class):
+        """
+        :type cmd_class: mudsling.command.Command
+        """
+        text = []
+        building_syntax = True
+        for line in trim_docstring(cmd_class.__doc__).splitlines():
+            if line == '':
+                building_syntax = False
+            if building_syntax:
+                if not text:
+                    text.append('{ySyntax: {c%s' % line)
+                else:
+                    text.append('        %s' % line)
+            else:
+                text.append(line)
+        super(CommandHelpEntry, self).__init__(cmd_class.name(),
+                                               text='\n'.join(text))
 
 
 class HelpManager(object):

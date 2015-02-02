@@ -6,6 +6,7 @@ from mudsling.messages import Messages
 from mudsling import parsers
 from mudsling import locks
 from mudsling.config import config
+from mudsling.errors import AmbiguousMatch, FailedMatch
 
 from mudsling import utils
 import mudsling.utils.string
@@ -20,6 +21,7 @@ import mudslingcore.errors
 from mudslingcore.areas import AreaExportableBaseObject
 from mudslingcore.editor import EditorSessionHost
 from mudslingcore.mail import MailRecipient
+from mudslingcore import help
 
 from mudslingcore import commands
 from mudslingcore import ui
@@ -265,6 +267,36 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser, EditorSessionHost,
             cmd.match_syntax(cmd.argstr)
             return cmd
         return None
+
+    def find_help_topic(self, search):
+        # fltr = lambda e: e.lock.eval(e, self.ref())
+        def fltr(e):
+            return e.lock.eval(e, self.ref())
+        try:
+            topic = help.help_db.find_topic(search, entryFilter=fltr)
+        except FailedMatch:
+            topic = self.find_command_help_topic(search)
+        return topic
+
+    def find_command_help_topic(self, search):
+        #: :type: list of BaseObject
+        totry = [self]
+        if self.is_possessing:
+            totry.append(self.possessing)
+        #: :type: list of mudsling.commands.Command
+        cmds = []
+        for obj in totry:
+            cmds = obj.match_command(search)
+            if len(cmds):
+                break
+        if len(cmds) == 1:
+            _, cmd = cmds[0]
+        elif len(cmds) > 1:
+            raise AmbiguousMatch(query=search, matches=cmds)
+        else:
+            raise FailedMatch(query=search)
+        topic = help.CommandHelpEntry(cmd)
+        return topic
 
 
 class Character(BaseCharacter, DescribableObject, SensingObject, HasGender):
