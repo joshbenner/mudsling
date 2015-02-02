@@ -55,6 +55,6 @@ Getting Started
     $ hg clone https://bitbucket.org/joshbenner/mudsling
     $ cd mudsling
     $ pip install -r requirements.txt
-    $ python run.py
+    $ python -m mudsling.runner
 
 Then you may connect to localhost:4000 with your MUD client.
