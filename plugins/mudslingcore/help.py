@@ -70,45 +70,23 @@ def _mxp_italic(match):
 
 class HelpEntry(object):
     id = ""
-    filepath = ""
     priority = 0
     title = ""
     names = ()
     meta = {}
-    mdText = ""
-
+    text = ''
     lock = locks.all_pass  # Help entries universally viewable by default.
 
-    mud_text_transforms = (
-        (re.compile(r"`(.*?)`"), r'{c\1{n'),
-        (re.compile(r"^#+\s*(?P<text>.+)$", re.MULTILINE), r"{y\1"),
-        (re.compile(r"(\*\*|__)(?P<text>.*?)\1"), _mxp_bold),
-        (re.compile(r"(\*|_)(?P<text>.*?)\1"), _mxp_italic),
-        (re.compile(r"\[(?P<title>.*?)\]\((?P<link>.*?)\)"), _mxp_topic_link),
-        (re.compile(r"\[\[(?P<link>.*?)\]\]"), _mxp_wiki_link)
-    )
-
-    def __init__(self, filepath):
-        self.filepath = os.path.abspath(filepath)
-        filename = os.path.basename(filepath)
-        self.id = filename.rsplit('.', 1)[0]
-        self.title = self.id.replace('_', ' ')
+    def __init__(self, id, title=None, extra_aliases=(), meta=None, text=''):
+        self.id = id
+        if title is None:
+            title = self.id.replace('_', ' ')
+        self.title = title
         self.names = [self.title.lower()]
-
-        with open(os.devnull, 'w') as f:
-            md.reset().convertFile(filepath, output=f)
-
-        try:
-            self.meta = md.Meta
-            del md.Meta
-        except AttributeError:
-            self.meta = {}
-
-        try:
-            self.mdText = '\n'.join(md.lines).strip()
-            del md.lines
-        except AttributeError:
-            self.mdText = "This help file has not yet been written."
+        self.names.extend(extra_aliases)
+        if meta is not None:
+            self.meta = dict(meta)
+        self.text = text
 
         if 'id' in self.meta:
             self.id = str(self.meta['id'][0])
@@ -124,13 +102,46 @@ class HelpEntry(object):
             try:
                 self.priority = int(self.meta['priority'][0])
             except ValueError:
-                logging.warning("Invalid priority in %s" % filepath)
+                logging.warning("Invalid priority in %s" % id)
+
+    def mud_text(self):
+        return self.text
 
     def __str__(self):
         return self.title
 
     def __repr__(self):
-        return "<Help Topic '%s'>" % self.title
+        return "<Help Entry '%s'>" % self.title
+
+
+class MarkdownHelpEntry(HelpEntry):
+    mdText = ""
+
+    mud_text_transforms = (
+        (re.compile(r"`(.*?)`"), r'{c\1{n'),
+        (re.compile(r"^#+\s*(?P<text>.+)$", re.MULTILINE), r"{y\1"),
+        (re.compile(r"(\*\*|__)(?P<text>.*?)\1"), _mxp_bold),
+        (re.compile(r"(\*|_)(?P<text>.*?)\1"), _mxp_italic),
+        (re.compile(r"\[(?P<title>.*?)\]\((?P<link>.*?)\)"), _mxp_topic_link),
+        (re.compile(r"\[\[(?P<link>.*?)\]\]"), _mxp_wiki_link)
+    )
+
+    def __init__(self, id, title=None, extra_aliases=(), meta=None, text=''):
+        if meta is None:
+            meta = {}
+        _meta, md_text = self._markdown_parse(text)
+        meta.update(_meta)
+        super(MarkdownHelpEntry, self).__init__(id, title, extra_aliases, meta,
+                                                md_text)
+
+    def _markdown_parse(self, raw_markdown):
+        md.reset().convert(raw_markdown)
+        try:
+            meta = md.Meta
+            del md.Meta
+        except AttributeError:
+            meta = {}
+        return meta, '\n'.join(md.lines).strip()
 
     def mud_text(self):
         """
@@ -138,10 +149,24 @@ class HelpEntry(object):
         markdown and run some transformations on it to present a version of the
         text that is MUD-friendly (ANSI codes, MXP, etc).
         """
-        text = self.mdText
+        text = self.text
         for regex, replace in self.mud_text_transforms:
             text = regex.sub(replace, text)
         return text
+
+
+class MarkdownFileHelpEntry(MarkdownHelpEntry):
+    filepath = ""
+
+    def __init__(self, filepath):
+        self.filepath = os.path.abspath(filepath)
+        filename = os.path.basename(filepath)
+        id = filename.rsplit('.', 1)[0]
+
+        with open(filepath, 'r') as f:
+            raw_text = f.read()
+
+        super(MarkdownFileHelpEntry, self).__init__(id, text=raw_text)
 
 
 class HelpManager(object):
@@ -153,7 +178,7 @@ class HelpManager(object):
     def load_help_path(self, path, rebuild_name_map=True):
         count = 0
         for filepath in utils.file.scan_path(path, "*.md", recursive=True):
-            entry = HelpEntry(filepath)
+            entry = MarkdownFileHelpEntry(filepath)
             if not entry.title:
                 logging.warning("Help file has empty title: %s" % filepath)
                 continue
