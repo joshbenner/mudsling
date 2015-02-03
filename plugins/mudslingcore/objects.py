@@ -22,6 +22,7 @@ from mudslingcore.areas import AreaExportableBaseObject
 from mudslingcore.editor import EditorSessionHost
 from mudslingcore.mail import MailRecipient
 from mudslingcore import help
+from mudslingcore.scripting import ScriptableObject
 
 from mudslingcore import commands
 from mudslingcore import ui
@@ -415,7 +416,7 @@ class Character(BaseCharacter, DescribableObject, SensingObject, HasGender):
         self.emit(self._prepare_emote(pose, sep, prefix, suffix, show_name))
 
 
-class Thing(DescribableObject):
+class Thing(DescribableObject, ScriptableObject):
     """
     The basic object in the MUDSling core game world.
 

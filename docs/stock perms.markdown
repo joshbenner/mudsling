@@ -35,9 +35,11 @@ mudslingcore
 * import areas -- Can import area files.
 * export areas -- Can export areas to JSON.
 * use mail -- Can use @mail commands.
+* script anything -- Script any object
 
 ## Object Lock types
 * control
 * rename
 * delete
 * move
+* script

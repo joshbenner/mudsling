@@ -22,6 +22,10 @@ def can_touch(obj, who):
     return who.isa(Object) and who.can_touch(obj)
 
 
+def can(obj, who, op):
+    return obj.allows(who, op)
+
+
 def default_funcs():
     """
     Return a map of default/built-in lock functions. These can be overridden by
@@ -50,4 +54,5 @@ def default_funcs():
         'class': _isa,
         'isa': _isa,
         'can_touch': can_touch,
+        'can': can,
     }
