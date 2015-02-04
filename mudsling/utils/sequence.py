@@ -3,6 +3,7 @@ Sequence utilities.
 """
 from itertools import chain
 import operator
+import types
 
 
 class CaselessDict:
@@ -104,6 +105,16 @@ class CaselessDict:
                     return k
         else:
             raise KeyError
+
+    def update(self, other=None, **kw):
+        if other is None:
+            other = kw
+        if isinstance(other, dict):
+            i = other.iteritems()
+        else:
+            i = iter(other)
+        for k, v in i:
+            self[k] = v
 
 
 def unique(seq):

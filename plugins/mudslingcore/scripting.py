@@ -7,8 +7,17 @@ from lupa import LuaRuntime
 from mudsling.objects import Object
 from mudsling.commands import Command, SyntaxParseError, Syntax
 from mudsling.storage import PersistentSlots
+from mudsling.errors import Error
 
 from mudslingcore.objsettings import ObjSetting, ConfigurableObject
+
+
+class PropertyAlreadyDefined(Error):
+    pass
+
+
+class PropertyNotFound(Error):
+    pass
 
 
 def filter_attribute_access(obj, attr_name, is_setting):
@@ -199,6 +208,20 @@ class ScriptCommandRunner(Command):
         self.script.run(this, actor, args)
 
 
+class PropertyObjSetting(ObjSetting):
+    def __init__(self, prop, parser=None):
+        self.property = prop
+        super(PropertyObjSetting, self).__init__(prop.name, type=prop.data_type,
+                                                 parser=parser)
+
+    def set_value(self, obj, value):
+        self.property.value = value
+        return True
+
+    def get_value(self, obj):
+        return self.property.value
+
+
 class Property(PersistentSlots):
     """
     Represents object-specific setting.
@@ -220,7 +243,7 @@ class Property(PersistentSlots):
         return self._obj_setting
 
     def generate_obj_setting(self):
-        return ObjSetting(self.name, type=self.data_type)
+        return PropertyObjSetting(self)
 
 
 class ScriptableObject(Object, ConfigurableObject):
@@ -228,7 +251,7 @@ class ScriptableObject(Object, ConfigurableObject):
     An object which can have a script that defines additional ObjSetting
     instances and additional commands that are unique to this object.
     """
-    _transient_vars = ('_property_collection',)
+    _transient_vars = ('_property_collection', '_property_objsetting_cache')
 
     #: :type: dict of (str, )
     _properties = {}
@@ -236,15 +259,22 @@ class ScriptableObject(Object, ConfigurableObject):
     #: :type: PropertyCollection
     _property_collection = None
 
+    _property_objsetting_cache = None
+
     #: :type: list of ScriptedCommand
     scripted_commands = []
 
     def obj_settings(self):
-        # noinspection PyArgumentList
-        settings = super(ScriptableObject, self).obj_settings()
-        settings.update({p.name: p.obj_setting
-                         for p in self._properties.itervalues()})
-        return settings
+        if self._property_objsetting_cache is None:
+            # noinspection PyArgumentList
+            settings = dict(super(ScriptableObject, self).obj_settings())
+            settings.update({p.name: p.obj_setting
+                             for p in self._properties.itervalues()})
+            self._property_objsetting_cache = settings
+        return self._property_objsetting_cache
+
+    def _clear_property_objsetting_cache(self):
+        self._property_objsetting_cache = None
 
     def add_property(self, prop):
         """
@@ -252,18 +282,21 @@ class ScriptableObject(Object, ConfigurableObject):
         """
         if '_properties' not in self.__dict__:
             self._properties = {}
-        if prop.name in self.obj_settings:
-            raise KeyError('Property or setting %s already exists' % prop.name)
+        if prop.name in self.obj_settings():
+            raise PropertyAlreadyDefined('Property or setting %s already exists'
+                                         % prop.name)
         self._properties[prop.name] = prop
+        self._clear_property_objsetting_cache()
 
     def remove_property(self, name):
         if name in self._properties:
             self.reset_obj_setting(name)
             prop = self._properties[name]
             del self._properties[name]
+            self._clear_property_objsetting_cache()
             return prop
         else:
-            raise KeyError("Property %s does not exist" % name)
+            raise PropertyNotFound("Property %s does not exist" % name)
 
     def has_property(self, name):
         return name in self._properties
@@ -288,7 +321,8 @@ class PropertyCollection(object):
         if self.__host.has_property(name):
             return self.__host.get_obj_setting_value(name)
         else:
-            raise AttributeError('%r has not %s property' % (self, name))
+            raise PropertyNotFound('%r has no %s property'
+                                   % (self.__host, name))
 
     def __setattr__(self, name, value):
         if name == '_PropertyCollection__host':
@@ -296,4 +330,5 @@ class PropertyCollection(object):
         elif self.__host.has_property(name):
             self.__host.set_obj_setting(name, value)
         else:
-            raise AttributeError('%r has not %s property' % (self, name))
+            raise PropertyNotFound('%r has no %s property'
+                                   % (self.__host, name))

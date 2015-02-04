@@ -220,6 +220,7 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser, EditorSessionHost,
     import commands.admin.objects
     import commands.admin.players
     import commands.admin.areas
+    import commands.scripting
     private_commands = all_commands(
         commands.admin.system,
         commands.admin.perms,
@@ -227,6 +228,7 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser, EditorSessionHost,
         commands.admin.objects,
         commands.admin.players,
         commands.admin.areas,
+        commands.scripting,
         player_commands
     )
     del player_commands

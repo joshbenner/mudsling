@@ -461,9 +461,9 @@ class ShowCmd(SettingsCommand):
     def fmt_default(self, setting):
         obj = self.parsed_args['obj']._real_object()
         default = 'Yes' if setting.is_default(obj) else 'No'
-        if default and isinstance(getattr(obj.__class__, setting.attr, None),
-                                  property):
-            return '(alias)'
+        if setting.attr is not None and default:
+            if isinstance(getattr(obj.__class__, setting.attr, None), property):
+                return '(alias)'
         return default
 
 

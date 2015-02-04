@@ -95,13 +95,10 @@ class ObjSetting(object):
         """
         attr = self.attr
         if attr is None:  # Store in unbound_settings
-            if "unbound_settings" in obj.__dict__:
-                if obj.unbound_settings is None:
-                    obj.unbound_settings = CaselessDict()
-                obj.unbound_settings[self.name] = value
-                return True
-            else:
-                return False
+            if "unbound_settings" not in obj.__dict__:
+                obj.unbound_settings = CaselessDict()
+            obj.unbound_settings[self.name] = value
+            return True
         else:
             if hasattr(obj, attr):
                 try:
@@ -198,7 +195,7 @@ class ConfigurableObject(mudsling.objects.BaseObject):
     ]
     _objsettings_cache = None
 
-    #: @type: dict
+    #: :type: dict
     unbound_settings = None
 
     @classmethod
