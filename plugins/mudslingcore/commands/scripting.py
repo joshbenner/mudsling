@@ -1,5 +1,5 @@
 from mudsling.commands import Command
-from mudsling.parsers import MatchObject, StaticParser
+from mudsling.parsers import MatchObject, StaticParser, StringTupleStaticParser
 from mudsling.objects import BaseObject
 from mudsling.locks import Lock
 
@@ -104,3 +104,90 @@ class RemPropertyCmd(Command):
             raise self._err(e.message)
         else:
             actor.tell('{yRemoved property {m', obj, '{y.{c', prop.name, '{y.')
+
+
+class AddCommandCmd(Command):
+    """
+    @add-command <obj>:<name> [<syntax>]
+
+    Add a scripted command to an object.
+    """
+    aliases = ('@add-command', '@add-cmd', '@addcmd', '@verb')
+    syntax = '<obj> {:} <names> [<syntax>]'
+    arg_parsers = {
+        'obj': match_scriptable,
+        'names': StringTupleStaticParser
+    }
+    lock = can_script
+
+    def run(self, actor, obj, names, syntax):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type obj: ScriptableObject
+        :type names: tuple of str
+        :type syntax: str
+        """
+        names = tuple(n.lower() for n in names)
+        command = s.ScriptedCommand(names, syntax=syntax or '')
+        try:
+            obj.add_scripted_command(command)
+        except s.CommandAlreadyDefined as e:
+            raise self._err(e.message)
+        else:
+            actor.tell('Added command: {m', obj, '{y:{g', command.name())
+
+
+class RemoveCommandCmd(Command):
+    """
+    @remove-command <obj>:<command>
+
+    Remove a scripted command from an object.
+    """
+    aliases = ('@remove-command', '@rem-command', '@remove-cmd', '@rem-cmd',
+               '@rmcmd', '@rmverb')
+    syntax = '<obj> {:} <name>'
+    arg_parsers = {'obj': match_scriptable}
+    lock = can_script
+
+    def run(self, actor, obj, name):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type obj: ScriptableObject
+        :type name: str
+        """
+        try:
+            cmd = obj.remove_scripted_command(name.lower())
+        except s.CommandNotFound as e:
+            raise self._err(e.message)
+        else:
+            actor.tell('{rRemoved{n command: {m', obj, '{y:{g', cmd.name())
+
+
+class ProgramCmd(Command):
+    """
+    @program <obj>:<command>
+
+    Prompts for line of code for the specified command.
+    """
+    aliases = ('@program', '@prog')
+    syntax = '<obj> {:} <name>'
+    arg_parsers = {'obj': match_scriptable}
+    lock = can_script
+
+    def run(self, actor, obj, name):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type obj: ScriptableObject
+        :type name: str
+        """
+        try:
+            cmd = obj.get_scripted_command(name)
+        except s.CommandNotFound as e:
+            raise self._err(e.message)
+        else:
+            actor.read_lines(self._program, args=(cmd,))
+
+    def _program(self, lines, cmd):
+        cmd.set_code('\n'.join(lines))
+        self.actor.tell('Code set on ', self.parsed_args['obj'], ':',
+                        cmd.name())

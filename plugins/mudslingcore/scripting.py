@@ -6,7 +6,7 @@ from lupa import LuaRuntime
 
 from mudsling.objects import Object
 from mudsling.commands import Command, SyntaxParseError, Syntax
-from mudsling.storage import PersistentSlots
+from mudsling.storage import PersistentSlots, Persistent
 from mudsling.errors import Error
 
 from mudslingcore.objsettings import ObjSetting, ConfigurableObject
@@ -20,10 +20,15 @@ class PropertyNotFound(Error):
     pass
 
 
+class CommandAlreadyDefined(Error):
+    pass
+
+
+class CommandNotFound(Error):
+    pass
+
+
 def filter_attribute_access(obj, attr_name, is_setting):
-    print repr(obj)
-    print repr(attr_name)
-    print repr(is_setting)
     if ((not isinstance(attr_name, basestring)) or attr_name.startswith('__')
         or (isinstance(obj, (types.FunctionType, types.MethodType))
             and attr_name.startswith('func_'))):
@@ -106,21 +111,33 @@ def sandbox_run(code, env=None):
     return r
 
 
-class ScriptedCommand(PersistentSlots):
+class ScriptedCommand(Persistent):
     """
     Scripted command.
 
     This class mimics a Command subclass for the purposes of command
     matching and execution.
     """
-    __slots__ = ('aliases', 'syntax', '_compiled_syntax', 'code')
     _transient_vars = ('_compiled_syntax',)
 
-    def __init__(self, aliases, syntax='', code=''):
+    def __init__(self, aliases, syntax='', code=None):
         if isinstance(aliases, basestring):
             aliases = (str(aliases),)
         self.aliases = tuple(aliases)
         self.syntax = syntax
+        if code is not None:
+            self.set_code(code)
+        else:
+            self.code = None
+
+    @property
+    def key(self):
+        try:
+            return self.aliases[0]
+        except IndexError:
+            raise Exception('Invalid command key')
+
+    def set_code(self, code):
         self.code = code
 
     @property
@@ -181,6 +198,9 @@ class ScriptCommandRunner(Command):
     :class:`ScriptedCommand` instance is called.
     """
 
+    # This prevents match_syntax from compiling.
+    _syntax = None
+
     def __init__(self, script, *args, **kwargs):
         """
         :param script: The ScriptedCommand spawning this instance.
@@ -189,6 +209,8 @@ class ScriptCommandRunner(Command):
         super(ScriptCommandRunner, self).__init__(*args, **kwargs)
         self.script = script
         self._syntax = (script.compiled_syntax,)
+        if '<this>' in script.syntax.lower():
+            self.arg_parsers = {'this': 'THIS'}
 
     @property
     def syntax(self):
@@ -197,6 +219,9 @@ class ScriptCommandRunner(Command):
     @property
     def aliases(self):
         return self.script.aliases
+
+    def name(self):
+        return self.script.name()
 
     def syntax_help(self):
         return '{ySyntax: {c%s %s' % (self.name(), self.syntax)
@@ -306,6 +331,35 @@ class ScriptableObject(Object, ConfigurableObject):
         if '_property_collection' not in self.__dict__:
             self._property_collection = PropertyCollection(self.ref())
         return self._property_collection
+
+    def add_scripted_command(self, command):
+        name = command.name()
+        for cmd in self.scripted_commands:
+            if name in cmd.aliases:
+                msg = '%r already defines a "%s" command' % (self, name)
+                raise CommandAlreadyDefined(msg)
+        if 'scripted_commands' not in self.__dict__:
+            self.scripted_commands = []
+        self.scripted_commands.append(command)
+
+    def remove_scripted_command(self, name):
+        for i, cmd in enumerate(list(self.scripted_commands)):
+            if cmd.name() == name:
+                del self.scripted_commands[i]
+                return cmd
+        raise CommandNotFound('%r does not define command "%s"' % (self, name))
+
+    def get_scripted_command(self, name):
+        name = name.lower()
+        for cmd in self.scripted_commands:
+            if name in cmd.aliases:
+                return cmd
+        raise CommandNotFound('%r does not define command "%s"' % (self, name))
+
+    def commands_for(self, actor):
+        commands = super(ScriptableObject, self).commands_for(actor)
+        commands.add_commands(self.scripted_commands)
+        return commands
 
 
 class PropertyCollection(object):
