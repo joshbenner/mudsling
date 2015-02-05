@@ -10,6 +10,7 @@ from mudsling.storage import PersistentSlots, Persistent
 from mudsling.errors import Error
 
 from mudslingcore.objsettings import ObjSetting, ConfigurableObject
+from mudslingcore.editor import EditorSession, EditorSessionCommand
 
 
 class PropertyAlreadyDefined(Error):
@@ -25,6 +26,14 @@ class CommandAlreadyDefined(Error):
 
 
 class CommandNotFound(Error):
+    pass
+
+
+class ScriptSyntaxError(Error):
+    pass
+
+
+class ObjectNotScriptable(Error):
     pass
 
 
@@ -48,7 +57,7 @@ else:
     lua_enabled = True
 
 SANDBOX_SCRIPT = r'''
-function sandbox_run(untrusted_code, extra_env)
+function sandbox_load(untrusted_code, extra_env)
     extra_env = extra_env or {}
     local env = {
         ipairs = ipairs,
@@ -81,13 +90,26 @@ function sandbox_run(untrusted_code, extra_env)
         os = { clock = os.clock, difftime = os.difftime, time = os.time },
     }
     for k, v in pairs(extra_env) do env[k] = v end
-    local untrusted_function, message = load(untrusted_code, nil, 't', env)
+    return load(untrusted_code, nil, 't', env)
+end
+
+function sandbox_run(untrusted_code, extra_env)
+    local untrusted_function, message = sandbox_load(untrusted_code, extra_env)
     if not untrusted_function then return nil, message end
     return pcall(untrusted_function)
 end
 '''
 lua.execute(SANDBOX_SCRIPT)
+_sandbox_load = lua.globals().sandbox_load
 _sandbox_run = lua.globals().sandbox_run
+
+
+def sandbox_syntax_check(code):
+    r = _sandbox_load(code)
+    if not isinstance(r, tuple):
+        return None
+    else:
+        return r[1]
 
 
 def sandbox_run(code, env=None):
@@ -138,6 +160,9 @@ class ScriptedCommand(Persistent):
             raise Exception('Invalid command key')
 
     def set_code(self, code):
+        err = sandbox_syntax_check(code)
+        if err is not None:
+            raise ScriptSyntaxError(err)
         self.code = code
 
     @property
@@ -236,7 +261,8 @@ class ScriptCommandRunner(Command):
 class PropertyObjSetting(ObjSetting):
     def __init__(self, prop, parser=None):
         self.property = prop
-        super(PropertyObjSetting, self).__init__(prop.name, type=prop.data_type,
+        super(PropertyObjSetting, self).__init__(prop.name,
+                                                 type=prop.data_type,
                                                  parser=parser)
 
     def set_value(self, obj, value):
@@ -308,8 +334,8 @@ class ScriptableObject(Object, ConfigurableObject):
         if '_properties' not in self.__dict__:
             self._properties = {}
         if prop.name in self.obj_settings():
-            raise PropertyAlreadyDefined('Property or setting %s already exists'
-                                         % prop.name)
+            raise PropertyAlreadyDefined(
+                'Property or setting %s already exists' % prop.name)
         self._properties[prop.name] = prop
         self._clear_property_objsetting_cache()
 
@@ -336,7 +362,7 @@ class ScriptableObject(Object, ConfigurableObject):
         name = command.name()
         for cmd in self.scripted_commands:
             if name in cmd.aliases:
-                msg = '%r already defines a "%s" command' % (self, name)
+                msg = '%s already defines a "%s" command' % (self, name)
                 raise CommandAlreadyDefined(msg)
         if 'scripted_commands' not in self.__dict__:
             self.scripted_commands = []
@@ -347,14 +373,20 @@ class ScriptableObject(Object, ConfigurableObject):
             if cmd.name() == name:
                 del self.scripted_commands[i]
                 return cmd
-        raise CommandNotFound('%r does not define command "%s"' % (self, name))
+        raise CommandNotFound('%s does not define command "%s"' % (self, name))
 
     def get_scripted_command(self, name):
+        """
+        :param name: The name of the command to retrieve.
+        :type name: str
+
+        :rtype: ScriptedCommand
+        """
         name = name.lower()
         for cmd in self.scripted_commands:
             if name in cmd.aliases:
                 return cmd
-        raise CommandNotFound('%r does not define command "%s"' % (self, name))
+        raise CommandNotFound('%s does not define command "%s"' % (self, name))
 
     def commands_for(self, actor):
         commands = super(ScriptableObject, self).commands_for(actor)
@@ -386,3 +418,66 @@ class PropertyCollection(object):
         else:
             raise PropertyNotFound('%r has no %s property'
                                    % (self.__host, name))
+
+
+class ScriptEditorCompileCmd(EditorSessionCommand):
+    """
+    .compile
+
+    Saves code to the scripted command and closes the editor session.
+    """
+    key = 'compile'
+    match_prefix = '.comp'
+    syntax = '{.comp|.compile}'
+
+    def run(self, this, actor):
+        """
+        :type this: ScriptEditorSession
+        :type actor: EditorSessionHost
+        """
+        try:
+            this.save_code()
+        except ObjectNotScriptable:
+            raise self._err('%s is not a scriptable object!'
+                            % actor.name_for(this.script_obj))
+        except CommandNotFound:
+            raise self._err('Could not find the "%s" command on %s!'
+                            % (this.command_name,
+                               actor.name_for(this.script_obj)))
+        except ScriptSyntaxError as e:
+            raise self._err('Syntax error: {y%s' % e.message)
+        else:
+            actor.tell('{gCompiled new script for ', this.description, '.')
+            this.owner.terminate_editor_session(this.session_key)
+
+
+class ScriptEditorSession(EditorSession):
+    __slots__ = ('script_obj', 'command_name')
+
+    commands = (ScriptEditorCompileCmd,)
+
+    def __init__(self, obj, command_name, owner, preload=''):
+        """
+        :type obj: ScriptableObject
+        :type command_name:str
+        :type owner: EditorSessionHost
+        :type preload: str
+        """
+        self.script_obj = obj
+        self.command_name = command_name
+        super(ScriptEditorSession, self).__init__(owner, preload)
+
+    @property
+    def session_key(self):
+        return 'Script:%d:%s' % (self.script_obj.obj_id, self.command_name)
+
+    @property
+    def description(self):
+        objname = self.owner.name_for(self.script_obj)
+        return 'script for %s.%s' % (objname, self.command_name)
+
+    def save_code(self):
+        if not self.script_obj.is_valid(ScriptableObject):
+            raise ObjectNotScriptable()
+        command = self.script_obj.get_scripted_command(self.command_name)
+        command.set_code('\n'.join(self.lines))

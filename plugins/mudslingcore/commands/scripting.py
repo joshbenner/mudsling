@@ -4,6 +4,7 @@ from mudsling.objects import BaseObject
 from mudsling.locks import Lock
 
 import mudslingcore.scripting as s
+from mudslingcore.editor import EditorError
 
 match_scriptable = MatchObject(cls=s.ScriptableObject, show=True, context=False,
                                search_for='scriptable object')
@@ -167,7 +168,7 @@ class ProgramCmd(Command):
     """
     @program <obj>:<command>
 
-    Prompts for line of code for the specified command.
+    Prompts for lines of code for the specified command.
     """
     aliases = ('@program', '@prog')
     syntax = '<obj> {:} <name>'
@@ -188,6 +189,39 @@ class ProgramCmd(Command):
             actor.read_lines(self._program, args=(cmd,))
 
     def _program(self, lines, cmd):
-        cmd.set_code('\n'.join(lines))
-        self.actor.tell('Code set on ', self.parsed_args['obj'], ':',
-                        cmd.name())
+        try:
+            cmd.set_code('\n'.join(lines))
+        except s.ScriptSyntaxError as e:
+            raise self._err('Syntax error: {y%s' % e.message)
+        else:
+            self.actor.tell('Code set on ', self.parsed_args['obj'], ':',
+                            cmd.name())
+
+
+class EditCommandCmd(Command):
+    """
+    @edit-command <obj>:<command>
+
+    Open script line editor to edit the command's script code.
+    """
+    aliases = ('@edit-command', '@edit-cmd')
+    syntax = '<obj> {:} <name>'
+    arg_parsers = {'obj': match_scriptable}
+    lock = can_script
+
+    def run(self, actor, obj, name):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type obj: ScriptableObject
+        :type name: str
+        """
+        try:
+            command = obj.get_scripted_command(name)
+        except s.CommandNotFound as e:
+            raise self._err(e.message)
+        session = s.ScriptEditorSession(obj, name, actor, preload=command.code)
+        try:
+            actor.register_editor_session(session, activate=True)
+        except EditorError as e:
+            raise self._err(e.message)
+        actor.tell('{gYou are now programming ', session.description, '.')
