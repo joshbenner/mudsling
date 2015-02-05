@@ -621,12 +621,13 @@ class EditorSession(PersistentSlots):
         fmt = '{p}{n:>%d}{s} {t}' % pad
         return fmt.format(n=line_num, t=text, p=p, s=s)
 
-    def list_lines(self, start, end):
+    def list_lines(self, start, end, lines=None):
+        lines = lines or self.lines
         start = max(1, start)
-        end = min(len(self.lines), end)
+        end = min(len(lines), end)
         show = [self.format_line(n + start, t)
-                for n, t in enumerate(self.lines[start - 1:end])]
-        if end == len(self.lines) and self.caret > end:
+                for n, t in enumerate(lines[start - 1:end])]
+        if end == len(lines) and self.caret > end:
             show.append('^' * (len(str(end)) + 2))
         return '\n'.join(show)
 

@@ -4,6 +4,10 @@ import types
 import lupa
 from lupa import LuaRuntime
 
+from pygments import highlight
+from pygments.lexers import LuaLexer
+from pygments.formatters import Terminal256Formatter
+
 from mudsling.objects import Object
 from mudsling.commands import Command, SyntaxParseError, Syntax
 from mudsling.storage import PersistentSlots, Persistent
@@ -481,3 +485,12 @@ class ScriptEditorSession(EditorSession):
             raise ObjectNotScriptable()
         command = self.script_obj.get_scripted_command(self.command_name)
         command.set_code('\n'.join(self.lines))
+
+    def list_lines(self, start, end, lines=None):
+        lines = lines or self.lines
+        raw_code = '\n'.join(lines)
+        highlighted = highlight(raw_code, LuaLexer(),
+                                Terminal256Formatter(style='monokai'))
+        highlighted_lines = str(highlighted).splitlines()
+        return super(ScriptEditorSession, self).list_lines(start, end,
+                                                           highlighted_lines)
