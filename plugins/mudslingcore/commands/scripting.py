@@ -5,6 +5,7 @@ from mudsling.locks import Lock
 
 import mudslingcore.scripting as s
 from mudslingcore.editor import EditorError
+from mudslingcore import lua
 
 match_scriptable = MatchObject(cls=s.ScriptableObject, show=True, context=False,
                                search_for='scriptable object')
@@ -225,3 +226,33 @@ class EditCommandCmd(Command):
         except EditorError as e:
             raise self._err(e.message)
         actor.tell('{gYou are now programming ', session.description, '.')
+
+
+class ListCommandCmd(Command):
+    """
+    @show-command <obj>:<command>
+
+    Display the source code for the specified scripted command.
+    """
+    aliases = ('@show-command', '@show-cmd', '@list', '@list-command',
+               '@list-cmd')
+    syntax = '<obj> {:} <name>'
+    arg_parsers = {'obj': match_scriptable}
+    lock = can_script
+
+    def run(self, actor, obj, name):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type obj: ScriptableObject
+        :type name: str
+        """
+        try:
+            command = obj.get_scripted_command(name)
+        except s.CommandNotFound as e:
+            raise self._err(e.message)
+        code = lua.highlight_code(command.code, ansi256=actor.xterm256,
+                                  linenos=True)
+        names = '/'.join(command.aliases)
+        msg = '{c%s{n:{g%s {y%s' % (actor.name_for(obj), names, command.syntax)
+        msg += '\n%s{b\n(end)' % code
+        actor.msg(msg)

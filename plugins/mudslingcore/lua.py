@@ -125,10 +125,17 @@ def format_code(code, indent='  '):
     return '\n'.join(formatted)
 
 
-def highlight_code(code, ansi256=False, style='monokai'):
+def highlight_code(code, ansi256=False, style='monokai', linenos=False):
     code = str(code) if isinstance(code, basestring) else '\n'.join(code)
     if ansi256:
         formatter = Terminal256Formatter(style=style)
     else:
         formatter = TerminalFormatter(bg='dark')
-    return str(highlight(code, LuaLexer(), formatter))
+    code = highlight(code, LuaLexer(), formatter).rstrip('\n')
+    if linenos:
+        lines = code.splitlines()
+        pad = len(str(len(lines)))
+        fmt = ' {n:>%d}: {t}' % pad
+        code = '\n'.join(fmt.format(n=n + 1, t=lines[n])
+                         for n in xrange(len(lines)))
+    return code

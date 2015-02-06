@@ -1,12 +1,14 @@
 import logging
 
-from mudsling.objects import Object, BasePlayer
+from mudsling.objects import Object, BasePlayer, BaseObject
 from mudsling.commands import Command, SyntaxParseError, Syntax
 from mudsling.storage import PersistentSlots, Persistent
 from mudsling.errors import Error
+import mudsling.parsers as p
 
 from mudslingcore.objsettings import ObjSetting, ConfigurableObject
 from mudslingcore.editor import EditorSession, EditorSessionCommand, ListCmd
+from mudslingcore.editor import AbortCmd
 from mudslingcore import lua
 
 
@@ -181,6 +183,13 @@ class Property(PersistentSlots):
     __slots__ = ('name', 'data_type', 'value', '_obj_setting')
     _transient_vars = ('_obj_setting',)
 
+    __type_parsers = {
+        str: None,
+        int: p.IntStaticParser,
+        float: p.FloatStaticParser,
+        BaseObject: p.MatchObject(cls=BaseObject, show=True, context=False)
+    }
+
     def __init__(self, name, data_type=str, value=None):
         self.name = name
         self.data_type = data_type
@@ -195,7 +204,8 @@ class Property(PersistentSlots):
         return self._obj_setting
 
     def generate_obj_setting(self):
-        return PropertyObjSetting(self)
+        parser = self.__type_parsers.get(self.data_type, None)
+        return PropertyObjSetting(self, parser=parser)
 
 
 class ScriptableObject(Object, ConfigurableObject):
@@ -349,7 +359,17 @@ class ScriptEditorCompileCmd(EditorSessionCommand):
             raise self._err('Syntax error: {y%s' % e.message)
         else:
             actor.tell('{gCompiled new script for ', this.description, '.')
-            this.owner.terminate_editor_session(this.session_key)
+            actor.tell('{gYou can close the editor with the {c.done{g command.')
+
+
+class ScriptEditorDoneCmd(AbortCmd):
+    """
+    .done
+
+    Closes the active editor session.
+    """
+    key = 'done'
+    match_prefix = '.done'
 
 
 class ScriptEditorFormatCmd(EditorSessionCommand):
