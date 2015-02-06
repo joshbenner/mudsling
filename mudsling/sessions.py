@@ -90,7 +90,6 @@ class Session(object):
             return
         start = time.clock()
         self.last_activity = time.time()
-        line = line.strip()
         if self.input_processor is None:
             self.game.login_screen.process_input(self, line)
         else:
