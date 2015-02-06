@@ -256,3 +256,66 @@ class ListCommandCmd(Command):
         msg = '{c%s{n:{g%s {y%s' % (actor.name_for(obj), names, command.syntax)
         msg += '\n%s{b\n(end)' % code
         actor.msg(msg)
+
+
+class PropertiesCmd(Command):
+    """
+    @properties <obj>
+
+    List the properties defined on the object.
+    """
+    aliases = ('@properties', '@props')
+    syntax = '<obj>'
+    arg_parsers = {'obj': match_scriptable}
+    lock = can_script
+
+    def run(self, actor, obj):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type obj: ScriptableObject
+        """
+        ui = actor.get_ui()
+        c = ui.Column
+        t = ui.Table([
+            c('Property', align='l', data_key='name'),
+            c('Type', align='l', cell_formatter=self._fmt_type),
+            c('Value', align='l', cell_formatter=self._fmt_value)
+        ])
+        t.add_rows(*obj._properties.values())
+        actor.msg(ui.report('Properties on %s' % actor.name_for(obj), t))
+
+    def _fmt_type(self, prop):
+        return PropertyTypeStaticParser.unparse(prop.data_type)
+
+    def _fmt_value(self, prop):
+        return repr(prop.value)
+
+
+class CommandsCmd(Command):
+    """
+    @commands <obj>
+
+    List the scripted commands on an object.
+    """
+    aliases = ('@commands', '@verbs')
+    syntax = '<obj>'
+    arg_parsers = {'obj': match_scriptable}
+    lock = can_script
+
+    def run(self, actor, obj):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type obj: ScriptableObject
+        """
+        ui = actor.get_ui()
+        c = ui.Column
+        t = ui.Table([
+            c('Command', align='l', data_key='name'),
+            c('Syntax', align='l', data_key='syntax'),
+            c('Aliases', align='l', cell_formatter=self._fmt_aliases)
+        ])
+        t.add_rows(*obj.scripted_commands)
+        actor.msg(ui.report('Scripted Commands on %s' % actor.name_for(obj), t))
+
+    def _fmt_aliases(self, command):
+        return ', '.join(command.aliases[1:])
