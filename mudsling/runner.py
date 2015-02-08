@@ -145,7 +145,10 @@ def run():
         def handle_sighup(signal, frame):
             processes['server'].signal('HUP')
 
-        signal.signal(signal.SIGHUP, handle_sighup)
+        try:
+            signal.signal(signal.SIGHUP, handle_sighup)
+        except ValueError as e:
+            logging.warning('No SIGHUP handler: %s', e.message)
 
         reactor.run()
         os.remove(pidfile)
