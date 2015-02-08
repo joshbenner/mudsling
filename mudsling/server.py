@@ -1,6 +1,7 @@
 import sys
 import os
 import logging
+import signal
 
 from twisted.internet import reactor
 
@@ -29,6 +30,15 @@ def run_server(options=None):
     if options['simple']:
         config.set('Plugins', 'SimpleTelnetServer', 'Enabled')
         config.set('Proxy', 'enabled', 'No')
+
+    def handle_sighup(signal, frame):
+        game.shutdown(reload=True)
+
+    try:
+        signal.signal(signal.SIGHUP, handle_sighup)
+    except ValueError as e:
+        logging.warning('No SIGHUP handler: %s', e.message)
+
     game.startService()
     reactor.run()
 

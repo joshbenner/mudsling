@@ -47,11 +47,14 @@ class MUDSlingProcess(protocol.ProcessProtocol):
                              env=os.environ,
                              path=self.gamedir)
 
+    def signal(self, signal):
+        self.transport.signalProcess(signal)
+
     def kill(self):
         if self.alive:
             logging.info("Terminating %s process..." % self.name)
             try:
-                self.transport.signalProcess('TERM')
+                self.signal('TERM')
                 self.alive = False  # Or it will be soon?
             except Exception as e:
                 logging.warning("Cannot kill %s: %s" % (self.name, e.message))
@@ -136,6 +139,13 @@ def run():
             process.spawn()
 
         reactor.addSystemEventTrigger('before', 'shutdown', kill_all_processes)
+
+        import signal
+
+        def handle_sighup(signal, frame):
+            processes['server'].signal('HUP')
+
+        signal.signal(signal.SIGHUP, handle_sighup)
 
         reactor.run()
         os.remove(pidfile)
