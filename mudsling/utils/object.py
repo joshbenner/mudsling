@@ -166,3 +166,24 @@ def has_callable(obj, member):
     :rtype: bool
     """
     return hasattr(obj, member) and callable(getattr(obj, member))
+
+
+def check_attr(obj, member, default=None):
+    """
+    Check that an attribute is set on the provided object.
+    """
+    cls = type(obj)
+    if member in cls.__dict__ and isinstance(getattr(cls, member), property):
+        # We don't do anything with properties.
+        return getattr(obj, member)
+    try:
+        if member in obj.__dict__:
+            return getattr(obj, member)
+    except AttributeError:
+        # Slots?
+        try:
+            return getattr(obj, member)
+        except AttributeError:
+            pass
+    setattr(obj, member, default)
+    return getattr(obj, member)
