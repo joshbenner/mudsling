@@ -36,6 +36,7 @@ mudslingcore
 * export areas -- Can export areas to JSON.
 * use mail -- Can use @mail commands.
 * script anything -- Script any object
+* use nested matching -- Can use '->' to match nested objects when literal matching is used.
 
 ## Object Lock types
 * control
