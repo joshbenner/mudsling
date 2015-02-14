@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import string
 
 from mudsling.objects import BasePlayer, BaseCharacter, BaseObject
 from mudsling.commands import all_commands
@@ -377,6 +378,22 @@ class Character(BaseCharacter, DescribableObject, SensingObject, HasGender):
             return self._emote_cmd(raw, ':', raw[1:], self.game,
                                    self.ref(), self.ref(), True)
         return None
+
+    def match_literals(self, search, cls=None, err=False):
+        if '->' in search and self.has_perm('use nested matching'):
+            parts = filter(len, map(string.strip, search.split('->')))
+            if len(parts) > 1:
+                matches = self.match_object(parts[0], cls=cls, err=False)
+                if len(matches) == 1:
+                    for part in parts[1:]:
+                        try:
+                            matches = matches[0].match_contents(part)
+                        except AttributeError:
+                            matches = []
+                            break
+                    if matches:
+                        return matches
+        return super(Character, self).match_literals(search, cls=cls, err=err)
 
     def after_object_moved(self, moved_from, moved_to, by=None, via=None):
         if self.game.db.is_valid(moved_to, DescribableObject):
