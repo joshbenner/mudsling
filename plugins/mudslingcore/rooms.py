@@ -28,12 +28,18 @@ class RoomGroup(areas.AreaExportableObject, InspectableObject):
     """
 
     @property
+    def has_parent_room_group(self):
+        """:rtype: bool"""
+        return self.has_location and self.location.isa(RoomGroup)
+
+    @property
     def parent_room_group(self):
-        loc = self.location
-        return loc if self.has_location and loc.isa(RoomGroup) else None
+        """:rtype: RoomGroup"""
+        return self.location if self.has_parent_room_group else None
 
     @property
     def all_parent_room_groups(self):
+        """:rtype: list of RoomGroup"""
         parent = self.parent_room_group
         parents = []
         while parent is not None:
@@ -45,7 +51,7 @@ class RoomGroup(areas.AreaExportableObject, InspectableObject):
     def child_rooms(self):
         """
         :return: List of area-compatible rooms contained within the room group.
-        :rtype: list
+        :rtype: list of Room
         """
         return [r for r in self._contents if r.isa(Room)]
 
@@ -53,7 +59,7 @@ class RoomGroup(areas.AreaExportableObject, InspectableObject):
     def child_room_groups(self):
         """
         :return: List of room groups contained directly within this group.
-        :rtype: list
+        :rtype: list of RoomGroup
         """
         return [g for g in self._contents if g.isa(RoomGroup)]
 
@@ -61,7 +67,7 @@ class RoomGroup(areas.AreaExportableObject, InspectableObject):
     def all_room_groups(self):
         """
         :return: List of all room groups contained at any level.
-        :rtype: list
+        :rtype: list of RoomGroup
         """
         groups = self.child_room_groups
         groups.extend(itertools.chain.from_iterable(g.all_room_groups
@@ -72,7 +78,7 @@ class RoomGroup(areas.AreaExportableObject, InspectableObject):
     def all_rooms(self):
         """
         :return: List of all rooms contained at any level.
-        :rtype: list
+        :rtype: list of Room
         """
         return itertools.chain.from_iterable(g.child_rooms
                                              for g in self.all_room_groups)
