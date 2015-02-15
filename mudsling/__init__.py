@@ -1,5 +1,6 @@
 import os
 
+#: :type: mudsling.core.MUDSling
 game = None
 
 version_file = open(os.path.join(os.path.dirname(os.path.dirname(__file__)),
