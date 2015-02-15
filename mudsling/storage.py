@@ -402,6 +402,7 @@ class Database(Persistent):
 
     @classmethod
     def load(cls, filepath, game):
+        """:rtype: Database"""
         if os.path.exists(filepath):
             logging.info("Loading database from %s" % filepath)
             start = time.clock()
