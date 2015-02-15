@@ -11,6 +11,7 @@ from mudsling.errors import AmbiguousMatch, FailedMatch
 
 from mudsling import utils
 import mudsling.utils.string
+import mudsling.utils.object as obj_utils
 
 from objsettings import ObjSetting, ConfigurableObject
 from mudslingcore import bans
@@ -383,7 +384,7 @@ class Character(BaseCharacter, DescribableObject, SensingObject, HasGender):
         if '->' in search and self.has_perm('use nested matching'):
             parts = filter(len, map(string.strip, search.split('->')))
             if len(parts) > 1:
-                matches = self.match_object(parts[0], cls=cls, err=False)
+                matches = self.match_object(parts[0], err=False)
                 if len(matches) == 1:
                     for part in parts[1:]:
                         try:
@@ -391,6 +392,9 @@ class Character(BaseCharacter, DescribableObject, SensingObject, HasGender):
                         except AttributeError:
                             matches = []
                             break
+                    matches = obj_utils.filter_by_class(matches, cls=cls)
+                    if err and len(matches) > 1:
+                        raise AmbiguousMatch(query=search, matches=matches)
                     if matches:
                         return matches
         return super(Character, self).match_literals(search, cls=cls, err=err)
