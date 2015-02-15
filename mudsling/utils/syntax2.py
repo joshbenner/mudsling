@@ -73,6 +73,12 @@ class SyntaxChoice(SyntaxToken):
         return r
 
 
+class SyntaxChoiceWithWhitespace(SyntaxChoice):
+    def _expr(self, nextToken):
+        r = super(SyntaxChoiceWithWhitespace, self)._expr(nextToken)
+        return White().suppress() + r + White().suppress()
+
+
 class SyntaxParam(SyntaxToken):
     __slots__ = ('name',)
 
@@ -151,13 +157,16 @@ def syntax_grammar():
     orLiteral = CharsNotIn('[]<>{}|')
     orLiteral.setParseAction(SyntaxLiteral)
     orLiterals = Group(delimitedList(orLiteral, delim='|'))
+    wsChoice = Literal('{{') + orLiterals + Literal('}}')
+    wsChoice.setParseAction(SyntaxChoiceWithWhitespace)
     choice = Literal('{') + orLiterals + Literal('}')
     choice.setParseAction(SyntaxChoice)
 
     optional = Literal('[') + syntax + Literal(']')
     optional.setParseAction(SyntaxOptional)
 
-    syntax << OneOrMore(assertWhiteSpace | param | choice | optional | literal)
+    syntax << OneOrMore(assertWhiteSpace | param | wsChoice | choice | optional
+                        | literal)
 
     return syntax
 
@@ -288,6 +297,11 @@ if 'pytest' in sys.modules or __name__ == '__main__':
         ('<foo> to <bar>', [
             ('foo to bar', {'foo': 'foo', 'bar': 'bar'}),
             ('footobar', FAIL)
+        ]),
+        ('<foo> {{in|on}} <bar>', [
+            ('foo in bar', {'foo': 'foo', 'bar': 'bar'}),
+            ('foo hoo in bar', {'foo': 'foo hoo', 'bar': 'bar'}),
+            ('foo hooinbar', FAIL)
         ])
     )
 
