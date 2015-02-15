@@ -6,6 +6,7 @@ import itertools
 from mudsling.objects import Object as LocatedObject
 from mudsling.messages import Messages
 from mudsling.commands import Command
+from mudsling.config import config
 from mudsling import errors
 from mudsling import parsers
 
@@ -13,75 +14,8 @@ from mudsling import utils
 import mudsling.utils.string
 
 from mudslingcore.objects import DescribableObject, InspectableObject
+from mudslingcore.objsettings import ConfigurableObject, ObjSetting
 import mudslingcore.areas as areas
-
-
-class RoomGroup(areas.AreaExportableObject, InspectableObject):
-    """
-    Room groups are used to represent physical groups of rooms, such as a
-    building, a floor in a building, or a wing of a building. Groupings are
-    arbitrary, and subclasses may be more opinionated.
-
-    Room groups are physical objects that can be located somewhere, and can
-    have other objects located within them. A room or other room group is a
-    child of a room group by being located directly within it.
-    """
-
-    @property
-    def has_parent_room_group(self):
-        """:rtype: bool"""
-        return self.has_location and self.location.isa(RoomGroup)
-
-    @property
-    def parent_room_group(self):
-        """:rtype: RoomGroup"""
-        return self.location if self.has_parent_room_group else None
-
-    @property
-    def all_parent_room_groups(self):
-        """:rtype: list of RoomGroup"""
-        parent = self.parent_room_group
-        parents = []
-        while parent is not None:
-            parents.append(parent)
-            parent = parent.parent_room_group
-        return parents
-
-    @property
-    def child_rooms(self):
-        """
-        :return: List of area-compatible rooms contained within the room group.
-        :rtype: list of Room
-        """
-        return [r for r in self._contents if r.isa(Room)]
-
-    @property
-    def child_room_groups(self):
-        """
-        :return: List of room groups contained directly within this group.
-        :rtype: list of RoomGroup
-        """
-        return [g for g in self._contents if g.isa(RoomGroup)]
-
-    @property
-    def all_room_groups(self):
-        """
-        :return: List of all room groups contained at any level.
-        :rtype: list of RoomGroup
-        """
-        groups = self.child_room_groups
-        groups.extend(itertools.chain.from_iterable(g.all_room_groups
-                                                    for g in groups))
-        return groups
-
-    @property
-    def all_rooms(self):
-        """
-        :return: List of all rooms contained at any level.
-        :rtype: list of Room
-        """
-        return itertools.chain.from_iterable(g.child_rooms
-                                             for g in self.all_room_groups)
 
 
 # noinspection PyShadowingBuiltins
@@ -123,7 +57,8 @@ class Room(DescribableObject):
             return self.location
         return None
 
-    def room_groups(self, cls=RoomGroup):
+    def room_groups(self, cls=None):
+        cls = cls or RoomGroup
         return [l for l in self.locations() if l.isa(cls)]
 
     def exposed_context(self):
@@ -437,3 +372,108 @@ class MatchExit(parsers.MatchObject):
         #: @type: Room
         room = obj.location
         return room.match_exits(input)
+
+
+class RoomGroup(areas.AreaExportableObject, InspectableObject,
+                ConfigurableObject):
+    """
+    Room groups are used to represent physical groups of rooms, such as a
+    building, a floor in a building, or a wing of a building. Groupings are
+    arbitrary, and subclasses may be more opinionated.
+
+    Room groups are physical objects that can be located somewhere, and can
+    have other objects located within them. A room or other room group is a
+    child of a room group by being located directly within it.
+    """
+
+    _group_room_class = Room
+    _group_exit_class = Exit
+
+    object_settings = {
+        ObjSetting('room_class', type, attr='group_room_class',
+                   parser=parsers.ObjClassStaticParser),
+        ObjSetting('exit_class', type, attr='group_exit_class',
+                   parser=parsers.ObjClassStaticParser)
+    }
+
+    def _get_default_class(self, clstype):
+        attr = '_group_%s_class' % clstype
+        if attr in self.__dict__:
+            return getattr(self, attr)
+        for grp in self.all_parent_room_groups:
+            if attr in grp.__dict__:
+                return getattr(grp, attr)
+        # No explicit setting. Go implicit.
+        return getattr(self, attr)
+
+    @property
+    def group_room_class(self):
+        return self._get_default_class('room')
+
+    @group_room_class.setter
+    def group_room_class(self, val):
+        self._group_room_class = val
+
+    @property
+    def group_exit_class(self):
+        return self._get_default_class('exit')
+
+    @group_exit_class.setter
+    def group_exit_class(self, val):
+        self._group_exit_class = val
+
+    @property
+    def has_parent_room_group(self):
+        """:rtype: bool"""
+        return self.has_location and self.location.isa(RoomGroup)
+
+    @property
+    def parent_room_group(self):
+        """:rtype: RoomGroup"""
+        return self.location if self.has_parent_room_group else None
+
+    @property
+    def all_parent_room_groups(self):
+        """:rtype: list of RoomGroup"""
+        parent = self.parent_room_group
+        parents = []
+        while parent is not None:
+            parents.append(parent)
+            parent = parent.parent_room_group
+        return parents
+
+    @property
+    def child_rooms(self):
+        """
+        :return: List of area-compatible rooms contained within the room group.
+        :rtype: list of Room
+        """
+        return [r for r in self._contents if r.isa(Room)]
+
+    @property
+    def child_room_groups(self):
+        """
+        :return: List of room groups contained directly within this group.
+        :rtype: list of RoomGroup
+        """
+        return [g for g in self._contents if g.isa(RoomGroup)]
+
+    @property
+    def all_room_groups(self):
+        """
+        :return: List of all room groups contained at any level.
+        :rtype: list of RoomGroup
+        """
+        groups = self.child_room_groups
+        groups.extend(itertools.chain.from_iterable(g.all_room_groups
+                                                    for g in groups))
+        return groups
+
+    @property
+    def all_rooms(self):
+        """
+        :return: List of all rooms contained at any level.
+        :rtype: list of Room
+        """
+        return itertools.chain.from_iterable(g.child_rooms
+                                             for g in self.all_room_groups)

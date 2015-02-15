@@ -94,6 +94,15 @@ class DigCmd(Command):
             actor.msg(["{bTeleporting you to {c", room, "{b."])
             actor.move_to(room)
 
+    def _get_room_group(self, actor):
+        """:rtype: mudslingcore.rooms.RoomGroup"""
+        #: :type: mudslingcore.rooms.Room
+        current_room = actor.location
+        room_group = None
+        if self.game.db.is_valid(current_room, cls=Room):
+            room_group = current_room.room_group
+        return room_group
+
     def _get_room(self, actor, args):
         """
         :type actor: mudslingcore.objects.Character
@@ -135,20 +144,19 @@ class DigCmd(Command):
 
         :rtype: mudslingcore.rooms.Room
         """
-        roomClass = actor.get_obj_setting_value('building.room_class')
-        if roomClass is not None and issubclass(roomClass, Room):
-            room = roomClass.create(names=names, owner=actor)
-            actor.tell("{gCreated {c", room, "{g.")
-            #: :type: mudslingcore.rooms.Room
-            current_room = actor.location
-            if self.game.db.is_valid(current_room, cls=Room):
-                room_group = current_room.room_group
-                if room_group is not None:
-                    room.move_to(room_group)
-                    actor.tell('{yAdded {c', room, '{y to {m', room_group,
-                               '{y.')
+        room_group = self._get_room_group(actor)
+        if room_group is not None:
+            room_class = room_group.group_room_class
         else:
-            raise self._err("Invalid building.room_class: %r" % roomClass)
+            room_class = actor.get_obj_setting_value('building.room_class')
+        if room_class is not None and issubclass(room_class, Room):
+            room = room_class.create(names=names, owner=actor)
+            actor.tell("{gCreated {c", room, "{g.")
+            if room_group is not None:
+                room.move_to(room_group)
+                actor.tell('{yAdded {c', room, '{y to {m', room_group, '{y.')
+        else:
+            raise self._err("Invalid building.room_class: %r" % room_class)
         return room
 
     def _get_exit(self, actor, names):
@@ -163,11 +171,15 @@ class DigCmd(Command):
         :rtype: mudslingcore.topography.Exit
         """
         if isinstance(names, list):
-            exitClass = actor.get_obj_setting_value('building.exit_class')
-            if exitClass is not None and issubclass(exitClass, Exit):
-                exit = exitClass.create(names=names, owner=actor)
+            room_group = self._get_room_group(actor)
+            if room_group is not None:
+                exit_class = room_group.group_exit_class
             else:
-                raise self._err("Invalid building.exit_class: %r" % exitClass)
+                exit_class = actor.get_obj_setting_value('building.exit_class')
+            if exit_class is not None and issubclass(exit_class, Exit):
+                exit = exit_class.create(names=names, owner=actor)
+            else:
+                raise self._err("Invalid building.exit_class: %r" % exit_class)
         else:
             exit = None
         return exit
