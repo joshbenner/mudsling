@@ -5,6 +5,7 @@ from mudsling.commands import Command
 from mudsling import parsers
 from mudsling import locks
 from mudsling import errors
+from mudsling.objects import literal_parsers
 
 from mudsling import utils
 import mudsling.utils.string
@@ -100,7 +101,7 @@ class DigCmd(Command):
 
         :raise AmbiguousMatch: When specified room matches multiple rooms.
 
-        :rtype: mudslingcore.topography.Room
+        :rtype: mudslingcore.rooms.Room
         """
         if 'room' in args:
             # Attempt match.
@@ -109,6 +110,12 @@ class DigCmd(Command):
                 raise errors.AmbiguousMatch(query=args['room'], matches=m)
             elif len(m) == 1:
                 return m[0]  # Single match, that's our room!
+            else:
+                # Failed match. Usually this means we create. Let's make sure
+                # this wasn't a wayward attempt at a literal match.
+                if args['room'][:1] in literal_parsers:
+                    # They were probably trying to use a literal, and it failed.
+                    raise errors.FailedMatch(query=args['room'])
 
         # No matches. Let's create a room!
         if 'room' in args:
@@ -121,22 +128,25 @@ class DigCmd(Command):
         """
         Create and return a room.
 
-        :type actor: mudsling.object.Character
+        :type actor: mudslingcore.objects.Character
         :type names: list
 
         :raise CommandInvalid: When player has invalid room class setting.
 
-        :rtype: mudsling.topography.Room
+        :rtype: mudslingcore.rooms.Room
         """
         roomClass = actor.get_obj_setting_value('building.room_class')
         if roomClass is not None and issubclass(roomClass, Room):
             room = roomClass.create(names=names, owner=actor)
             actor.tell("{gCreated {c", room, "{g.")
+            #: :type: mudslingcore.rooms.Room
             current_room = actor.location
-            room_group = current_room.room_group
-            if room_group is not None:
-                room.move_to(room_group)
-                actor.tell('{yAdded {c', room, '{y to {m', room_group, '{y.')
+            if self.game.db.is_valid(current_room, cls=Room):
+                room_group = current_room.room_group
+                if room_group is not None:
+                    room.move_to(room_group)
+                    actor.tell('{yAdded {c', room, '{y to {m', room_group,
+                               '{y.')
         else:
             raise self._err("Invalid building.room_class: %r" % roomClass)
         return room
