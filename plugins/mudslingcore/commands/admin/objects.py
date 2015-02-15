@@ -1,6 +1,8 @@
 """
 Object commands.
 """
+import inspect
+
 from mudsling.commands import Command
 from mudsling.objects import LockableObject, NamedObject, BaseObject
 from mudsling.objects import BasePlayer, Object as LocatedObject
@@ -561,3 +563,130 @@ class DescribeCmd(EditCmd):
 
     def _notify_set(self, actor, obj, setting):
         actor.tell(obj, ' description set.')
+
+
+class SetGlobalCmd(mudsling.commands.Command):
+    """
+    @set-global[/obj] <name>=<value>
+
+    Evaluate <value> as Python code (unless /obj switch is used, then it matches
+    an object) and store the result in the specified Global Variable.
+    """
+    aliases = ('@set-global',)
+    syntax = '<name> {=} <value>'
+    lock = 'perm(eval code) and perm(use global vars)'
+    switch_defaults = {'obj': False}
+
+    def execute(self):
+        switches = self.parse_args(self.parse_switches(self.switchstr),
+                                   self.switch_parsers)
+        if 'obj' in switches:
+            self.arg_parsers = {'value': parsers.MatchObject(context=False)}
+        return super(SetGlobalCmd, self).execute()
+
+    def run(self, actor, name, value):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type name: str
+        :type value: BaseObject or str
+        """
+        from mudslingcore.globalvars import set_var, get_var
+        name = name.lower()
+        if isinstance(value, str):
+            value = self._eval(actor, self.argstr.partition('=')[2])
+        previous = get_var(name)
+        set_var(name, value)
+        actor.tell('Global {y$', name, '{n set to: {c', value,
+                   '{n (previously: {m', previous, '{n)')
+
+    def _eval(self, actor, code):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type code: str
+        """
+        import sys
+        from mudsling import registry
+        from mudsling.config import config
+        from mudsling.objects import Object
+        from mudslingcore.commands.admin.system import EvalCmd
+
+        #: :type: mudsling.objects.Object
+        char = actor.possessing
+        vars = {
+            'game': self.game,
+            'db': self.game.db,
+            'ref': self.game.db.get_ref,
+            'registry': registry,
+            'config': config,
+            'player': actor,
+            'me': char,
+            'here': (char.location if self.game.db.is_valid(char, Object)
+                     else None),
+            'utils': mudsling.utils,
+        }
+        vars.update(sys.modules)
+
+        # Support MOO-style objrefs in eval code.
+        code = EvalCmd.objref.sub(r'ref(\1)', code)
+        code = EvalCmd.objref_escape_fix.sub(r'#\1', code)
+
+        try:
+            return eval(code, {}, vars)
+        except Exception as e:
+            import logging
+            logging.exception('Failed: %s', self.raw)
+            raise self._err('{r%s: %s' % (e.__class__.__name__, e.message))
+
+
+class GlobalsCmd(mudsling.commands.Command):
+    """
+    @globals
+
+    Display a list of globals and their values.
+    """
+    aliases = ('@globals',)
+    lock = 'perm(use global vars)'
+
+    def run(self, actor):
+        """
+        :type actor: mudslingcore.objects.Player
+        """
+        from mudslingcore.globalvars import all_global_vars
+        ui = actor.get_ui()
+        c = ui.Column
+
+        t = ui.Table([
+            c('Name', align='l', cell_formatter=self._format_name),
+            c('Type', align='l', cell_formatter=self._format_type),
+            c('Value', align='l', cell_formatter=self._format_value)
+        ])
+        for name, value in all_global_vars().iteritems():
+            t.add_row((name, value, value))
+        actor.msg(ui.report('Globals', t))
+
+    def _class_name(self, cls):
+        out = cls.__module__
+        if out == '__builtin__':
+            out = ''
+        else:
+            out += '.'
+        out += cls.__name__
+        return out
+
+    def _format_name(self, name):
+        return '$%s' % name
+
+    def _format_type(self, value):
+        if inspect.isclass(value):
+            return 'class'
+        if self.game.db.is_valid(value, cls=BaseObject):
+            return value.python_class_name()
+        return self._class_name(type(value))
+
+    def _format_value(self, value):
+        if inspect.isclass(value):
+            return self._class_name(value)
+        if self.game.db.is_valid(value, cls=BaseObject):
+            return self.actor.name_for(value)
+        return repr(value)
+

@@ -14,7 +14,7 @@ class GlobalVarsNoDatabase(Error):
     pass
 
 
-def _init_global_vars():
+def all_global_vars():
     if db is not None:
         if not db.has_setting('global_vars'):
             db.set_setting('global_vars', {})
@@ -23,17 +23,17 @@ def _init_global_vars():
 
 
 def get_var(name, default=None):
-    global_vars = _init_global_vars()
+    global_vars = all_global_vars()
     return global_vars.get(name, default)
 
 
 def set_var(name, value):
-    global_vars = _init_global_vars()
+    global_vars = all_global_vars()
     global_vars[name] = value
 
 
 def has_var(name):
-    global_vars = _init_global_vars()
+    global_vars = all_global_vars()
     return name in global_vars
 
 
@@ -54,7 +54,8 @@ def parse_global_literal(searcher, search):
     """
     Parse '$<whatever>' into an object.
     """
-    m = global_re.match(search)
+    m = (global_re.match(search) if searcher.has_perm('use global vars')
+         else None)
     if m is None:
         return []
     else:

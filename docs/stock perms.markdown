@@ -37,6 +37,7 @@ mudslingcore
 * use mail -- Can use @mail commands.
 * script anything -- Script any object
 * use nested matching -- Can use '->' to match nested objects when literal matching is used.
+* use global vars -- Can use '$'-prefixed objects for matching.
 
 ## Object Lock types
 * control
