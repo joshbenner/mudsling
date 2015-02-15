@@ -20,6 +20,7 @@ from mudslingcore import misc
 from mudslingcore.objsettings import ConfigurableObject, lock_can_configure
 from mudslingcore.objsettings import SettingEditorSession
 from mudslingcore.editor import EditorError
+from mudslingcore.rooms import Room, RoomGroup
 
 from mudslingcore.commands.admin import ui
 
@@ -237,26 +238,37 @@ class GoCmd(Command):
     Teleport one's self to the indicated location.
     """
     aliases = ('@go',)
-    syntax = "<where>"
+    syntax = "[<where>]"
     lock = 'perm(teleport)'
     arg_parsers = {
         'where': parsers.MatchObject(cls=LocatedObject, context=False,
                                      search_for='location', show=True)
     }
 
-    def run(self, this, actor, args):
+    def run(self, actor, where):
         """
-        @type this: mudslingcore.objects.Player
-        @type actor: mudslingcore.objects.Player
-        @type args: dict
+        :type actor: mudslingcore.objects.Player
+        :type where: mudsling.objects.Object
         """
         if actor.is_possessing and actor.possessing.is_valid(LocatedObject):
-            #: @type: mudsling.objects.Object
+            #: :type: mudsling.objects.Object
             obj = actor.possessing
+            plugins = self.game.plugins.enabled_plugins()
+            if where is None and 'myobjs' in plugins:
+                from myobjs import MyObjCharacter
+                #: :type: MyObjCharacter
+                char = obj
+                if char.isa(MyObjCharacter) and char.has_myobj('place'):
+                    place = char.get_myobj('place')
+                    if self.game.db.is_valid(place, LocatedObject):
+                        where = place
+            if where is None:
+                actor.msg(self.syntax_help())
+                return
             if not obj.allows(actor, 'move'):
                 actor.tell("{yYou are not allowed to move {c", obj, "{y.")
                 return
-            misc.teleport_object(obj, args['where'])
+            misc.teleport_object(obj, where)
         else:
             m = "You are not attached to a valid object with location."
             raise self._err(m)
@@ -690,3 +702,50 @@ class GlobalsCmd(mudsling.commands.Command):
             return self.actor.name_for(value)
         return repr(value)
 
+
+class FindPlaceCmd(mudsling.commands.Command):
+    """
+    @find-place <name> in <group>
+
+    Find a room within the hierarchy of a room group tree. If you have @myobjs,
+    a single result will be saved to your %place myobj variable.
+    """
+    aliases = ('@find-place',)
+    syntax = '<search> {{in|on}} <group>'
+    arg_parsers = {
+        'group': parsers.MatchObject(cls=RoomGroup, search_for='room group',
+                                     show=True, context=False)
+    }
+    lock = 'perm(teleport)'
+
+    def run(self, actor, search, group):
+        """
+        :type actor: mudslingcore.objects.Player
+        :type search: str
+        :type group: mudslingcore.rooms.RoomGroup
+        """
+        matches = actor._match(search, list(group.all_rooms))
+        if not matches:
+            p = self.args['optset1'].lower()
+            actor.tell('{yNo places found matching "{m', search, '{y" ', p,
+                       ' {c', group, '{y.')
+            return
+        plugins = self.game.plugins.enabled_plugins()
+        if len(matches) == 1 and 'myobjs' in plugins:
+            from myobjs import MyObjCharacter
+            #: :type: myobjs.MyObjCharacter
+            char = actor.possessing
+            if char.isa(MyObjCharacter):
+                char.set_myobj('place', matches[0])
+                actor.tell('{mSaved {c', matches[0], '{m to {y%place {mmyobj.')
+        out = '{cFound Places{y:\n'
+        out += '\n'.join(' {y* {g%s' % actor.name_for(m) for m in matches)
+        actor.msg(out)
+
+
+    def _search(self, group, search):
+        """
+        :type group: mudslingcore.rooms.RoomGroup
+        :type search: str
+        """
+        group.all_rooms

@@ -86,6 +86,9 @@ class MyObjCharacter(BaseCharacter):
         if 'myobjs' not in self.__dict__:
             self.myobjs = OrderedDict()
 
+    def has_myobj(self, key):
+        return key.lower() in self.myobjs
+
     def get_myobj(self, key):
         return self.myobjs.get(key.lower(), None)
 
