@@ -12,6 +12,14 @@ from mudsling import registry
 from mudsling import pickler
 
 
+_all_refs = set()
+"""
+Set of integer object IDs referenced by any ObjRef instance loaded from a saved
+database file. This will be emptied after recyclable numbers are identified, so
+do not use it for anything else.
+"""
+
+
 # Support pickling methods.
 def reduce_method(m):
     return getattr, (m.__self__, m.__func__.__name__)
@@ -115,6 +123,7 @@ class ObjRef(PersistentSlots):
 
     def __setstate__(self, state):
         """Compatibility with old namedtuple implementation"""
+        _all_refs.add(state['_id'])
         if isinstance(state, bool) and not state:
             return
         return super(ObjRef, self).__setstate__(state)
@@ -381,12 +390,13 @@ class Database(Persistent):
     @type game: mudsling.core.MUDSling
     """
 
-    _transient_vars = ['type_registry', 'game', 'filepath']
+    _transient_vars = ['type_registry', 'game', 'filepath', 'recyclable_ids']
 
     initialized = False
     max_obj_id = 0
     objects = {}
     roles = []
+    recyclable_ids = set()
 
     max_task_id = 0
     tasks = {}
@@ -446,6 +456,16 @@ class Database(Persistent):
         # StoredObject takes advantage of with its game property.
         StoredObject.db = self
         self.rebuild_type_registry()
+        self.find_recyclable_ids()
+
+    def find_recyclable_ids(self):
+        r = self.recyclable_ids
+        i = 0
+        while i <= self.max_obj_id:
+            i += 1
+            if i not in self.objects and i not in _all_refs:
+                r.add(i)
+        globals()['_all_refs'] = set()
 
     def rebuild_type_registry(self):
         self.type_registry = {}
@@ -533,9 +553,15 @@ class Database(Persistent):
         """
         Allocates a new object ID. Should only be called when a new object is
         being added to the game database.
+
+        Will re-use IDs which are candidates for recycling.
         """
-        self.max_obj_id += 1
-        return self.max_obj_id
+        if len(self.recyclable_ids):
+            obj_id = self.recyclable_ids.pop()
+        else:
+            self.max_obj_id += 1
+            obj_id = self.max_obj_id
+        return obj_id
 
     def _add_to_type_registry(self, obj):
         cls = obj.__class__
