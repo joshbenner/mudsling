@@ -585,6 +585,19 @@ class Database(Persistent):
         obj = obj._real_object()
         newobj = newclass(**kw)
         newobj.__dict__.update(obj.__dict__)
+        if isinstance(obj, PersistentSlots):
+            slots = set()
+            for c in obj.__class__.__mro__:
+                if '__slots__' in c.__dict__:
+                    slots.update(c.__slots__)
+            for slot in slots:
+                if slot in obj.__dict__:
+                    continue
+                try:
+                    slot_val = getattr(obj, slot)
+                    setattr(newobj, slot, slot_val)
+                except AttributeError:
+                    continue
         self.unregister_object(obj)
         self.register_object(newobj, force_id=obj.obj_id)
         newobj.on_object_created()
