@@ -1148,8 +1148,8 @@ class Object(BaseObject):
 
         self.after_object_moved(source, dest, by, via)
 
-    @staticmethod
-    def _location_walker(location):
+    def _location_walker(self):
+        location = self.location
         try:
             while location is not None:
                 loc = location.location
@@ -1167,7 +1167,7 @@ class Object(BaseObject):
         :return: List of nested locations, from deepest to shallowest.
         :rtype: list of Object
         """
-        return list(self._location_walker(self))
+        return list(self._location_walker())
 
     def emit(self, msg, exclude=None, location=None):
         """
