@@ -1148,25 +1148,26 @@ class Object(BaseObject):
 
         self.after_object_moved(source, dest, by, via)
 
-    def locations(self, exclude_invalid=True):
+    @staticmethod
+    def _location_walker(location):
+        try:
+            while location is not None:
+                loc = location.location
+                yield loc
+                location = loc
+        except AttributeError:
+            pass
+
+    def locations(self):
         """
         Get a list of all the nested locations where this object resides. Child
         classes should be very reluctant to override this. Unexpected return
         results may yield unexpected behaviors.
 
-        :param exclude_invalid: If true, does not consider an invalid ObjRef to
-            be a valid location, and will not include it in the list.
-
         :return: List of nested locations, from deepest to shallowest.
         :rtype: list of Object
         """
-        locations = []
-        if (isinstance(self.location, ObjRef)
-                and (self.location.is_valid() or not exclude_invalid)):
-            locations.append(self.location)
-            if self.location.is_valid(Object):
-                locations.extend(self.location.locations())
-        return locations
+        return list(self._location_walker(self))
 
     def emit(self, msg, exclude=None, location=None):
         """
