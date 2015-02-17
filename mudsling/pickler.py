@@ -7,6 +7,7 @@ import os
 from mudsling import utils
 import mudsling.utils.modules
 from mudsling.utils.migrate import module_name_map, class_name_map
+from mudsling.utils.migrate import class_move_map
 
 _ext_id_re = re.compile(r"^(.+)~(.+)~(.+)$")
 _external_types = {}
@@ -100,10 +101,17 @@ def mapped_load_global(self):
     if module is None:
         module = _module
     name = self.readline()[:-1]
-    name_options = ('%s.%s' % (module, name), '%s.%s' % (_module, name))
-    for opt in name_options:
-        if opt in class_name_map:
-            name = name_options[opt].split('.')[-1]
-            break
+    _full = '%s.%s' % (_module, name)
+    _mapped = '%s.%s' % (module, name)
+    if _full in class_move_map:
+        module, _, name = class_move_map[_full].rpartition('.')
+    elif _mapped in class_move_map:
+        name = class_move_map[_mapped].split('.')[-1]
+    else:
+        name_options = ('%s.%s' % (module, name), '%s.%s' % (_module, name))
+        for opt in name_options:
+            if opt in class_name_map:
+                name = opt.split('.')[-1]
+                break
     klass = self.find_class(module, name)
     self.append(klass)

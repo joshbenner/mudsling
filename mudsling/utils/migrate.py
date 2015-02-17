@@ -4,6 +4,7 @@ Migration utilities.
 
 module_name_map = {}
 class_name_map = {}
+class_move_map = {}
 
 
 def forward_class(new_class):
@@ -44,3 +45,7 @@ def rename_module(oldname, newname):
 
 def rename_class(oldname, newname):
     class_name_map[oldname] = newname
+
+
+def move_class(oldclass, newclass):
+    class_move_map[oldclass] = newclass
