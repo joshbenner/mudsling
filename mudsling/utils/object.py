@@ -187,3 +187,19 @@ def check_attr(obj, member, default=None):
             pass
     setattr(obj, member, default)
     return getattr(obj, member)
+
+
+def inheritors(cls):
+    """
+    Get a list of all classes that inherit from the given new-style class.
+    :rtype: set
+    """
+    subclasses = set()
+    work = [cls]
+    while work:
+        parent = work.pop()
+        for child in parent.__subclasses__():
+            if child not in subclasses:
+                subclasses.add(child)
+                work.append(child)
+    return subclasses
