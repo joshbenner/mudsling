@@ -371,6 +371,14 @@ class Character(BaseCharacter, DescribableObject, SensingObject, HasGender):
         player = super(Character, self).player
         return player if player.is_valid(Player) else None
 
+    def room_group(self, cls=None):
+        from mudslingcore.rooms import RoomGroup
+        cls = cls or RoomGroup
+        for loc in self._location_walker():
+            if loc.isa(RoomGroup) and loc.isa(cls):
+                return loc
+        return None
+
     def preemptive_command_match(self, raw):
         if raw.startswith('"'):
             return self._say_cmd(raw, '"', raw[1:], self.game,
