@@ -20,7 +20,7 @@ from mudslingcore import misc
 from mudslingcore.objsettings import ConfigurableObject, lock_can_configure
 from mudslingcore.objsettings import SettingEditorSession
 from mudslingcore.editor import EditorError
-from mudslingcore.rooms import Room, RoomGroup
+from mudslingcore.rooms import RoomGroup
 
 from mudslingcore.commands.admin import ui
 
@@ -743,9 +743,31 @@ class FindPlaceCmd(mudsling.commands.Command):
         actor.msg(out)
 
 
-    def _search(self, group, search):
+class LocationsCmd(Command):
+    """
+    @locations [<object>]
+
+    Print out the nested location tree of the object specified. Defaults to
+    self.
+    """
+    aliases = ('@locations', '@locs')
+    syntax = '[<obj>]'
+    arg_parsers = {'obj': parsers.MatchObject(cls=LocatedObject, show=True,
+                                              search_for='object',
+                                              context=False)}
+    lock = locks.all_pass
+
+    def run(self, actor, obj):
         """
-        :type group: mudslingcore.rooms.RoomGroup
-        :type search: str
+        :type actor: mudslingcore.objects.Player
+        :type obj: mudsling.objects.Object
         """
-        group.all_rooms
+        if (obj is None and actor.is_possessing
+                and actor.possessing.isa(LocatedObject)):
+            #: :type: mudsling.objects.Object
+            obj = actor.possessing
+        if not obj.allows(actor, 'locate'):
+            raise self._err('{rYou are not permitted to locate that.')
+        locs = ['{g%s' % actor.name_for(obj)]
+        locs.extend('{y%s' % actor.name_for(l) for l in obj.locations())
+        actor.msg(' {m/ '.join(locs))
