@@ -1152,9 +1152,8 @@ class Object(BaseObject):
         location = self.location
         try:
             while location is not None:
-                loc = location.location
-                yield loc
-                location = loc
+                yield location
+                location = location.location
         except AttributeError:
             pass
 
