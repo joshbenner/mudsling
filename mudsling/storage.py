@@ -461,7 +461,7 @@ class Database(Persistent):
     def find_recyclable_ids(self):
         r = self.recyclable_ids
         i = 0
-        while i <= self.max_obj_id:
+        while i < self.max_obj_id:
             i += 1
             if i not in self.objects and i not in _all_refs:
                 r.add(i)
