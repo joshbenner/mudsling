@@ -5,11 +5,13 @@ import os
 import time
 
 from twisted.internet.task import LoopingCall
+import zope.interface
 
 from mudsling.match import match_objlist
 from mudsling import errors
 from mudsling import registry
 from mudsling import pickler
+from mudsling.events import RespondsToOwnEvents
 
 
 _all_refs = set()
@@ -203,8 +205,15 @@ class ObjRef(PersistentSlots):
         """
         return self
 
+    @property
+    def __providedBy__(self):
+        """
+        Pass zope interface interrogation through to the real object.
+        """
+        return zope.interface.providedBy(self._real_object())
 
-class StoredObject(Persistent):
+
+class StoredObject(Persistent, RespondsToOwnEvents):
     """
     Storage class for all game-world objects. This class has no location and no
     contents. Avoid subclassing this object directly, use BaseObject or Object.

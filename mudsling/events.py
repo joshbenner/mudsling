@@ -1,9 +1,27 @@
 import inspect
 
-from mudsling.storage import StoredObject, PersistentSlots
+import zope.interface
+
+
+class IEvent(zope.interface.Interface):
+    obj = zope.interface.Attribute("The host object")
+
+
+# noinspection PyMethodParameters
+class IEventResponder(zope.interface.Interface):
+    def respond_to_event(event):
+        """Respond to the passed event."""
+
+
+# noinspection PyMethodParameters
+class IEventHost(zope.interface.Interface):
+    def trigger_event(event, *a, **kw):
+        """Trigger an event with optional parameters."""
 
 
 class Event(object):
+    zope.interface.implements(IEvent)
+    
     obj = None
     originator = None
 
@@ -35,10 +53,11 @@ def event_handler(types):
     return decorate
 
 
-class EventResponder(PersistentSlots):
+class EventResponder(object):
     """
     Base class for objects that wish to be event responders.
     """
+    zope.interface.implements(IEventResponder)
     __slots__ = ()
 
     event_handler_cache = {}
@@ -52,7 +71,7 @@ class EventResponder(PersistentSlots):
         Utility method that can be used to have delegate responders build a set
         of responses. Useful for child implementations of respond_to_event.
         """
-        for d in (d for d in delegates if isinstance(d, EventResponder)):
+        for d in (d for d in delegates if IEventResponder.providedBy(d)):
             d.respond_to_event(event)
 
     @classmethod
@@ -72,7 +91,10 @@ class EventResponder(PersistentSlots):
 
 
 class StaticEventResponder(EventResponder):
-    __slots__ = ()
+    zope.interface.classProvides(IEventResponder)
+
+    def __new__(cls, *args, **kwargs):
+        raise RuntimeError('Cannot instantiate static class.')
 
     @classmethod
     def respond_to_event(cls, event):
@@ -84,6 +106,7 @@ class HasEvents(object):
     """
     An object that can notify other objects of arbitrary events.
     """
+    zope.interface.implements(IEventHost)
 
     def __init__(self, *a, **kw):
         try:
@@ -109,7 +132,8 @@ class HasEvents(object):
         """
         if inspect.isclass(event):
             event = event(*a, **kw)
-        if isinstance(event, Event) and event.obj is None:
+        if IEvent.providedBy(event) and event.obj is None:
+            from mudsling.storage import StoredObject
             if isinstance(self, StoredObject):
                 event.obj = self.ref()
             else:
@@ -128,12 +152,8 @@ class HasEvents(object):
         """
         event = self._spawn_event(event, *a, **kw)
         for r in self.event_responders(event):
-            if isinstance(r, EventResponder) or issubclass(r, EventResponder):
-                d = r.respond_to_event
-                # noinspection PyUnresolvedReferences
-                if (inspect.isfunction(d)
-                        or (inspect.ismethod(d) and d.im_self is not None)):
-                    d(event)
+            if IEventResponder.providedBy(r):
+                r.respond_to_event(event)
         return event
 
     def event_responders(self, event):
@@ -146,6 +166,7 @@ class RespondsToOwnEvents(HasEvents, EventResponder):
     An event-bearing object that can host its own handlers.
     """
     def event_responders(self, event):
+        from mudsling.storage import StoredObject
         r = super(RespondsToOwnEvents, self).event_responders(event)
         # noinspection PyUnresolvedReferences
         r.append(self.ref() if isinstance(self, StoredObject) else self)
