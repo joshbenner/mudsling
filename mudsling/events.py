@@ -1,105 +1,50 @@
 import inspect
 
-import mudsling.storage
-import mudsling.pickler
-
-event_types = {}
-
-
-class EventType(object):
-    __slots__ = ('name',)
-
-    def __new__(cls, name):
-        return event_types.get(name, super(EventType, cls).__new__(cls))
-
-    def __init__(self, name):
-        self.name = name
-        event_types[name] = self
-
-    def __repr__(self):
-        return "%s.%s('%s')" % (self.__class__.__module__,
-                                self.__class__.__name__,
-                                self.name)
-
-    def __str__(self):
-        return self.name
-
-
-# Support storage of EventType in database by pickling only the name.
-mudsling.pickler.register_external_type(EventType, lambda e: e.name, EventType)
+from mudsling.storage import StoredObject, PersistentSlots
 
 
 class Event(object):
     obj = None
+    originator = None
 
-    def __init__(self, event_type, **kw):
+    def __init__(self, obj=None, originator=None, **kw):
         """
-        :param event_type: The name/type of the event.
-        :type event_type: str or EventType
+        :param obj: The object that hosts the event, if any.
+        :param originator: The object/whatever that caused the event.
+        :param kw: Any additional attributes to set on the event.
         """
-        self.type = event_type
-        self.set_params(**kw)
-
-    def set_params(self, **kw):
+        if obj is not None:
+            self.obj = obj
+        if originator is not None:
+            self.originator = originator
         self.__dict__.update(kw)
 
-    # Legacy support for use of the name attribute.
-    @property
-    def name(self):
-        return self.type
 
-    @name.setter
-    def name(self, val):
-        self.type = val
-
-    def is_type(self, event_type):
-        """
-        Determine if this event is of a given type.
-
-        :param event_type: The event type to inquire about. Can be a string or
-            an EventType instance, and the method will resolve everything for
-            comparison.
-        :type event_type: str or EventType
-
-        :rtype: bool
-        """
-        if isinstance(event_type, EventType):
-            event_type = event_type.name
-        if isinstance(self.type, EventType):
-            my_type = self.type.name
-        else:
-            my_type = self.type
-        return event_type.lower() == my_type.lower()
-
-
-def event_handler(event_type):
+def event_handler(types):
     """
     Decorator to identify a member of an EventResponder as an event handler.
 
-    :param event_type: The event type to handle.
-    :type event_type: EventType
+    :param types: The event type to handle.
+    :type types: type
     """
+    types = types if isinstance(types, tuple) else (types,)
+
     def decorate(f):
-        if isinstance(event_type, EventType):
-            f.handle_event = event_type.name
-        else:
-            f.handle_event = event_type
+        f.handles_event_types = types
         return f
     return decorate
 
 
-class EventResponder(mudsling.storage.PersistentSlots):
+class EventResponder(PersistentSlots):
     """
     Base class for objects that wish to be event responders.
     """
     __slots__ = ()
 
-    event_handlers = {}
+    event_handler_cache = {}
 
     def respond_to_event(self, event):
-        event_type = (event.type.name if isinstance(event.type, EventType)
-                      else event.name)
-        for handler in self._event_handlers(event_type):
+        for handler in self._event_handlers(event):
             handler(self, event)
 
     def delegate_event(self, event, delegates):
@@ -111,15 +56,19 @@ class EventResponder(mudsling.storage.PersistentSlots):
             d.respond_to_event(event)
 
     @classmethod
-    def _event_handlers(cls, etype):
-        if cls not in EventResponder.event_handlers:
-            EventResponder.event_handlers[cls] = {}
-        if etype not in EventResponder.event_handlers[cls]:
-            f = lambda m: (inspect.ismethod(m)
-                           and getattr(m, 'handle_event', None) == etype)
+    def _event_handlers(cls, event):
+        etype = type(event)
+        if cls not in EventResponder.event_handler_cache:
+            EventResponder.event_handler_cache[cls] = {}
+        if etype not in EventResponder.event_handler_cache[cls]:
+            def f(m):
+                if inspect.ismethod(m):
+                    for t in getattr(m, 'handles_event_types', ()):
+                        if isinstance(event, t):
+                            return True
             handlers = [f[1] for f in inspect.getmembers(cls, predicate=f)]
-            EventResponder.event_handlers[cls][etype] = handlers
-        return EventResponder.event_handlers[cls][etype]
+            EventResponder.event_handler_cache[cls][etype] = handlers
+        return EventResponder.event_handler_cache[cls][etype]
 
 
 class StaticEventResponder(EventResponder):
@@ -127,9 +76,7 @@ class StaticEventResponder(EventResponder):
 
     @classmethod
     def respond_to_event(cls, event):
-        event_type = (event.type.name if isinstance(event.type, EventType)
-                      else event.name)
-        for handler in cls._event_handlers(event_type):
+        for handler in cls._event_handlers(event):
             handler(event)
 
 
@@ -147,14 +94,43 @@ class HasEvents(object):
             # is harmless.
             pass
 
-    def trigger_event(self, event, **kw):
-        if isinstance(event, (EventType, basestring)):
-            event = Event(event)
-        event.set_params(**kw)
-        event.obj = self
+    def _spawn_event(self, event, *a, **kw):
+        """
+        Spawn (if necessary) an event object based on the passed event or event
+        class. Also sets event.obj if it's an Event subclass.
+
+        Used by trigger_event().
+
+        :param event: The event to trigger, or the event class to instantiate.
+        :param a: Position arguments to pass to event instantiation.
+        :param kw: Keyword arguments to pass to event instantiation.
+
+        :return: The instantiated event, or the event that was passed in.
+        """
+        if inspect.isclass(event):
+            event = event(*a, **kw)
+            if issubclass(event, Event) and event.obj is None:
+                if isinstance(self, StoredObject):
+                    event.obj = self.ref()
+                else:
+                    event.obj = self
+        return event
+
+    def trigger_event(self, event, *a, **kw):
+        """
+        Trigger an event to be propagated to all responders.
+
+        :param event: The event to trigger, or the event class to instantiate.
+        :param a: Position arguments to pass to event instantiation.
+        :param kw: Keyword arguments to pass to event instantiation.
+
+        :return: The event.
+        """
+        event = self._spawn_event(event, *a, **kw)
         for r in self.event_responders(event):
             if isinstance(r, EventResponder) or issubclass(r, EventResponder):
                 d = r.respond_to_event
+                # noinspection PyUnresolvedReferences
                 if (inspect.isfunction(d)
                         or (inspect.ismethod(d) and d.im_self is not None)):
                     d(event)
@@ -163,3 +139,20 @@ class HasEvents(object):
     def event_responders(self, event):
         raise NotImplementedError("'%s' does not implement event_responders()"
                                   % self.__class__.__name__)
+
+
+class RespondsToOwnEvents(HasEvents, EventResponder):
+    """
+    An event-bearing object that can host its own handlers.
+    """
+    def event_responders(self, event):
+        # noinspection PyUnresolvedReferences
+        responders = [self.ref() if isinstance(self, StoredObject) else self]
+        # Support other responders in ancestry.
+        try:
+            er = super(RespondsToOwnEvents, self).event_responders
+        except AttributeError:
+            pass
+        else:
+            responders.extend(er(event))
+        return responders
