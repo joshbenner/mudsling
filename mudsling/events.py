@@ -137,8 +137,8 @@ class HasEvents(object):
         return event
 
     def event_responders(self, event):
-        raise NotImplementedError("'%s' does not implement event_responders()"
-                                  % self.__class__.__name__)
+        """:rtype: list"""
+        return []
 
 
 class RespondsToOwnEvents(HasEvents, EventResponder):
@@ -146,13 +146,7 @@ class RespondsToOwnEvents(HasEvents, EventResponder):
     An event-bearing object that can host its own handlers.
     """
     def event_responders(self, event):
+        r = super(RespondsToOwnEvents, self).event_responders(event)
         # noinspection PyUnresolvedReferences
-        responders = [self.ref() if isinstance(self, StoredObject) else self]
-        # Support other responders in ancestry.
-        try:
-            er = super(RespondsToOwnEvents, self).event_responders
-        except AttributeError:
-            pass
-        else:
-            responders.extend(er(event))
-        return responders
+        r.append(self.ref() if isinstance(self, StoredObject) else self)
+        return r
