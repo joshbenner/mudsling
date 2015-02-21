@@ -109,11 +109,11 @@ class HasEvents(object):
         """
         if inspect.isclass(event):
             event = event(*a, **kw)
-            if issubclass(event, Event) and event.obj is None:
-                if isinstance(self, StoredObject):
-                    event.obj = self.ref()
-                else:
-                    event.obj = self
+        if isinstance(event, Event) and event.obj is None:
+            if isinstance(self, StoredObject):
+                event.obj = self.ref()
+            else:
+                event.obj = self
         return event
 
     def trigger_event(self, event, *a, **kw):
