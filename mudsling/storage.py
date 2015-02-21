@@ -3,6 +3,8 @@ import types
 import logging
 import os
 import time
+import inspect
+from collections import namedtuple
 
 from twisted.internet.task import LoopingCall
 import zope.interface
@@ -11,7 +13,7 @@ from mudsling.match import match_objlist
 from mudsling import errors
 from mudsling import registry
 from mudsling import pickler
-from mudsling.events import RespondsToOwnEvents
+from mudsling.events import HasSubscribableEvents
 
 
 _all_refs = set()
@@ -24,7 +26,10 @@ do not use it for anything else.
 
 # Support pickling methods.
 def reduce_method(m):
-    return getattr, (m.__self__, m.__func__.__name__)
+    o = m.__self__
+    if isinstance(o, StoredObject):
+        o = o.ref()
+    return getattr, (o, m.__func__.__name__)
 copy_reg.pickle(types.MethodType, reduce_method)
 del reduce_method
 
@@ -213,7 +218,39 @@ class ObjRef(PersistentSlots):
         return zope.interface.providedBy(self._real_object())
 
 
-class StoredObject(Persistent, RespondsToOwnEvents):
+class InvalidSubscription(errors.Error):
+    pass
+
+
+class EventSubscription(namedtuple('EventSubscription', 'obj func')):
+    """
+    Callable subscription that assures it is storing ObjRefs if appropriate.
+    """
+    def __new__(cls, *args):
+        if len(args) == 2:
+            # Unpickling?
+            obj, func = args
+        else:
+            func = args[0]
+            obj = None
+            func = func
+            if inspect.ismethod(func):
+                obj = func.im_self
+                if isinstance(obj, StoredObject):
+                    obj = obj.ref()
+                func = func.im_func.__name__
+        return super(EventSubscription, cls).__new__(cls, obj, func)
+
+    def __call__(self, event):
+        if self.obj is not None:  # It's a method!
+            if isinstance(self.obj, ObjRef) and not self.obj.is_valid():
+                raise InvalidSubscription()
+            getattr(self.obj, self.func)(event)
+        else:
+            self.func(event)
+
+
+class StoredObject(Persistent, HasSubscribableEvents):
     """
     Storage class for all game-world objects. This class has no location and no
     contents. Avoid subclassing this object directly, use BaseObject or Object.
@@ -371,6 +408,21 @@ class StoredObject(Persistent, RespondsToOwnEvents):
         """
         Called just before the server shuts down.
         """
+
+    def _create_subscription(self, event_type, func):
+        return EventSubscription(func)
+
+    def send_event_to_subscribers(self, event):
+        remove = []
+        for event_type, subscribers in self._event_subscriptions.iteritems():
+            if isinstance(event, event_type):
+                for subscriber in subscribers:
+                    try:
+                        subscriber(event)
+                    except InvalidSubscription:
+                        remove.append((event_type, subscriber))
+        for et, sub in remove:
+            self._event_subscriptions[et].remove(sub)
 
 
 class Database(Persistent):

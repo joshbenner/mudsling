@@ -171,3 +171,60 @@ class RespondsToOwnEvents(HasEvents, EventResponder):
         # noinspection PyUnresolvedReferences
         r.append(self.ref() if isinstance(self, StoredObject) else self)
         return r
+
+
+class HasSubscribableEvents(RespondsToOwnEvents):
+    """
+    An object that has events and responds to them, but maintains a registration
+    of other objects/callbacks that wish to receive the event as well.
+    """
+    _event_subscriptions = {}
+
+    def _create_subscription(self, event_type, func):
+        return func
+
+    def subscribe_to_event(self, event_type, func):
+        """
+        Register a callback function to receive an event of a specific type.
+
+        :param event_type: The event type(s) to register the callback to.
+        :type event_type: type or tuple
+
+        :param func: The function to call for the given event type(s).
+        :type func: types.FunctionType or types.MethodType
+        """
+        if 'event_delegates' not in self.__dict__:
+            self._event_subscriptions = {}
+        event_types = (event_type if isinstance(event_type, (tuple, list))
+                       else (event_type,))
+        for et in event_types:
+            if et not in self._event_subscriptions:
+                self._event_subscriptions[et] = set()
+            self._event_subscriptions[et].add(
+                self._create_subscription(et, func))
+
+    def unsubscribe_from_event(self, event_type, func):
+        """
+        Remove a callback function.
+
+        :param event_type: The event type(s) to unsubscribe from.
+        :param func: The function to unsubscribe.
+        """
+        event_types = (event_type if isinstance(event_type, (tuple, list))
+                       else (event_type,))
+        for et in event_types:
+            sub = self._create_subscription(et, func)
+            try:
+                self._event_subscriptions[et].remove(sub)
+            except KeyError:
+                continue
+
+    def respond_to_event(self, event):
+        super(HasSubscribableEvents, self).respond_to_event(event)
+        self.send_event_to_subscribers(event)
+
+    def send_event_to_subscribers(self, event):
+        for event_type, subscribers in self._event_subscriptions.iteritems():
+            if isinstance(event, event_type):
+                for subscriber in subscribers:
+                    subscriber(event)
