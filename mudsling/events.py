@@ -112,14 +112,14 @@ class EventResponder(mudsling.storage.PersistentSlots):
 
     @classmethod
     def _event_handlers(cls, etype):
-        if cls not in cls.event_handlers:
-            cls.event_handlers[cls] = {}
-        if etype not in cls.event_handlers[cls]:
+        if cls not in EventResponder.event_handlers:
+            EventResponder.event_handlers[cls] = {}
+        if etype not in EventResponder.event_handlers[cls]:
             f = lambda m: (inspect.ismethod(m)
                            and getattr(m, 'handle_event', None) == etype)
             handlers = [f[1] for f in inspect.getmembers(cls, predicate=f)]
-            cls.event_handlers[cls][etype] = handlers
-        return cls.event_handlers[cls][etype]
+            EventResponder.event_handlers[cls][etype] = handlers
+        return EventResponder.event_handlers[cls][etype]
 
 
 class StaticEventResponder(EventResponder):
