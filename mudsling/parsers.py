@@ -362,4 +362,5 @@ class ListMatcher(Parser):
             self._parse = lambda i, actor=None: parser.parse(i, actor=actor)
 
     def parse(self, input, actor=None):
-        return [self._parse(p.strip()) for p in input.split(self.delimiter)]
+        return [self._parse(p.strip(), actor=actor)
+                for p in input.split(self.delimiter)]

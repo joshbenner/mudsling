@@ -29,7 +29,7 @@ class FollowableObject(Object):
             self._beckon_followers(via)
 
     def _beckon_followers(self, exit):
-        self._prune_followers()
+        self._prune_followers(ignore_location=True)
         for follower in self.followers:
             follower.do_follow(exit)
 
@@ -45,13 +45,15 @@ class FollowableObject(Object):
             del self.allow_follow[char]
         return remove
 
-    def _prune_followers(self):
+    def _prune_followers(self, ignore_location=False):
         if 'followers' not in self.__dict__:
             self.followers = []
-        prune = []
+        prune = set()
         for f in self.followers:
-            if not f.isa(Follower) or f.location != self.location:
-                prune.append(f)
+            if not f.isa(Follower):
+                prune.add(f)
+            if not ignore_location and f.location != self.location:
+                prune.add(f)
         for f in prune:
             self._terminate_follower(f)
         return prune
@@ -69,21 +71,22 @@ class FollowableObject(Object):
                 self.allow_follow[char] = time_utils.unixtime()
         if newly_allowed:
             names = RenderList(newly_allowed, format='{g%s{n')
-            self.emit_message('lead', actor=self.ref(), charlist=names)
+            self.emit_message('follow_invite', actor=self.ref(), charlist=names)
         return newly_allowed
 
     def follow_uninvite(self, charlist):
         self._prune_allow_follow()
         uninvite = [c for c in charlist
                     if c in self.allow_follow or c in self.followers]
+        if uninvite:
+            names = RenderList(uninvite, format='{g%s{n')
+            self.emit_message('follow_uninvite', actor=self.ref(),
+                              charlist=names)
         for char in uninvite:
             if char in self.allow_follow:
                 del self.allow_follow[char]
             if char in self.followers:
                 self._terminate_follower(char)
-        if uninvite:
-            names = RenderList(uninvite, format='{g%s{n')
-            self.emit_message('unlead', actor=self.ref(), charlist=names)
         return uninvite
 
     def gain_follower(self, char):
