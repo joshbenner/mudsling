@@ -4,8 +4,11 @@ Message formatting system.
 import random
 import copy
 import re
+import abc
 
 import zope.interface
+
+import mudsling.utils.string as str_utils
 
 
 class InvalidMessage(Exception):
@@ -25,6 +28,44 @@ class FilteredPart(object):
             return getattr(str(part), self.funcname)()
         except AttributeError:
             return str(part) + '(ERROR)'
+
+
+class RenderablePart(object):
+    __metaclass__ = abc.ABCMeta
+    __slots__ = ()
+
+    @abc.abstractmethod
+    def render(self, viewer=None):
+        """
+        :return: The rendered text.
+        :rtype: str
+        """
+
+
+class RenderList(RenderablePart):
+    __slots__ = ('values', 'nothingstr', 'andstr', 'commastr', 'finalcommastr',
+                 'format')
+
+    def __init__(self, values, nothingstr="nothing", andstr=" and ",
+                 commastr=", ", finalcommastr=",", format='%s'):
+        self.values = values
+        self.nothingstr = nothingstr
+        self.andstr = andstr
+        self.commastr = commastr
+        self.finalcommastr = finalcommastr
+        self.format = format
+
+    def render(self, viewer=None):
+        if viewer is not None:
+            rendered_vals = [self.format % viewer._format_msg((v,))
+                             for v in self.values]
+        else:
+            rendered_vals = [self.format % v for v in self.values]
+        return str_utils.english_list(rendered_vals,
+                                      nothingstr=self.nothingstr,
+                                      andstr=self.andstr,
+                                      commastr=self.commastr,
+                                      finalcommastr=self.finalcommastr)
 
 
 class MessageParser(object):
