@@ -1,6 +1,7 @@
 from mudsling.objects import Object
 from mudsling.messages import Messages, RenderList
 import mudsling.utils.time as time_utils
+import mudsling.utils.string as str_utils
 from mudsling.errors import InvalidObject
 from mudsling.commands import Command
 from mudsling.parsers import ListMatcher, MatchObject
@@ -217,7 +218,34 @@ class UnleadCommand(Command):
             actor.tell('{yNo followers uninvited.')
 
 
-FollowableObject.private_commands = [LeadCmd, UnleadCommand]
+class FollowersCmd(Command):
+    """
+    followers
+
+    List those who you have invited to follow you, or who are following you.
+    """
+    aliases = ('followers',)
+    lock = all_pass
+
+    def run(self, actor):
+        """
+        :type actor: FollowableObject
+        """
+        if actor.followers:
+            actor.tell('{cFollowers{y: {n', self._names(actor.followers))
+        else:
+            actor.tell('{yNo followers.')
+        invited = set(actor.allow_follow.keys()).difference(actor.followers)
+        if invited:
+            actor.tell('{cInvited{y: {n', self._names(invited))
+        else:
+            actor.tell('{yNo other followers invited.')
+
+    def _names(self, followers):
+        return str_utils.and_list([self.actor.name_for(f) for f in followers])
+
+
+FollowableObject.private_commands = [LeadCmd, UnleadCommand, FollowersCmd]
 
 
 class FollowCmd(Command):
@@ -260,4 +288,23 @@ class UnfollowCmd(Command):
         actor.stop_following()
 
 
-Follower.private_commands = [FollowCmd, UnfollowCmd]
+class FollowingCmd(Command):
+    """
+    following
+
+    Indicates who you are following.
+    """
+    aliases = ('following',)
+    lock = all_pass
+
+    def run(self, actor):
+        """
+        :type actor: Follower
+        """
+        if actor.is_following:
+            actor.tell('{gYou are following: {c', actor.following, '{g.')
+        else:
+            actor.tell('{yYou are not following anyone.')
+
+
+Follower.private_commands = [FollowCmd, UnfollowCmd, FollowingCmd]
