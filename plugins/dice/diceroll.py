@@ -496,7 +496,7 @@ class DieRollNode(EvalNode):
 
     def coerce_numeric(self, vars, state):
         result, desc = self.eval(vars, state)
-        return result, desc
+        return sum(result) if isinstance(result, Sequence) else result, desc
 
 
 class LiteralNode(EvalNode):
