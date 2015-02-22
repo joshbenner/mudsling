@@ -345,3 +345,21 @@ class MatchDescendants(MatchObject):
     """
     def _match(self, obj, input):
         return obj.match_obj_of_type(input, self.objClass)
+
+
+class ListMatcher(Parser):
+    """
+    Parser which splits the input into a list, and passes each item through an
+    additional parser provided.
+    """
+    def __init__(self, parser, delimiter=','):
+        import inspect
+        self.parser = parser
+        self.delimiter = delimiter
+        if inspect.isclass(parser):
+            self._parse = lambda i, actor=None: parser.parse(i)
+        elif isinstance(parser, Parser):
+            self._parse = lambda i, actor=None: parser.parse(i, actor=actor)
+
+    def parse(self, input, actor=None):
+        return [self._parse(p.strip()) for p in input.split(self.delimiter)]
