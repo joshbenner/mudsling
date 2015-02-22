@@ -22,6 +22,8 @@ class FollowableObject(Object):
     followers = []
 
     def after_object_moved(self, moved_from, moved_to, by=None, via=None):
+        super(FollowableObject, self).after_object_moved(moved_from, moved_to,
+                                                         by=by, via=via)
         from mudslingcore.rooms import Exit
         if self.db.is_valid(via, Exit):
             self._beckon_followers(via)

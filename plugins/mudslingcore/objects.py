@@ -409,6 +409,8 @@ class Character(BaseCharacter, DescribableObject, SensingObject, HasGender,
         return super(Character, self).match_literals(search, cls=cls, err=err)
 
     def after_object_moved(self, moved_from, moved_to, by=None, via=None):
+        super(Character, self).after_object_moved(moved_from, moved_to,
+                                                  by=by, via=via)
         if self.game.db.is_valid(moved_to, DescribableObject):
             cmd = self._look_cmd('look', 'look', '', self.game, self.ref(),
                                  self.ref())
