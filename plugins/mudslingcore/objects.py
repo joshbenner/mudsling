@@ -9,8 +9,7 @@ from mudsling import locks
 from mudsling.config import config
 from mudsling.errors import AmbiguousMatch, FailedMatch
 
-from mudsling import utils
-import mudsling.utils.string
+import mudsling.utils.string as str_utils
 import mudsling.utils.object as obj_utils
 
 from objsettings import ObjSetting, ConfigurableObject
@@ -25,6 +24,7 @@ from mudslingcore.editor import EditorSessionHost
 from mudslingcore.mail import MailRecipient
 from mudslingcore import help
 from mudslingcore.scripting import ScriptableObject
+from mudslingcore.follow import FollowableObject, Follower
 
 from mudslingcore import commands
 from mudslingcore import ui
@@ -91,7 +91,7 @@ class CoreObject(SensoryMedium, InspectableObject, AreaExportableBaseObject,
         """
         names = [' ' + o.contents_name(obj) for o
                  in self.contents_visible_to(obj)]
-        return utils.string.columnize(names, 2) if names else " Nothing"
+        return str_utils.columnize(names, 2) if names else " Nothing"
 
     @property
     def containing_room(self):
@@ -304,7 +304,8 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser, EditorSessionHost,
         return topic
 
 
-class Character(BaseCharacter, DescribableObject, SensingObject, HasGender):
+class Character(BaseCharacter, DescribableObject, SensingObject, HasGender,
+                FollowableObject, Follower):
     """Core character class."""
 
     # Do not export characters to area files.
@@ -353,7 +354,7 @@ class Character(BaseCharacter, DescribableObject, SensingObject, HasGender):
         'teleport_in': {
             'actor': "{bYou materialize in {c$dest{b.",
             '*': "{c$actor {bmaterializes."
-        },
+        }
     })
 
     def is_possessable_by(self, player):

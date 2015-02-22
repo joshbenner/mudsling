@@ -138,7 +138,6 @@ class EmitCmd(Command):
         this.emote(args['text'], show_name=False, sep='')
 
 
-
 class GenderCmd(Command):
     """
     @gender [<gender>]
