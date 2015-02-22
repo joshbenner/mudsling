@@ -470,6 +470,9 @@ class PossessableObject(MessagedObject):
             return parts
         parts = list(parts)
         for i, part in enumerate(parts):
+            if isinstance(part, mudsling.messages.RenderablePart):
+                parts[i] = part.render(viewer=self.ref())
+                continue
             filter = None
             if isinstance(part, mudsling.messages.FilteredPart):
                 filter = part
