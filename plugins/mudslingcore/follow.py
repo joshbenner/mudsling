@@ -212,6 +212,9 @@ class UnleadCommand(Command):
             actor.tell('{yNo followers uninvited.')
 
 
+FollowableObject.private_commands = [LeadCmd, UnleadCommand]
+
+
 class FollowCmd(Command):
     """
     follow <leader>
@@ -250,3 +253,6 @@ class UnfollowCmd(Command):
         if not actor.is_following:
             raise self._err('{yYou are not following.')
         actor.stop_following()
+
+
+Follower.private_commands = [FollowCmd, UnfollowCmd]
