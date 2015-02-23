@@ -361,6 +361,11 @@ class Exit(areas.AreaExportableBaseObject):
         return "%s {c<{n%s{c>{n" % (self.name,
                                     aliases[0] if aliases else self.name)
 
+    def _call_counterpart(self, fname, *a, **kw):
+        c = self.counterpart
+        if c is not None:
+            return getattr(c, fname)(*a, **kw)
+
 
 # noinspection PyShadowingBuiltins
 class ExitCmd(Command):
