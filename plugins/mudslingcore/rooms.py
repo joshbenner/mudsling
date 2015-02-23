@@ -239,6 +239,37 @@ class Exit(areas.AreaExportableBaseObject):
         if 'dest' in data:
             areas.import_weak_ref(self.ref(), 'dest', data['dest'], sandbox)
 
+    def emit_message(self, key, exclude=None, **keywords):
+        """
+        Emit a messate template to the exit's room.
+
+        Will try to emit the same message key with the suffix '_other_side' on
+        the exit's counterpart on the other side.
+
+        :param key: The message key to emit.
+        :param exclude: Any objects to exclude from receipt of the message.
+        :param keywords: Keywords for use in the template.
+
+        :return: List of those objects that received the message.
+        :rtype: list
+        """
+        suffix = '_other_side'
+        original = not key.endswith(suffix)
+        room = self.source
+        keywords['this'] = self.ref()
+        keywords['room'] = room
+        if original:
+            keywords['origin_exit'] = keywords['this']
+            keywords['origin_room'] = room
+        msg = self.get_message(key, **keywords)
+        receivers = room.msg_contents(msg, exclude=exclude)
+        counterpart = self.counterpart
+        if original and counterpart is not None:
+            receivers.extend(self.counterpart.emit_message(key + suffix,
+                                                           exclude=exclude,
+                                                           **keywords))
+        return receivers
+
     @property
     def counterpart(self):
         """
