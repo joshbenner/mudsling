@@ -19,6 +19,26 @@ import mudslingcore.areas as areas
 
 
 # noinspection PyShadowingBuiltins
+class ExitCmd(Command):
+    """
+    <exit-name>
+
+    Proceed through the named exit.
+    """
+    def run(self, this, actor, args):
+        """
+        @param this: The exit object.
+        @type this: L{Exit}
+
+        @param actor: The object moving through the exit.
+        @type actor: L{Object}
+
+        @param args: Unused.
+        """
+        this.invoke(actor)
+
+
+# noinspection PyShadowingBuiltins
 class Room(DescribableObject):
     """
     A standard room.
@@ -31,6 +51,7 @@ class Room(DescribableObject):
     #: :type: list of Exit
     exits = []
     senses = {'hearing', 'vision'}
+    _exit_cmd = ExitCmd
 
     area_exportable = True
 
@@ -95,11 +116,12 @@ class Room(DescribableObject):
     def handle_unmatched_input_for(self, actor, raw):
         matches = self.match_exits(raw)
         if len(matches) == 1:
-            return ExitCmd(raw, raw, raw, self.game, matches[0], actor)
+            return self._exit_cmd(raw, raw, raw, self.game, matches[0], actor)
         elif len(matches) > 1:
             msg = "Which way? {raw!r} matches: {exits}".format(
                 raw=raw,
-                exits=utils.string.english_list(self.exits)
+                exits=utils.string.english_list(
+                    matches, formatter=lambda e: actor.name_for(e))
             )
             raise errors.CommandError(msg)
         else:
@@ -365,26 +387,6 @@ class Exit(areas.AreaExportableBaseObject):
         c = self.counterpart
         if c is not None:
             return getattr(c, fname)(*a, **kw)
-
-
-# noinspection PyShadowingBuiltins
-class ExitCmd(Command):
-    """
-    <exit-name>
-
-    Proceed through the named exit.
-    """
-    def run(self, this, actor, args):
-        """
-        @param this: The exit object.
-        @type this: L{Exit}
-
-        @param actor: The object moving through the exit.
-        @type actor: L{Object}
-
-        @param args: Unused.
-        """
-        this.invoke(actor)
 
 
 class MatchExit(parsers.MatchObject):
