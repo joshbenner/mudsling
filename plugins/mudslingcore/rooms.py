@@ -374,6 +374,26 @@ class MatchExit(parsers.MatchObject):
         return room.match_exits(input)
 
 
+class room_group_setting(object):
+    """
+    Descriptor to make room group setting attributes easier to implement.
+    """
+    __slots__ = ('attr', 'default')
+
+    def __init__(self, attr, default=None):
+        self.attr = attr
+        self.default = default
+
+    def __get__(self, obj, objtype=None):
+        return obj.get_group_setting(self.attr, default=self.default)
+
+    def __set__(self, obj, value):
+        setattr(obj, self.attr, value)
+
+    def __delete__(self, obj):
+        delattr(obj, self.attr)
+
+
 class RoomGroup(areas.AreaExportableObject, InspectableObject,
                 ConfigurableObject):
     """
@@ -389,6 +409,9 @@ class RoomGroup(areas.AreaExportableObject, InspectableObject,
     _group_room_class = Room
     _group_exit_class = Exit
 
+    group_room_class = room_group_setting('_group_room_class')
+    group_exit_class = room_group_setting('_group_exit_class')
+
     object_settings = {
         ObjSetting('room_class', type, attr='group_room_class',
                    parser=parsers.ObjClassStaticParser),
@@ -398,29 +421,31 @@ class RoomGroup(areas.AreaExportableObject, InspectableObject,
 
     def _get_default_class(self, clstype):
         attr = '_group_%s_class' % clstype
+        return self.get_group_setting(attr)
+
+    def get_group_setting(self, attr, default=None):
+        """
+        Resolves a setting based on room group hierarchy, by this priority:
+        1. Explicit value on self
+        2. First explicit value going up room group hierarchy
+        3. Implict value (ie: default from class)
+        4. Use provided default if implicit value is None or yields an error
+
+        :param attr: The name of the attribute whose value to seek.
+        :type attr: str
+
+        :return: The value discovered in the hierarchy.
+        """
+        # Defined on self?
         if attr in self.__dict__:
             return getattr(self, attr)
+        # Defined somewhere in parent room groups?
         for grp in self.all_parent_room_groups:
             if attr in grp.__dict__:
                 return getattr(grp, attr)
-        # No explicit setting. Go implicit.
-        return getattr(self, attr)
-
-    @property
-    def group_room_class(self):
-        return self._get_default_class('room')
-
-    @group_room_class.setter
-    def group_room_class(self, val):
-        self._group_room_class = val
-
-    @property
-    def group_exit_class(self):
-        return self._get_default_class('exit')
-
-    @group_exit_class.setter
-    def group_exit_class(self, val):
-        self._group_exit_class = val
+        # Use implicit value.
+        implicit = getattr(self, attr, None)
+        return default if implicit is None else implicit
 
     @property
     def has_parent_room_group(self):
