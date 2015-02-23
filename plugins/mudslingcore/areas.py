@@ -130,7 +130,6 @@ class AreaExportable(object):
     By adhering to these, we can keep the format simple, and the files can be
     read and edited by humans.
     """
-    __slots__ = ()  # So class can be added to slotted or non-slotted objects.
 
     area_exportable = True
 
