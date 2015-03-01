@@ -249,6 +249,9 @@ class StoredCallback(namedtuple('StoredCallback', 'obj func')):
         else:
             self.func(*a, **kw)
 
+# Renamed.
+EventSubscription = StoredCallback
+
 
 class StoredObject(Persistent, HasSubscribableEvents):
     """
