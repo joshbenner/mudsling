@@ -436,7 +436,9 @@ class Command(object):
         :param parser: A parser class, object, or other valid specification.
         """
         val = input
-        if isinstance(parser, parsers.Parser):
+        if isinstance(parser, str) and parser.lower() == 'this':
+            val = self.obj
+        elif isinstance(parser, parsers.Parser):
             val = parser.parse(input, actor=self.actor)
         elif (inspect.isclass(parser)
               and issubclass(parser, parsers.StaticParser)):
