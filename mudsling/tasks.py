@@ -8,7 +8,7 @@ import time
 from twisted.internet.task import LoopingCall
 from twisted.internet.defer import CancelledError
 
-from mudsling.storage import Persistent
+from mudsling.storage import Persistent, StoredCallback
 import mudsling.errors
 
 #: :type: dict of (int, BaseTask)
@@ -154,7 +154,7 @@ class IntervalTask(BaseTask):
         @type iterations: int
         """
         super(IntervalTask, self).__init__()
-        self._callback = callback
+        self._callback = StoredCallback(callback)
         self._interval = interval
         self._immediate = immediate
         self._iterations = iterations
@@ -277,6 +277,8 @@ class Task(IntervalTask):
 
     def __init__(self, name=None):
         super(Task, self).__init__(self.run, None)
+        # Remove unneeded abstraction of parent's use of StoredCallback:
+        self._callback = self.run
         if name is not None:
             self.name = name
 
