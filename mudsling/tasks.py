@@ -164,7 +164,7 @@ class IntervalTask(BaseTask):
             self._kwargs = kwargs
 
     def __str__(self):
-        return "%s (%s)" % (self.__class__.__name__, self._callback.__name__)
+        return "%s: %s" % (self.__class__.__name__, self._callback)
 
     @property
     def last_run_time(self):

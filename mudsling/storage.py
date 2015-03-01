@@ -249,6 +249,11 @@ class StoredCallback(namedtuple('StoredCallback', 'obj func')):
         else:
             self.func(*a, **kw)
 
+    def __str__(self):
+        if self.obj is not None:
+            return '#%d.%s()' % (self.obj.obj_id, self.func)
+        return '%s(%r)' % (self.__class__.__name__, self.func)
+
 # Renamed.
 EventSubscription = StoredCallback
 
