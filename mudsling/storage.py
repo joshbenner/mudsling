@@ -218,13 +218,13 @@ class ObjRef(PersistentSlots):
         return zope.interface.providedBy(self._real_object())
 
 
-class InvalidSubscription(errors.Error):
+class InvalidCallback(errors.Error):
     pass
 
 
-class EventSubscription(namedtuple('EventSubscription', 'obj func')):
+class StoredCallback(namedtuple('StoredCallback', 'obj func')):
     """
-    Callable subscription that assures it is storing ObjRefs if appropriate.
+    Callback reference that assures it is storing ObjRefs if appropriate.
     """
     def __new__(cls, *args):
         if len(args) == 2:
@@ -239,15 +239,15 @@ class EventSubscription(namedtuple('EventSubscription', 'obj func')):
                 if isinstance(obj, StoredObject):
                     obj = obj.ref()
                 func = func.im_func.__name__
-        return super(EventSubscription, cls).__new__(cls, obj, func)
+        return super(StoredCallback, cls).__new__(cls, obj, func)
 
-    def __call__(self, event):
+    def __call__(self, *a, **kw):
         if self.obj is not None:  # It's a method!
             if isinstance(self.obj, ObjRef) and not self.obj.is_valid():
-                raise InvalidSubscription()
-            getattr(self.obj, self.func)(event)
+                raise InvalidCallback()
+            getattr(self.obj, self.func)(*a, **kw)
         else:
-            self.func(event)
+            self.func(*a, **kw)
 
 
 class StoredObject(Persistent, HasSubscribableEvents):
@@ -410,7 +410,7 @@ class StoredObject(Persistent, HasSubscribableEvents):
         """
 
     def _create_subscription(self, event_type, func):
-        return EventSubscription(func)
+        return StoredCallback(func)
 
     def send_event_to_subscribers(self, event):
         remove = []
@@ -419,7 +419,7 @@ class StoredObject(Persistent, HasSubscribableEvents):
                 for subscriber in subscribers:
                     try:
                         subscriber(event)
-                    except InvalidSubscription:
+                    except InvalidCallback:
                         remove.append((event_type, subscriber))
         for et, sub in remove:
             self._event_subscriptions[et].remove(sub)
