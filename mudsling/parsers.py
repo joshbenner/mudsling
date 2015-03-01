@@ -93,7 +93,7 @@ class ObjClassStaticParser(StaticParser):
                 objClass = utils.modules.class_from_path(input)
             except:
                 objClass = None
-        if not issubclass(objClass, StoredObject):
+        if objClass is None or not issubclass(objClass, StoredObject):
             raise errors.ParseError("Invalid object class name: %r" % input)
         return objClass
 
