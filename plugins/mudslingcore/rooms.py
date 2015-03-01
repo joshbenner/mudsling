@@ -6,7 +6,6 @@ import itertools
 from mudsling.objects import Object as LocatedObject
 from mudsling.messages import Messages
 from mudsling.commands import Command
-from mudsling.config import config
 from mudsling import errors
 from mudsling import parsers
 
@@ -27,13 +26,13 @@ class ExitCmd(Command):
     """
     def run(self, this, actor, args):
         """
-        @param this: The exit object.
-        @type this: L{Exit}
+        :param this: The exit object.
+        :type this: Exit
 
-        @param actor: The object moving through the exit.
-        @type actor: L{Object}
+        :param actor: The object moving through the exit.
+        :type actor: mudsling.objects.Object
 
-        @param args: Unused.
+        :param args: Unused.
         """
         this.invoke(actor)
 
@@ -59,6 +58,9 @@ class Room(DescribableObject):
         super(Room, self).__init__(**kwargs)
         #: :type: list of Exit
         self.exits = []
+
+    def exit_cmd(self, exit, actor=None):
+        return exit._exit_cmd or self._exit_cmd or ExitCmd
 
     def area_export(self, sandbox):
         export = super(Room, self).area_export(sandbox)
@@ -96,7 +98,7 @@ class Room(DescribableObject):
     def filter_exits(self, filterfunc):
         """
         Retrieves a list of exits matching the specified filters.
-        @param filterfunc: Callback used to filter the list of exits.
+        :param filterfunc: Callback used to filter the list of exits.
         """
         return filter(filterfunc, self.exits)
 
@@ -116,7 +118,8 @@ class Room(DescribableObject):
     def handle_unmatched_input_for(self, actor, raw):
         matches = self.match_exits(raw)
         if len(matches) == 1:
-            return self._exit_cmd(raw, raw, raw, self.game, matches[0], actor)
+            f = self.exit_cmd(matches[0], actor=actor)
+            return f(raw, raw, raw, self.game, matches[0], actor)
         elif len(matches) > 1:
             msg = "Which way? {raw!r} matches: {exits}".format(
                 raw=raw,
@@ -130,7 +133,7 @@ class Room(DescribableObject):
     def allow_enter(self, what, exit=None):
         """
         Determines if what may enter this room via the given exit.
-        @rtype: bool
+        :rtype: bool
         """
         return what.is_valid(LocatedObject)
 
@@ -151,7 +154,7 @@ class Room(DescribableObject):
 
     def leave_allowed(self, what, exit=None):
         """
-        @see: L{Room.enterStopped}
+        :see: Room.enter_allowed
         """
         return self.allow_leave(what, exit=exit)
 
@@ -164,7 +167,7 @@ class Room(DescribableObject):
     def entrance_added(self, exit):
         """
         Called when another room adds an exit leading to this room.
-        @param exit: The exit that was added.
+        :param exit: The exit that was added.
         """
 
     def remove_exit(self, exit, delete=True):
@@ -179,7 +182,7 @@ class Room(DescribableObject):
     def entrance_removed(self, exit):
         """
         Called when another room removes an exit leading to this room.
-        @param exit: The exit that was removed.
+        :param exit: The exit that was removed.
         """
 
     def desc_title(self, viewer):
@@ -228,10 +231,11 @@ class Exit(areas.AreaExportableBaseObject):
     :ivar dest: The room to which this exit leads.
     """
 
-    #: @type: L{Room}
+    #: :type: Room
     source = None
-    #: @type: L{Room}
+    #: :type: Room
     dest = None
+    _exit_cmd = None
 
     messages = Messages({
         'leave': {
@@ -311,8 +315,8 @@ class Exit(areas.AreaExportableBaseObject):
         Check if obj may pass through this exit, and if so, pass obj through
         this exit.
 
-        @param obj: The object attempting to pass through the exit.
-        @type obj: L{Object}
+        :param obj: The object attempting to pass through the exit.
+        :type obj: mudsling.objects.Object
         """
         if self.transit_allowed(obj):
             self._move(obj)
@@ -339,10 +343,10 @@ class Exit(areas.AreaExportableBaseObject):
         permission check AND resulting in-game effects of the actual attempt to
         transit the exit.
 
-        @see: L{Room.leave_allowed} and L{Room.enter_allowed}
+        :see: Room.leave_allowed and Room.enter_allowed
 
-        @param obj: The object under consideration.
-        @type obj: L{Object}
+        :param obj: The object under consideration.
+        :type obj: mudsling.objects.Object
         """
         # Acquire references to the transition attempt result methods from the
         # involved rooms, else placeholder functions.
@@ -360,8 +364,8 @@ class Exit(areas.AreaExportableBaseObject):
         Pass the object through this exit to its destination.
         No permission checks -- just do it!
 
-        @param obj: The object to pass through the exit.
-        @type obj: L{Object}
+        :param obj: The object to pass through the exit.
+        :type obj: mudsling.objects.Object
         """
         msg_keys = {
             'actor': obj.ref(),
@@ -398,10 +402,10 @@ class MatchExit(parsers.MatchObject):
 
     def _match(self, obj, input):
         """
-        @param obj: The object from whose perspective the match is attempted.
-        @type obj: L{mudsling.objects.Object}
-        @param input: The user input being matched against exits.
-        @type input: C{str}
+        :param obj: The object from whose perspective the match is attempted.
+        :type obj: mudsling.objects.Object
+        :param input: The user input being matched against exits.
+        :type input: str
         """
         if not obj.isa(LocatedObject):
             raise TypeError("Cannot match exit as non-locatable object.")
