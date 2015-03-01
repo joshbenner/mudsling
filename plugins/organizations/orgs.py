@@ -5,14 +5,13 @@ from mudsling import parsers, match
 import mudsling.utils.sequence as seq_utils
 
 from mudslingcore.objsettings import ConfigurableObject, ObjSetting
-from mudslingcore.objects import InspectableObject
 
 import ictime
 
 import organizations.errors as errors
 
 
-class Organization(ConfigurableObject, InspectableObject):
+class Organization(ConfigurableObject):
     """
     Represents some grouping of persons for a common purpose.
     """

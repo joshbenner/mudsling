@@ -21,6 +21,7 @@ from mudslingcore.objsettings import ConfigurableObject, lock_can_configure
 from mudslingcore.objsettings import SettingEditorSession
 from mudslingcore.editor import EditorError
 from mudslingcore.rooms import RoomGroup
+from mudslingcore.inspectable import InspectableObject
 
 from mudslingcore.commands.admin import ui
 
@@ -405,7 +406,6 @@ class ShowCmd(SettingsCommand):
 
     def execute(self):
         # Just to avoid circular imports!
-        from mudslingcore.objects import InspectableObject
         self.arg_parsers = {
             'obj': parsers.MatchObject(cls=InspectableObject,
                                        search_for='inspectable object',
@@ -434,51 +434,12 @@ class ShowCmd(SettingsCommand):
                 val = mudsling.utils.string.escape_ansi_tokens(
                     setting.display_value(obj))
                 actor.tell('{g', obj, '{n.{y', args['setting'], ' {x[',
-                           self.fmt_type(setting), '] {n= {c', val)
+                           obj._fmt_type(setting), '] {n= {c', val)
             else:
                 raise self._err('Object does not have settings')
         else:
-            details = obj.show_details(who=actor).items()
-            out = mudsling.utils.string.columnize(
-                str(ui.keyval_table(details)).splitlines(), 2,
-                width=ui.table_settings['width'])
-            if obj.isa(ConfigurableObject):
-                out += '\n\n' + ui.h2('Settings') + '\n'
-                out += str(self.settings_table(obj))
-            actor.tell(ui.report('Showing %s' % actor.name_for(obj), out))
-
-    def settings_table(self, obj):
-        if self.parsed_args['setting'] is not None:
-            settings = (self.parsed_args['setting'],)
-        else:
-            settings = sorted(obj.obj_settings().keys(), key=str.lower)
-        settings = map(str.lower, settings)
-        table = ui.Table(
-            [
-                ui.Column('Setting', align='l', data_key='name'),
-                ui.Column('Type', align='l', cell_formatter=self.fmt_type),
-                ui.Column('Value', align='l', cell_formatter=self.fmt_val),
-                ui.Column('Default', align='l',
-                          cell_formatter=self.fmt_default)
-            ]
-        )
-        all_settings = obj.obj_settings()
-        table.add_rows(*(all_settings[s] for s in settings))
-        return table
-
-    def fmt_type(self, setting):
-        return setting.type.__name__
-
-    def fmt_val(self, setting):
-        return setting.display_value(self.parsed_args['obj'])
-
-    def fmt_default(self, setting):
-        obj = self.parsed_args['obj']._real_object()
-        default = 'Yes' if setting.is_default(obj) else 'No'
-        if setting.attr is not None and default:
-            if isinstance(getattr(obj.__class__, setting.attr, None), property):
-                return '(alias)'
-        return default
+            body = obj.inspectable_output(who=actor)
+            actor.tell(ui.report('Showing %s' % actor.name_for(obj), body))
 
 
 class EditCmd(SettingsCommand):

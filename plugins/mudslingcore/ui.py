@@ -4,7 +4,7 @@ from mudsling import utils
 import mudsling.utils.string
 import mudsling.utils.time
 from mudsling.utils.string import ansi
-from mudsling.storage import PersistentSlots
+from mudsling.storage import Persistent
 
 
 class BaseUI(object):
@@ -295,9 +295,7 @@ class ClassicUI(LimitedWidthUI):
         return '\n'.join(lines)
 
 
-class UsesUI(PersistentSlots):
-    __slots__ = ('force_ui',)
-
+class UsesUI(Persistent):
     _transient_vars = ('ui_cache',)
 
     force_ui = None

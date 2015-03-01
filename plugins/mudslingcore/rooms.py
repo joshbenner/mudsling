@@ -12,8 +12,9 @@ from mudsling import parsers
 from mudsling import utils
 import mudsling.utils.string
 
-from mudslingcore.objects import DescribableObject, InspectableObject
+from mudslingcore.objects import DescribableObject
 from mudslingcore.objsettings import ConfigurableObject, ObjSetting
+from mudslingcore.inspectable import InspectableObject
 import mudslingcore.areas as areas
 
 
@@ -436,8 +437,7 @@ class room_group_setting(object):
         delattr(obj, self.attr)
 
 
-class RoomGroup(areas.AreaExportableObject, InspectableObject,
-                ConfigurableObject):
+class RoomGroup(areas.AreaExportableObject, ConfigurableObject):
     """
     Room groups are used to represent physical groups of rooms, such as a
     building, a floor in a building, or a wing of a building. Groupings are

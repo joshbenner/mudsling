@@ -11,6 +11,7 @@ import mudsling.parsers
 from mudsling.utils.sequence import CaselessDict
 
 from mudslingcore.editor import EditorSession, EditorSessionCommand, AbortCmd
+from mudslingcore.inspectable import InspectableObject
 
 
 def lock_can_configure(obj, who):
@@ -175,7 +176,7 @@ class ObjSetting(object):
         return False
 
 
-class ConfigurableObject(mudsling.objects.BaseObject):
+class ConfigurableObject(InspectableObject):
     """
     An object that has a configuration API.
 
@@ -251,6 +252,41 @@ class ConfigurableObject(mudsling.objects.BaseObject):
 
     def obj_setting_is_default(self, name):
         return self.get_obj_setting(name).is_default(self)
+
+    def inspectable_callbacks(self, who=None):
+        cb = super(ConfigurableObject, self).inspectable_callbacks(who=who)
+        cb.append(('Settings', self.format_inspectable_settings, 10))
+        return cb
+
+    def format_inspectable_settings(self, who=None):
+        ui = self.inspectable_ui(who=who)
+        settings = sorted(self.obj_settings().keys(), key=str.lower)
+        settings = map(str.lower, settings)
+        table = ui.Table(
+            [
+                ui.Column('Setting', align='l', data_key='name'),
+                ui.Column('Type', align='l', cell_formatter=self._fmt_type),
+                ui.Column('Value', align='l', cell_formatter=self._fmt_val),
+                ui.Column('Default', align='l',
+                          cell_formatter=self._fmt_default)
+            ]
+        )
+        all_settings = self.obj_settings()
+        table.add_rows(*(all_settings[s] for s in settings))
+        return str(table)
+
+    def _fmt_type(self, setting):
+        return setting.type.__name__
+
+    def _fmt_val(self, setting):
+        return setting.display_value(self)
+
+    def _fmt_default(self, setting):
+        default = 'Yes' if setting.is_default(self) else 'No'
+        if setting.attr is not None and default:
+            if isinstance(getattr(self.__class__, setting.attr, None), property):
+                return '(alias)'
+        return default
 
 
 class SettingEditorSaveCmd(EditorSessionCommand):

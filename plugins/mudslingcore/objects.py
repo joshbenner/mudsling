@@ -1,7 +1,7 @@
 from collections import OrderedDict
 import string
 
-from mudsling.objects import BasePlayer, BaseCharacter, BaseObject
+from mudsling.objects import BasePlayer, BaseCharacter
 from mudsling.commands import all_commands
 from mudsling.messages import Messages
 from mudsling import parsers
@@ -25,32 +25,12 @@ from mudslingcore.mail import MailRecipient
 from mudslingcore import help
 from mudslingcore.scripting import ScriptableObject
 from mudslingcore.follow import FollowableObject, Follower
+from mudslingcore.inspectable import InspectableObject
 
 from mudslingcore import commands
-from mudslingcore import ui
 
 
-class InspectableObject(BaseObject):
-    """
-    Basic object that can be used with @show.
-    """
-
-    def show_details(self, who=None):
-        """
-        Key/value pairs to display when someone uses @show to inspect this.
-
-        :param who: The object inspecting this object.
-        """
-        details = OrderedDict((
-            ('Names', ', '.join(self.names)),
-            ('Class', parsers.ObjClassStaticParser.unparse(self.__class__)),
-            ('Owner', who.name_for(self.owner))
-        ))
-        return details
-
-
-class CoreObject(SensoryMedium, InspectableObject, AreaExportableBaseObject,
-                 ui.UsesUI):
+class CoreObject(SensoryMedium, InspectableObject, AreaExportableBaseObject):
     """
     The most basic object used by MUDSling Core.
 
