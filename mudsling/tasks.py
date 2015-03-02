@@ -177,6 +177,10 @@ class IntervalTask(BaseTask):
         last = max(self.last_run_time, self._scheduled_time)
         return last + self._interval
 
+    @property
+    def active(self):
+        return (not self.paused) and (self._looper is not None)
+
     def _schedule(self, interval=None):
         interval = max(0, interval if interval is not None else self._interval)
         self._scheduled_time = time.time()
