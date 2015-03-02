@@ -1171,6 +1171,15 @@ class Object(BaseObject):
         """
         return list(self._location_walker())
 
+    def location_of_type(self, cls):
+        """
+        Find the first location of a given type.
+        """
+        for loc in self._location_walker():
+            if loc.isa(cls):
+                return loc
+        return None
+
     def emit(self, msg, exclude=None, location=None):
         """
         Emit a message to the object's location, optionally excluding some
