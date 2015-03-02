@@ -14,7 +14,6 @@ import mudsling.utils.string
 
 from mudslingcore.objects import DescribableObject
 from mudslingcore.objsettings import ConfigurableObject, ObjSetting
-from mudslingcore.inspectable import InspectableObject
 import mudslingcore.areas as areas
 
 
