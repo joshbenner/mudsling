@@ -279,10 +279,11 @@ class Task(IntervalTask):
     started = False
     name = None
 
-    def __init__(self, name=None):
-        super(Task, self).__init__(self.run, None)
+    def __init__(self, name=None, callback=None):
+        super(Task, self).__init__(callback, None)
         # Remove unneeded abstraction of parent's use of StoredCallback:
-        self._callback = self.run
+        if callback is None:
+            self._callback = self.run
         if name is not None:
             self.name = name
 
@@ -338,6 +339,7 @@ class Task(IntervalTask):
         This function is called when the task needs to run an iteration. This
         is generally called every <interval> seconds.
         """
+        self._callback()
 
     def on_start(self):
         pass
