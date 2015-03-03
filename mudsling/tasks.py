@@ -239,7 +239,7 @@ class IntervalTask(BaseTask):
         if error.type == CancelledError:
             return
         tb = ''.join(traceback.format_exception(error.type, error.value,
-                                                error.getTraceback()))
+                                                error.getTracebackObject()))
         logging.error("Error in %s:\n%s" % (self, tb))
 
     def server_startup(self):
