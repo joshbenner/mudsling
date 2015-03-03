@@ -77,7 +77,7 @@ class DigCmd(Command):
             if exit:
                 exit.source = currentRoom
                 exit.dest = room
-                currentRoom.add_exit(exit)
+                currentRoom.add_exit(exit, by=actor)
                 msg = ["{gExit ({m", exit, "{g) created from {c", exit.source,
                        "{g to {c", exit.dest, "{g."]
                 actor.msg(msg)
@@ -85,7 +85,7 @@ class DigCmd(Command):
             if returnExit:
                 returnExit.source = room
                 returnExit.dest = currentRoom
-                room.add_exit(returnExit)
+                room.add_exit(returnExit, by=actor)
                 msg = ["{gExit ({m", returnExit, "{g) created from {c",
                        returnExit.source, "{g to {c", returnExit.dest, "{g."]
                 actor.msg(msg)

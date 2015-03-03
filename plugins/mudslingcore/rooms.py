@@ -158,28 +158,28 @@ class Room(DescribableObject):
         """
         return self.allow_leave(what, exit=exit)
 
-    def add_exit(self, exit):
+    def add_exit(self, exit, by=None):
         if exit.is_valid(Exit):
             self.exits.append(exit)
             if self.db.is_valid(exit.dest, cls=Room):
-                exit.dest.entrance_added(exit)
+                exit.dest.entrance_added(exit, by=by)
 
-    def entrance_added(self, exit):
+    def entrance_added(self, exit, by=None):
         """
         Called when another room adds an exit leading to this room.
         :param exit: The exit that was added.
         """
 
-    def remove_exit(self, exit, delete=True):
+    def remove_exit(self, exit, delete=True, by=None):
         if exit in self.exits:
             self.exits.remove(exit)
             if exit.is_valid(Exit):
                 if self.db.is_valid(exit.dest, cls=Room):
-                    exit.dest.entrance_removed(exit)
+                    exit.dest.entrance_removed(exit, by=by)
             if exit.is_valid() and delete:
                 exit.delete()
 
-    def entrance_removed(self, exit):
+    def entrance_removed(self, exit, by=None):
         """
         Called when another room removes an exit leading to this room.
         :param exit: The exit that was removed.
