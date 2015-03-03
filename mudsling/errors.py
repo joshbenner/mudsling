@@ -88,7 +88,14 @@ class InvalidEmail(Error):
     pass
 
 
-class CommandError(Error):
+class CommandInterrupt(Exception):
+    """
+    Any interruption required during command execution that might not really be
+    an error condition.
+    """
+
+
+class CommandError(Error, CommandInterrupt):
     """
     A generic error occuring during execution of a command. Should be caught
     by code processing input.

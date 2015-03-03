@@ -693,6 +693,10 @@ class BaseObject(PossessableObject):
         except errors.CommandError as e:
             self.msg(e.message)
             return True
+        except errors.CommandInterrupt as e:
+            if e.message:
+                self.msg(e.message)
+            return True
         if err:
             raise errors.CommandInvalid(raw)
         return False
