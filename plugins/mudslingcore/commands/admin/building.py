@@ -15,8 +15,8 @@ from mudslingcore.rooms import Room, Exit, MatchExit
 
 def parse_exit_spec(raw):
     exitNames, sep, returnExitNames = raw.partition('|')
-    return (parsers.StringListStaticParser.parse(exitNames),
-            parsers.StringListStaticParser.parse(returnExitNames))
+    return (filter(None, parsers.StringListStaticParser.parse(exitNames)),
+            filter(None, parsers.StringListStaticParser.parse(returnExitNames)))
 
 
 # noinspection PyShadowingBuiltins
