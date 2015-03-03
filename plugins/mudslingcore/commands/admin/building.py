@@ -170,7 +170,7 @@ class DigCmd(Command):
 
         :rtype: mudslingcore.topography.Exit
         """
-        if isinstance(names, list):
+        if isinstance(names, list) and names:
             room_group = self._get_room_group(actor)
             if room_group is not None:
                 exit_class = room_group.group_exit_class
