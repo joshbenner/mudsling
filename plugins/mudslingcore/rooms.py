@@ -304,7 +304,8 @@ class Exit(areas.AreaExportableBaseObject):
             exit's destination.
         :rtype: Exit or None
         """
-        if self.source.isa(Room) and self.dest.isa(Room):
+        v = self.game.db.is_valid
+        if v(self.source, Room) and v(self.dest, Room):
             counterparts = self.dest.exits_to(self.source)
             if len(counterparts) > 0:
                 return counterparts[0]
