@@ -29,6 +29,7 @@ class Table(object):
         'header_args': (),
         'header_hr': True,
         'rowrule': False,
+        'len': ansi.length
     }
 
     #: @type: list
@@ -47,6 +48,7 @@ class Table(object):
         settings = dict(self.default_settings.items())
         settings.update(kwargs)
         self.settings = settings
+        self.len = settings['len']
         self.rows = []
         self.columns = []
         if columns is not None:
@@ -77,7 +79,7 @@ class Table(object):
             self.add_row(row)
 
     def _longestline(self, text):
-        return max(map(ansi.length, text.split('\n')))
+        return max(map(self.len, text.split('\n')))
 
     def _calc_widths(self, settings=None):
         s = settings or self.settings
@@ -93,7 +95,7 @@ class Table(object):
         if isinstance(s['width'], int):
             content_area = s['width']
             content_area -= len(cols) - 1
-            padlen = ansi.length(s['lpad']) + ansi.length(s['rpad'])
+            padlen = self.len(s['lpad']) + self.len(s['rpad'])
             content_area -= padlen * len(cols)
             if s['frame']:
                 content_area -= 2
@@ -101,7 +103,7 @@ class Table(object):
         for index, col in enumerate(cols):
             w = col.width
             if w is None or w == 'auto':
-                w = ansi.length(col.name)
+                w = self.len(col.name)
                 if len(rows):
                     # w twice in case there are no rows.
                     w = max(w, w, *[self._longestline(row[index])
@@ -133,10 +135,10 @@ class Table(object):
         frame = junct if s['frame'] else ''
         lp = s['lpad']
         rp = s['rpad'] + ansi.ANSI_NORMAL
-        padlen = ansi.length(lp) + ansi.length(rp)
+        padlen = self.len(lp) + self.len(rp)
         bansi = (s['border_ansi'] or '')
         hrule = (s['hrule'] or ' ')
-        hrlen = ansi.length(hrule)
+        hrlen = self.len(hrule)
         hr_ = [hrule * ((w + padlen) / hrlen) for w in s['widths']]
         hr = bansi + frame + junct.join(hr_) + frame
         s['_hr'] = hr
@@ -302,7 +304,8 @@ class TableColumn(object):
     }
 
     def __init__(self, name, width=None, align=None, data_key=None,
-                 cell_formatter=None, formatter_args=(), wrap=False):
+                 cell_formatter=None, formatter_args=(), wrap=False,
+                 length_func=ansi.length, continuation='...'):
         self.name = name
         self.align = align or 'c'
         self.width = width or 'auto'
@@ -310,6 +313,8 @@ class TableColumn(object):
         self.cell_formatter = cell_formatter or self.default_formatter
         self.formatter_args = formatter_args
         self.wrap = wrap
+        self.len = length_func
+        self.continuation = continuation
 
     def align_cell(self, cell, width, align=None):
         align = align or self.align
@@ -318,8 +323,11 @@ class TableColumn(object):
         except KeyError:
             raise Exception("Invalid column alignment: %s" % align)
         lns = cell.split('\n')
-        if not self.wrap or (len(lns) < 2 and ansi.length(lns[0]) <= width):
-            wrapped = lns
+        if not self.wrap or (len(lns) < 2 and self.len(lns[0]) <= width):
+            wrapped = lns[:1]
+            if self.len(wrapped[0]) > width:
+                c = self.continuation
+                wrapped[0] = ansi.slice(wrapped[0], 0, width - self.len(c)) + c
         else:
             wrapped = []
             for line in lns:
