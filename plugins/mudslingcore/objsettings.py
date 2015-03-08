@@ -211,7 +211,7 @@ class ConfigurableObject(InspectableObject):
         :return: Dict of ObjSetting instances describing the settings for obj.
         :rtype: dict of (str, ObjSetting)
         """
-        if cls._objsettings_cache is not None:
+        if '_objsettings_cache' in cls.__dict__:
             return cls._objsettings_cache
         mro = list(cls.__mro__)
         mro.reverse()
