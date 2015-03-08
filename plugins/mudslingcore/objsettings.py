@@ -67,6 +67,8 @@ class ObjSetting(object):
         if (inspect.isclass(self.parser)
                 or isinstance(self.parser, mudsling.parsers.Parser)):
             return self.parser.unparse(val)
+        elif isinstance(val, basestring):
+            return '"%s{n"' % val
         else:
             return repr(val)
 
@@ -266,7 +268,8 @@ class ConfigurableObject(InspectableObject):
             [
                 ui.Column('Setting', align='l', data_key='name'),
                 ui.Column('Type', align='l', cell_formatter=self._fmt_type),
-                ui.Column('Value', align='l', cell_formatter=self._fmt_val),
+                ui.Column('Value', align='l', cell_formatter=self._fmt_val,
+                          width='*'),
                 ui.Column('Default', align='l',
                           cell_formatter=self._fmt_default)
             ]
@@ -284,7 +287,8 @@ class ConfigurableObject(InspectableObject):
     def _fmt_default(self, setting):
         default = 'Yes' if setting.is_default(self) else 'No'
         if setting.attr is not None and default:
-            if isinstance(getattr(self.__class__, setting.attr, None), property):
+            cls = self.__class__
+            if isinstance(getattr(cls, setting.attr, None), property):
                 return '(alias)'
         return default
 
