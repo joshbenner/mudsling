@@ -97,7 +97,8 @@ def columnize(items, numCols, width=79, align='l'):
     colWidth = 'auto' if width == 'auto' else '%d%%' % (100 / numCols)
     columns = []
     for i in range(0, numCols):
-        columns.append(TableColumn('', width=colWidth, align=align))
+        columns.append(TableColumn('', width=colWidth, align=align,
+                                   continuation=''))
     table = Table(columns, show_header=False, frame=False, width=width,
                   vrule=' ', lpad='', rpad='')
     for i in range(0, numRows):
