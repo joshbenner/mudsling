@@ -2,6 +2,7 @@
 Rooms and exits.
 """
 import itertools
+import re
 
 from mudsling.objects import Object as LocatedObject
 from mudsling.messages import Messages
@@ -51,8 +52,13 @@ class Room(DescribableObject):
     exits = []
     senses = {'hearing', 'vision'}
     _exit_cmd = ExitCmd
+    room_title_format = '{y%(name)'
 
     area_exportable = True
+
+    object_settings = {
+        ObjSetting('room_title_format', str, attr='room_title_format')
+    }
 
     def __init__(self, **kwargs):
         super(Room, self).__init__(**kwargs)
@@ -76,6 +82,7 @@ class Room(DescribableObject):
 
     @property
     def room_group(self):
+        """:rtype: RoomGroup"""
         if self.has_location and self.location.isa(RoomGroup):
             return self.location
         return None
@@ -185,18 +192,42 @@ class Room(DescribableObject):
         :param exit: The exit that was removed.
         """
 
-    def desc_title(self, viewer):
-        return '{y' + super(Room, self).desc_title(viewer)
+    def desc_tokens(self, viewer):
+        group = self.room_group
+        tokens = {'name': self.desc_title(viewer)}
+        if group is not None:
+            tokens['group'] = (viewer.name_for(group) if viewer is not None
+                               else group.name)
+            tokens.update(group.room_desc_tokens(self, viewer))
+        return tokens
+
+    _fmt_cleanup_re = re.compile(r'(%\([^)]+\))\B')
+
+    @classmethod
+    def _cleanup_format(cls, fmt):
+        return cls._fmt_cleanup_re.sub(r'\1s', fmt)
+
+    @classmethod
+    def _process_tokens(cls, text, tokens):
+        try:
+            return cls._fmt_cleanup_re.sub(r'\1s', text) % tokens
+        except (ValueError, KeyError):
+            return text
 
     def as_seen_by(self, obj):
-        desc = super(Room, self).as_seen_by(obj)
+        tokens = self.desc_tokens(obj)
+        title_fmt = self.get_room_setting('room_title_format',
+                                          default='%(name)')
+        title = self._process_tokens(title_fmt, tokens)
+        desc = self._process_tokens(self.text_describe_to(obj), tokens)
         contents = self.contents_as_seen_by(obj)
         exits = self.exits_as_seen_by(obj)
+        out = '%s\n%s' % (title, desc)
         if contents:
-            desc += '\n\n' + contents
+            out += '\n\n' + contents
         if exits:
-            desc += '\n\n' + exits
-        return desc
+            out += '\n\n' + exits
+        return out
 
     def contents_as_seen_by(self, obj):
         """
@@ -218,6 +249,25 @@ class Room(DescribableObject):
             return "You do not see any obvious exits."
         names = "{c | {n".join([e.exit_list_name() for e in self.exits])
         return "{c[{n %s {c]" % names
+
+    def get_room_setting(self, attr, default=None):
+        """
+        Get a setting that can be inherited from the room group, or overridden
+        on the room itself.
+
+        Setting priority:
+        1. Set on room instance.
+        2. Set on some parent room group instance.
+        3. Set on some parent room group class.
+        4. Set on room class.
+        """
+        if attr not in self.__dict__:
+            g = self.room_group
+            if g is not None:
+                v = g.get_group_setting(attr)
+                if v is not None:
+                    return v
+        return getattr(self, attr, default)
 
 
 # noinspection PyShadowingBuiltins
@@ -488,6 +538,9 @@ class RoomGroup(areas.AreaExportableObject, ConfigurableObject):
         # Use implicit value.
         implicit = getattr(self, attr, None)
         return default if implicit is None else implicit
+
+    def room_desc_tokens(self, room, viewer):
+        return {}
 
     @property
     def has_parent_room_group(self):
