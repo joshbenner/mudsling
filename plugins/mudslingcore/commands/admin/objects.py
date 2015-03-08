@@ -671,7 +671,7 @@ class FindPlaceCmd(mudsling.commands.Command):
     Find a room within the hierarchy of a room group tree. If you have @myobjs,
     a single result will be saved to your %place myobj variable.
     """
-    aliases = ('@find-place',)
+    aliases = ('@find-place', '@findplace')
     syntax = '<search> {{in|on}} <group>'
     arg_parsers = {
         'group': parsers.MatchObject(cls=RoomGroup, search_for='room group',
