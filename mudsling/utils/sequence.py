@@ -143,6 +143,19 @@ def dict_merge(*dicts):
     return dict(chain(*[d.iteritems() for d in dicts]))
 
 
+def merge_into(dest, source, path=None):
+    """Merge the source dict into the dest dict recursively."""
+    if path is None:
+        path = []
+    for key in source:
+        if key in dest:
+            if isinstance(dest[key], dict) and isinstance(source[key], dict):
+                merge_into(dest[key], source[key], path + [str(key)])
+                continue
+        dest[key] = source[key]
+    return dest
+
+
 def is_sequence(val):
     return hasattr(val, '__iter__')
 
