@@ -1,3 +1,8 @@
+import logging
+
+logger = logging.getLogger('restserver')
+logger.info("Loading REST Server...")
+
 import json
 import yaml
 from xml.etree import ElementTree
@@ -65,7 +70,10 @@ class RESTResourceASCII(RESTResource):
 
 class RESTServer(Site):
     def __init__(self, services, *a, **kw):
-        Site.__init__(self, RESTResourceASCII(flatten(services), *a, **kw))
+        services = flatten(services)
+        for service in services:
+            logger.info("Loading service: %s at %s" % (service, service.path))
+        Site.__init__(self, RESTResourceASCII(services, *a, **kw))
 
     def getResourceFor(self, request):
         request.setHeader('Server', 'MUDSling/%s' % mudsling.version)
