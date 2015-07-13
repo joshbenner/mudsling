@@ -45,6 +45,7 @@ import re
 import imp
 import random
 import inspect
+import pkgutil
 
 import mudsling.errors as errors
 
@@ -184,3 +185,22 @@ def class_from_path(class_path):
         return classObj
 
     raise errors.ClassLoadFailed("Unable to load class %s" % class_path)
+
+
+def package_modules(package, load=False):
+    """
+    Return a list of strings (or loaded modules) for any modules found within
+    the given package.
+
+    :param package: The package to inspect.
+    :param load: Whether or not to import the modules.
+
+    :return: A list of strings or loaded modules.
+    """
+    modules = []
+    for importer, modname, ispkg in pkgutil.iter_modules(package.__path__):
+        if load:
+            modules.append(mod_import('%s.%s' % (package.__name__, modname)))
+        else:
+            modules.append(modname)
+    return modules
