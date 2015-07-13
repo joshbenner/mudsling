@@ -15,3 +15,4 @@ simple-pbkdf2
 corepost
 lupa
 pygments
+-e git://github.com/joshbenner/python-jsonpath-rw.git#egg=jsonpath-rw
