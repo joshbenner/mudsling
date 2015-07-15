@@ -38,13 +38,13 @@ def export_area_to_json(area):
     return json.dumps(data, indent=2)
 
 
-def import_area_from_json(text):
+def import_area_from_json(text, top=None):
     hook = lambda d: decode_dict(d, dict_cls=OrderedDict)
     data = json.JSONDecoder(object_pairs_hook=hook).decode(text)
     if not isinstance(data, dict):
         raise AreaImportFailed("Imported JSON is not an object.")
     sandbox = {}
-    area = import_area_object(data, sandbox)
+    area = import_area_object(data, sandbox, top=top)
     process_weak_refs(sandbox)
     return area
 
@@ -58,19 +58,19 @@ def process_weak_refs(sandbox):
                 raise AreaImportFailed(e.message)
 
 
-def import_area_object(data, sandbox):
+def import_area_object(data, sandbox, top=None):
     """
     Import an area data structure. Main entry point.
 
     :param data: The area data to import.
     :type data: dict
+
+    :param sandbox: The workspace for the import process.
+    :type sandbox: dict
+
+    :param top: Optionally specify the object to use instead of creating one.
+    :type top: AreaExportable
     """
-    try:
-        cls = mod_utils.class_from_path(data['class'])
-    except errors.Error as e:
-        raise AreaImportFailed(e.message)
-    except KeyError:
-        raise AreaImportFailed('Invalid area file: missing class')
     if 'id' in data:
         external_id = data['id']
         if 'objmap' not in sandbox:
@@ -78,7 +78,18 @@ def import_area_object(data, sandbox):
         objmap = sandbox['objmap']
         if external_id in objmap:
             return objmap[external_id]
-    obj = cls()
+    if top is None:
+        try:
+            cls = mod_utils.class_from_path(data['class'])
+        except errors.Error as e:
+            raise AreaImportFailed(e.message)
+        except KeyError:
+            raise AreaImportFailed('Invalid area file: missing class')
+        # noinspection PyUnresolvedReferences
+        obj = cls.create()
+    else:
+        obj = top
+        sandbox['top'] = obj
     obj.area_import(data, sandbox)
     obj = obj.ref() if isinstance(obj, AreaExportableBaseObject) else obj
     if 'id' in data:
@@ -198,14 +209,17 @@ class AreaExportableBaseObject(AreaExportable, mudsling.objects.BaseObject):
         super(AreaExportableBaseObject, self).area_import(data, sandbox)
         if 'id' in data:
             self.area_import_id = data['id']
-        mudsling.game.db.register_object(self)
+        if self.obj_id is None:
+            mudsling.game.db.register_object(self)
         if 'objmap' not in sandbox:
             sandbox['objmap'] = {}
         sandbox['objmap'][self.area_import_id] = self.ref()
-        if 'name' in data:
-            self.set_name(data['name'])
-        if 'aliases' in data:
-            self.set_aliases(data['aliases'])
+        if sandbox.get('top', None) != self:
+            # If this is a "top" (existing) object, don't rename it.
+            if 'name' in data:
+                self.set_name(data['name'])
+            if 'aliases' in data:
+                self.set_aliases(data['aliases'])
         if 'messages' in data:
             self.messages = Messages(messages=data['messages'])
 
@@ -243,7 +257,7 @@ class AreaLoader(object):
     def __init__(self, area_id):
         self.area_id = area_id
 
-    def import_area(self):
+    def import_area(self, top=None):
         raise NotImplementedError()
 
 
@@ -265,12 +279,12 @@ class AreaJSONLoader(AreaLoader):
         area_id = os.path.splitext(filename)[0]
         super(AreaJSONLoader, self).__init__(id_prefix + area_id)
 
-    def import_area(self):
+    def import_area(self, top=None):
         #json_text = None
         with open(self.filepath, 'r') as f:
             json_text = f.read()
         if len(json_text):
-            return import_area_from_json(json_text)
+            return import_area_from_json(json_text, top=top)
         else:
             raise InvalidAreaJSONFile('No JSON loaded from %s' % self.filepath)
 
@@ -303,3 +317,16 @@ class AreaProviderPlugin(Plugin):
                 loader = AreaJSONLoader(filepath, id_prefix=id_prefix)
                 loaders[loader.area_id] = loader
         return loaders
+
+
+def get_area_loader(area_id):
+    """:rtype: AreaLoader"""
+    # Assume first segment is plugin name.
+    plugin_name = area_id.split('.')[0]
+    all_loaders = mudsling.game.invoke_hook('area_loaders',
+                                            plugin_type='AreaProviderPlugin')
+    try:
+        loader = all_loaders[plugin_name][area_id]
+    except KeyError:
+        loader = None
+    return loader

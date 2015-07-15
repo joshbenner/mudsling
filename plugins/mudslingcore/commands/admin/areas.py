@@ -51,37 +51,29 @@ class AreaExportCmd(Command):
 
 class AreaImportCmd(Command):
     """
-    @area-import <area ID> [called <names>]
+    @area-import <area ID> [called <names>] [into <obj>]
 
     Import an area and optionally give it an alternate name and aliases.
     """
     aliases = ('@area-import', '@import-area')
-    syntax = '<area_id> [\w{called|named|as|=} <names>]'
+    syntax = '<area_id> [\w{called|named|as|=} <names>] [{to|into} <obj>]'
     arg_parsers = {
-        'names': parse_names
+        'names': parse_names,
+        'obj': MatchObject(cls=areas.AreaExportableObject,
+                           search_for='area top object', show=True)
     }
     lock = areas.Locks.import_areas
 
-    def run(self, actor, area_id, names):
-        loader = self.get_area_loader(area_id.lower())
+    def run(self, actor, area_id, names, obj):
+        loader = areas.get_area_loader(area_id)
+        if loader is None:
+            raise self._err('%s not found' % area_id)
         try:
             #: :type: areas.AreaExportableBaseObject
-            imported = loader.import_area()
+            imported = loader.import_area(top=obj)
         except areas.AreaImportFailed as e:
             raise self._err(e.message)
         else:
             if names is not None:
                 imported.set_names(names)
             actor.tell('Imported {m', area_id.lower(), '{y -> {c', imported)
-
-    def get_area_loader(self, area_id):
-        """:rtype: areas.AreaLoader"""
-        # Assume first segment is plugin name.
-        plugin_name = area_id.split('.')[0]
-        all_loaders = self.game.invoke_hook('area_loaders',
-                                            plugin_type='AreaProviderPlugin')
-        try:
-            loader = all_loaders[plugin_name][area_id]
-        except KeyError:
-            raise self._err('%s not found' % area_id)
-        return loader
