@@ -20,7 +20,7 @@ import mudsling
 from mudsling.config import config
 from mudsling.extensibility import TwistedServicePlugin
 from mudsling.utils.sequence import flatten
-from mudsling.utils.serialization import json_decode_dict
+from mudsling.utils.json import json_decode_dict
 
 import restserver
 from restserver import RESTResource, RESTService, route
