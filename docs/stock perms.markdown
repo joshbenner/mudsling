@@ -19,6 +19,7 @@ mudslingcore
 * delete objects
 * configure own objects
 * configure all objects
+* pick up anything
 * use building commands
 * remote look -- Look at objects outside of own context.
 * teleport -- Player may access teleportation commands.

@@ -334,6 +334,28 @@ class Character(BaseCharacter, DescribableObject, SensingObject, HasGender,
         'teleport_in': {
             'actor': "{bYou materialize in {c$dest{b.",
             '*': "{c$actor {bmaterializes."
+        },
+        'take': {
+            'actor': 'You take $obj.',
+            '*': '$actor takes $obj.'
+        },
+        'take_fail': {
+            'actor': 'You fail to take $obj.',
+        },
+        'drop': {
+            'actor': 'You drop $obj.',
+            '*': '$actor drops $obj.'
+        },
+        'drop_fail': {
+            'actor': "You can't seem to drop $obj.",
+        },
+        'give': {
+            'actor': 'You give $obj to $recipient.',
+            'recipient': "$actor hands you $obj.",
+            '*': '$actor gives $obj to $recipient.'
+        },
+        'give_fail': {
+            'actor': 'You fail to give $obj to $recipient.'
         }
     })
 
@@ -436,11 +458,6 @@ class Thing(DescribableObject, ScriptableObject):
 
     Can be picked up, dropped, and given.
     """
-    import commands.thing
-
-    public_commands = all_commands(
-        commands.thing
-    )
 
     create_lock = locks.Lock('perm(create things)')
 

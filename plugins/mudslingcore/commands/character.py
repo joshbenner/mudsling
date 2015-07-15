@@ -5,6 +5,9 @@ as inventory management and looking at things.
 from mudsling.commands import Command
 from mudsling import parsers
 from mudsling import locks
+from mudsling import errors
+from mudsling.parsers import MatchObject
+from mudsling.objects import Object, BaseCharacter
 
 from mudsling import utils
 import mudsling.utils.string
@@ -163,3 +166,114 @@ class GenderCmd(Command):
             actor.tell('You are a {c', actor.gender.name, '{n.')
             all = sorted(["{c%s{n" % g.name for g in genders.itervalues()])
             actor.tell('Valid genders: ', utils.string.english_list(all))
+
+
+class TakeThingCmd(Command):
+    """
+    take <object>
+
+    Picks up an object in the location with you and moves it to your inventory.
+    """
+    aliases = ('take', 'get', 'pickup')
+    key = 'take thing'
+    syntax = "<obj>"
+    arg_parsers = {
+        'obj': MatchObject(cls=Object, search_for='object', show=True),
+    }
+    lock = locks.all_pass
+
+    def run(self, actor, obj):
+        """
+        :type actor: mudslingcore.objects.Character
+        :type obj: mudsling.object.Object
+        """
+        from mudslingcore.objects import Thing
+        if (actor.has_perm('pick up anything') or obj.isa(Thing)
+                or obj.owner == actor):
+            if obj.location == actor.location:
+                try:
+                    obj.move_to(actor)
+                except errors.InvalidObject:
+                    pass  # take_fail message will run.
+                msg = 'take' if obj.location == actor else 'take_fail'
+                messager = obj if obj.get_message(msg) is not None else actor
+                messager.emit_message(msg, location=actor.location, actor=actor,
+                                      obj=obj)
+            elif obj.location == actor:
+                actor.msg("You already have that!")
+            else:
+                actor.msg("You don't see that here.")
+        else:
+            actor.msg("You can't pick that up.")
+
+    def failed_command_match_help(self):
+        return "You don't see a '%s' to take." % self.argstr
+
+
+class DropThingCmd(Command):
+    """
+    drop <thing>
+
+    Drops an object in your inventory into your location.
+    """
+    aliases = ('drop',)
+    syntax = "<obj>"
+    arg_parsers = {
+        'obj': MatchObject(cls=Object, search_for='object', show=True),
+    }
+    lock = locks.all_pass
+
+    def run(self, actor, obj):
+        """
+        :type actor: mudslingcore.objects.Character
+        :type obj: mudsling.objects.Object
+        """
+        if obj.location == actor:
+            try:
+                obj.move_to(actor.location)
+            except errors.InvalidObject:
+                pass
+            msg = 'drop_fail' if obj.location == actor else 'drop'
+            messager = obj if obj.get_message(msg) is not None else actor
+            messager.emit_message(msg, location=actor.location, actor=actor,
+                                  obj=obj)
+        else:
+            actor.msg("You don't have that.")
+
+    def failed_command_match_help(self):
+        return "You don't see a '%s' to drop." % self.argstr
+
+
+class GiveThingCmd(Command):
+    """
+    give <thing> to <character>
+
+    Gives something you are holding to another character in the same location
+    as you.
+    """
+    aliases = ('give', 'hand')
+    syntax = "<obj> to <recipient>"
+    arg_parsers = {
+        'obj': MatchObject(cls=Object, search_for='object', show=True),
+        'char': MatchObject(cls=BaseCharacter, search_for='person', show=True),
+    }
+    lock = locks.all_pass
+
+    def run(self, actor, obj, recipient):
+        """
+        :type actor: mudslingcore.objects.Character
+        :type obj: mudsling.objects.Object
+        :type recipient: mudsling.objects.BaseCharacter
+        """
+        if obj.location != actor:
+            actor.tell("You don't have that!")
+        elif recipient.location != actor.location:
+            actor.tell("You see no '", self.args['char'], "' here.")
+        elif recipient == actor:
+            actor.tell("Give it to yourself?")
+        else:
+            obj.move_to(recipient)
+            msg = 'give_fail' if obj.location == actor else 'give'
+            messager = obj if obj.get_message(msg) is not None else actor
+            messager.emit_message(msg, location=actor.location, actor=actor,
+                                  obj=obj, recipient=recipient)
