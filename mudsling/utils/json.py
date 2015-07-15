@@ -15,20 +15,20 @@ def jsonpath(path):
     return _jsonpath_cache[path]
 
 
-def json_decode_list(data):
+def decode_list(data):
     rv = []
     for item in data:
         if isinstance(item, unicode):
             item = item.encode('utf-8')
         elif isinstance(item, list):
-            item = json_decode_list(item)
+            item = decode_list(item)
         elif isinstance(item, dict):
-            item = json_decode_dict(item)
+            item = decode_dict(item)
         rv.append(item)
     return rv
 
 
-def json_decode_dict(data, dict_cls=dict):
+def decode_dict(data, dict_cls=dict):
     rv = dict_cls()
     for key, value in data if isinstance(data, list) else data.iteritems():
         if isinstance(key, unicode):
@@ -36,21 +36,21 @@ def json_decode_dict(data, dict_cls=dict):
         if isinstance(value, unicode):
             value = value.encode('utf-8')
         elif isinstance(value, list):
-            value = json_decode_list(value)
+            value = decode_list(value)
         elif isinstance(value, dict):
-            value = json_decode_dict(value)
+            value = decode_dict(value)
         rv[key] = value
     return rv
 
 
-def json_load_ascii(text):
-    return json.JSONDecoder(object_pairs_hook=json_decode_dict).decode(text)
+def load_ascii(text):
+    return json.JSONDecoder(object_pairs_hook=decode_dict).decode(text)
 
 
-def json_load_file(filepath):
+def load_file(filepath):
     with open(filepath) as f:
         text = f.read()
-    return json_load_ascii(text)
+    return load_ascii(text)
 
 
 class JSONMappable(object):
@@ -72,7 +72,7 @@ class JSONMappable(object):
         return self.from_json(content)
 
     def from_json(self, text):
-        return self.from_json_data(json_load_ascii(text))
+        return self.from_json_data(load_ascii(text))
 
     def from_json_data(self, json_data):
         for attr, path in self.json_map.iteritems():

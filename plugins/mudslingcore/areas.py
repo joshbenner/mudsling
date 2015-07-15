@@ -9,7 +9,7 @@ import mudsling.objects
 import mudsling.utils.modules as mod_utils
 from mudsling.messages import Messages
 from mudsling.storage import ObjRef
-from mudsling.utils.json import json_decode_dict
+from mudsling.utils.json import decode_dict
 from mudsling.extensibility import Plugin
 from mudsling.locks import Lock
 
@@ -39,7 +39,7 @@ def export_area_to_json(area):
 
 
 def import_area_from_json(text):
-    hook = lambda d: json_decode_dict(d, dict_cls=OrderedDict)
+    hook = lambda d: decode_dict(d, dict_cls=OrderedDict)
     data = json.JSONDecoder(object_pairs_hook=hook).decode(text)
     if not isinstance(data, dict):
         raise AreaImportFailed("Imported JSON is not an object.")

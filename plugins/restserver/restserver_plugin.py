@@ -20,7 +20,7 @@ import mudsling
 from mudsling.config import config
 from mudsling.extensibility import TwistedServicePlugin
 from mudsling.utils.sequence import flatten
-from mudsling.utils.json import json_decode_dict
+from mudsling.utils.json import decode_dict
 
 import restserver
 from restserver import RESTResource, RESTService, route
@@ -31,7 +31,7 @@ class RequestRouterASCII(RequestRouter):
 
     def __init__(self, restServiceContainer, schema=None, filters=()):
         RequestRouter.__init__(self, restServiceContainer, schema, filters)
-        self._decoder = json.JSONDecoder(object_pairs_hook=json_decode_dict)
+        self._decoder = json.JSONDecoder(object_pairs_hook=decode_dict)
 
     def _RequestRouter__parseRequestData(self, request):
         """Automatically parses JSON,XML,YAML if present"""
