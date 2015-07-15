@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+
 import copy
+# noinspection PyUnresolvedReferences
 import json
 import jsonpath_rw.parser
 
@@ -42,6 +45,12 @@ def json_decode_dict(data, dict_cls=dict):
 
 def json_load_ascii(text):
     return json.JSONDecoder(object_pairs_hook=json_decode_dict).decode(text)
+
+
+def json_load_file(filepath):
+    with open(filepath) as f:
+        text = f.read()
+    return json_load_ascii(text)
 
 
 class JSONMappable(object):
