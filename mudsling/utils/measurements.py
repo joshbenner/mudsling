@@ -29,8 +29,7 @@ class Dimensions(namedtuple('Dimensions', 'l w h units')):
 
     def to(self, unit):
         dims = ('l', 'w', 'h')
-        return Dimensions(*[self._as_quantity(d).ito(unit) for d in dims],
-                          units=unit)
+        return Dimensions(*[self._as_quantity(d) for d in dims], units=unit)
 
     @property
     def volume(self):
