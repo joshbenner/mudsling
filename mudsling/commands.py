@@ -335,7 +335,15 @@ class Command(object):
             self.run(**self.prepare_run_args())
             self.after_run()
 
-    def prepare_run_args(self):
+    def run_args_map(self):
+        return {
+            'this': self.obj,
+            'actor': self.actor,
+            'args': self.parsed_args,
+            'switches': self.switches,
+        }
+
+    def prepare_run_args(self, extra=None, method='run'):
         """
         Prepare the arguments to be passed to run, matching parsed args to
         argument names if possible.
@@ -343,15 +351,14 @@ class Command(object):
         :return: The arguments to pass to run.
         :rtype: dict
         """
-        args = {
-            'this': self.obj,
-            'actor': self.actor,
-            'args': self.parsed_args,
-            'switches': self.switches,
-        }
+        args = self.run_args_map()
+        if extra is not None:
+            args.update(extra)
         args.update((k, v) for k, v in self.parsed_args.iteritems()
                     if k not in args)
-        spec = inspect.getargspec(self.run)
+        spec = inspect.getargspec(
+            getattr(self, method) if isinstance(method, basestring)
+            else method)
         if spec.keywords is not None:
             # If the method accepts all keywords, just pass them all in.
             return args

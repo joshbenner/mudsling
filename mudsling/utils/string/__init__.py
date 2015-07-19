@@ -224,6 +224,18 @@ decamelcase = re.compile(r'((?<=[a-z])[A-Z]|(?<!\A)[A-Z](?=[a-z]))')
 def camelcase_to_spaces(text):
     return decamelcase.sub(r' \1', text)
 
+id_re = re.compile(r'\W|^(?=[^_a-zA-Z])')
+
+
+def text_to_id(text, replace_invalid='_'):
+    """
+    Turns a string into a string that is generally usable as an identifier.
+    """
+    text = str(text)
+    if not len(text):
+        return replace_invalid
+    return id_re.sub(replace_invalid, text)
+
 
 class MUDWrapper(AnsiWrapper):
     """
