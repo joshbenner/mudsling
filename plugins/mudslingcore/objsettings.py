@@ -67,8 +67,6 @@ class ObjSetting(object):
         if (inspect.isclass(self.parser)
                 or isinstance(self.parser, mudsling.parsers.Parser)):
             return self.parser.unparse(val)
-        elif isinstance(val, basestring):
-            return '"%s{n"' % val
         else:
             return repr(val)
 
