@@ -30,7 +30,7 @@ from mudslingcore.inspectable import InspectableObject
 from mudslingcore import commands
 
 
-class CoreObject(SensoryMedium, InspectableObject, AreaExportableBaseObject):
+class CoreObject(AreaExportableBaseObject, SensoryMedium, InspectableObject):
     """
     The most basic object used by MUDSling Core.
 
