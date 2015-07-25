@@ -470,6 +470,12 @@ class Command(object):
             val = callback(input, *cb_args)
         return val
 
+    def arg(self, name):
+        return self.parsed_args[name]
+
+    def switch(self, name):
+        return self.switches[name]
+
     def prepare(self):
         """
         Here a command can perform any isolated parsing of the input or other
