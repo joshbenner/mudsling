@@ -230,7 +230,7 @@ class DropThingCmd(Command):
         """
         if obj.location == actor:
             try:
-                obj.move_to(actor.location)
+                obj.move_to(actor.location, by=actor, via='drop')
             except errors.InvalidObject:
                 pass
             msg = 'drop_fail' if obj.location == actor else 'drop'
