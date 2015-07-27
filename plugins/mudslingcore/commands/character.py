@@ -192,7 +192,7 @@ class TakeThingCmd(Command):
                 or obj.owner == actor):
             if obj.location == actor.location:
                 try:
-                    obj.move_to(actor)
+                    obj.move_to(actor, by=actor, via='take')
                 except errors.InvalidObject:
                     pass  # take_fail message will run.
                 msg = 'take' if obj.location == actor else 'take_fail'
