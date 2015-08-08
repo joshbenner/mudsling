@@ -1,23 +1,16 @@
 from shutil import rmtree
 
-from behave.runner import ContextMaskWarning
-
 from mudsling.testing import *
 
 
 def before_all(context):
     context.game = bootstrap_game()
+    context.objects = {}
 
 
 def after_all(context):
-    if 'game' in context:
-        game = context.game
-        try:
-            del context.game
-        except ContextMaskWarning:
-            pass  # We tried!
-        else:
-            rmtree(game.game_dir)
+    if game is not None:
+        rmtree(game().game_dir)
 
 
 def before_feature(context, feature):
@@ -37,7 +30,6 @@ def before_scenario(context, scenario):
     :type scenario: behave.model.Scenario
     """
     set_cleanup_context(scenario)
-    context.session = TestSession(context.game)
 
 
 def after_scenario(context, scenario):
@@ -47,5 +39,4 @@ def after_scenario(context, scenario):
     :type context: behave.runner.Context
     :type scenario: behave.model.Scenario
     """
-    context.session.disconnect(reason='Scenario over')
     cleanup(scenario)
