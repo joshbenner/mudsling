@@ -69,7 +69,7 @@ def get_options(args=None):
 
     :rtype: Options
     """
-    args = args or sys.argv[1:]
+    args = sys.argv[1:] if args is None else args
     options = Options()
     try:
         options.parseOptions(args)
