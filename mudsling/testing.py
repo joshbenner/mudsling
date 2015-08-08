@@ -21,12 +21,21 @@ class TestSession(Session):
         self.output = ''
         self.open_session()
 
+    def receive_input(self, line):
+        return super(TestSession, self).receive_input(str(line))
+
     def raw_send_output(self, text):
         self.output += text
 
     def disconnect(self, reason):
         self.disconnect_reason = reason
         self.connected = False
+
+    def output_contains(self, text, reset=True):
+        result = str(text) in self.output
+        if reset:
+            self.output = ''
+        return result
 
 
 def bootstrap_game(data_path=None, params=(), settings_text=''):
@@ -56,3 +65,31 @@ def bootstrap_game(data_path=None, params=(), settings_text=''):
     mudsling.game = game
     game.startService()
     return game
+
+
+class Cleanup(object):
+    def do(self):
+        raise NotImplementedError()
+
+
+class CleanupCallback(Cleanup):
+    def __init__(self, func, *args, **kwargs):
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+
+    def do(self):
+        self.func(*self.args, **self.kwargs)
+
+
+class CleanupObj(Cleanup):
+    def __init__(self, obj):
+        self.obj = obj
+
+    def do(self):
+        self.obj.delete()
+
+
+def cleanup(tasks):
+    for task in tasks:
+        task.do()
