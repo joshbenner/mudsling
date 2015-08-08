@@ -67,6 +67,30 @@ def bootstrap_game(data_path=None, params=(), settings_text=''):
     return game
 
 
+cleanup_contexts = {}
+current_cleanup_context = None
+
+
+def set_cleanup_context(key):
+    global current_cleanup_context
+    cleanup_contexts[key] = []
+    current_cleanup_context = key
+
+
+def get_cleanup_context(key):
+    return cleanup_contexts[key]
+
+
+def remove_cleanup_context(key):
+    del cleanup_contexts[key]
+
+
+def add_cleanup(task, key=None):
+    key = current_cleanup_context if key is None else key
+    if key is not None:
+        cleanup_contexts[key].append(task)
+
+
 class Cleanup(object):
     def do(self):
         raise NotImplementedError()
@@ -83,13 +107,15 @@ class CleanupCallback(Cleanup):
 
 
 class CleanupObj(Cleanup):
-    def __init__(self, obj):
-        self.obj = obj
+    def __init__(self, *objects):
+        self.objects = objects
 
     def do(self):
-        self.obj.delete()
+        for obj in self.objects:
+            obj.delete()
 
 
-def cleanup(tasks):
-    for task in tasks:
+def cleanup(key):
+    for task in get_cleanup_context(key):
         task.do()
+    remove_cleanup_context(key)
