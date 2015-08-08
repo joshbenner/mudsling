@@ -3,7 +3,7 @@ import logging
 from behave import given, when, then
 
 import mudsling.utils.string as str_utils
-from mudsling.testing import CleanupObj
+from mudsling.testing import *
 
 from utils import *
 
@@ -18,8 +18,7 @@ def player_exists(context, name):
     context.player = player
     logging.info("Created player %s (#%d, char: #%d)"
                  % (name, player.obj_id, player.default_object.obj_id))
-    context.cleanup.append(CleanupObj(player.default_object))
-    context.cleanup.append(CleanupObj(player))
+    add_cleanup(CleanupObj(player.default_object, player))
 
 
 @given('The player "{name}" exists with password "{password}"')
