@@ -3,6 +3,7 @@ from behave import *
 from mudsling.testing import *
 from mudsling.parsers import ObjClassStaticParser
 
+
 @given('A {objclass} called "{name}" exists')
 @given('An {objclass} called "{name}" exists')
 @given('A {objclass} object called "{name}" exists')
