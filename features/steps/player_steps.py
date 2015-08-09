@@ -1,12 +1,10 @@
 import logging
 
-from behave import given, when, then
+from behave import *
 
 import mudsling.utils.string as str_utils
 from mudsling.testing import *
 from mudsling.registry import players as player_registry
-
-from utils import *
 
 
 @given('The player "{name}" exists')
