@@ -1692,7 +1692,7 @@ class BasePlayer(BaseObject):
         return role in self.__roles
 
     def add_role(self, role):
-        if 'roles' not in self.__dict__:
+        if '__roles' not in self.__dict__:
             self.__roles = set()
         if role not in self.__roles:
             self.__roles.add(role)
