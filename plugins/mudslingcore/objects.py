@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import string
+import logging
 
 from mudsling.objects import BasePlayer, BaseCharacter
 from mudsling.commands import all_commands
@@ -7,7 +8,7 @@ from mudsling.messages import Messages
 from mudsling import parsers
 from mudsling import locks
 from mudsling.config import config
-from mudsling.errors import AmbiguousMatch, FailedMatch
+from mudsling.errors import AmbiguousMatch, FailedMatch, MatchError
 
 import mudsling.utils.string as str_utils
 import mudsling.utils.object as obj_utils
@@ -282,6 +283,17 @@ class Player(BasePlayer, ConfigurableObject, ChannelUser, EditorSessionHost,
             raise FailedMatch(query=search)
         topic = help.CommandHelpEntry(cmd)
         return topic
+
+    def session_attached(self, session):
+        super(Player, self).session_attached(session)
+        try:
+            player_role = self.game.db.match_role('Core Player')
+        except MatchError as e:
+            logging.warning("Cannot confirm %s (%d) has Player role: %s",
+                            self.name, self.obj_id, e.message)
+        else:
+            if not self.has_role(player_role):
+                self.add_role(player_role)
 
 
 class Character(BaseCharacter, DescribableObject, SensingObject, HasGender,

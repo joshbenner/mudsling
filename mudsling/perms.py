@@ -1,4 +1,6 @@
+import logging
 
+from mudsling.errors import FailedMatch, AmbiguousMatch
 
 class Role(object):
     name = ""
@@ -28,3 +30,19 @@ class Role(object):
 
     def reset_perms(self, perms=()):
         self.perms = set(perms)
+
+
+def create_default_roles(defaults):
+    from mudsling import game
+    for role_name, perms in defaults.iteritems():
+        try:
+            game.db.match_role(role_name)
+            # From here, we do nothing, because it already exists.
+        except FailedMatch:
+            role = Role(role_name)
+            role.reset_perms(perms)
+            game.db.roles.append(role)
+        except AmbiguousMatch:
+            m = 'Cannot setup "%s" role: ambiguous match!'
+            logging.warning(m, role_name)
+            continue
