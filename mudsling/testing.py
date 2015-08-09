@@ -3,7 +3,8 @@ import logging
 import sys
 
 from twisted.internet.task import deferLater
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet import reactor
+
 from crochet import setup, run_in_reactor, wait_for
 
 import mudsling
@@ -21,14 +22,13 @@ def run_behave():
     sys.exit(main())
 
 
+@run_in_reactor
+def _sleep(seconds):
+    return deferLater(reactor, seconds, lambda: None)
+
+
 def sleep(seconds):
-    from twisted.internet import reactor
-
-    @wait_for(timeout=seconds)
-    def _sleep(seconds):
-        return deferLater(reactor, seconds, lambda: None)
-
-    _sleep(seconds)
+    _sleep(seconds).wait()
 
 
 class TestSession(Session):

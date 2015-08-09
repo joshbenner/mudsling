@@ -47,3 +47,9 @@ def player_is_connected(context, name):
     session.attach_to_player(player)
     logging.debug('Attached session "%s" to player %s (#%d)'
                   % (name, player.name, player.obj_id))
+
+
+@given("{name1} and {name2} are connected")
+def two_players_are_connected(context, name1, name2):
+    player_is_connected(context, name1)
+    player_is_connected(context, name2)
