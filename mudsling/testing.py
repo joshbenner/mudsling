@@ -45,6 +45,10 @@ class TestSession(Session):
         self.output = ''
         self.open_session()
 
+    def enter_text(self, text):
+        self.receive_input(text)
+        sleep(0.1)
+
     @run_in_reactor
     def receive_input(self, line):
         return super(TestSession, self).receive_input(str(line))

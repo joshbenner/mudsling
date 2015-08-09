@@ -8,7 +8,7 @@ from mudsling.testing import *
 @when("{name} enters '{text}'")
 def enter_text(context, name, text):
     session = get_session(name)
-    session.receive_input(text)
+    session.enter_text(text)
 
 
 @then('{name} should see "{text}"')
