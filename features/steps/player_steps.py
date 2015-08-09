@@ -4,21 +4,29 @@ from behave import given, when, then
 
 import mudsling.utils.string as str_utils
 from mudsling.testing import *
+from mudsling.registry import players as player_registry
 
 from utils import *
 
 
 @given('The player "{name}" exists')
 def player_exists(context, name):
-    player_class = game().player_class
-    pword = str_utils.random_string(10)
-    #: :type: mudsling.objects.BasePlayer
-    player = player_class.create(names=(name,), password=pword, makeChar=True)
+    existing = player_registry.find_by_name(name)
+    if existing is None:
+        player_class = game().player_class
+        pword = str_utils.random_string(10)
+        #: :type: mudsling.objects.BasePlayer
+        player = player_class.create(names=(name,), password=pword,
+                                     makeChar=True)
+        add_cleanup(CleanupObj(player.default_object, player))
+        logging.info("Created player %s (#%d, char: #%d)"
+                     % (name, player.obj_id, player.default_object.obj_id))
+    else:
+        logging.debug('Found existing player %s (#%d)'
+                      % (existing.name, existing.obj_id))
+        player = existing
     context.objects['player %s' % name] = player
     context.objects[name] = player.default_object
-    logging.info("Created player %s (#%d, char: #%d)"
-                 % (name, player.obj_id, player.default_object.obj_id))
-    add_cleanup(CleanupObj(player.default_object, player))
 
 
 @given('The player "{name}" exists with password "{password}"')

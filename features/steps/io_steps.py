@@ -13,5 +13,15 @@ def enter_text(context, name, text):
 
 @then('{name} should see "{text}"')
 @then("{name} should see '{text}'")
-def should_see_text(context, name, text):
-    assert get_session(name).output_contains(text)
+def should_see_text(context, name, text, wait=0.01):
+    try:
+        assert get_session(name).output_contains(text, wait=wait)
+    except AssertionError:
+        logging.debug(get_session(name).output)
+        raise
+
+
+@then('{name} should see "{text}" in {seconds} seconds')
+@then("{name} should see '{text}' in {seconds} seconds")
+def should_see_text_in_seconds(context, name, text, seconds):
+    should_see_text(context, name, text, wait=float(seconds))

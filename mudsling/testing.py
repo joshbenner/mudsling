@@ -1,5 +1,10 @@
 import os
 import logging
+import sys
+
+from twisted.internet.task import deferLater
+from twisted.internet.defer import inlineCallbacks
+from crochet import setup, run_in_reactor, wait_for
 
 import mudsling
 from mudsling.sessions import Session
@@ -8,6 +13,22 @@ from mudsling.options import get_options
 from mudsling.core import MUDSling
 import mudsling.utils.string as str_utils
 from mudsling.utils.sequence import CaselessDict
+
+
+def run_behave():
+    from behave.__main__ import main
+    sys.argv[0] = ''
+    sys.exit(main())
+
+
+def sleep(seconds):
+    from twisted.internet import reactor
+
+    @wait_for(timeout=seconds)
+    def _sleep(seconds):
+        return deferLater(reactor, seconds, lambda: None)
+
+    _sleep(seconds)
 
 
 class TestSession(Session):
@@ -24,20 +45,26 @@ class TestSession(Session):
         self.output = ''
         self.open_session()
 
+    @run_in_reactor
     def receive_input(self, line):
         return super(TestSession, self).receive_input(str(line))
 
     def raw_send_output(self, text):
         self.output += text
 
+    def reset_output_buffer(self):
+        self.output = ''
+
     def disconnect(self, reason):
         self.disconnect_reason = reason
         self.connected = False
 
-    def output_contains(self, text, reset=True):
+    def output_contains(self, text, reset=False, wait=0.01):
+        if wait is not None:
+            sleep(wait)
         result = str(text) in self.output
         if reset:
-            self.output = ''
+            self.reset_output_buffer()
         return result
 
 
@@ -139,6 +166,7 @@ def bootstrap_game(data_path=None, params=(), settings_text=''):
     mudsling.game = game
     set_game(game)
     game.startService()
+    setup()
     return game
 
 
@@ -216,3 +244,7 @@ def cleanup(key):
     for task in get_cleanup_context(key):
         task.do()
     remove_cleanup_context(key)
+
+
+if __name__ == '__main__':
+    run_behave()
