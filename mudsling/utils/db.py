@@ -1,3 +1,5 @@
+from urlparse import urlparse
+
 import yoyo
 import yoyo.connections
 import sqlite3
@@ -22,6 +24,57 @@ def migrate(db_uri, migrations_path):
     migrations.to_apply().apply()
     conn.commit()
     conn.close()
+
+
+class DatabaseDriver(object):
+    """
+    A base delegate for handling specific database implementations. Used to
+    implement strategy pattern by ExternalDatabase class.
+    """
+    dbapi_module = ''
+    uri_scheme = ''
+
+    def __new__(cls, *args, **kwargs):
+        raise RuntimeError('Cannot instantiate static class.')
+
+    @classmethod
+    def connect(cls, uri):
+        """
+        Generate a Twisted ADAPI connection pool and return it.
+        """
+        a, kw = cls._connect_parameters(uri)
+        return adbapi.ConnectionPool(cls.dbapi_module, *a, **kw)
+
+    @classmethod
+    def _connect_parameters(cls, uri):
+        """
+        Return the positional and keyword arguments to pass to the connect
+        method for the database connection.
+
+        :rtype: tuple of (tuple, dict)
+        """
+        raise NotImplementedError()
+
+
+class SQLiteDriver(DatabaseDriver):
+    """
+    Encapsulate the connection to an SQLite database.
+    """
+    dbapi_module = 'sqlite3'
+    uri_scheme = 'sqlite'
+
+    @classmethod
+    def _connect_parameters(cls, uri):
+        parsed = urlparse(uri)
+        kw = {
+            'check_same_thread': False,
+            'cp_openfun': cls._set_row_factory
+        }
+        return (parsed.path,), kw
+
+    @staticmethod
+    def _set_row_factory(conn):
+        conn.row_factory = sqlite3.Row
 
 
 class ExternalDatabase(object):
