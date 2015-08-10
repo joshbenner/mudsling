@@ -8,6 +8,7 @@ new capabilities to the game world.
 from mudsling.extensibility import GamePlugin
 from mudsling.commands import all_commands
 from mudsling.perms import create_default_roles
+from mudsling.config import config
 
 from mudslingcore.objects import Thing, Character, Player, Container
 from mudslingcore.rooms import Room, Exit
@@ -43,8 +44,8 @@ class MUDSlingCorePlugin(GamePlugin, areas.AreaProviderPlugin):
         globalvars.db = self.game.db
         # Load help files to form an in-memory database of the entries.
         help.help_db = help.load_help_files(self.game)
-        mail.mail_db = mail.MailDB(self.game.game_file_path('mail.sqlite'),
-                                   self.game)
+        mail_db_uri = config.getstr('MUDSlingCore Mail', 'mail db uri')
+        mail.mail_db = mail.MailDB(mail_db_uri, self.game)
         create_default_roles(default_roles)
 
     def plugins_loaded(self):

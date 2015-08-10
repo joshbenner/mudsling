@@ -4,7 +4,7 @@ from collections import OrderedDict
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 from mudsling.storage import ObjRef
-from mudsling.utils.db import SQLiteDB
+from mudsling.utils.db import ExternalDatabase
 from mudsling.utils.time import parse_datetime, unixtime
 from mudsling.utils.string import split_quoted_words
 from mudsling.objects import NamedObject
@@ -14,7 +14,7 @@ from mudslingcore.mail.errors import *
 
 
 # noinspection PyUnusedLocal
-class MailDB(SQLiteDB):
+class MailDB(ExternalDatabase):
     """
     Wrapper around the mail SQLite database.
     """
@@ -23,13 +23,13 @@ class MailDB(SQLiteDB):
     #: :type: mudsling.core.MUDSling
     game = None
 
-    def __init__(self, filepath, game):
+    def __init__(self, uri, game):
         """
-        :type filepath: str
+        :type uri: str
         :type game: mudsling.core.MUDSling
         """
         self.game = game
-        super(MailDB, self).__init__(filepath)
+        super(MailDB, self).__init__(uri)
 
         self.set_re = re.compile(
             r'(?P<explicit>(?:(?P<start>\d+)(?:(?:\.\.|-)(?P<end>\d+|\$))?))'

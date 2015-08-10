@@ -2,9 +2,11 @@
 The app-wide configuration store for MUDSling. Any module can import this to
 interact with the configuration.
 """
+import os
 import ConfigParser
 import inspect
 
+import mudsling
 from mudsling import utils
 import mudsling.utils.modules
 
@@ -75,6 +77,17 @@ class Config(ConfigParser.SafeConfigParser):
         """
         liststr = self.get(section, option)
         return map(str.strip, liststr.strip().split(sep))
+
+    def getstr(self, section, option):
+        """
+        Get a string, substituting special placeholders:
+
+            {gamedir} = Absolute path to game directory.
+
+        :rtype: str
+        """
+        gamedir = os.path.abspath(mudsling.game.game_dir)
+        return self.get(section, option).replace('{gamedir}', gamedir)
 
     def section(self, section):
         if section not in self._configSections:
