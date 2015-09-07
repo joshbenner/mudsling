@@ -277,9 +277,11 @@ class UsesExternalDatabase(object):
     """
     _db_class = ExternalDatabase
     _db_uri = None
+    _db = None
 
     def _init_db(self):
         """
         Create the database connection pool.
         """
-        self._db = self._db_class(self._db_uri)
+        if self._db is None:
+            self._db = self._db_class(self._db_uri)
