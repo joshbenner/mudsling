@@ -40,10 +40,10 @@ class DatabaseDriverMetaClass(type):
     """
     def __new__(mcs, name, bases, dct):
         cls = super(DatabaseDriverMetaClass, mcs).__new__(mcs, name, bases, dct)
-        mod = __import__(cls.dbapi_module)
-        if cls.paramstyle is None:
+        if cls.paramstyle is None and cls.dbapi_module is not None:
+            mod = __import__(cls.dbapi_module)
             cls.paramstyle = mod.paramstyle
-        if cls.dialect is None:
+        if cls.dialect is None and cls.uri_scheme is not None:
             cls.dialect = dialects.registry.load(cls.uri_scheme)()
         DB_DRIVERS[cls.uri_scheme] = cls
         return cls
@@ -56,8 +56,8 @@ class DatabaseDriver(object):
     """
     __metaclass__ = DatabaseDriverMetaClass
 
-    dbapi_module = ''
-    uri_scheme = ''
+    dbapi_module = None
+    uri_scheme = None
 
     #: :type: sqlalchemy.engine.interfaces.Dialect
     dialect = None  # Set to dialect instance, or metaclass will do for you.
@@ -102,13 +102,77 @@ class SQLiteDriver(DatabaseDriver):
     def _connect_parameters(cls, uri):
         kw = {
             'check_same_thread': False,
-            'cp_openfun': cls._set_row_factory
+            'cp_openfun': cls._configure_connection,
         }
         return (uri.path,), kw
 
     @staticmethod
-    def _set_row_factory(conn):
+    def _configure_connection(conn):
         conn.row_factory = sqlite3.Row
+        conn.text_factory = str
+
+
+class EntityRepository(object):
+    """
+    Base class for implementing entity repositories if leveraging the
+    repository pattern.
+    """
+    _entity_factory = tuple
+
+    def __init__(self, db):
+        """
+        :param db: The database to interact with.
+        :type db: ExternalDatabase
+        """
+        self.db = db
+
+    def list(self):
+        """
+        Get the list of all entities.
+        :rtype: twisted.internet.defer.Deferred
+        """
+        raise NotImplementedError()
+
+    def get(self, id, callback=None):
+        """
+        Wrapper around _get that accepts an callback and returns a deferred.
+
+        :rtype: twisted.internet.defer.Deferred
+        """
+        d = self._get(id)
+        if callable(self._entity_factory):
+            d.addCallback(self._factory)
+        if callable(callback):
+            d.addCallback(callback)
+        return d
+
+    def _get(self, id):
+        """
+        Dispatch the actual get query.
+        :rtype: twisted.internet.defer.Deferred
+        """
+        raise NotImplementedError()
+
+    def _factory(self, entities):
+        factory = self._entity_factory
+        if not callable(factory):
+            raise NotImplementedError()
+        return [factory(entity) for entity in entities]
+
+    def save(self, entity):
+        """
+        :param entity: The entity to insert/update.
+
+        :rtype: twisted.internet.defer.Deferred
+        """
+        raise NotImplementedError()
+
+    def delete(self, entity):
+        """
+        :param entity: The entity to delete.
+        :rtype: twisted.internet.defer.Deferred
+        """
+        raise NotImplementedError()
 
 
 class ExternalDatabase(object):
@@ -181,24 +245,7 @@ class ExternalDatabase(object):
     @inlineCallbacks
     def query(self, query, *a, **kw):
         """
-        Query the database in a way that does not require callbacks.
-
-        This is the easiest way to get data out of the database without having
-        to write complicated callback chains.
-
-        :param query: The query object to run.
-        :type query: sqlalchemy.sql.elements.ClauseElement
-        """
-        sql, params = self.compile(query)
-        result = yield self._pool.runQuery(sql, params, *a, **kw)
-        returnValue(result)
-
-    def deferred_query(self, query, *a, **kw):
-        """
-        Query the database asynchronously.
-
-        Useful when you need more control over a Deferred callback chain on the
-        query.
+        Query the database.
 
         :param query: The query object to run.
         :type query: sqlalchemy.sql.elements.ClauseElement
@@ -206,7 +253,8 @@ class ExternalDatabase(object):
         :rtype: twisted.internet.defer.Deferred
         """
         sql, params = self.compile(query)
-        return self._pool.runQuery(sql, params, *a, **kw)
+        result = yield self._pool.runQuery(sql, params, *a, **kw)
+        returnValue(result)
 
     def interaction(self, interaction, *a, **kw):
         """
@@ -234,7 +282,8 @@ class ExternalDatabase(object):
 
         :rtype: twisted.internet.defer.Deferred
         """
-        return self._pool.runOperation(*self.compile(stmt), *a, **kw)
+        sql, params = self.compile(stmt)
+        return self._pool.runOperation(sql, params, *a, **kw)
 
     def table(self, name):
         return self.tables[name]
