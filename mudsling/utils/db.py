@@ -159,3 +159,17 @@ class ExternalDatabase(object):
     def query(self, sql, *a, **kw):
         result = yield self._pool.runQuery(sql, *a, **kw)
         returnValue(result)
+
+
+class UsesExternalDatabase(object):
+    """
+    Mixin class to help other objects use external databases in consistent ways.
+    """
+    _db_class = ExternalDatabase
+    _db_uri = None
+
+    def _init_db(self):
+        """
+        Create the database connection pool.
+        """
+        self._db = self._db_class(self._db_uri)
