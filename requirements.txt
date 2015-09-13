@@ -1,3 +1,4 @@
+schematics
 sqlalchemy
 pyparsing>=1.5
 twisted>=12
