@@ -1,4 +1,7 @@
 import re
+import os
+import logging
+import inspect
 from urlparse import urlparse
 
 import yoyo
@@ -7,6 +10,10 @@ import yoyo.connections
 import sqlite3
 
 import sqlalchemy.dialects as dialects
+from sqlalchemy import table, column
+import sqlalchemy
+
+import schematics.types as schematics_types
 
 from twisted.enterprise import adbapi
 from twisted.internet.defer import inlineCallbacks, returnValue
@@ -24,7 +31,17 @@ def migrate(db_uri, migrations_path):
         migration files.
     :type migrations_path: str
     """
-    conn, paramstyle = yoyo.connections.connect(db_uri)
+    parsed_uri = yoyo.connections.parse_uri(db_uri)
+    scheme, _, _, _, _, database, _ = parsed_uri
+    if scheme == 'sqlite':
+        directory = os.path.dirname(database)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    try:
+        conn, paramstyle = yoyo.connections.connect(db_uri)
+    except Exception:
+        logging.debug('Failed migration URI: %s', db_uri)
+        raise
     migrations = yoyo.read_migrations(conn, paramstyle, migrations_path)
     migrations.to_apply().apply()
     conn.commit()
@@ -126,9 +143,10 @@ class EntityRepository(object):
         """
         self.db = db
 
-    def list(self):
+    def all(self):
         """
         Get the list of all entities.
+
         :rtype: twisted.internet.defer.Deferred
         """
         raise NotImplementedError()
@@ -142,6 +160,7 @@ class EntityRepository(object):
         d = self._get(id)
         if callable(self._entity_factory):
             d.addCallback(self._factory)
+        d.addCallback(lambda results: results[0])
         if callable(callback):
             d.addCallback(callback)
         return d
@@ -173,6 +192,119 @@ class EntityRepository(object):
         :rtype: twisted.internet.defer.Deferred
         """
         raise NotImplementedError()
+
+
+class SchematicsModelRepository(EntityRepository):
+    """
+    A generic repository for storing models built atop the schematics Model
+    class.
+    """
+
+    # The model handled by this repository.
+    #: :type: schematics.Model
+    model = None
+
+    # The table that stores model instances.
+    table = None
+
+    # The field that acts as the id
+    id_field = 'id'
+
+    _schematics_to_sqlalchemy = {
+        schematics_types.StringType: sqlalchemy.String,
+        schematics_types.BooleanType: sqlalchemy.Boolean,
+        schematics_types.NumberType: sqlalchemy.Numeric,
+        schematics_types.IntType: sqlalchemy.Integer,
+        schematics_types.LongType: sqlalchemy.BigInteger,
+        schematics_types.FloatType: sqlalchemy.Float,
+        schematics_types.DecimalType: sqlalchemy.DECIMAL,
+
+        schematics_types.DateTimeType: sqlalchemy.DateTime,
+        schematics_types.DateType: sqlalchemy.Date,
+
+        schematics_types.HashType: sqlalchemy.String,
+        schematics_types.MD5Type: sqlalchemy.String,
+        schematics_types.SHA1Type: sqlalchemy.String,
+
+        schematics_types.EmailType: sqlalchemy.String,
+        schematics_types.URLType: sqlalchemy.String,
+        schematics_types.IPv4Type: sqlalchemy.String,
+        schematics_types.UUIDType: sqlalchemy.String
+    }
+
+    @classmethod
+    def map_data_type(cls, schematics_type):
+        """
+        Map a schematics type to an SQLAlchemy type.
+        """
+        if not inspect.isclass(schematics_type):
+            schematics_type = schematics_type.__class__
+        type_map = cls._schematics_to_sqlalchemy
+        sqla_type = getattr(schematics_type, 'sqlalchemy_type',
+                            type_map.get(schematics_type, None))
+        return sqla_type
+
+    def column(self, field_name):
+        return getattr(self.schema.c, field_name)
+
+    col = column
+
+    @property
+    def id_column(self):
+        return getattr(self.schema.c, self.id_field)
+
+    @property
+    def schema(self):
+        if '_schema' not in self.__dict__:
+            schema = table(self.table)
+            for field_name, field_type in self.model.fields.iteritems():
+                sqla_type = self.map_data_type(field_type)
+                if sqla_type is None:
+                    raise TypeError('Cannot find an SQLAlchemy type for %s.'
+                                    % field_type.__class__.__name__)
+                sql_name = field_type.serialized_name or field_name
+                schema.append_column(column(sql_name, sqla_type))
+            self._schema = schema
+        return self._schema
+
+    def _get(self, id):
+        return self.db.query(self.schema.select().where(self.id_column == id))
+
+    @property
+    def _entity_factory(self):
+        return self.model
+
+    def _factory(self, entities):
+        entities = map(dict, entities)
+        return super(SchematicsModelRepository, self)._factory(entities)
+
+    def save(self, entity):
+        """
+        :type entity: schematics.models.Model
+        """
+        id = getattr(entity, self.id_field, None)
+        fields = entity.to_primitive()
+        if id is None:
+            d = self.db.insert(self.schema, **fields)
+        else:
+            id_col = self.id_column
+            stmt = self.schema.update().values(**fields).where(id_col == id)
+            d = self.db.operation(stmt)
+        return d
+
+    def delete(self, entity):
+        """
+        :type entity: schematics.models.Model
+        """
+        id = getattr(entity, self.id_field, None)
+        assert id is not None
+        stmt = self.schema.delete().where(self.id_column == id)
+        return self.db.operation(stmt)
+
+    @inlineCallbacks
+    def all(self):
+        results = yield self.db.query(self.schema.select())
+        returnValue(self._factory(map(dict, results)))
 
 
 class ExternalDatabase(object):
@@ -242,6 +374,20 @@ class ExternalDatabase(object):
         """:rtype: sqlalchemy.engine.interfaces.Dialect"""
         return self.db_driver.dialect
 
+    def _query_errback(self, error, sql=None, params=None):
+        """
+        :type error: twisted.python.failure.Failure
+        :type sql: str
+        :type params: tuple or dict
+        """
+        tb = error.getTracebackObject()
+        exc_info = (error.type, error.value, tb)
+        logging.debug(error.getErrorMessage(), exc_info=exc_info)
+        if sql is not None:
+            logging.debug('SQL failed: %s', sql)
+        if params is not None:
+            logging.debug('Params: %r', params)
+
     @inlineCallbacks
     def query(self, query, *a, **kw):
         """
@@ -253,7 +399,9 @@ class ExternalDatabase(object):
         :rtype: twisted.internet.defer.Deferred
         """
         sql, params = self.compile(query)
-        result = yield self._pool.runQuery(sql, params, *a, **kw)
+        d = self._pool.runQuery(sql, params, *a, **kw)
+        d.addErrback(self._query_errback, sql, params)
+        result = yield d
         returnValue(result)
 
     def interaction(self, interaction, *a, **kw):
@@ -283,7 +431,9 @@ class ExternalDatabase(object):
         :rtype: twisted.internet.defer.Deferred
         """
         sql, params = self.compile(stmt)
-        return self._pool.runOperation(sql, params, *a, **kw)
+        d = self._pool.runOperation(sql, params, *a, **kw)
+        d.addErrback(self._query_errback, sql, params)
+        return d
 
     def table(self, name):
         return self.tables[name]
@@ -301,7 +451,7 @@ class ExternalDatabase(object):
         compiled = stmt.compile(dialect=self.dialect)
         sql = str(compiled)
         if self.dialect.positional:
-            params = compiled.positiontup
+            params = tuple(compiled.params[p] for p in compiled.positiontup)
         else:
             params = compiled.params
         return sql, params
