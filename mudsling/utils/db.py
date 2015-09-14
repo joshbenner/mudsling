@@ -153,7 +153,7 @@ class EntityRepository(object):
 
     def get(self, id, callback=None):
         """
-        Wrapper around _get that accepts an callback and returns a deferred.
+        Wrapper around _get that accepts a callback and returns a deferred.
 
         :rtype: twisted.internet.defer.Deferred
         """
@@ -209,6 +209,10 @@ class SchematicsModelRepository(EntityRepository):
 
     # The field that acts as the id
     id_field = 'id'
+
+    # If the DB generates an ID, then we know its new if None. Otherwise, we
+    # need to take more steps to determine if a record is new or not.
+    db_generates_ids = True
 
     _schematics_to_sqlalchemy = {
         schematics_types.StringType: sqlalchemy.String,
@@ -267,8 +271,26 @@ class SchematicsModelRepository(EntityRepository):
             self._schema = schema
         return self._schema
 
+    def _select(self, *a, **kw):
+        """:rtype: sqlalchemy.sql.selectable.Select"""
+        return self.schema.select(*a, **kw)
+
+    def _update(self, *a, **kw):
+        """:rtype: sqlalchemy.sql.dml.Update"""
+        return self.schema.update(*a, **kw)
+
+    def _delete(self, *a, **kw):
+        """:rtype: sqlalchemy.sql.dml.Delete"""
+        return self.schema.delete(*a, **kw)
+
+    def _insert(self, **kw):
+        return self.db.insert(self.schema, **kw)
+
+    def _query(self, query, *a, **kw):
+        return self.db.query(query, *a, **kw)
+
     def _get(self, id):
-        return self.db.query(self.schema.select().where(self.id_column == id))
+        return self._query(self._select().where(self.id_column == id))
 
     @property
     def _entity_factory(self):
@@ -283,14 +305,25 @@ class SchematicsModelRepository(EntityRepository):
         :type entity: schematics.models.Model
         """
         id = getattr(entity, self.id_field, None)
-        fields = entity.to_primitive()
-        if id is None:
-            d = self.db.insert(self.schema, **fields)
-        else:
-            id_col = self.id_column
-            stmt = self.schema.update().values(**fields).where(id_col == id)
-            d = self.db.operation(stmt)
+        if self.db_generates_ids:
+            if id is None:
+                d = self._insert_entity(entity)
+            else:
+                d = self._update_entity(entity)
+        else:  # ID may or may not be new, so we try INSERT first, then UPDATE.
+            d = self._insert_entity(entity)
+            d.addErrback(lambda err: self._update_entity(entity))
         return d
+
+    def _insert_entity(self, entity):
+        return self._insert(**entity.to_primitive())
+
+    def _update_entity(self, entity):
+        id_col = self.id_column
+        fields = entity.to_primitive()
+        id = fields.get(self.id_field, None)
+        stmt = self._update().values(**fields).where(id_col == id)
+        return self.db.operation(stmt)
 
     def delete(self, entity):
         """
@@ -298,12 +331,12 @@ class SchematicsModelRepository(EntityRepository):
         """
         id = getattr(entity, self.id_field, None)
         assert id is not None
-        stmt = self.schema.delete().where(self.id_column == id)
+        stmt = self._delete().where(self.id_column == id)
         return self.db.operation(stmt)
 
     @inlineCallbacks
     def all(self):
-        results = yield self.db.query(self.schema.select())
+        results = yield self._query(self._select())
         returnValue(self._factory(map(dict, results)))
 
 
@@ -322,8 +355,6 @@ class ExternalDatabase(object):
     _uri = None
 
     _yoyo_uri_re = re.compile(r'^([^:]+):/(?!/)')
-
-    tables = {}
 
     def __init__(self, uri):
         """
@@ -380,13 +411,12 @@ class ExternalDatabase(object):
         :type sql: str
         :type params: tuple or dict
         """
-        tb = error.getTracebackObject()
-        exc_info = (error.type, error.value, tb)
-        logging.debug(error.getErrorMessage(), exc_info=exc_info)
+        logging.debug(error.getErrorMessage())
         if sql is not None:
             logging.debug('SQL failed: %s', sql)
         if params is not None:
             logging.debug('Params: %r', params)
+        return error  # We don't trap the error.
 
     @inlineCallbacks
     def query(self, query, *a, **kw):
@@ -434,9 +464,6 @@ class ExternalDatabase(object):
         d = self._pool.runOperation(sql, params, *a, **kw)
         d.addErrback(self._query_errback, sql, params)
         return d
-
-    def table(self, name):
-        return self.tables[name]
 
     def compile(self, stmt):
         """
