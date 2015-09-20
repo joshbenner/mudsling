@@ -43,7 +43,10 @@ def migrate(db_uri, migrations_path):
         logging.debug('Failed migration URI: %s', db_uri)
         raise
     migrations = yoyo.read_migrations(conn, paramstyle, migrations_path)
-    migrations.to_apply().apply()
+    pending = migrations.to_apply()
+    if len(pending):
+        logging.info('Applying %s migrations to %s' % (len(pending), db_uri))
+        pending.apply()
     conn.commit()
     conn.close()
 
