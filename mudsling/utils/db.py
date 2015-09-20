@@ -146,9 +146,12 @@ class EntityRepository(object):
         """
         self.db = db
 
-    def all(self):
+    def all(self, limit=None):
         """
         Get the list of all entities.
+
+        :param limit: Optional limit to how many to return.
+        :type limit: int
 
         :rtype: twisted.internet.defer.Deferred
         """
@@ -338,8 +341,11 @@ class SchematicsModelRepository(EntityRepository):
         return self.db.operation(stmt)
 
     @inlineCallbacks
-    def all(self):
-        results = yield self._query(self._select())
+    def all(self, limit=None):
+        query = self._select()
+        if limit is not None:
+            query = query.limit(limit)
+        results = yield self._query(query)
         returnValue(self._factory(map(dict, results)))
 
 
