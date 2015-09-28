@@ -95,10 +95,43 @@ class DatabaseDriver(object):
         raise NotImplementedError()
 
 
+class DocumentCollection(object):
+    """
+    Generic interface to a simple document collection.
+    """
+    def all(self):
+        raise NotImplementedError()
+
+    def filter(self, filter_fn):
+        raise NotImplementedError()
+
+    def last_record_id(self):
+        raise NotImplementedError()
+
+    def __len__(self):
+        raise NotImplementedError()
+
+    def __index__(self):
+        raise NotImplementedError()
+
+    def store(self, record):
+        raise NotImplementedError()
+
+    def fetch(self, record_id):
+        raise NotImplementedError()
+
+    def update(self, record_id, record):
+        raise NotImplementedError()
+
+    def delete(self, record_id):
+        raise NotImplementedError()
+
+
 class NoSQLDatabaseDriver(DatabaseDriver):
     """
     Generic driver for NoSQL databases.
     """
+
     @classmethod
     def store(cls, conn, key, value):
         raise NotImplementedError()
@@ -131,11 +164,50 @@ class NoSQLDatabaseDriver(DatabaseDriver):
         """:returns: (key, value) generator"""
         raise NotImplementedError
 
+    @classmethod
+    def collection(cls, conn, name):
+        """:rtype: DocumentCollection"""
+        raise NotImplementedError()
 
-class UnqliteDriver(NoSQLDatabaseDriver):
+
+class UnQliteDriver(NoSQLDatabaseDriver):
     uri_scheme = 'unqlite'
 
+    @classmethod
+    def connect(cls, uri):
+        return unqlite.UnQLite(uri)
 
+    @classmethod
+    def store(cls, conn, key, value):
+        return conn.store(key, value)
+
+    @classmethod
+    def fetch(cls, conn, key):
+        return conn.fetch(key)
+
+    @classmethod
+    def delete(cls, conn, key):
+        return conn.delete(key)
+
+    @classmethod
+    def exists(cls, conn, key):
+        return conn.exists(key)
+
+    @classmethod
+    def iterkeys(cls, conn):
+        return conn.keys()
+
+    @classmethod
+    def itervalues(cls, conn):
+        return conn.values()
+
+    @classmethod
+    def iteritems(cls, conn):
+        return conn.items()
+
+    @classmethod
+    def collection(cls, conn, name):
+        return conn.collection(name)
 
 
 class RelationalDatabaseDriver(DatabaseDriver):
