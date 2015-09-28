@@ -8,6 +8,7 @@ import yoyo
 import yoyo.connections
 
 import sqlite3
+import unqlite
 
 import sqlalchemy.dialects as dialects
 from sqlalchemy import table, column
@@ -60,11 +61,7 @@ class DatabaseDriverMetaClass(type):
     """
     def __new__(mcs, name, bases, dct):
         cls = super(DatabaseDriverMetaClass, mcs).__new__(mcs, name, bases, dct)
-        if cls.paramstyle is None and cls.dbapi_module is not None:
-            mod = __import__(cls.dbapi_module)
-            cls.paramstyle = mod.paramstyle
-        if cls.dialect is None and cls.uri_scheme is not None:
-            cls.dialect = dialects.registry.load(cls.uri_scheme)()
+        cls.init_driver()
         DB_DRIVERS[cls.uri_scheme] = cls
         return cls
 
@@ -76,8 +73,77 @@ class DatabaseDriver(object):
     """
     __metaclass__ = DatabaseDriverMetaClass
 
-    dbapi_module = None
     uri_scheme = None
+
+    def __new__(cls, *args, **kwargs):
+        raise RuntimeError('Cannot instantiate static class.')
+
+    @classmethod
+    def init_driver(cls):
+        """
+        Called by metaclass to do any setup of the driver itself.
+        """
+        pass
+
+    @classmethod
+    def connect(cls, uri):
+        """
+        Connect to the database.
+
+        :return: A connection object.
+        """
+        raise NotImplementedError()
+
+
+class NoSQLDatabaseDriver(DatabaseDriver):
+    """
+    Generic driver for NoSQL databases.
+    """
+    @classmethod
+    def store(cls, conn, key, value):
+        raise NotImplementedError()
+
+    @classmethod
+    def fetch(cls, conn, key):
+        raise NotImplementedError()
+
+    @classmethod
+    def delete(cls, conn, key):
+        raise NotImplementedError()
+
+    @classmethod
+    def exists(cls, conn, key):
+        """:rtype: bool"""
+        raise NotImplementedError()
+
+    @classmethod
+    def iterkeys(cls, conn):
+        """:returns: Key generator"""
+        raise NotImplementedError()
+
+    @classmethod
+    def itervalues(cls, conn):
+        """:returns: Value generator"""
+        raise NotImplementedError()
+
+    @classmethod
+    def iteritems(cls, conn):
+        """:returns: (key, value) generator"""
+        raise NotImplementedError
+
+
+class UnqliteDriver(NoSQLDatabaseDriver):
+    uri_scheme = 'unqlite'
+
+
+
+
+class RelationalDatabaseDriver(DatabaseDriver):
+    """
+    Generic driver for relational DB-API drivers, using Twisted's DB-API
+    integration.
+    """
+    dbapi_module = None
 
     #: :type: sqlalchemy.engine.interfaces.Dialect
     dialect = None  # Set to dialect instance, or metaclass will do for you.
@@ -85,8 +151,13 @@ class DatabaseDriver(object):
     # Set by metaclass based on dbapi_module if None.
     paramstyle = None
 
-    def __new__(cls, *args, **kwargs):
-        raise RuntimeError('Cannot instantiate static class.')
+    @classmethod
+    def init_driver(cls):
+        if cls.paramstyle is None and cls.dbapi_module is not None:
+            mod = __import__(cls.dbapi_module)
+            cls.paramstyle = mod.paramstyle
+        if cls.dialect is None and cls.uri_scheme is not None:
+            cls.dialect = dialects.registry.load(cls.uri_scheme)()
 
     @classmethod
     def connect(cls, uri):
@@ -111,7 +182,7 @@ class DatabaseDriver(object):
         raise NotImplementedError()
 
 
-class SQLiteDriver(DatabaseDriver):
+class SQLiteDriver(RelationalDatabaseDriver):
     """
     Encapsulate the connection to an SQLite database.
     """
@@ -142,7 +213,7 @@ class EntityRepository(object):
     def __init__(self, db):
         """
         :param db: The database to interact with.
-        :type db: ExternalDatabase
+        :type db: ExternalRelationalDatabase
         """
         self.db = db
 
@@ -351,6 +422,30 @@ class SchematicsModelRepository(EntityRepository):
 
 class ExternalDatabase(object):
     """
+    Generic external datastore.
+    """
+    _uri = None
+    _pool = None
+
+    def __init__(self, uri):
+        """
+        Initialize the connection in child implementations.
+        :return:
+        """
+        self._uri = urlparse(uri)
+        self.connect()
+
+    def connect(self):
+        self._pool = self.db_driver.connect(self._uri)
+
+    @property
+    def db_driver(self):
+        """:rtype: RelationalDatabaseDriver"""
+        return DB_DRIVERS[self._uri.scheme]
+
+
+class ExternalRelationalDatabase(ExternalDatabase):
+    """
     Generic external database that handles its own connection, migrations, etc.
 
     :cvar migrations_path: Path to the migrations to execute against this kind
@@ -359,9 +454,6 @@ class ExternalDatabase(object):
     """
 
     migrations_path = None
-    _dbtype = None
-    _pool = None
-    _uri = None
 
     _yoyo_uri_re = re.compile(r'^([^:]+):/(?!/)')
 
@@ -373,7 +465,7 @@ class ExternalDatabase(object):
         self._uri = urlparse(uri)
         if self.migrations_path is not None:
             self.run_migrations(self.migrations_path)
-        self.connect()
+        super(ExternalRelationalDatabase, self).__init__(uri)
 
     def run_migrations(self, migrations_path):
         """
@@ -400,14 +492,6 @@ class ExternalDatabase(object):
         connection.
         """
         pass
-
-    def connect(self):
-        self._pool = self.db_driver.connect(self._uri)
-
-    @property
-    def db_driver(self):
-        """:rtype: DatabaseDriver"""
-        return DB_DRIVERS[self._uri.scheme]
 
     @property
     def dialect(self):
@@ -510,7 +594,7 @@ class UsesExternalDatabase(object):
     """
     Mixin class to help other objects use external databases in consistent ways.
     """
-    _db_class = ExternalDatabase
+    _db_class = ExternalRelationalDatabase
     _db_uri = None
     _db = None
 
