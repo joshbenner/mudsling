@@ -300,7 +300,7 @@ class EntityRepository(object):
         """
         raise NotImplementedError()
 
-    def get(self, id, callback=None):
+    def get_by_id(self, id, callback=None):
         """
         Wrapper around _get that accepts a callback and returns a deferred.
 
@@ -338,6 +338,17 @@ class EntityRepository(object):
     def delete(self, entity):
         """
         :param entity: The entity to delete.
+        :rtype: twisted.internet.defer.Deferred
+        """
+        raise NotImplementedError()
+
+    def find(self, specification, limit=None):
+        """
+        Find all entities that satisfy the specification.
+
+        :param specification: The specification to satisfy.
+        :type specification: mudsling.utils.specifications.Specification
+
         :rtype: twisted.internet.defer.Deferred
         """
         raise NotImplementedError()
