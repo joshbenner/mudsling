@@ -425,10 +425,12 @@ class SchematicsModelRepository(EntityRepository):
 
     @property
     def schema(self):
-        if '_schema' not in self.__dict__:
-            self._schema = self.build_model_schema(table_name=self.table,
-                                                   model=self.model,
-                                                   ignore=self.ignore_fields)
+        if '_schema' not in self.__class__.__dict__:
+            cls = self.__class__
+            cls._schema = self.build_model_schema(table_name=self.table,
+                                                  model=self.model,
+                                                  ignore=self.ignore_fields)
+        # noinspection PyUnresolvedReferences
         return self._schema
 
     def _select(self, *a, **kw):
