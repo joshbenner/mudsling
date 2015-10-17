@@ -353,6 +353,9 @@ class SchematicsModelRepository(EntityRepository):
     #: :type: schematics.Model
     model = None
 
+    # The model fields to ignore when auto-generating the schema.
+    ignore_fields = ()
+
     # The table that stores model instances.
     table = None
 
@@ -409,8 +412,11 @@ class SchematicsModelRepository(EntityRepository):
     @property
     def schema(self):
         if '_schema' not in self.__dict__:
+            ignore = self.ignore_fields
             schema = table(self.table)
             for field_name, field_type in self.model.fields.iteritems():
+                if field_name in ignore:
+                    continue
                 sqla_type = self.map_data_type(field_type)
                 if sqla_type is None:
                     raise TypeError('Cannot find an SQLAlchemy type for %s.'
