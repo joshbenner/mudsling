@@ -675,6 +675,7 @@ class UsesExternalDatabase(object):
     _db_class = ExternalRelationalDatabase
     _db_uri = None
     _db = None
+    _repositories = {}
 
     def _init_db(self):
         """
@@ -682,3 +683,6 @@ class UsesExternalDatabase(object):
         """
         if self._db is None:
             self._db = self._db_class(self._db_uri)
+        for attr, cls in self._repositories.iteritems():
+            if attr not in self.__dict__ or getattr(self, attr) is None:
+                setattr(self, attr, cls(self._db))
