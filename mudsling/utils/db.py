@@ -400,6 +400,20 @@ class SchematicsModelRepository(EntityRepository):
                             type_map.get(schematics_type, None))
         return sqla_type
 
+    @classmethod
+    def build_model_schema(cls, table_name, model, ignore=()):
+        schema = table(table_name)
+        for field_name, field_type in model.fields.iteritems():
+            if field_name in ignore:
+                continue
+            sqla_type = cls.map_data_type(field_type)
+            if sqla_type is None:
+                raise TypeError('Cannot find an SQLAlchemy type for %s.'
+                                % field_type.__class__.__name__)
+            sql_name = field_type.serialized_name or field_name
+            schema.append_column(column(sql_name, sqla_type))
+        return schema
+
     def column(self, field_name):
         return getattr(self.schema.c, field_name)
 
@@ -412,18 +426,9 @@ class SchematicsModelRepository(EntityRepository):
     @property
     def schema(self):
         if '_schema' not in self.__dict__:
-            ignore = self.ignore_fields
-            schema = table(self.table)
-            for field_name, field_type in self.model.fields.iteritems():
-                if field_name in ignore:
-                    continue
-                sqla_type = self.map_data_type(field_type)
-                if sqla_type is None:
-                    raise TypeError('Cannot find an SQLAlchemy type for %s.'
-                                    % field_type.__class__.__name__)
-                sql_name = field_type.serialized_name or field_name
-                schema.append_column(column(sql_name, sqla_type))
-            self._schema = schema
+            self._schema = self.build_model_schema(table_name=self.table,
+                                                   model=self.model,
+                                                   ignore=self.ignore_fields)
         return self._schema
 
     def _select(self, *a, **kw):
