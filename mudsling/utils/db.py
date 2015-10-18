@@ -354,10 +354,10 @@ class EntityRepository(object):
         raise NotImplementedError()
 
 
-class SchematicsModelRepository(EntityRepository):
+class SchematicsSQLRepository(EntityRepository):
     """
     A generic repository for storing models built atop the schematics Model
-    class.
+    class in a relational database.
     """
 
     # The model handled by this repository.
@@ -471,7 +471,7 @@ class SchematicsModelRepository(EntityRepository):
 
     def _factory(self, entities):
         entities = map(dict, entities)
-        return super(SchematicsModelRepository, self)._factory(entities)
+        return super(SchematicsSQLRepository, self)._factory(entities)
 
     def save(self, entity):
         """
