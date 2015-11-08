@@ -508,11 +508,14 @@ class SchematicsSQLRepository(EntityRepository):
         return d
 
     def _insert_entity(self, entity):
-        return self._insert(**entity.to_primitive())
+        fields = {k: v for k, v in entity.to_primitive().iteritems()
+                  if k not in self.ignore_fields}
+        return self._insert(**fields)
 
     def _update_entity(self, entity):
         id_col = self.id_column
-        fields = entity.to_primitive()
+        fields = {k: v for k, v in entity.to_primitive().iteritems()
+                  if k not in self.ignore_fields}
         id = fields.get(self.id_field, None)
         stmt = self._update().values(**fields).where(id_col == id)
         return self.db.operation(stmt)
