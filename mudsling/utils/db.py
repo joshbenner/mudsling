@@ -457,7 +457,20 @@ class SchematicsSQLRepository(EntityRepository):
         return self.schema.delete(*a, **kw)
 
     def _insert(self, **kw):
-        return self.db.insert(self.schema, **kw)
+        """
+        Inserts a row in this repository's table.
+
+        Will set the row's auto ID as the deferred's return value.
+
+        :rtype: twisted.internet.defer.Deferred
+        """
+        return self.db.interaction(self._insert_interaction, **kw)
+
+    def _insert_interaction(self, txn, **kw):
+        query = self.schema.insert().values(**kw)
+        sql, params = self.db.compile(query)
+        txn.execute(sql, params)
+        return txn.lastrowid
 
     def _query(self, query, *a, **kw):
         return self.db.query(query, *a, **kw)
@@ -475,7 +488,13 @@ class SchematicsSQLRepository(EntityRepository):
 
     def save(self, entity):
         """
+        Saves the entity.
+
+        On insert, the ID of the inserted row will be the deferred's return
+        value when possible.
+
         :type entity: schematics.models.Model
+        :rtype: twisted.internet.defer.Deferred
         """
         id = getattr(entity, self.id_field, None)
         if self.db_generates_ids:
