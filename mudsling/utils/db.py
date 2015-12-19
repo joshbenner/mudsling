@@ -12,12 +12,17 @@ import unqlite
 
 import sqlalchemy.dialects as dialects
 from sqlalchemy import table, column
+from sqlalchemy.sql import not_, and_, or_
 import sqlalchemy
 
 import schematics.types as schematics_types
 
 from twisted.enterprise import adbapi
 from twisted.internet.defer import inlineCallbacks, returnValue
+
+import mudsling.errors
+from mudsling.utils.object import dict_inherit
+from mudsling.utils import specifications as specs
 
 
 def migrate(db_uri, migrations_path):
@@ -349,6 +354,9 @@ class EntityRepository(object):
         :param specification: The specification to satisfy.
         :type specification: mudsling.utils.specifications.Specification
 
+        :param limit: Maximum result count.
+        :type limit: int
+
         :rtype: twisted.internet.defer.Deferred
         """
         raise NotImplementedError()
@@ -536,6 +544,71 @@ class SchematicsSQLRepository(EntityRepository):
             query = query.limit(limit)
         results = yield self._query(query)
         returnValue(self._factory(map(dict, results)))
+
+    @inlineCallbacks
+    def find(self, specification, limit=None):
+        """
+        Specification-driven entity retrieval.
+
+        Converts a specification into an SQLAlchemy condition.
+
+        :param specification: The specification to satisfy.
+        :type specification: mudsling.utils.specifications.Specification
+
+        :param limit: Maximum result count.
+        :type limit: int
+
+        :return: The list of entities that satisfy the specification.
+        :rtype: twisted.internet.defer.Deferred
+        """
+        constraints = self._specification_to_condition(specification)
+        query = self._select().where(constraints)
+        if limit is not None:
+            query = query.limit(limit)
+        results = yield self._query(query)
+        returnValue(self._factory(map(dict, results)))
+
+    @classmethod
+    def _specification_to_condition(cls, specification):
+        """
+        Convert a specification to an SQLAlchemy condition.
+
+        :param specification: The specification to convert.
+        :type specification: mudsling.utils.specifications.Specification
+
+        :return: The SQLAlchemy condition clause.
+        """
+        try:
+            converter = dict_inherit(cls, 'specification_converters',
+                                     specification.__class__)
+        except KeyError:
+            raise UnsupportedSpecificationInSQL("Cannot convert %r to SQL"
+                                                % specification)
+        return converter(specification)
+
+    @classmethod
+    def _not_spec_to_condition(cls, not_spec):
+        return not_(cls._specification_to_condition(not_spec.spec))
+
+    @classmethod
+    def _or_spec_to_condition(cls, or_spec):
+        return or_(cls._specification_to_condition(or_spec.left),
+                   cls._specification_to_condition(or_spec.right))
+
+    @classmethod
+    def _and_spec_to_condition(cls, and_spec):
+        return and_(cls._specification_to_condition(and_spec.left),
+                    cls._specification_to_condition(and_spec.right))
+
+    specification_converters = {
+        specs.NotSpecification: _not_spec_to_condition,
+        specs.OrSpecification: _or_spec_to_condition,
+        specs.AndSpecification: _and_spec_to_condition
+    }
+
+
+class UnsupportedSpecificationInSQL(mudsling.errors.Error):
+    pass
 
 
 class ExternalDatabase(object):

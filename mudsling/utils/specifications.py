@@ -20,7 +20,7 @@ class Specification(object):
         """
         pass
 
-    def And(self, other):
+    def and_(self, other):
         """
         :param other: The other Specification to consider in addition.
         :type other: Specification
@@ -29,52 +29,79 @@ class Specification(object):
         """
         return AndSpecification(self, other)
 
+    def or_(self, other):
+        """
+        :param other: The other specification to consider alternately.
+        :type other: Specification
 
-class CompositeSpecification(Specification):
-    """
-    An abstract specification whose satisfaction is composed of the satisfaction
-    of nested specifications.
-    """
-    def __init__(self, *specifications):
+        :return: OrSpecification
         """
-        :param specifications: The specifications which compose this spec.
-        :type specifications: list of Specification
-        """
-        self.specifications = specifications
+        return OrSpecification(self, other)
 
-    def _composite_satisfaction(self, candidate):
+    def not_(self):
         """
-        :returns: Generator for the satisfaction of the nested specifications.
-        :rtype: __generator of bool
+        Invert this specification.
+
+        :return: NotSpecification
         """
-        return (spec.satisfied_by(candidate) for spec in self.specifications)
+        return NotSpecification(self)
 
 
-class AndSpecification(CompositeSpecification):
+class AndSpecification(Specification):
     """
-    A specification that is satisfied if all its nested specifications are
-    satisfied.
+    Satisfied only if both left and right are satisfied.
     """
+
+    def __init__(self, left, right):
+        """
+        :param left: The left specification.
+        :type left: Specification
+        :param right: The right specification.
+        :type right: Specification
+        """
+        self.left = left
+        self.right = right
+
     def satisfied_by(self, candidate):
         """:rtype: bool"""
-        return all(self._composite_satisfaction(candidate))
+        return (self.left.satisfied_by(candidate)
+                and self.right.satisfied_by(candidate))
 
 
-class OrSpecification(CompositeSpecification):
+class OrSpecification(Specification):
     """
-    A specification that is satisfied if any of its nested specifications are
-    satisfied.
+    Satisfied only if either left or right are satisfied.
     """
+
+    def __init__(self, left, right):
+        """
+        :param left: The left specification.
+        :type left: Specification
+        :param right: The right specification.
+        :type right: Specification
+        """
+        self.left = left
+        self.right = right
+
     def satisfied_by(self, candidate):
         """:rtype: bool"""
-        return any(self._composite_satisfaction(candidate))
+        return (self.left.satisfied_by(candidate)
+                or self.right.satisfied_by(candidate))
 
 
-class NotSpecification(CompositeSpecification):
+class NotSpecification(Specification):
     """
     A specification that is satisfied if none of its nested specifications are
     satisfied.
     """
+
+    def __init__(self, spec):
+        """
+        :param spec: The spec that must not be satisfied.
+        :type spec: Specification
+        """
+        self.spec = spec
+
     def satisfied_by(self, candidate):
         """:rtype: bool"""
-        return not any(self._composite_satisfaction(candidate))
+        return not self.spec.satisfied_by(candidate)
