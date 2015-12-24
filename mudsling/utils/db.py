@@ -18,7 +18,7 @@ import sqlalchemy
 import schematics.types as schematics_types
 
 from twisted.enterprise import adbapi
-from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import Deferred, inlineCallbacks, returnValue
 
 import mudsling.errors
 from mudsling.utils.object import dict_inherit
@@ -332,12 +332,36 @@ class EntityRepository(object):
             raise NotImplementedError()
         return [factory(entity) for entity in entities]
 
+    @inlineCallbacks
+    def before_save(self, entity):
+        """
+        :param entity: The entity to insert/update.
+
+        :rtype: twisted.internet.defer.Deferred
+        """
+        returnValue(entity)
+
+    @inlineCallbacks
+    def after_save(self, entity):
+        """
+        :param entity: The entity to insert/update.
+
+        :rtype: twisted.internet.defer.Deferred
+        """
+        returnValue(entity)
+
     def save(self, entity):
         """
         :param entity: The entity to insert/update.
 
         :rtype: twisted.internet.defer.Deferred
         """
+        d = self.before_save(entity)
+        d.addCallback(self._save)
+        d.addCallback(self.after_save)
+        return d
+
+    def _save(self, entity):
         raise NotImplementedError()
 
     def delete(self, entity):
@@ -494,7 +518,7 @@ class SchematicsSQLRepository(EntityRepository):
         entities = map(dict, entities)
         return super(SchematicsSQLRepository, self)._factory(entities)
 
-    def save(self, entity):
+    def _save(self, entity):
         """
         Saves the entity.
 
