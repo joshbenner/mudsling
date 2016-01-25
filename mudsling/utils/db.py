@@ -326,11 +326,16 @@ class EntityRepository(object):
         """
         raise NotImplementedError()
 
+    @inlineCallbacks
     def _factory(self, entities):
+        """:rtype: twisted.internet.defer.Deferred"""
         factory = self._entity_factory
         if not callable(factory):
             raise NotImplementedError()
-        return [factory(entity) for entity in entities]
+        # Funky syntax b/c we need to yield at least once. Passing non-deferred
+        # just returns the object back.
+        entities = yield [factory(entity) for entity in entities]
+        returnValue(entities)
 
     @inlineCallbacks
     def before_save(self, entity):
@@ -339,6 +344,7 @@ class EntityRepository(object):
 
         :rtype: twisted.internet.defer.Deferred
         """
+        yield
         returnValue(entity)
 
     @inlineCallbacks
@@ -348,6 +354,7 @@ class EntityRepository(object):
 
         :rtype: twisted.internet.defer.Deferred
         """
+        yield
         returnValue(entity)
 
     def save(self, entity):
@@ -514,9 +521,12 @@ class SchematicsSQLRepository(EntityRepository):
     def _entity_factory(self):
         return self.model
 
+    @inlineCallbacks
     def _factory(self, entities):
+        """:rtype: twisted.internet.defer.Deferred"""
         entities = map(dict, entities)
-        return super(SchematicsSQLRepository, self)._factory(entities)
+        entities = yield super(SchematicsSQLRepository, self)._factory(entities)
+        returnValue(entities)
 
     def _save(self, entity):
         """
@@ -567,7 +577,8 @@ class SchematicsSQLRepository(EntityRepository):
         if limit is not None:
             query = query.limit(limit)
         results = yield self._query(query)
-        returnValue(self._factory(map(dict, results)))
+        objects = yield self._factory(map(dict, results))
+        returnValue(objects)
 
     @inlineCallbacks
     def find(self, specification, limit=None):
@@ -590,7 +601,8 @@ class SchematicsSQLRepository(EntityRepository):
         if limit is not None:
             query = query.limit(limit)
         results = yield self._query(query)
-        returnValue(self._factory(map(dict, results)))
+        objects = yield self._factory(map(dict, results))
+        returnValue(objects)
 
     @classmethod
     def _specification_to_condition(cls, specification):
@@ -629,6 +641,39 @@ class SchematicsSQLRepository(EntityRepository):
         specs.OrSpecification: _or_spec_to_condition,
         specs.AndSpecification: _and_spec_to_condition
     }
+
+    @inlineCallbacks
+    def find_by_field_value(self, field_name, value, op='='):
+        """
+        Find entities by the value of the given field.
+
+        :param field_name: The field to query.
+        :param value: The value to look for.
+        :param op: The operator to use.
+
+        :return: The query results (as deferred value).
+        :rtype: twisted.internet.defer.Deferred
+        """
+        query = self._select().where(self.col(field_name).op(op)(value))
+        results = yield self._query(query)
+        entities = yield self._factory(results)
+        returnValue(entities)
+
+    @inlineCallbacks
+    def field_is_unique(self, entity, field_name):
+        """
+        Check if the value the provided entity has for a specific field is
+        unique among the set of entities managed by this repository.
+
+        :param entity: An entity whose value to use.
+        :param field_name: The name of the field whose value to use.
+
+        :return: Whether the value is unique (as deferred return value).
+        :rtype: twisted.internet.defer.Deferred
+        """
+        value = getattr(entity, field_name)
+        found = yield self.find_by_field_value(field_name, value)
+        returnValue(len(found) > 0)
 
 
 class UnsupportedSpecificationInSQL(mudsling.errors.Error):
