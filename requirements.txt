@@ -1,5 +1,7 @@
 schematics
 sqlalchemy
+Cython
+unqlite
 pyparsing>=1.5
 twisted>=12
 markdown>=2.2
