@@ -12,7 +12,7 @@ pytz
 flufl.enum>=4
 python-dateutil>=2.1
 parsedatetime
-yoyo-migrations>=4.2.2
+yoyo-migrations>=4.2.2,<5.0
 pint==0.5.2
 mailer
 simple-pbkdf2
