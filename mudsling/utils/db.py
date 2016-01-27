@@ -14,6 +14,8 @@ import sqlalchemy.dialects as dialects
 from sqlalchemy import table, column
 from sqlalchemy.sql import not_, and_, or_
 import sqlalchemy
+from sqlalchemy_utils import UUIDType
+from sqlalchemy_utils import force_auto_coercion
 
 import schematics.types as schematics_types
 
@@ -23,6 +25,8 @@ from twisted.internet.defer import Deferred, inlineCallbacks, returnValue
 import mudsling.errors
 from mudsling.utils.object import dict_inherit
 from mudsling.utils import specifications as specs
+
+force_auto_coercion()
 
 
 def migrate(db_uri, migrations_path):
@@ -435,7 +439,7 @@ class SchematicsSQLRepository(EntityRepository):
         schematics_types.EmailType: sqlalchemy.String,
         schematics_types.URLType: sqlalchemy.String,
         schematics_types.IPv4Type: sqlalchemy.String,
-        schematics_types.UUIDType: sqlalchemy.String
+        schematics_types.UUIDType: UUIDType(binary=False)
     }
 
     @classmethod
@@ -528,6 +532,7 @@ class SchematicsSQLRepository(EntityRepository):
         entities = yield super(SchematicsSQLRepository, self)._factory(entities)
         returnValue(entities)
 
+    @inlineCallbacks
     def _save(self, entity):
         """
         Saves the entity.
@@ -539,15 +544,18 @@ class SchematicsSQLRepository(EntityRepository):
         :rtype: twisted.internet.defer.Deferred
         """
         id = getattr(entity, self.id_field, None)
-        if self.db_generates_ids:
-            if id is None:
-                d = self._insert_entity(entity)
-            else:
-                d = self._update_entity(entity)
-        else:  # ID may or may not be new, so we try INSERT first, then UPDATE.
-            d = self._insert_entity(entity)
-            d.addErrback(lambda err: self._update_entity(entity))
-        return d
+        if id is not None and not self.db_generates_ids:
+            # Non-db ID is present -- we don't know if it's insert or update.
+            # So we need to check for existing record.
+            found = yield self._get(id)
+            insert = (len(found) == 0)
+        else:
+            insert = id is None
+        if insert:
+            r = yield self._insert_entity(entity)
+        else:
+            r = yield self._update_entity(entity)
+        returnValue(r)
 
     def _insert_entity(self, entity):
         fields = {k: v for k, v in entity.to_primitive().iteritems()

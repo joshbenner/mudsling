@@ -1,5 +1,6 @@
 schematics
 sqlalchemy
+sqlalchemy-utils
 Cython
 unqlite
 pyparsing>=1.5
