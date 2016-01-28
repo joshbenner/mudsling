@@ -14,8 +14,6 @@ import sqlalchemy.dialects as dialects
 from sqlalchemy import table, column
 from sqlalchemy.sql import not_, and_, or_
 import sqlalchemy
-from sqlalchemy_utils import UUIDType
-from sqlalchemy_utils import force_auto_coercion
 
 import schematics.types as schematics_types
 
@@ -25,8 +23,6 @@ from twisted.internet.defer import Deferred, inlineCallbacks, returnValue
 import mudsling.errors
 from mudsling.utils.object import dict_inherit
 from mudsling.utils import specifications as specs
-
-force_auto_coercion()
 
 
 def migrate(db_uri, migrations_path):
@@ -439,7 +435,7 @@ class SchematicsSQLRepository(EntityRepository):
         schematics_types.EmailType: sqlalchemy.String,
         schematics_types.URLType: sqlalchemy.String,
         schematics_types.IPv4Type: sqlalchemy.String,
-        schematics_types.UUIDType: UUIDType(binary=False)
+        schematics_types.UUIDType: sqlalchemy.String
     }
 
     @classmethod
