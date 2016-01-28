@@ -18,7 +18,7 @@ import sqlalchemy
 import schematics.types as schematics_types
 
 from twisted.enterprise import adbapi
-from twisted.internet.defer import Deferred, inlineCallbacks, returnValue
+from twisted.internet.defer import inlineCallbacks, returnValue
 
 import mudsling.errors
 from mudsling.utils.object import dict_inherit
@@ -515,6 +515,7 @@ class SchematicsSQLRepository(EntityRepository):
         return self.db.query(query, *a, **kw)
 
     def _get(self, id):
+        id = getattr(self.model, self.id_field).to_primitive(id)
         return self._query(self._select().where(self.id_column == id))
 
     @property
@@ -658,6 +659,7 @@ class SchematicsSQLRepository(EntityRepository):
         :return: The query results (as deferred value).
         :rtype: twisted.internet.defer.Deferred
         """
+        value = getattr(self.model, field_name).to_primitive(value)
         query = self._select().where(self.col(field_name).op(op)(value))
         results = yield self._query(query)
         entities = yield self._factory(results)
