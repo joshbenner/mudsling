@@ -67,7 +67,7 @@ def hook_implementations(cls, reset=False):
     else:
         impls = {}
         for attr_name in cls.__dict__.iterkeys():
-            attr = getattr(cls, attr_name)
+            attr = getattr(cls, attr_name, None)
             if is_hook_implementation(attr, cls):
                 for hook_name in attr.hooks:
                     if hook_name not in impls:
