@@ -847,9 +847,6 @@ class BaseObject(PossessableObject):
         """
         return [self.ref()]
 
-    def on_server_startup(self):
-        super(BaseObject, self).on_server_startup()
-
 
 class Object(BaseObject):
     """

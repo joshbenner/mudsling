@@ -395,16 +395,6 @@ class StoredObject(Persistent, HasSubscribableEvents):
         invoke_hook(self, 'before_deleted')
         self.db.unregister_object(self)
 
-    def on_server_startup(self):
-        """
-        Called after the server has started.
-        """
-
-    def server_shutdown(self):
-        """
-        Called just before the server shuts down.
-        """
-
     def _create_subscription(self, event_type, func):
         return StoredCallback(func)
 
@@ -546,14 +536,14 @@ class Database(Persistent):
         for task in self.tasks.itervalues():
             task.server_startup()
         for obj in self.objects.itervalues():
-            obj.on_server_startup()
+            invoke_hook(obj, 'server_startup')
 
     def on_server_shutdown(self):
         """
         Run just prior to server shutdown.
         """
         for obj in self.objects.itervalues():
-            obj.server_shutdown()
+            invoke_hook(obj, 'server_shutdown')
         for task in self.tasks.itervalues():
             task.server_shutdown()
 
