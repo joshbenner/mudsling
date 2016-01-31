@@ -17,6 +17,7 @@ import mudsling.utils.string
 import mudsling.utils.file as file_utils
 import mudsling.utils.db as db_utils
 import mudsling.utils.time as time_utils
+from mudsling.utils.hooks import hook
 
 import mudslingcore
 from mudslingcore.ui import ClassicUI
@@ -556,7 +557,8 @@ class Channel(NamedObject):
         return [p for p in self._participants
                 if self.db.is_valid(p, cls=ChannelUser) and p.connected]
 
-    def on_object_deleted(self):
+    @hook('before_deleted')
+    def __before_deleted(self):
         self.broadcast("{rChannel being deleted...")
         self.locks = locks.LockSet('join:none()')
         self.private = True

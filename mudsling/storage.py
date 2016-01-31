@@ -385,7 +385,6 @@ class StoredObject(Persistent, HasSubscribableEvents):
             raise Exception("Database not available to %s" % cls.__name__)
         obj = cls(**kwargs)
         cls.db.register_object(obj)
-        obj.on_object_created()  # Deprecated
         invoke_hook(obj, 'after_created')
         return obj.ref()
 
@@ -393,28 +392,8 @@ class StoredObject(Persistent, HasSubscribableEvents):
         """
         Canonical method for deleting an object.
         """
-        self.on_object_deleted()  # Deprecated
         invoke_hook(self, 'before_deleted')
         self.db.unregister_object(self)
-
-    def on_object_created(self):
-        """
-        Called when the object is first created. Only called once in the life
-        of the object.
-
-        .. deprecated::
-           Use 'after_created' hook instead.
-        """
-
-    def on_object_deleted(self):
-        """
-        Called during object deletion, but before the object itself has been
-        removed from the database. Allows the object to perform any final
-        cleanup.
-
-        .. deprecated::
-           Use 'before_deleted' hook instead.
-        """
 
     def on_server_startup(self):
         """

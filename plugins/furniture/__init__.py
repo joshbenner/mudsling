@@ -5,6 +5,7 @@ import mudsling.errors
 import mudsling.messages
 import mudsling.parsers
 import mudsling.objects
+from mudsling.utils.hooks import hook
 
 import mudslingcore.objects
 import mudslingcore.senses as senses
@@ -265,7 +266,8 @@ class Furniture(mudslingcore.objects.Thing):
         }
     })
 
-    def on_object_created(self):
+    @hook('after_created')
+    def __after_created(self):
         #: :type: list of FurnitureOccupant
         self.occupants = []
         #: :type: list of PlaceableObject

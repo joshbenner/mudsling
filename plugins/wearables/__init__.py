@@ -5,6 +5,7 @@ from mudsling import errors
 
 from mudsling import utils
 import mudsling.utils.string
+from mudsling.utils.hooks import hook
 
 import mudslingcore.objects
 
@@ -57,8 +58,8 @@ class Wearer(mudslingcore.objects.DescribableObject):
     wearing = []
     private_commands = [WearingCmd]
 
-    def on_object_created(self):
-        super(Wearer, self).on_object_created()
+    @hook('after_created')
+    def __after_created(self):
         self._init_wearing()
 
     def _init_wearing(self):

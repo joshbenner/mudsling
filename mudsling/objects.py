@@ -20,6 +20,7 @@ import mudsling.utils.sequence
 import mudsling.utils.object
 import mudsling.utils.string
 import mudsling.utils.internet
+from mudsling.utils.hooks import hook
 
 
 dbref_re = re.compile(r"#(\d+)")
@@ -486,10 +487,10 @@ class PossessableObject(MessagedObject):
                 parts[i] = filter.render(parts[i])
         return ''.join(map(str, parts))
 
-    def on_object_deleted(self):
+    @hook('before_deleted')
+    def __before_deleted(self):
         if self.is_possessed:
             self.possessed_by.dispossess_object(self.ref())
-        super(PossessableObject, self).on_object_deleted()
 
     def name_for(self, obj):
         """
@@ -911,11 +912,11 @@ class Object(BaseObject):
         for o in self._contents:
             yield o
 
-    def on_object_deleted(self):
+    @hook('before_deleted')
+    def __before_deleted(self):
         """
         Move self out of location and move contents out of self.
         """
-        super(Object, self).on_object_deleted()
         self.move_to(None)
         this = self.ref()
         for o in list(self.contents):
@@ -1373,9 +1374,9 @@ class BasePlayer(BaseObject):
 
         return player
 
-    def on_object_deleted(self):
+    @hook('before_deleted')
+    def __before_deleted(self):
         registry.players.unregister_player(self)
-        super(BasePlayer, self).on_object_deleted()
 
     def _set_names(self, name=None, aliases=None, names=None):
         """
