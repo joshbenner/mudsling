@@ -39,7 +39,7 @@ def invoke_hook(obj, hook_name, *a, **kw):
     """
     results = {}
     for cls in ascend_mro(obj):
-        implementations = hook_implementations(cls).get(hook_name)
+        implementations = hook_implementations(cls).get(hook_name, [])
         if implementations:
             results[cls] = []
         for impl in implementations:
@@ -69,13 +69,10 @@ def hook_implementations(cls, reset=False):
         for attr_name in cls.__dict__.iterkeys():
             attr = getattr(cls, attr_name)
             if is_hook_implementation(attr, cls):
-                if cls not in impls:
-                    impls[cls] = {}
-                cls_impls = impls[cls]
                 for hook_name in attr.hooks:
-                    if hook_name not in cls_impls:
-                        cls_impls[hook_name] = []
-                    cls_impls[hook_name].append(attr)
+                    if hook_name not in impls:
+                        impls[hook_name] = []
+                    impls[hook_name].append(attr)
         hook_impl_cache[cls] = impls
     return impls
 
