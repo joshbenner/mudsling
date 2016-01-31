@@ -2,6 +2,7 @@
 Object commands.
 """
 import inspect
+import abc
 
 from mudsling.commands import Command
 from mudsling.objects import LockableObject, NamedObject, BaseObject
@@ -315,13 +316,13 @@ match_configurable_obj = parsers.MatchObject(
 )
 
 
-class SettingsCommand(mudsling.commands.Command):
+class SettingsCommand(Command):
     """
     Special command type which checks access after instantiation based on a
     specially-named parameter. Actor must be able to configure the 'obj'
     parameter.
     """
-    abstract = True
+    __metaclass__ = abc.ABCMeta
     lock = locks.all_pass
 
     def before_run(self):

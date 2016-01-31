@@ -1,3 +1,4 @@
+import abc
 from collections import OrderedDict
 
 from mudsling.commands import Command
@@ -26,9 +27,10 @@ literal_parsers['%'] = parse_myobj_literal
 
 
 class MyObjCommand(Command):
+    __metaclass__ = abc.ABCMeta
+
     #: :type: MyObjCharacter
     actor = None
-    abstract = True
 
     def before_run(self):
         self.actor.init_myobjs()

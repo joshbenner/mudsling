@@ -1,4 +1,5 @@
 import sys
+import abc
 
 import mudsling.commands
 import mudsling.objects
@@ -105,7 +106,7 @@ class OrgCommand(mudsling.commands.Command):
     """
     Abstract command class for commands regarding organizations.
     """
-    abstract = True
+    __metaclass__ = abc.ABCMeta
     org_manager = False
     lock = mudsling.locks.all_pass
     ui = mudslingcore.ui.ClassicUI()

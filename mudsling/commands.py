@@ -1,3 +1,4 @@
+from abc import ABCMeta, abstractmethod
 import logging
 import inspect
 
@@ -55,7 +56,7 @@ class CommandSet(object):
         :param cmd: The command CLASS to add.
         :type cmd: Command
         """
-        if cmd.__dict__.get('abstract', False):
+        if cmd.is_abstract:
             return
         try:
             self.commands[cmd.key] = cmd
@@ -127,6 +128,8 @@ class Command(object):
     :ivar actor: The object responsible for the input leading to execution.
     :ivar game: Handy reference to the game object.
     """
+    __metaclass__ = ABCMeta
+
     aliases = ()
     syntax = ""
     #: :type: list
@@ -137,8 +140,6 @@ class Command(object):
     switch_defaults = {}
 
     lock = locks.none_pass  # Commands are restricted by default.
-
-    abstract = False  # Flag as abstract to avoid populating command lists.
 
     #: :type: mudsling.objects.BaseObject
     obj = None
@@ -163,6 +164,7 @@ class Command(object):
     #: :type: mudsling.core.MUDSling
     game = None
 
+    # noinspection PyNestedDecorators
     @utils.object.ClassProperty
     @classmethod
     def key(cls):
@@ -181,10 +183,19 @@ class Command(object):
             return cls.aliases[0]
         return 'ERROR NO CMD ALIAS'
 
+    # noinspection PyNestedDecorators
+    @utils.object.ClassProperty
+    @classmethod
+    def is_abstract(cls):
+        return inspect.isabstract(cls)
+
     @classmethod
     def check_access(cls, obj, actor):
         """
         Determine if an object is allowed to use this command.
+
+        :param obj: The object providing the command.
+        :type obj: mudsling.objects.BaseObject
 
         :param actor: The object that wants to use this command.
         :type actor: mudsling.objects.BaseObject
@@ -278,6 +289,10 @@ class Command(object):
     def match_syntax(self, argstr):
         """
         Determine if the input matches the command syntax.
+
+        :param argstr: The unparsed command string, excluding the command name.
+        :type argstr: str
+
         :rtype: bool
         """
         if '_syntax' not in self.__class__.__dict__:
@@ -347,6 +362,12 @@ class Command(object):
         """
         Prepare the arguments to be passed to run, matching parsed args to
         argument names if possible.
+
+        :param extra: Dictionary of additional arguments that can be injected.
+        :type extra: dict[str,any]
+
+        :param method: The method on the command for which to prepare args.
+        :type method: str
 
         :return: The arguments to pass to run.
         :rtype: dict
@@ -423,6 +444,15 @@ class Command(object):
 
         Validated argument values will be replaced by their validated values in
         the args dictionary.
+
+        :param args: Pairs of arg name and unparsed value.
+        :type args: dict
+
+        :param arg_parsers: Parsers for the arguments.
+        :type arg_parsers: dict[str,any]
+
+        :return: Parsed arguments.
+        :rtype: dict[str,any]
         """
         parsed = dict(args)
         for argName, valid in arg_parsers.iteritems():
@@ -440,15 +470,21 @@ class Command(object):
         Parse a single argument.
 
         :param input: The input to parse.
+        :type input: str
+
         :param parser: A parser class, object, or other valid specification.
+        :type parser: any
+
+        :return: The result of parsing the argument.
+        :rtype: any
         """
         val = input
         if isinstance(parser, str) and parser.lower() == 'this':
             val = self.obj
         elif isinstance(parser, parsers.Parser):
             val = parser.parse(input, actor=self.actor)
-        elif (inspect.isclass(parser)
-              and issubclass(parser, parsers.StaticParser)):
+        elif (inspect.isclass(parser) and
+              issubclass(parser, parsers.StaticParser)):
             val = parser.parse(input)
         elif inspect.isclass(parser) and issubclass(parser, StoredObject):
             matches = self.actor.match_object(input)
@@ -489,15 +525,12 @@ class Command(object):
         """
         return True
 
+    @abstractmethod
     def run(self, **kw):
         """
         This is where the magic happens.
         """
-        if self.aliases:
-            msg = "The '%s' command" % self.aliases[0]
-        else:
-            msg = "That command"
-        raise NotImplementedError(msg)
+        pass
 
     def syntax_help(self):
         """
@@ -595,6 +628,7 @@ class SwitchCommandHost(Command):
             raise mudsling.errors.CommandInvalid()
 
 
+# noinspection PyMethodMayBeStatic,PyMethodParameters
 class IHasCommands(zope.interface.Interface):
     """
     Provides public and/or proviate commands and functions to find them.
@@ -613,14 +647,17 @@ class IHasCommands(zope.interface.Interface):
 def make_command_list(obj):
     """
     Return a list of command classes provided by an object (ie: a module).
+
+    :param obj: The object containing commands.
+    :type obj: any
+
     :rtype: list
     """
     commands = []
     for name in obj.__dict__:
         c = getattr(obj, name)
-        if (inspect.isclass(c) and issubclass(c, Command) and c != Command
-                and not c.__dict__.get('abstract', False)):
-            if not c in commands:
+        if inspect.isclass(c) and issubclass(c, Command) and not c.is_abstract:
+            if c not in commands:
                 commands.append(c)
     return commands
 
@@ -633,11 +670,10 @@ def all_commands(*objects):
     """
     commands = []
     for o in objects:
-        if (inspect.isclass(o) and issubclass(o, Command)
-                and not o.__dict__.get('abstract', False)):
+        if inspect.isclass(o) and issubclass(o, Command) and not o.is_abstract:
             commands.append(o)
             continue
         for cmd in make_command_list(o):
-            if not cmd in commands:
+            if cmd not in commands:
                 commands.append(cmd)
     return commands

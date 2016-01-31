@@ -1,4 +1,5 @@
 import re
+import abc
 
 from mudsling.storage import PersistentSlots
 from mudsling.objects import BaseObject
@@ -204,8 +205,8 @@ class EditorSessionCommand(Command):
     Specialized command for editors which optionally does not match on only the
     command name, but the entire syntax.
     """
+    __metaclass__ = abc.ABCMeta
     match_prefix = ''
-    abstract = True
     lock = locks.all_pass
 
     @property

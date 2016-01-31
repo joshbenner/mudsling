@@ -1,4 +1,5 @@
 import logging
+import abc
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 
@@ -38,7 +39,7 @@ class MailSubCommand(Command):
     """
     Generic mail subcommand.
     """
-    abstract = True
+    __metaclass__ = abc.ABCMeta
     lock = use_mail
 
     #: :type: MailRecipient
