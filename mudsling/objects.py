@@ -20,7 +20,7 @@ import mudsling.utils.sequence
 import mudsling.utils.object
 import mudsling.utils.string
 import mudsling.utils.internet
-from mudsling.utils.hooks import hook
+from mudsling.utils.hooks import hook, invoke_hook
 
 
 dbref_re = re.compile(r"#(\d+)")
@@ -982,111 +982,6 @@ class Object(BaseObject):
         """
         return None
 
-    def before_content_removed(self, what, destination, by=None, via=None):
-        """
-        Called before an object is removed from the contents of this object.
-        Objects that wish to prevent the move can raise a MoveError here.
-
-        :param what: The object that will be moved.
-        :param destination: Where the object will be moved.
-
-        :param by: The object responsible for the movement. Often a character.
-        :type by: BaseObject
-
-        :param via: The object or other method by which movement will occur.
-        :type via: BaseObject or basestring
-        """
-        pass
-
-    def before_content_added(self, what, previous_location, by=None, via=None):
-        """
-        Called before and object is added to the contents of this object.
-        Objects that wish to prevent th emove can raise a MoveError here.
-
-        :param what: The object that will be moved.
-        :param previous_location: Where the object was previously.
-
-        :param by: The object responsible for the movement. Often a character.
-        :type by: BaseObject
-
-        :param via: The object or other method by which movement will occur.
-        :type via: BaseObject or basestring
-        """
-        pass
-
-    def after_content_removed(self, what, destination, by=None, via=None):
-        """
-        Called if an object was removed from this object.
-
-        :param what: The object that moved
-        :type what: Object
-
-        :param destination: Where the object went.
-        :type destination: Object
-
-        :param by: The object responsible for the movement. Often a character.
-        :type by: BaseObject
-
-        :param via: The object or other method by which movement occurred.
-        :type via: BaseObject or basestring
-        """
-        pass
-
-    def after_content_added(self, what, previous_location, by=None, via=None):
-        """
-        Called when an object is added to this object's contents.
-
-        :param what: The object that was moved.
-        :type what: Object
-
-        :param previous_location: Where the moved object used to be.
-        :type previous_location: Object
-
-        :param by: The object responsible for the movement. Often a character.
-        :type by: BaseObject
-
-        :param via: The object or other method by which movement occurred.
-        :type via: BaseObject or basestring
-        """
-        pass
-
-    def before_object_moved(self, moving_from, moving_to, by=None, via=None):
-        """
-        Called before this object is moved from one location to another.
-        Objects can prevent movement by raising a MoveError here.
-
-        :param moving_from: The previous (likely current) location.
-        :type moving_from: Object
-
-        :param moving_to: The destination (likely next) location.
-        :type moving_to: Object
-
-        :param by: The object responsible for the movement. Often a character.
-        :type by: BaseObject
-
-        :param via: The object or other method by which movement would occur.
-        :type via: BaseObject or basestring
-        """
-        pass
-
-    def after_object_moved(self, moved_from, moved_to, by=None, via=None):
-        """
-        Called when this object was moved.
-
-        :param moved_from: Where this used to be.
-        :type moved_from: Object
-
-        :param moved_to: Where this is now.
-        :type moved_to: Object
-
-        :param by: The object responsible for the movement. Often a character.
-        :type by: BaseObject
-
-        :param via: The object or other method by which movement occurred.
-        :type via: BaseObject or basestring
-        """
-        pass
-
     def move_to(self, dest, by=None, via=None):
         """
         Move the object to a new location. Updates contents on source and
@@ -1129,11 +1024,11 @@ class Object(BaseObject):
 
         # Notify objects about the move about to happen, allowing them to raise
         # exceptions if they need to halt the move.
-        self.before_object_moved(source, dest, by, via)
+        invoke_hook(self, 'before_moved', source, dest, by, via)
         if source_valid:
-            source.before_content_removed(this, dest, by, via)
+            invoke_hook(source, 'before_content_removed', this, dest, by, via)
         if dest_valid:
-            dest.before_content_added(this, source, by, via)
+            invoke_hook(dest, 'before_content_added', this, source, by, via)
 
         if source_valid:
             if this in self.location._contents:
@@ -1147,11 +1042,11 @@ class Object(BaseObject):
 
         # Now fire event hooks on the two locations and the moved object.
         if source_valid:
-            source.after_content_removed(this, dest, by, via)
+            invoke_hook(source, 'after_content_removed', this, dest, by, via)
         if dest_valid:
-            dest.after_content_added(this, source, by, via)
+            invoke_hook(dest, 'after_content_added', this, source, by, via)
 
-        self.after_object_moved(source, dest, by, via)
+        invoke_hook(self, 'after_moved', source, dest, by, via)
 
     def _location_walker(self):
         location = self.location

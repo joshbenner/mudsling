@@ -152,9 +152,8 @@ class FurnitureOccupant(mudslingcore.objects.Character):
         furniture.emit_message('occupant shoved', actor=by,
                                occupant=self.ref(), posture=posture)
 
-    def before_object_moved(self, moving_from, moving_to, by=None, via=None):
-        super(FurnitureOccupant, self) \
-            .before_object_moved(moving_from, moving_to, by=by, via=via)
+    @hook('before_moved')
+    def __before_moved(self, moving_from, moving_to, by=None, via=None):
         try:
             self.leave_furniture()
         except NotOccupyingFurniture:
@@ -273,9 +272,8 @@ class Furniture(mudslingcore.objects.Thing):
         #: :type: list of PlaceableObject
         self.surface_objects = []
 
-    def before_object_moved(self, moving_from, moving_to, by=None, via=None):
-        super(Furniture, self).before_object_moved(moving_from, moving_to,
-                                                   by=by, via=via)
+    @hook('before_moved')
+    def __before_moved(self, moving_from, moving_to, by=None, via=None):
         for occupant in self.occupants:
             occupant.leave_furniture()
         for obj in self.surface_objects:
@@ -513,9 +511,8 @@ class PlaceableObject(mudslingcore.objects.CoreObject):
             if self.game.db.is_valid(by, mudsling.objects.Object):
                 self.emit_message('displace', actor=by, furniture=furniture)
 
-    def before_object_moved(self, moved_from, moved_to, by=None, via=None):
-        super(PlaceableObject, self).before_object_moved(moved_from, moved_to,
-                                                         by=by, via=via)
+    @hook('before_moved')
+    def __before_moved(self, moved_from, moved_to, by=None, via=None):
         if self.placed_on is not None:
             self.displace(by=by)
 

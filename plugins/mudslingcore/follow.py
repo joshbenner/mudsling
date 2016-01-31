@@ -2,6 +2,7 @@ from mudsling.objects import Object
 from mudsling.messages import Messages, RenderList
 import mudsling.utils.time as time_utils
 import mudsling.utils.string as str_utils
+from mudsling.utils.hooks import hook
 from mudsling.errors import InvalidObject
 from mudsling.commands import Command
 from mudsling.parsers import ListMatcher, MatchObject
@@ -22,9 +23,8 @@ class FollowableObject(Object):
     allow_follow = {}
     followers = []
 
-    def after_object_moved(self, moved_from, moved_to, by=None, via=None):
-        super(FollowableObject, self).after_object_moved(moved_from, moved_to,
-                                                         by=by, via=via)
+    @hook('after_moved')
+    def __after_moved(self, moved_from, moved_to, by=None, via=None):
         from mudslingcore.rooms import Exit
         if self.db.is_valid(via, Exit):
             self._beckon_followers(via)
