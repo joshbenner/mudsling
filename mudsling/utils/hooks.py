@@ -37,6 +37,8 @@ def invoke_hook(obj, hook_name, *a, **kw):
     :return: Ordered dictionary of hook responses keyed by class.
     :rtype: dict
     """
+    from mudsling.storage import ObjRef
+    obj = obj._real_object() if isinstance(obj, ObjRef) else obj
     results = {}
     for cls in ascend_mro(obj):
         implementations = hook_implementations(cls).get(hook_name, [])
