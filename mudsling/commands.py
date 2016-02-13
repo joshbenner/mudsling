@@ -187,10 +187,11 @@ class Command(object):
     @utils.object.ClassProperty
     @classmethod
     def is_abstract(cls):
-        # Don't use inspect.isabstract(), because we want command classes
+        # Don't only use inspect.isabstract(), because we want command classes
         # that use ABCMeta (or its children) without also adding new abstract
         # methods to be considered abstract for our purposes.
-        return issubclass(cls.__dict__.get('__metaclass__', type), ABCMeta)
+        return inspect.isabstract(cls) or \
+               issubclass(cls.__dict__.get('__metaclass__', type), ABCMeta)
 
     @classmethod
     def check_access(cls, obj, actor):
