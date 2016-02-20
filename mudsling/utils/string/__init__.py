@@ -8,11 +8,11 @@ import string
 import shlex
 import inflect
 
-inflection = inflect.engine()
-
 from .ansi import *
 from .table import *
 from . import mxp
+
+inflection = inflect.engine()
 
 more_random = random.SystemRandom()
 
@@ -21,35 +21,52 @@ def random_string(length, candidates=None):
     candidates = candidates or string.ascii_letters + string.digits
     return ''.join(more_random.choice(candidates) for _ in xrange(length))
 
-ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+BASE_ALPHABET = string.digits + string.ascii_lowercase + string.ascii_uppercase
 
 
-def base_encode(num, alphabet=ALPHABET):
-    """Encode a number in Base X
-
-    `num`: The number to encode
-    `alphabet`: The alphabet to use for encoding
+def base_encode(num, base=None, alphabet=BASE_ALPHABET):
     """
-    if (num == 0):
+    Encode a number in Base X.
+
+    :param num: The number to encode in base 10.
+    :type num: int
+
+    :param base: The base to convert to.
+    :type base: int
+
+    :param alphabet: The alphabet to use for encoding.
+    :type alphabet: str
+
+    :rtype: str
+    """
+    if num == 0:
         return alphabet[0]
     arr = []
-    base = len(alphabet)
+    base = len(alphabet) if base is None else base
     while num:
         rem = num % base
-        num = num // base
+        num //= base
         arr.append(alphabet[rem])
     arr.reverse()
     return ''.join(arr)
 
 
-def base_decode(string, alphabet=ALPHABET):
-    """Decode a Base X encoded string into the number
-
-    Arguments:
-    - `string`: The encoded string
-    - `alphabet`: The alphabet to use for encoding
+def base_decode(string, base=None, alphabet=BASE_ALPHABET):
     """
-    base = len(alphabet)
+    Decode a Base X encoded string into the number.
+
+    :param string: The encoded string.
+    :type string: str
+
+    :param base: The base the encoded string is in.
+    :type base: int
+
+    :param alphabet: The alphabet to use for decoding.
+    :type alphabet: str
+
+    :rtype: int
+    """
+    base = len(alphabet) if base is None else base
     strlen = len(string)
     num = 0
 
