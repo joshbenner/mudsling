@@ -52,6 +52,18 @@ class Plugin(object):
         if config.has_section(info.filesystem_name):
             self.options = config[info.filesystem_name]
 
+    def plugin_path(self, relative_path):
+        """
+        Get a full path to a file or directory within the plugin's directory.
+
+        :param relative_path: The path segments relative to the plugin.
+        :type relative_path: tuple
+
+        :return: The full path.
+        :rtype: str
+        """
+        return os.path.join(self.info.path, *relative_path)
+
 
 class TwistedServicePlugin(Plugin):
     """
