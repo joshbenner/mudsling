@@ -29,7 +29,9 @@ class Table(object):
         'header_args': (),
         'header_hr': True,
         'rowrule': False,
-        'len': ansi.length
+        'len': ansi.length,
+        'cell_formatter': str,
+        'row_formatter': str
     }
 
     #: @type: list
@@ -186,13 +188,14 @@ class Table(object):
         vrule = bansi + (s['vrule'] or ' ') + ansi.ANSI_NORMAL
         rowrule = s['rowrule']
         hr = self._hr(s)
+        row_formatter = s['row_formatter']
 
         lines = []
         linecount = 0
         for r in rows:
             linecount += 1
             if isinstance(r, basestring):
-                lines.append(r)
+                lines.append(row_formatter(r))
                 continue
             line = []
             row_cells = []
@@ -227,22 +230,24 @@ class Table(object):
                     line.append(vrule if frame else '')
                     if i < (max_lines - 1):
                         line.append('\n')
-            lines.append(''.join(line))
+            lines.append(row_formatter(''.join(line)))
             if rowrule and linecount < len(rows):
                 lines.append(hr)
 
         return lines
 
-    def _build_cells(self, rebuild=False):
+    def _build_cells(self, rebuild=False, settings=None):
+        s = settings or self.settings
+        formatter = s['cell_formatter']
         if self._cells is None or rebuild:
             self._cells = []
             rows = [self._row_values(row) for row in self.rows]
             cols = self.columns
             for i, row in enumerate(rows):
                 if isinstance(row, basestring):
-                    self._cells.append(row)
+                    self._cells.append(formatter(row))
                 else:
-                    self._cells.append([cols[ii].format_cell(cell)
+                    self._cells.append([formatter(cols[ii].format_cell(cell))
                                         for ii, cell in enumerate(row)])
         return self._cells
 
