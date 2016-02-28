@@ -648,6 +648,15 @@ class SchematicsSQLRepository(EntityRepository):
     }
 
     @inlineCallbacks
+    def _one_or_none(self, where_clause):
+        results = yield self._query(self._select().where(where_clause))
+        if len(results):
+            entities = yield self._factory(results)
+            returnValue(entities[0])
+        else:
+            returnValue(None)
+
+    @inlineCallbacks
     def find_by_field_value(self, field_name, value, op='='):
         """
         Find entities by the value of the given field.
