@@ -14,6 +14,35 @@ ordinal_pattern += r"|(?:(?P<num>\d+)(?:st|nd|rd|th))) +(?P<subject>.+)$"
 ordinal_re = re.compile(ordinal_pattern, re.I)
 
 
+def match_stringlist(search, stringlist, exact=False, err=False,
+                     case_sensitive=False):
+    """
+    Match a search query against a simple, single list of strings.
+
+    Does not support ordinals! Because they don't make sense in this case!
+
+    :param search: The search string.
+    :type search: str
+    :param stringlist: list of strings.
+    :type stringlist: list[str]
+    :param exact: Only look for exct matches.
+    :type exact: bool
+    :param err: If true, may raise AmbiguousMatch or FailedMatch.
+    :type err: bool
+    :param case_sensitive: Whether or not the search is case-sensitive.
+    :type case_sensitive: bool
+
+    :return: A list of 0 or more keys from stringlist.
+    :rtype: list
+    """
+    # Convert to format needed by match_stringlists.
+    stringlists = {s: [s] for s in stringlist}
+    return match_stringlists(search, stringlists,
+                             exact=exact,
+                             err=err,
+                             case_sensitive=case_sensitive)
+
+
 def match_stringlists(search, stringlists, exact=False, err=False,
                       case_sensitive=False, ordinal=True):
     """
@@ -34,6 +63,10 @@ def match_stringlists(search, stringlists, exact=False, err=False,
     :type exact: bool
     :param err: If true, may raise AmbiguousMatch or FailedMatch.
     :type err: bool
+    :param case_sensitive: Whether or not the search is case-sensitive.
+    :type case_sensitive: bool
+    :param ordinal: Whether or not to parse ordinal references (1st, 2nd, etc.).
+    :type ordinal: bool
 
     :return: A list of 0 or more keys from stringlists.
     :rtype: list

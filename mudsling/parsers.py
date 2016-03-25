@@ -364,3 +364,37 @@ class ListMatcher(Parser):
     def parse(self, input, actor=None):
         return [self._parse(p.strip(), actor=actor)
                 for p in input.split(self.delimiter)]
+
+
+class MatchStringList(Parser):
+    """
+    Match input against a list of strings.
+    """
+    def __init__(self, stringlist, exact=False, err=True, case_sensitive=False,
+                 search_for=None, show=False):
+        self.stringlist = stringlist
+        self.exact = exact
+        self.err = err
+        self.case_sensitive = case_sensitive
+        self.search_for = search_for
+        self.show = show
+
+    def parse(self, input, actor=None):
+        m = match.match_stringlist(input, self.stringlist,
+                                   exact=self.exact,
+                                   err=False,
+                                   case_sensitive=self.case_sensitive)
+        if len(m) == 1:
+            return m[0]
+        msg = match.match_failed(
+            matches=m,
+            search=input,
+            search_for=self.search_for,
+            show=self.show,
+            names=actor.name_for if actor is not None else str
+        )
+        err = errors.AmbiguousMatch(msg) if m else errors.FailedMatch(msg)
+        if self.err:
+            raise err
+        else:
+            return err
