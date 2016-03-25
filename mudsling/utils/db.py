@@ -657,6 +657,17 @@ class SchematicsSQLRepository(EntityRepository):
             returnValue(None)
 
     @inlineCallbacks
+    def find_by_id(self, value):
+        """
+        Find an entity by the value of its ID field, if it has one.
+        """
+        results = yield self.find_by_field_value(self.id_field, value)
+        if results:
+            returnValue(results[0])
+        else:
+            returnValue(None)
+
+    @inlineCallbacks
     def find_by_field_value(self, field_name, value, op='='):
         """
         Find entities by the value of the given field.
