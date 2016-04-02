@@ -648,13 +648,20 @@ class SchematicsSQLRepository(EntityRepository):
     }
 
     @inlineCallbacks
-    def _one_or_none(self, where_clause):
-        results = yield self._query(self._select().where(where_clause))
-        if len(results):
-            entities = yield self._factory(results)
-            returnValue(entities[0])
-        else:
-            returnValue(None)
+    def _one_or_none(self, *where):
+        results = yield self._find_where(*where)
+        returnValue(results[0] if len(results) else None)
+
+    @inlineCallbacks
+    def _find_where(self, *where):
+        """
+        Convenience query method for use by descendents only that uses an SQLA
+        where clause to find and hydrate records.
+        """
+        where = where if len(where) == 1 else sqlalchemy.and_(*where)
+        res = yield self._query(self._select().where(where))
+        entities = yield self._factory(res)
+        returnValue(entities)
 
     @inlineCallbacks
     def find_by_id(self, value):
