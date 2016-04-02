@@ -658,7 +658,7 @@ class SchematicsSQLRepository(EntityRepository):
         Convenience query method for use by descendents only that uses an SQLA
         where clause to find and hydrate records.
         """
-        where = where if len(where) == 1 else sqlalchemy.and_(*where)
+        where = where[0] if len(where) == 1 else sqlalchemy.and_(*where)
         res = yield self._query(self._select().where(where))
         entities = yield self._factory(res)
         returnValue(entities)
