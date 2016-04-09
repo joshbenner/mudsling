@@ -686,8 +686,14 @@ class SchematicsSQLRepository(EntityRepository):
         :return: The query results (as deferred value).
         :rtype: twisted.internet.defer.Deferred
         """
-        value = getattr(self.model, field_name).to_primitive(value)
-        query = self._select().where(self.col(field_name).op(op)(value))
+        if isinstance(value, (list, tuple)):
+            value = tuple(getattr(self.model, field_name).to_primitive(v)
+                          for v in value)
+            where = self.col(field_name).in_(value)
+        else:
+            value = getattr(self.model, field_name).to_primitive(value)
+            where = self.col(field_name).op(op)(value)
+        query = self._select().where(where)
         results = yield self._query(query)
         entities = yield self._factory(results)
         returnValue(entities)
