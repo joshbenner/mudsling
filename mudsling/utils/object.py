@@ -32,6 +32,20 @@ class AttributeAlias(object):
         delattr(obj, self.original)
 
 
+class AttrReadDict(object):
+    """
+    Grant attribute-style READ access to the keys of a provided dictionary.
+    """
+    def __init__(self, dictionary):
+        self.d = dictionary
+
+    def __getattr__(self, item):
+        try:
+            return self.d[item]
+        except KeyError:
+            raise AttributeError
+
+
 class memoize(object):
     def __init__(self, cache=None, num_args=None):
         """
