@@ -3,6 +3,7 @@ import os
 import logging
 import inspect
 from urlparse import urlparse
+from collections import defaultdict
 
 import yoyo
 import yoyo.connections
@@ -675,13 +676,14 @@ class SchematicsSQLRepository(EntityRepository):
             returnValue(None)
 
     @inlineCallbacks
-    def find_by_field_value(self, field_name, value, op='='):
+    def find_by_field_value(self, field_name, value, op='=', collate=False):
         """
         Find entities by the value of the given field.
 
         :param field_name: The field to query.
         :param value: The value to look for.
         :param op: The operator to use.
+        :param collate: Whether to collate the entities.
 
         :return: The query results (as deferred value).
         :rtype: twisted.internet.defer.Deferred
@@ -696,6 +698,8 @@ class SchematicsSQLRepository(EntityRepository):
         query = self._select().where(where)
         results = yield self._query(query)
         entities = yield self._factory(results)
+        if collate:
+            entities = self.collate(entities)
         returnValue(entities)
 
     @inlineCallbacks
@@ -713,6 +717,21 @@ class SchematicsSQLRepository(EntityRepository):
         value = getattr(entity, field_name)
         found = yield self.find_by_field_value(field_name, value)
         returnValue(len(found) > 0)
+
+    def collate(self, entities, field=None, multiple=False):
+        """
+        Turn a simple iterable of entities into a dictionary of same, keyed by
+        their ID field.
+        """
+        if field is None:
+            field = self.id_field
+        if multiple:
+            collated = defaultdict(list)
+            for entity in entities:
+                collated[getattr(entity, field)].append(entity)
+        else:
+            collated = {getattr(e, field): e for e in entities}
+        return collated
 
 
 class UnsupportedSpecificationInSQL(mudsling.errors.Error):
