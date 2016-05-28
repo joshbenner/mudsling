@@ -1,6 +1,0 @@
-name = My Objects
-description = Provide system for users to maintain custom object shortcuts.
-author = Josh Benner
-dependencies = mudslingcore
-version = 0.1
-module = myobjs_plugin.py

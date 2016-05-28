@@ -1,5 +1,0 @@
-name = Simple Telnet Server
-description = Simple internal Telnet server which provides a way to connect.
-module = SimpleTelnetServer.py
-author = Josh Benner
-version = 0.1

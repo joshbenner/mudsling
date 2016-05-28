@@ -1,6 +1,0 @@
-name = Wearables
-description = Enhances MUDSlingCore with wearable objects like clothing and jewelry.
-dependencies = MUDSlingCore
-author = Josh Benner
-version = 0.1
-module = wearables_plugin.py

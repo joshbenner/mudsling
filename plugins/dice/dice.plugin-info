@@ -1,5 +1,0 @@
-name = Dice
-description = Provides a dice rolling library.
-author = Josh Benner
-version = 0.1
-module = diceplugin.py
