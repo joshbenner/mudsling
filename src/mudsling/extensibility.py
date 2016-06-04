@@ -42,6 +42,8 @@ class Plugin(object):
         self.game = game
         self.entry_point = entry_point
         self.manager = manager
+        if self.resource_exists('defaults.cfg'):
+            config.read_defaults(self.resource_path('defaults.cfg'))
         if config.has_section(entry_point.name):
             self.options = config[entry_point.name]
 
