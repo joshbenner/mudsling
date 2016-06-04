@@ -89,3 +89,6 @@ ENV/
 # Rope project settings
 .ropeproject
 
+# Dev may want to put game folder in root.
+game/
+
