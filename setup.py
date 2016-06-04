@@ -24,7 +24,7 @@ setup(
             'icmoney = icmoney.icmoney_plugin:MoneyPlugin',
             'ictime = ictime.ictime_plugin:ICTimePlugin',
             'myobjs = myobjs.myobjs_plugin:MyObjsPlugin',
-            'organizations = organizations.organizations_plugin.OrganizationsPlugin',
+            'organizations = organizations.organizations_plugin:OrganizationsPlugin',
             'restserver = restserver.restserver_plugin:RESTServerPlugin',
             'wearables = wearables.wearables_plugin:WearablesPlugin',
 
