@@ -52,9 +52,9 @@ Getting Started
 
 .. sourcecode:: console
 
-    $ hg clone https://bitbucket.org/joshbenner/mudsling
-    $ cd mudsling
-    $ pip install -r requirements.txt
-    $ python -m mudsling.runner
+    $ pip install git+https://github.com/joshbenner/mudsling.git#egg=mudsling
+    $ mudsling
 
 Then you may connect to localhost:4000 with your MUD client.
+
+The default user credentials are: admin / pass
