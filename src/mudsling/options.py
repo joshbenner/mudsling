@@ -16,12 +16,11 @@ class Options(usage.Options):
     optParameters = [
         ["gamedir", "g", os.path.abspath(os.path.curdir),
          "The path to the game directory."],
-        ["config", "c", None, "Specify path to extra configuration file."],
     ]
 
     def __init__(self):
         super(Options, self).__init__()
-        self['extra_plugin_paths'] = []
+        self['extra_configs'] = []
 
     def config_paths(self):
         """
@@ -32,27 +31,16 @@ class Options(usage.Options):
         if resource_exists('mudsling', 'defaults.cfg'):
             paths.append(resource_filename('mudsling', 'defaults.cfg'))
         paths.append("%s/settings.cfg" % self['gamedir'])
-        if self['config'] is not None:
-            paths.append(self['config'])
+        paths.extend(self['extra_configs'])
         return [os.path.abspath(p) for p in paths]
 
-    def plugin_paths(self):
-        # todo: Remove in favor of entry_points-based discovery.
-        mudsling_path = os.path.dirname(os.path.dirname(__file__))
-        paths = [os.path.join(mudsling_path, 'plugins'),
-                 os.path.join(self['gamedir'], 'plugins')]
-        paths.extend(self['extra_plugin_paths'])
-        return paths
-
-    def opt_plugins(self, path):
+    def opt_config(self, path):
         """
-        Specify the path to a directory containing additional plugin packages.
-        The 'plugin' directory in the game directory is searched automatically.
-        This option may be used multiple times.
+        Specify path to extra config file. Can be used more than once.
         """
-        self['extra_plugin_paths'].append(os.path.abspath(path))
+        self['extra_configs'].append(os.path.abspath(path))
 
-    opt_p = opt_plugins
+    opt_c = opt_config
 
     def opt_version(self):
         """
