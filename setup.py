@@ -19,7 +19,6 @@ setup(
             'mudslingcore = mudslingcore:MUDSlingCorePlugin',
 
             # Optional plugins.
-            'myobjs = myobjs.myobjs_plugin:MyObjsPlugin',
             'organizations = organizations.organizations_plugin:OrganizationsPlugin',
             'restserver = restserver.restserver_plugin:RESTServerPlugin',
             'wearables = wearables.wearables_plugin:WearablesPlugin',
