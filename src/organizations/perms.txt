@@ -1,2 +1,0 @@
-manage orgs: Can view all characters' org info and is admin in all orgs.
-create orgs: Can create new organizations.

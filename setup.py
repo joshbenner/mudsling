@@ -18,11 +18,6 @@ setup(
             'SimpleTelnetServer = SimpleTelnetServer:SimpleTelnetServer',
             'mudslingcore = mudslingcore:MUDSlingCorePlugin',
 
-            # Optional plugins.
-            'organizations = organizations.organizations_plugin:OrganizationsPlugin',
-            'restserver = restserver.restserver_plugin:RESTServerPlugin',
-            'wearables = wearables.wearables_plugin:WearablesPlugin',
-
             # Dev/debug -- not usually available.
             # 'captest = captest.captest_plugin:CaptestPlugin',
         ]
@@ -55,7 +50,6 @@ setup(
         'pint==0.5.2',
         'mailer',
         'simple-pbkdf2',
-        'corepost',
         'lupa',
         'pygments',
         # jsonpath-rw<=1.4.0 lacks update() patch, which breaks
