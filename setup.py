@@ -19,7 +19,6 @@ setup(
             'mudslingcore = mudslingcore:MUDSlingCorePlugin',
 
             # Optional plugins.
-            'dice = dice.diceplugin:DicePlugin',
             'furniture = furniture.furniture_plugin:FurniturePlugin',
             'icmoney = icmoney.icmoney_plugin:MoneyPlugin',
             'ictime = ictime.ictime_plugin:ICTimePlugin',
