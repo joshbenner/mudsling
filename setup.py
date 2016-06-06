@@ -19,7 +19,6 @@ setup(
             'mudslingcore = mudslingcore:MUDSlingCorePlugin',
 
             # Optional plugins.
-            'furniture = furniture.furniture_plugin:FurniturePlugin',
             'icmoney = icmoney.icmoney_plugin:MoneyPlugin',
             'ictime = ictime.ictime_plugin:ICTimePlugin',
             'myobjs = myobjs.myobjs_plugin:MyObjsPlugin',
