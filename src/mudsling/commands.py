@@ -359,6 +359,7 @@ class Command(object):
             'this': self.obj,
             'actor': self.actor,
             'args': self.parsed_args,
+            'argstr': self.argstr,
             'switches': self.switches,
         }
 
@@ -630,6 +631,55 @@ class SwitchCommandHost(Command):
             subcmd.execute()
         else:
             raise mudsling.errors.CommandInvalid()
+
+
+class CommandGroup(Command):
+    """
+    A command that groups other commands as sub-commands.
+    """
+    _command_set_cache = None
+
+    @property
+    def subcommands(self):
+        """:rtype: tuple[Command]"""
+        return make_command_list(self.__class__)
+
+    @property
+    def _command_set(self):
+        """:rtype: CommandSet"""
+        cls = self.__class__
+        if cls._command_set_cache is None:
+            cls._command_set_cache = CommandSet(self.subcommands)
+        return cls._command_set_cache
+
+    def match_syntax(self, argstr):
+        subcommands = self._command_set
+        subcmd = argstr.partition(' ')[0]
+        matches = subcommands.match(subcmd, self.obj, self.actor)
+        return len(matches) > 0
+
+    def run(self, this, actor, argstr):
+        """
+        :type this: mudsling.objects.BaseObject
+        :type actor: mudsling.objects.BaseObject
+        :type argstr: str
+        """
+        cmd = self._command_set.command_parser(argstr, this, actor, self.game)
+        if cmd is not None:
+            cmd.execute()
+        else:
+            raise mudsling.errors.CommandInvalid()
+
+    def failed_command_match_help(self):
+        syntax_help = super(CommandGroup, self).failed_command_match_help()
+        if not syntax_help:
+            main_name = self.name()
+            msg = ['Valid subcommands:']
+            for cmd in self._command_set.commands.itervalues():
+                syntax = cmd.get_syntax().split('\n')
+                msg.append('  %s %s' % (main_name, syntax[0]))
+            return '\n'.join(msg)
+        return syntax_help
 
 
 # noinspection PyMethodMayBeStatic,PyMethodParameters

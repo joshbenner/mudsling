@@ -759,7 +759,8 @@ class BaseObject(PossessableObject):
         commands = []
         for obj in self.context:
             if obj.isa(BaseObject):
-                matches = obj.commands_for(self).match(cmd_name, obj, self)
+                matches = obj.commands_for(self).match(cmd_name, obj,
+                                                       self.ref())
                 commands.extend(zip([obj] * len(matches), matches))
         return commands
 
