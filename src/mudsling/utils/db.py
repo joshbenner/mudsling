@@ -306,19 +306,22 @@ class EntityRepository(object):
         """
         raise NotImplementedError()
 
-    def get_by_id(self, id, callback=None):
+    @inlineCallbacks
+    def get_by_id(self, id_):
         """
         Wrapper around _get that accepts a callback and returns a deferred.
 
         :rtype: twisted.internet.defer.Deferred
         """
-        d = self._get(id)
-        if callable(self._entity_factory):
-            d.addCallback(self._factory)
-        d.addCallback(lambda results: results[0])
-        if callable(callback):
-            d.addCallback(callback)
-        return d
+        results = yield self._get(id_)
+        if len(results):
+            if callable(self._entity_factory):
+                entity = yield self._factory(results[0])
+                returnValue(entity)
+            else:
+                returnValue(results[0])
+        else:
+            returnValue(None)
 
     def _get(self, id):
         """
@@ -572,9 +575,10 @@ class SchematicsSQLRepository(EntityRepository):
         """
         :type entity: schematics.models.Model
         """
-        id = getattr(entity, self.id_field, None)
-        assert id is not None
-        stmt = self._delete().where(self.id_column == id)
+        id_ = getattr(entity, self.id_field, None)
+        assert id_ is not None
+        id_ = getattr(self.model, self.id_field).to_primitive(id_)
+        stmt = self._delete().where(self.id_column == id_)
         return self.db.operation(stmt)
 
     @inlineCallbacks
