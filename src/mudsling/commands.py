@@ -637,12 +637,16 @@ class CommandGroup(Command):
     """
     A command that groups other commands as sub-commands.
     """
+    _subcommand_cache = None
     _command_set_cache = None
 
     @property
     def subcommands(self):
         """:rtype: tuple[Command]"""
-        return make_command_list(self.__class__)
+        cls = self.__class__
+        if cls.__dict__.get('_subcommand_cache', None) is None:
+            cls._subcommand_cache = make_command_list(cls)
+        return cls._subcommand_cache
 
     @property
     def _command_set(self):
@@ -675,9 +679,9 @@ class CommandGroup(Command):
         if not syntax_help:
             main_name = self.name()
             msg = ['{yValid subcommands:']
-            for cmd in self._command_set.commands.itervalues():
+            for cmd in self.subcommands:
                 syntax = cmd.get_syntax().split('\n')
-                msg.append('{c  %s %s' % (main_name, syntax[0]))
+                msg.append('{C  %s {c%s' % (main_name, syntax[0]))
             return '\n'.join(msg)
         return syntax_help
 
