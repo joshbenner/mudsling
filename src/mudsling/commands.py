@@ -674,10 +674,10 @@ class CommandGroup(Command):
         syntax_help = super(CommandGroup, self).failed_command_match_help()
         if not syntax_help:
             main_name = self.name()
-            msg = ['Valid subcommands:']
+            msg = ['{yValid subcommands:']
             for cmd in self._command_set.commands.itervalues():
                 syntax = cmd.get_syntax().split('\n')
-                msg.append('  %s %s' % (main_name, syntax[0]))
+                msg.append('{c  %s %s' % (main_name, syntax[0]))
             return '\n'.join(msg)
         return syntax_help
 
