@@ -581,6 +581,10 @@ class SchematicsSQLRepository(EntityRepository):
         stmt = self._delete().where(self.id_column == id_)
         return self.db.operation(stmt)
 
+    def delete_where(self, field_name, value, op='='):
+        stmt = self._delete().where(self.where(field_name, value, op))
+        return self.db.operation(stmt)
+
     @inlineCallbacks
     def all(self, limit=None):
         query = self._select()
@@ -679,6 +683,25 @@ class SchematicsSQLRepository(EntityRepository):
         else:
             returnValue(None)
 
+    def where(self, field_name, value, op='='):
+        """
+        Generate an SQLAlchemy where clause for use with queries.
+
+        :param field_name: The field to query.
+        :param value: The value to look for.
+        :param op: The operator to use.
+
+        :return: The where clause object.
+        """
+        if isinstance(value, (list, tuple)):
+            value = tuple(getattr(self.model, field_name).to_primitive(v)
+                          for v in value)
+            where = self.col(field_name).in_(value)
+        else:
+            value = getattr(self.model, field_name).to_primitive(value)
+            where = self.col(field_name).op(op)(value)
+        return where
+
     @inlineCallbacks
     def find_by_field_value(self, field_name, value, op='=', collate=False):
         """
@@ -692,14 +715,7 @@ class SchematicsSQLRepository(EntityRepository):
         :return: The query results (as deferred value).
         :rtype: twisted.internet.defer.Deferred
         """
-        if isinstance(value, (list, tuple)):
-            value = tuple(getattr(self.model, field_name).to_primitive(v)
-                          for v in value)
-            where = self.col(field_name).in_(value)
-        else:
-            value = getattr(self.model, field_name).to_primitive(value)
-            where = self.col(field_name).op(op)(value)
-        query = self._select().where(where)
+        query = self._select().where(self.where(field_name, value, op))
         results = yield self._query(query)
         entities = yield self._factory(results)
         if collate:
