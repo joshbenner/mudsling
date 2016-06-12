@@ -16,6 +16,7 @@ from sqlalchemy import table, column
 from sqlalchemy.sql import not_, and_, or_
 import sqlalchemy
 
+import schematics.models
 import schematics.types as schematics_types
 
 from twisted.enterprise import adbapi
@@ -752,6 +753,12 @@ class SchematicsSQLRepository(EntityRepository):
         else:
             collated = {getattr(e, field): e for e in entities}
         return collated
+
+
+class Model(schematics.models.Model):
+    @classmethod
+    def new(cls, **fields):
+        return cls(raw_data=fields)
 
 
 class UnsupportedSpecificationInSQL(mudsling.errors.Error):
