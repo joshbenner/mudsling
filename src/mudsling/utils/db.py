@@ -3,7 +3,7 @@ import os
 import logging
 import inspect
 from urlparse import urlparse
-from collections import defaultdict
+import collections
 
 import yoyo
 import yoyo.connections
@@ -684,6 +684,12 @@ class SchematicsSQLRepository(EntityRepository):
         else:
             returnValue(None)
 
+    def find_many_by_id(self, values):
+        """
+        Find multiple entities when given multiple IDs.
+        """
+        return self.find_by_field_value(self.id_field, values)
+
     def where(self, field_name, value, op='='):
         """
         Generate an SQLAlchemy where clause for use with queries.
@@ -694,7 +700,7 @@ class SchematicsSQLRepository(EntityRepository):
 
         :return: The where clause object.
         """
-        if isinstance(value, (list, tuple)):
+        if isinstance(value, (list, tuple, set, frozenset)):
             value = tuple(getattr(self.model, field_name).to_primitive(v)
                           for v in value)
             where = self.col(field_name).in_(value)
@@ -747,7 +753,7 @@ class SchematicsSQLRepository(EntityRepository):
         if field is None:
             field = self.id_field
         if multiple:
-            collated = defaultdict(list)
+            collated = collections.defaultdict(list)
             for entity in entities:
                 collated[getattr(entity, field)].append(entity)
         else:
