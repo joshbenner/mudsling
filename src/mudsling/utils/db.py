@@ -591,8 +591,7 @@ class SchematicsSQLRepository(EntityRepository):
         query = self._select()
         if limit is not None:
             query = query.limit(limit)
-        results = yield self._query(query)
-        objects = yield self._factory(map(dict, results))
+        objects = yield self._query_for_entities(query)
         returnValue(objects)
 
     @inlineCallbacks
@@ -615,8 +614,7 @@ class SchematicsSQLRepository(EntityRepository):
         query = self._select().where(constraints)
         if limit is not None:
             query = query.limit(limit)
-        results = yield self._query(query)
-        objects = yield self._factory(map(dict, results))
+        objects = yield self._query_for_entities(query)
         returnValue(objects)
 
     @classmethod
@@ -669,8 +667,7 @@ class SchematicsSQLRepository(EntityRepository):
         where clause to find and hydrate records.
         """
         where = where[0] if len(where) == 1 else sqlalchemy.and_(*where)
-        res = yield self._query(self._select().where(where))
-        entities = yield self._factory(res)
+        entities = yield self._query_for_entities(self._select().where(where))
         returnValue(entities)
 
     @inlineCallbacks
@@ -710,6 +707,12 @@ class SchematicsSQLRepository(EntityRepository):
         return where
 
     @inlineCallbacks
+    def _query_for_entities(self, query):
+        results = yield self._query(query)
+        entities = yield self._factory(results)
+        returnValue(entities)
+
+    @inlineCallbacks
     def find_by_field_value(self, field_name, value, op='=', collate=False):
         """
         Find entities by the value of the given field.
@@ -723,8 +726,7 @@ class SchematicsSQLRepository(EntityRepository):
         :rtype: twisted.internet.defer.Deferred
         """
         query = self._select().where(self.where(field_name, value, op))
-        results = yield self._query(query)
-        entities = yield self._factory(results)
+        entities = yield self._query_for_entities(query)
         if collate:
             entities = self.collate(entities)
         returnValue(entities)
