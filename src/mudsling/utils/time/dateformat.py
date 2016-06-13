@@ -330,13 +330,13 @@ class DateFormat(TimeFormat):
         return offset.days * 86400 + offset.seconds
 
 
-def datetime_format(format_string, value=None, alt=False):
+def datetime_format(format_string, value=None, alt=False, formatter=DateFormat):
     """Convenience function"""
-    df = DateFormat(value or nowlocal())
+    df = formatter(value or nowlocal())
     return df.alt_format(format_string) if alt else df.format(format_string)
 
 
-def time_format(format_string, value=None, alt=False):
+def time_format(format_string, value=None, alt=False, formatter=TimeFormat):
     """Convenience function"""
-    tf = TimeFormat(value or nowlocal())
+    tf = formatter(value or nowlocal())
     return tf.alt_format(format_string) if alt else tf.format(format_string)

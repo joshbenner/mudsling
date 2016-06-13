@@ -132,23 +132,23 @@ def format_dhms(seconds):
     return out if out else '0s'  # 0 or sub-1 seconds.
 
 
-def format_timestamp(timestamp=None, format='default', tz=None):
+def format_timestamp(timestamp=None, format='default', tz=None, formatter=None):
     """
     Format a UNIX timestamp (using the given or default/local timezone) or a
     datetime instance using the provided format string. Format string is the
     PHP date() format characters with leading % sign.
 
-    @see L{mudsling.utils.time.dateformat.DateFormat.alt_format}
+    see mudsling.utils.time.dateformat.DateFormat.alt_format
 
-    @param timestamp: UNIX timestamp or datetime instance to format.
-    @param format: The format string to use.
-    @param tz: The timezone for the given UNIX timestamp or naive datetime.
+    :param timestamp: UNIX timestamp or datetime instance to format.
+    :param format: The format string to use.
+    :param tz: The timezone for the given UNIX timestamp or naive datetime.
 
-    @rtype: C{str}
+    :rtype: str
     """
     format = formats.get(format, format)
     d = get_datetime(timestamp, tz=tz) if timestamp is not None else nowlocal()
-    return datetime_format(format, d, alt=True)
+    return datetime_format(format, d, alt=True, formatter=formatter)
 
 
 def format_interval(seconds, format=None, schema=realTime):
