@@ -132,7 +132,8 @@ def format_dhms(seconds):
     return out if out else '0s'  # 0 or sub-1 seconds.
 
 
-def format_timestamp(timestamp=None, format='default', tz=None, formatter=None):
+def format_timestamp(timestamp=None, format='default', tz=None,
+                     formatter=DateFormat.alt_format):
     """
     Format a UNIX timestamp (using the given or default/local timezone) or a
     datetime instance using the provided format string. Format string is the
@@ -143,12 +144,13 @@ def format_timestamp(timestamp=None, format='default', tz=None, formatter=None):
     :param timestamp: UNIX timestamp or datetime instance to format.
     :param format: The format string to use.
     :param tz: The timezone for the given UNIX timestamp or naive datetime.
+    :param formatter: The formatter function to use.
 
     :rtype: str
     """
     format = formats.get(format, format)
     d = get_datetime(timestamp, tz=tz) if timestamp is not None else nowlocal()
-    return datetime_format(format, d, alt=True, formatter=formatter)
+    return formatter(d, format)
 
 
 def format_interval(seconds, format=None, schema=realTime):
