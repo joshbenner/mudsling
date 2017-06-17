@@ -110,7 +110,7 @@ class EditorSessionHost(BaseObject):
 
     def process_input(self, raw, err=True):
         handled = super(EditorSessionHost, self).process_input(raw, err=False)
-        if not handled and raw[0] in ('.', "'"):
+        if not handled and len(raw) and raw[0] in ('.', "'"):
             try:
                 return self.process_editor_command(raw)
             except errors.CommandError:
