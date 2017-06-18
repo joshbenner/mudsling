@@ -629,6 +629,7 @@ class Database(Persistent):
         :param newclass: The new parent class of the object.
         :param kw: The keyword arguments to pass the the new object init.
         """
+        invoke_hook(obj, "before_class_changed", newclass=newclass, **kw)
         obj = obj._real_object()
         newobj = newclass(**kw)
         newobj.__dict__.update(obj.__dict__)
@@ -647,7 +648,7 @@ class Database(Persistent):
                     continue
         self.unregister_object(obj)
         self.register_object(newobj, force_id=obj.obj_id)
-        newobj.on_object_created()
+        invoke_hook(newobj, "after_class_changed", oldclass=obj.__class__, **kw)
         return newobj.ref()
 
     def register_object(self, obj, force_id=None):
